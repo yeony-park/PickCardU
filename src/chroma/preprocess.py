@@ -4,8 +4,8 @@ from chunking import chunk_documents
 from easy_ocr import load_ocr_txt_as_documents
 
 # __file__ 기준 절대경로 (실행 위치와 무관하게 동작)
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CLEAN_DATA_PATH = os.path.join(BASE_DIR, "data", "clean_data")
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+RAW_DATA_PATH = os.path.join(BASE_DIR, "data", "raw")
 OCR_TXT_PATH = os.path.join(BASE_DIR, "data", "ocr_output")
 
 
@@ -25,7 +25,7 @@ def print_sample_chunks(chunked_docs, n=3):
 
 def main():
     # 1. clean PDF 로드
-    clean_docs = load_pdfs_as_documents(CLEAN_DATA_PATH)
+    clean_docs = load_pdfs_as_documents(RAW_DATA_PATH)
 
     # 2. OCR txt 로드
     ocr_docs = load_ocr_txt_as_documents(OCR_TXT_PATH)

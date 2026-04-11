@@ -13,7 +13,7 @@ from chunking import chunk_documents
 load_dotenv()
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CLEAN_DATA_PATH = os.path.join(BASE_DIR, "data", "clean_data")
+RAW_DATA_PATH = os.path.join(BASE_DIR, "data", "raw")
 OCR_TXT_PATH = os.path.join(BASE_DIR, "data", "ocr_output")
 CHROMA_DB_PATH = os.path.join(BASE_DIR, "chroma_db")
 
@@ -44,7 +44,7 @@ def load_ocr_txt_as_documents(folder_path: str):
 
 def embed_and_store():
     # 1. 데이터 로드
-    clean_docs = load_pdfs_as_documents(CLEAN_DATA_PATH)
+    clean_docs = load_pdfs_as_documents(RAW_DATA_PATH)
     ocr_docs = load_ocr_txt_as_documents(OCR_TXT_PATH)
     all_docs = clean_docs + ocr_docs
     print(f"[INFO] 전체 문서 수: {len(all_docs)}")

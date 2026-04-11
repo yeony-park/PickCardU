@@ -3,9 +3,11 @@ import easyocr
 import numpy as np
 import re
 from pdf2image import convert_from_path
+from PIL import ImageOps, ImageFilter
 from langchain_core.documents import Document
+from quality_utils import evaluate_text_quality, normalize_extracted_text
 
-reader = easyocr.Reader(['ko', 'en'], gpu=False, verbose=False)
+reader = easyocr.Reader(['ko', 'en'],  gpu=True, verbose=False)
 
 def normalize_whitespace(text: str) -> str:
     lines = [line.strip() for line in text.splitlines()]
@@ -58,7 +60,76 @@ def postprocess_ocr_text(text: str) -> str:
     text = normalize_whitespace(text)
     text = fix_common_ocr_words(text)
     text = fix_percent_ocr_safe(text)
-    return text
+    return normalize_extracted_text(text)
+
+
+def preprocess_image_for_ocr(image):
+    gray = ImageOps.grayscale(image)
+    gray = ImageOps.autocontrast(gray)
+    gray = gray.filter(ImageFilter.MedianFilter(size=3))
+    return gray
+
+
+def extract_text_from_image(image) -> str:
+    processed = preprocess_image_for_ocr(image)
+    image_np = np.array(processed)
+    result = reader.readtext(image_np, detail=0)
+    if not result:
+        return ""
+    return postprocess_ocr_text(" ".join(result).strip())
+
+
+def extract_text_from_pdf_page(file_path: str, page_number: int, dpi: int = 300) -> dict:
+    images = convert_from_path(
+        file_path,
+        dpi=dpi,
+        first_page=page_number,
+        last_page=page_number,
+    )
+    if not images:
+        return {
+            "text": "",
+            "score": 0.0,
+            "page_number": page_number,
+        }
+
+    text = extract_text_from_image(images[0])
+    metrics = evaluate_text_quality(text)
+    return {
+        "text": text,
+        "score": metrics["score"],
+        "page_number": page_number,
+        "metrics": metrics,
+    }
+
+
+def extract_text_from_pdf(file_path: str, dpi: int = 300) -> dict:
+    images = convert_from_path(file_path, dpi=dpi)
+    page_results = []
+    full_text = []
+
+    for index, image in enumerate(images, start=1):
+        text = extract_text_from_image(image)
+        metrics = evaluate_text_quality(text)
+        if text:
+            full_text.append(f"[page {index}]\n{text}")
+        page_results.append(
+            {
+                "page_number": index,
+                "text": text,
+                "score": metrics["score"],
+                "metrics": metrics,
+            }
+        )
+
+    combined_text = "\n\n".join(full_text).strip()
+    overall_metrics = evaluate_text_quality(combined_text)
+    return {
+        "text": combined_text,
+        "score": overall_metrics["score"],
+        "metrics": overall_metrics,
+        "pages": page_results,
+    }
 
 
 def ocr_pdf_and_save_txt(file_path: str, output_folder: str):
@@ -71,28 +142,13 @@ def ocr_pdf_and_save_txt(file_path: str, output_folder: str):
     save_name = filename.replace(".pdf", ".txt")
     save_path = os.path.join(output_folder, save_name)
 
-    images = convert_from_path(file_path)
-    full_text = []
+    try:
+        result = extract_text_from_pdf(file_path)
+    except Exception as e:
+        print(f"[ERROR] {file_path}: {e}")
+        return
 
-    for i, image in enumerate(images):
-        try:
-            image_np = np.array(image)
-            result = reader.readtext(image_np, detail=0)
-
-            if not result:
-                print(f"[WARN] 페이지 {i+1} OCR 결과 없음: {file_path}")
-                continue
-
-            text = " ".join(result).strip()
-            text = postprocess_ocr_text(text)
-
-            if text:
-                full_text.append(text)
-
-        except Exception as e:
-            print(f"[ERROR] {file_path} - page {i+1}: {e}")
-
-    final_text = "\n".join(full_text).strip()
+    final_text = result["text"].strip()
 
     if not final_text:
         print(f"[SKIP] 텍스트 없음: {filename}")
@@ -122,7 +178,7 @@ def load_ocr_txt_as_documents(folder_path: str, card_company: str = None):
     docs = []
 
     if not os.path.exists(folder_path):
-        raise FileNotFoundError(f"폴더가 존재하지 않습니다: {folder_path}")
+        return docs
 
     for filename in os.listdir(folder_path):
         if filename.lower().endswith(".txt"):

@@ -34,7 +34,7 @@ CHROMA_COLLECTION_NAME = os.getenv("CHROMA_COLLECTION_NAME", "langchain")
 # 로컬 실행 기준 경로 설정
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CHROMA_DB_PATH = os.path.join(BASE_DIR, "chroma_db")
-CLEAN_DATA_PATH = os.path.join(BASE_DIR, "data", "clean_data")
+RAW_DATA_PATH = os.path.join(BASE_DIR, "data", "raw")
 OCR_TXT_PATH = os.path.join(BASE_DIR, "data", "ocr_output")
 
 
@@ -118,7 +118,7 @@ class CardRetriever:
         
         # 1. 데이터 로드
         logger.info("PDF 파일 로드 중...")
-        clean_docs = load_pdfs_as_documents(CLEAN_DATA_PATH)
+        clean_docs = load_pdfs_as_documents(RAW_DATA_PATH)
         
         logger.info("OCR 텍스트 파일 로드 중...")
         ocr_docs = self._load_ocr_txt_as_documents(OCR_TXT_PATH)
