@@ -7,8 +7,8 @@ from langchain_core.documents import Document
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from data_loader import load_pdfs_as_documents
-from chunking import chunk_documents
+from chroma.data_loader import load_pdfs_as_documents
+from chroma.chunking import chunk_documents
 
 load_dotenv()
 

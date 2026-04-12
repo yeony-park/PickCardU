@@ -2,8 +2,8 @@ from datetime import datetime
 from typing import Optional
 from sqlalchemy.orm import Session
 
-from db.database import SessionLocal, init_db
-from db.models import User, UserCard, ChatHistory
+from .database import SessionLocal, init_db
+from .models import User, UserCard, ChatHistory
 
 def ensure_db():
     init_db()

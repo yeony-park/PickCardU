@@ -18,9 +18,9 @@ ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(ROOT_DIR, "src"))
 load_dotenv()
 
-from retrieval import CardRetriever
-import templates as tmpl
-from db.crud import (
+from chroma.retrieval import CardRetriever
+from ui import templates as tmpl
+from sqlite.crud import (
     ensure_db,
     get_or_create_user,
     update_user_mbti,

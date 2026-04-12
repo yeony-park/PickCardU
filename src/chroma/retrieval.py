@@ -16,8 +16,8 @@ import chromadb
 
 # embedding.py의 함수들을 import하기 위해 경로 설정
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from data_loader import load_pdfs_as_documents
-from chunking import chunk_documents
+from chroma.data_loader import load_pdfs_as_documents
+from chroma.chunking import chunk_documents
 
 load_dotenv()
 

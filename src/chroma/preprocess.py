@@ -1,7 +1,7 @@
 import os
-from data_loader import load_pdfs_as_documents
-from chunking import chunk_documents
-from easy_ocr import load_ocr_txt_as_documents
+from chroma.data_loader import load_pdfs_as_documents
+from chroma.chunking import chunk_documents
+from chroma.easy_ocr import load_ocr_txt_as_documents
 
 # __file__ 기준 절대경로 (실행 위치와 무관하게 동작)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

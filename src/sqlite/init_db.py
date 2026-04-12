@@ -12,8 +12,8 @@ import os
 # sys.path에 src 디렉토리 추가 (부모 폴더)
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from db.database import init_db, get_db, SessionLocal
-from db.models import User, UserCard, ChatHistory
+from .database import init_db, get_db, SessionLocal
+from .models import User, UserCard, ChatHistory
 
 
 def initialize_database():

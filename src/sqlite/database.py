@@ -2,7 +2,7 @@ import os
 import sys
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
-from db.models import Base
+from .models import Base
 
 # 현재 파일의 디렉토리 (db 폴더)
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
