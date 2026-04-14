@@ -24,11 +24,13 @@ AMOUNT_PATTERN = re.compile(r"\d[\d,\s]*(원|만원|천원|%)")
 
 
 def normalize_whitespace(text: str) -> str:
+    # 줄 단위 공백을 정리해 후속 점수 계산이 흔들리지 않게 합니다.
     lines = [line.strip() for line in text.splitlines()]
     return "\n".join(line for line in lines if line)
 
 
 def normalize_extracted_text(text: str) -> str:
+    # OCR/native 추출 결과를 공통 규칙으로 정규화합니다.
     text = unicodedata.normalize("NFKC", text or "")
     text = text.replace("\x00", " ")
     text = re.sub(r"[ \t]+", " ", text)
@@ -41,6 +43,7 @@ def normalize_extracted_text(text: str) -> str:
 
 
 def evaluate_text_quality(text: str) -> Dict[str, float]:
+    # 텍스트 길이, 한글 비율, 키워드, 깨진 문자 비율 등을 종합해 품질 점수를 계산합니다.
     normalized = normalize_extracted_text(text)
     length = len(normalized)
 
@@ -89,5 +92,6 @@ def evaluate_text_quality(text: str) -> Dict[str, float]:
 
 
 def is_low_quality_text(text: str, min_score: float = 35.0, min_length: int = 80) -> bool:
+    # 계산된 점수와 최소 길이를 기준으로 저품질 텍스트 여부를 판정합니다.
     metrics = evaluate_text_quality(text)
     return metrics["score"] < min_score or metrics["length"] < min_length

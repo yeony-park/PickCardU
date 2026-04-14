@@ -1,4 +1,5 @@
 import os
+from collections import Counter
 from chroma.data_loader import load_pdfs_as_documents
 from chroma.chunking import chunk_documents
 from chroma.easy_ocr import load_ocr_txt_as_documents
@@ -33,6 +34,8 @@ def main():
     # 3. 문서 합치기
     all_docs = clean_docs + ocr_docs
     print(f"\n[INFO] 전체 문서 수: {len(all_docs)}")
+    type_counts = Counter(doc.metadata.get("type", "unknown") for doc in all_docs)
+    print(f"[INFO] 전체 문서 타입 분포: {dict(type_counts)}")
 
     # 4. 청킹
     chunked_docs = chunk_documents(all_docs, chunk_size=800, chunk_overlap=120)

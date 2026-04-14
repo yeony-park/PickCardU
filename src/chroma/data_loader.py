@@ -1,14 +1,15 @@
 import os
+from collections import Counter
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_core.documents import Document
 
-from easy_ocr import extract_text_from_pdf, extract_text_from_pdf_page
-from quality_utils import evaluate_text_quality, normalize_extracted_text
+from chroma.easy_ocr import extract_text_from_pdf, extract_text_from_pdf_page
+from chroma.quality_utils import evaluate_text_quality, normalize_extracted_text
 
-LOW_QUALITY_PAGE_SCORE = 35.0
-OCR_IMPROVEMENT_MARGIN = 5.0
+LOW_QUALITY_PAGE_SCORE = 35.0 # 품질 점수 임계값(35점 미만이면 OCR 재실행)
+OCR_IMPROVEMENT_MARGIN = 5.0 # OCR이 내장 텍스트보다 5점 이상 좋아야 대체 
 
-
+# 폴더 내 모든 PDF 파일 경로 찾기 
 def list_pdf_files(folder_path: str) -> list[str]:
     pdf_files = []
     for root, _, files in os.walk(folder_path):
@@ -17,17 +18,17 @@ def list_pdf_files(folder_path: str) -> list[str]:
                 pdf_files.append(os.path.join(root, filename))
     return sorted(pdf_files)
 
-
+# PDF 내장 텍스트 추출 (OCR 사용 안 함)
 def extract_native_pdf_pages(filepath: str) -> list[str]:
     loader = PyPDFLoader(filepath)
     pages = loader.load()
     return [normalize_extracted_text(page.page_content) for page in pages]
 
-
+# 파일 정보 추출
 def build_hybrid_document(filepath: str) -> Document | None:
     filename = os.path.basename(filepath)
     company = os.path.basename(os.path.dirname(filepath))
-
+    # 내장 텍스트 추출 시도 
     try:
         native_pages = extract_native_pdf_pages(filepath)
     except Exception as native_error:
@@ -54,7 +55,7 @@ def build_hybrid_document(filepath: str) -> Document | None:
                 "quality_status": "ocr_only",
             },
         )
-
+    # 페이지별 품질 평가 및 하이브리드 처리 
     if not native_pages:
         print(f"[SKIP] 페이지 없음: {filename}")
         return None
@@ -88,6 +89,7 @@ def build_hybrid_document(filepath: str) -> Document | None:
         if selected_text:
             selected_pages.append(f"[page {page_index}][{selected_method}]\n{selected_text}")
 
+    # 최종 Document 객체 생성 
     final_text = "\n\n".join(selected_pages).strip()
     final_metrics = evaluate_text_quality(final_text)
 
@@ -119,6 +121,7 @@ def build_hybrid_document(filepath: str) -> Document | None:
     )
 
 
+# 폴더 내 모든 PDF를 Document 리스트로 로드 
 def load_pdfs_as_documents(folder_path: str):
     """
     raw 폴더 안의 PDF를 품질 점수 기반 하이브리드 방식으로 로드
@@ -138,5 +141,7 @@ def load_pdfs_as_documents(folder_path: str):
         except Exception as e:
             print(f"[ERROR] {filename}: {e}")
 
-    print(f"\n[INFO] hybrid 문서 수: {len(all_docs)}")
+    type_counts = Counter(doc.metadata.get("type", "unknown") for doc in all_docs)
+    print(f"\n[INFO] 로드된 문서 수: {len(all_docs)}")
+    print(f"[INFO] 문서 타입 분포: {dict(type_counts)}")
     return all_docs
