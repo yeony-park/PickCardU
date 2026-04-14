@@ -9,10 +9,11 @@ import os
 from pathlib import Path
 
 # src 디렉토리를 Python path에 추가
-project_root = Path(__file__).parent
+# __file__ → chroma/ → src/ → PickCardU(project root)
+project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root / "src"))
 
-from retrieval import CardRetriever
+from chroma.retrieval import CardRetriever
 import pandas as pd
 
 st.set_page_config(page_title="카드 조회 대시보드", layout="wide")
