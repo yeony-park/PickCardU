@@ -21,6 +21,18 @@ BROKEN_CHAR_PATTERN = re.compile(r"[�□◻◼◦▪◆◇¤�]")
 KOREAN_PATTERN = re.compile(r"[가-힣]")
 ALNUM_PATTERN = re.compile(r"[가-힣A-Za-z0-9]")
 AMOUNT_PATTERN = re.compile(r"\d[\d,\s]*(원|만원|천원|%)")
+REVIEW_RISK_PATTERNS = {
+    "numeric_risk": [
+        re.compile(r"\b\d+(?:\.\d+)?%6\b"),
+        re.compile(r"\b\d+P6\b"),
+        re.compile(r"\b\d+dp\b", re.IGNORECASE),
+        re.compile(r"\b0\.290\b"),
+        re.compile(r"\b089\b"),
+    ],
+    "amount_risk": [
+        re.compile(r"\b\d{1,3},\.\d{3}원\b"),
+    ],
+}
 
 
 def normalize_whitespace(text: str) -> str:
@@ -88,6 +100,38 @@ def evaluate_text_quality(text: str) -> Dict[str, float]:
         "broken_ratio": round(broken_ratio, 4),
         "keyword_hits": float(keyword_hits),
         "amount_hits": float(amount_hits),
+    }
+
+
+def detect_review_risks(text: str) -> Dict[str, object]:
+    # 숫자/금액처럼 자동 수정이 위험한 패턴을 찾아 검수 필요 여부를 판단합니다.
+    normalized = normalize_extracted_text(text)
+    matches = []
+
+    for risk_type, patterns in REVIEW_RISK_PATTERNS.items():
+        for pattern in patterns:
+            for match in pattern.finditer(normalized):
+                matches.append(
+                    {
+                        "risk_type": risk_type,
+                        "match": match.group(0),
+                    }
+                )
+
+    unique_matches = []
+    seen = set()
+    for item in matches:
+        key = (item["risk_type"], item["match"])
+        if key in seen:
+            continue
+        seen.add(key)
+        unique_matches.append(item)
+
+    return {
+        "review_needed": bool(unique_matches),
+        "review_count": len(unique_matches),
+        "review_flags": sorted({item["risk_type"] for item in unique_matches}),
+        "review_matches": [item["match"] for item in unique_matches],
     }
 
 

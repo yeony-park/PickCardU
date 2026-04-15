@@ -4,7 +4,11 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_core.documents import Document
 
 from chroma.easy_ocr import extract_text_from_pdf, extract_text_from_pdf_page
-from chroma.quality_utils import evaluate_text_quality, normalize_extracted_text
+from chroma.quality_utils import (
+    detect_review_risks,
+    evaluate_text_quality,
+    normalize_extracted_text,
+)
 
 LOW_QUALITY_PAGE_SCORE = 35.0 # 품질 점수 임계값(35점 미만이면 OCR 재실행)
 OCR_IMPROVEMENT_MARGIN = 5.0 # OCR이 내장 텍스트보다 5점 이상 좋아야 대체 
@@ -53,6 +57,9 @@ def build_hybrid_document(filepath: str) -> Document | None:
                 "ocr_pages": len(ocr_result["pages"]),
                 "low_quality_pages": len(ocr_result["pages"]),
                 "quality_status": "ocr_only",
+                "review_flags": [],
+                "review_matches": [],
+                "review_count": 0,
             },
         )
     # 페이지별 품질 평가 및 하이브리드 처리 
@@ -92,6 +99,7 @@ def build_hybrid_document(filepath: str) -> Document | None:
     # 최종 Document 객체 생성 
     final_text = "\n\n".join(selected_pages).strip()
     final_metrics = evaluate_text_quality(final_text)
+    review_info = detect_review_risks(final_text)
 
     if not final_text:
         print(f"[SKIP] 추출 결과 없음: {filename}")
@@ -100,7 +108,11 @@ def build_hybrid_document(filepath: str) -> Document | None:
     doc_type = "hybrid" if ocr_pages_used > 0 else "clean"
     avg_native = round(sum(native_scores) / len(native_scores), 2) if native_scores else 0.0
     avg_ocr = round(sum(ocr_scores) / len(ocr_scores), 2) if ocr_scores else 0.0
-    quality_status = "review_needed" if final_metrics["score"] < LOW_QUALITY_PAGE_SCORE else "ready"
+    quality_status = (
+        "review_needed"
+        if final_metrics["score"] < LOW_QUALITY_PAGE_SCORE or review_info["review_needed"]
+        else "ready"
+    )
 
     return Document(
         page_content=final_text,
@@ -117,6 +129,9 @@ def build_hybrid_document(filepath: str) -> Document | None:
             "ocr_pages": ocr_pages_used,
             "low_quality_pages": low_quality_pages,
             "quality_status": quality_status,
+            "review_flags": review_info["review_flags"],
+            "review_matches": review_info["review_matches"],
+            "review_count": review_info["review_count"],
         },
     )
 
