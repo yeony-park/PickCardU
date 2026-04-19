@@ -6,6 +6,7 @@ Retrieval Strategy - ChromaDB에서 관련 카드 정보 검색
 import os
 import sys
 import logging
+import json
 from typing import List, Dict, Optional, Tuple
 from collections import OrderedDict
 from dotenv import load_dotenv
@@ -32,10 +33,31 @@ MAX_SEARCH_CACHE = int(os.getenv("MAX_SEARCH_CACHE", "128"))
 CHROMA_COLLECTION_NAME = os.getenv("CHROMA_COLLECTION_NAME", "langchain")
 
 # 로컬 실행 기준 경로 설정
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 CHROMA_DB_PATH = os.path.join(BASE_DIR, "chroma_db")
 RAW_DATA_PATH = os.path.join(BASE_DIR, "data", "raw")
 OCR_TXT_PATH = os.path.join(BASE_DIR, "data", "ocr_output")
+
+
+def sanitize_metadata_for_chroma(docs):
+    sanitized_docs = []
+    for doc in docs:
+        metadata = {}
+        for key, value in doc.metadata.items():
+            if isinstance(value, (str, int, float, bool)) or value is None:
+                metadata[key] = value
+            elif isinstance(value, (list, dict)):
+                metadata[key] = json.dumps(value, ensure_ascii=False)
+            else:
+                metadata[key] = str(value)
+
+        sanitized_docs.append(
+            Document(
+                page_content=doc.page_content,
+                metadata=metadata,
+            )
+        )
+    return sanitized_docs
 
 
 class CardRetriever:
@@ -132,6 +154,7 @@ class CardRetriever:
         # 2. 청킹
         logger.info("텍스트 분할 중...")
         chunked_docs = chunk_documents(all_docs)
+        chunked_docs = sanitize_metadata_for_chroma(chunked_docs)
         logger.info(f"청크 수: {len(chunked_docs)}")
         
         # 3. 임베딩 및 저장

@@ -36,6 +36,8 @@ def main():
     print(f"\n[INFO] 전체 문서 수: {len(all_docs)}")
     type_counts = Counter(doc.metadata.get("type", "unknown") for doc in all_docs)
     print(f"[INFO] 전체 문서 타입 분포: {dict(type_counts)}")
+    status_counts = Counter(doc.metadata.get("quality_status", "unknown") for doc in all_docs)
+    print(f"[INFO] 품질 상태 분포: {dict(status_counts)}")
 
     # 4. 청킹
     chunked_docs = chunk_documents(all_docs, chunk_size=800, chunk_overlap=120)

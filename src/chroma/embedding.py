@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import Chroma
@@ -12,10 +13,33 @@ from chroma.chunking import chunk_documents
 
 load_dotenv()
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 RAW_DATA_PATH = os.path.join(BASE_DIR, "data", "raw")
 OCR_TXT_PATH = os.path.join(BASE_DIR, "data", "ocr_output")
 CHROMA_DB_PATH = os.path.join(BASE_DIR, "chroma_db")
+
+
+def sanitize_metadata_for_chroma(docs):
+    sanitized_docs = []
+    for doc in docs:
+        metadata = {}
+        for key, value in doc.metadata.items():
+            if isinstance(value, (str, int, float, bool)) or value is None:
+                metadata[key] = value
+            elif isinstance(value, list):
+                metadata[key] = json.dumps(value, ensure_ascii=False)
+            elif isinstance(value, dict):
+                metadata[key] = json.dumps(value, ensure_ascii=False)
+            else:
+                metadata[key] = str(value)
+
+        sanitized_docs.append(
+            Document(
+                page_content=doc.page_content,
+                metadata=metadata,
+            )
+        )
+    return sanitized_docs
 
 
 def load_ocr_txt_as_documents(folder_path: str):
@@ -51,6 +75,7 @@ def embed_and_store():
 
     # 2. 청킹
     chunked_docs = chunk_documents(all_docs)
+    chunked_docs = sanitize_metadata_for_chroma(chunked_docs)
 
     # 3. 임베딩 모델
     embeddings = OpenAIEmbeddings(

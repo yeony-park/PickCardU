@@ -16,19 +16,19 @@ OCR_IMPROVEMENT_MARGIN = 5.0 # OCR이 내장 텍스트보다 5점 이상 좋아�
 # 폴더 내 모든 PDF 파일 경로 찾기 
 def list_pdf_files(folder_path: str) -> list[str]:
     pdf_files = []
-    for root, _, files in os.walk(folder_path):
+    for root, _, files in os.walk(folder_path): # 하위 폴더 재귀 스캔
         for filename in files:
             if filename.lower().endswith(".pdf"):
                 pdf_files.append(os.path.join(root, filename))
     return sorted(pdf_files)
 
-# PDF 내장 텍스트 추출 (OCR 사용 안 함)
+# PDF 내장 텍스트 추출 (OCR 사용 안 함) => 내장 텍스트가 있으면 OCR 불필요 
 def extract_native_pdf_pages(filepath: str) -> list[str]:
     loader = PyPDFLoader(filepath)
     pages = loader.load()
     return [normalize_extracted_text(page.page_content) for page in pages]
 
-# 파일 정보 추출
+# 파일 정보 추출(내장 텍스트 추출 시도)
 def build_hybrid_document(filepath: str) -> Document | None:
     filename = os.path.basename(filepath)
     company = os.path.basename(os.path.dirname(filepath))
@@ -60,9 +60,13 @@ def build_hybrid_document(filepath: str) -> Document | None:
                 "review_flags": [],
                 "review_matches": [],
                 "review_count": 0,
+                "penalty_flags": [],
+                "penalty_matches": [],
+                "penalty_count": 0,
+                "penalty_score": 0.0,
             },
         )
-    # 페이지별 품질 평가 및 하이브리드 처리 
+    # 페이지별 품질 평가 및 하이브리드 처리
     if not native_pages:
         print(f"[SKIP] 페이지 없음: {filename}")
         return None
@@ -80,7 +84,9 @@ def build_hybrid_document(filepath: str) -> Document | None:
         selected_text = native_text
         selected_method = "native"
 
-        if native_metrics["score"] < LOW_QUALITY_PAGE_SCORE:
+        # 점수 > 35 이면 내장 텍스트 사용, 점수 < 35 이면 OCR 실행
+        # OCR 점수가 내장 점수 보다 5점 이상 좋으면 OCR 텍스트 사용 , 아니면 내장 텍스트 사용 
+        if native_metrics["score"] < LOW_QUALITY_PAGE_SCORE: # 35 점 미만
             low_quality_pages += 1
             try:
                 ocr_result = extract_text_from_pdf_page(filepath, page_index)
@@ -99,7 +105,7 @@ def build_hybrid_document(filepath: str) -> Document | None:
     # 최종 Document 객체 생성 
     final_text = "\n\n".join(selected_pages).strip()
     final_metrics = evaluate_text_quality(final_text)
-    review_info = detect_review_risks(final_text)
+    review_info = detect_review_risks(final_text) # 숫자/금액 이상 패턴 감지
 
     if not final_text:
         print(f"[SKIP] 추출 결과 없음: {filename}")
@@ -109,7 +115,7 @@ def build_hybrid_document(filepath: str) -> Document | None:
     avg_native = round(sum(native_scores) / len(native_scores), 2) if native_scores else 0.0
     avg_ocr = round(sum(ocr_scores) / len(ocr_scores), 2) if ocr_scores else 0.0
     quality_status = (
-        "review_needed"
+        "review_needed" # 점수 < 35 또는 검수 필요 패턴 발견 
         if final_metrics["score"] < LOW_QUALITY_PAGE_SCORE or review_info["review_needed"]
         else "ready"
     )
@@ -129,9 +135,13 @@ def build_hybrid_document(filepath: str) -> Document | None:
             "ocr_pages": ocr_pages_used,
             "low_quality_pages": low_quality_pages,
             "quality_status": quality_status,
-            "review_flags": review_info["review_flags"],
-            "review_matches": review_info["review_matches"],
-            "review_count": review_info["review_count"],
+            "review_flags": review_info["review_flags"], # 검수 유형
+            "review_matches": review_info["review_matches"], # 실제 패턴
+            "review_count": review_info["review_count"],  # 개수
+            "penalty_flags": final_metrics["penalty_flags"], # 감점 유형
+            "penalty_matches": final_metrics["penalty_matches"], # 실제 패턴
+            "penalty_count": final_metrics["penalty_count"], # 개수
+            "penalty_score": final_metrics["penalty_score"], # 감점 점수
         },
     )
 
