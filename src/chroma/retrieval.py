@@ -7,6 +7,7 @@ import os
 import sys
 import logging
 import json
+import re
 from typing import List, Dict, Optional, Tuple
 from collections import OrderedDict
 from dotenv import load_dotenv
@@ -37,6 +38,21 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 CHROMA_DB_PATH = os.path.join(BASE_DIR, "chroma_db")
 RAW_DATA_PATH = os.path.join(BASE_DIR, "data", "raw")
 OCR_TXT_PATH = os.path.join(BASE_DIR, "data", "ocr_output")
+
+SELECTIVE_RERANK_QUERY_TYPES = {
+    "overseas_discount": ["해외 할인", "해외 청구 할인", "해외 결제일 할인"],
+    "lounge": ["공항라운지", "공항 라운지", "라운지 무료", "무료 입장", "더라운지", "the lounge"],
+}
+
+SELECTIVE_RERANK_POSITIVE_HINTS = {
+    "overseas_discount": ["할인", "청구 할인", "결제일 할인"],
+    "lounge": ["공항 라운지", "라운지 무료", "무료 입장", "더라운지", "THE LOUNGE"],
+}
+
+SELECTIVE_RERANK_NEGATIVE_HINTS = {
+    "overseas_discount": ["해외이용안내", "해외 이용 안내", "수수료", "원화결제", "DCC", "청구금액 산출방법"],
+    "lounge": ["유의사항", "해외이용안내", "해외 이용 안내"],
+}
 
 
 def sanitize_metadata_for_chroma(docs):
@@ -90,6 +106,48 @@ class CardRetriever:
         # 간단한 LRU 캐시 (인스턴스 레벨)
         self._search_cache: OrderedDict = OrderedDict()
         self._max_cache = MAX_SEARCH_CACHE
+
+    @staticmethod
+    def _classify_selective_rerank_query(query: str) -> Optional[str]:
+        lowered = query.lower()
+        for query_type, keywords in SELECTIVE_RERANK_QUERY_TYPES.items():
+            if any(keyword.lower() in lowered for keyword in keywords):
+                return query_type
+        return None
+
+    def _apply_selective_rerank(
+        self,
+        query: str,
+        results: List[Tuple[Document, float]],
+    ) -> List[Tuple[Document, float]]:
+        query_type = self._classify_selective_rerank_query(query)
+        if not query_type:
+            return results
+
+        reranked = []
+        positive_hints = SELECTIVE_RERANK_POSITIVE_HINTS.get(query_type, [])
+        negative_hints = SELECTIVE_RERANK_NEGATIVE_HINTS.get(query_type, [])
+
+        for doc, raw_score in results:
+            text = doc.page_content or ""
+            adjusted_score = raw_score
+            positive_count = sum(1 for hint in positive_hints if hint in text)
+            negative_count = sum(1 for hint in negative_hints if hint in text)
+
+            if query_type == "overseas_discount":
+                adjusted_score -= 0.05 * positive_count
+                adjusted_score += 0.05 * negative_count
+            else:
+                adjusted_score -= 0.05 * positive_count
+                adjusted_score += 0.04 * negative_count
+
+            if doc.metadata.get("quality_status") == "review_needed":
+                adjusted_score += 0.03
+
+            reranked.append((doc, adjusted_score))
+
+        reranked.sort(key=lambda item: item[1])
+        return reranked
     
     def _init_or_create_vectorstore(self):
         """
@@ -237,6 +295,41 @@ class CardRetriever:
         results = self.vectorstore.similarity_search_with_score(query, k=k)
         self._cache_set(key, results)
         return results
+
+    def search_with_selected_rerank(
+        self,
+        query: str,
+        k: int = 5,
+        candidates_multiplier: int = 3,
+    ) -> List[Tuple[Document, float]]:
+        """
+        일부 질의 유형(해외 적립/할인, 공항라운지)에만 선택적으로 rerank를 적용합니다.
+
+        Parameters:
+            query: 사용자 질의
+            k: 반환할 상위 문서 수
+            candidates_multiplier: 초기 후보를 k * multiplier 만큼 넓게 가져온 뒤 rerank
+
+        Returns:
+            [(Document, adjusted_score), ...] 형태의 리스트
+        """
+        key = ("selected_rerank", query, k, candidates_multiplier)
+        cached = self._cache_get(key)
+        if cached is not None:
+            logger.debug("선택적 rerank 캐시 히트")
+            return cached
+
+        query_type = self._classify_selective_rerank_query(query)
+        if not query_type:
+            results = self.search_with_score(query, k=k)
+            self._cache_set(key, results)
+            return results
+
+        search_k = max(k * candidates_multiplier, k)
+        raw_results = self.search_with_score(query, k=search_k)
+        reranked = self._apply_selective_rerank(query, raw_results)[:k]
+        self._cache_set(key, reranked)
+        return reranked
 
     def search_grouped(self, query: str, k: int = 5, candidates_multiplier: int = 3) -> List[Tuple[Document, float]]:
         """
