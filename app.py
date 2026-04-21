@@ -225,7 +225,10 @@ def get_rag_answer(question: str, mbti_type: str, chat_history: list = None) -> 
                     my_card_names_found.add(name)
             my_context = "\n---\n".join(my_context_parts)
 
-    general_results = retriever.search_with_score(question, k=5)
+    if retriever._classify_selective_rerank_query(question):
+        general_results = retriever.search_with_selected_rerank(question, k=5)
+    else:
+        general_results = retriever.search_with_score(question, k=5)
     recommend_parts = []
     for doc, score in general_results:
         card = doc.metadata.get("card_name", "")
