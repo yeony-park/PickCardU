@@ -11,7 +11,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 RAW_PDF_DIR = PROJECT_ROOT / "data" / "raw"
 OUTPUT_DIR = PROJECT_ROOT / "data" / "vision" / "vision_raw_text"
 
-MODEL = "gpt-4.1-mini"
+MODEL = "gpt-5.4-mini-2026-03-17"
+# MODEL = "gpt-4.1-mini"
 # MODEL = "gpt-5-mini-2025-08-07"
 # MODEL = "gpt-5.4-nano-2026-03-17"
 
@@ -28,7 +29,7 @@ def pdf_to_page_images(pdf_path: Path, temp_dir: Path) -> list[Path]:
 
     pages = convert_from_path(
         pdf_path,
-        dpi=300,
+        dpi=200,
         fmt="png"
     )
 
@@ -132,3 +133,10 @@ def run_all() -> None:
 
 if __name__ == "__main__":
     run_all()
+
+    # test_pdf = RAW_PDF_DIR / "shinhan" / "Shinhan_Toss_Mr.Life_20251231.pdf"
+    # result = extract_pdf_text(test_pdf)
+
+    # output_path = OUTPUT_DIR / "test_shinhan_gpt_5.4_mini_dpi150.txt"
+    # save_text(result, output_path)
+    # print("Done")
