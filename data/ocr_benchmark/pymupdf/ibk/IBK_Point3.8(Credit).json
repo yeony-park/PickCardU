@@ -1,0 +1,76 @@
+{
+  "schema_version": "1.0",
+  "tool": "pymupdf",
+  "issuer": "ibk",
+  "card_name": "IBK_Point3.8(Credit)",
+  "source_pdf": "data/raw/ibk/IBK_Point3.8(Credit).pdf",
+  "started_at": "2026-07-22T13:11:48+09:00",
+  "finished_at": "2026-07-22T13:11:49+09:00",
+  "page_count": 6,
+  "elapsed_seconds": 0.952,
+  "pages": [
+    {
+      "page_num": 1,
+      "status": "success",
+      "text": "",
+      "blocks": [],
+      "tables": [],
+      "error": null,
+      "table_detection_error": null
+    },
+    {
+      "page_num": 2,
+      "status": "success",
+      "text": "",
+      "blocks": [],
+      "tables": [],
+      "error": null,
+      "table_detection_error": null
+    },
+    {
+      "page_num": 3,
+      "status": "success",
+      "text": "",
+      "blocks": [],
+      "tables": [],
+      "error": null,
+      "table_detection_error": null
+    },
+    {
+      "page_num": 4,
+      "status": "success",
+      "text": "",
+      "blocks": [],
+      "tables": [],
+      "error": null,
+      "table_detection_error": null
+    },
+    {
+      "page_num": 5,
+      "status": "success",
+      "text": "",
+      "blocks": [],
+      "tables": [],
+      "error": null,
+      "table_detection_error": null
+    },
+    {
+      "page_num": 6,
+      "status": "success",
+      "text": "",
+      "blocks": [],
+      "tables": [],
+      "error": null,
+      "table_detection_error": null
+    }
+  ],
+  "metrics": {
+    "processing_success_rate": 1.0,
+    "page_coverage": 0.0,
+    "empty_output_rate": 1.0,
+    "duplicate_output_rate": 0.0,
+    "schema_valid": true,
+    "seconds_per_page": 0.15866666666666665,
+    "cost_per_page_usd": 0.0
+  }
+}
