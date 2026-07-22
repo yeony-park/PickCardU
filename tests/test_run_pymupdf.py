@@ -8,6 +8,8 @@ sys.path.insert(0, str(SCRIPT_DIR))
 
 from run_pymupdf import RAW_DIR, extract_pdf, has_duplicate_block
 
+# 현재는 테스트 파일들만 실행하는 중이라 테스트마다 경로를 만들도록 그냥 둠
+# 추후에 pdf 경로 fixture로 분리해야 함
 
 def test_duplicate_block_is_detected():
     blocks = [
