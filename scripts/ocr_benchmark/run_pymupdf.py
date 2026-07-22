@@ -44,6 +44,7 @@ def extract_pdf(issuer: str, pdf_path: Path) -> dict:
                 "tables": [],
                 "error": None,
                 "table_detection_error": None,
+                "dimensions": {"width": page.rect.width, "height": page.rect.height, "unit": "pt"},
             }
 
             try:
@@ -53,10 +54,11 @@ def extract_pdf(issuer: str, pdf_path: Path) -> dict:
                     if text.strip():
                         page_result["blocks"].append(
                             {
+                                "block_id": f"p{page_num}_b{block_no:03d}",
                                 "type": "text" if block_type == 0 else "image",
                                 "text": text.strip(),
-                                "bbox": [x0, y0, x1, y1],
-                                "source_id": block_no, 
+                                "bbox": {"x1": x0, "y1": y0, "x2": x1, "y2": y1},
+                                "source_id": block_no,
                             }
                         )
 
@@ -69,7 +71,13 @@ def extract_pdf(issuer: str, pdf_path: Path) -> dict:
                     for table in page.find_tables().tables:
                         page_result["tables"].append(
                             {
-                                "bbox": list(table.bbox),
+                                "table_id": f"p{page_num}_t{len(page_result['tables']) + 1:03d}",
+                                "bbox": {
+                                    "x1": table.bbox[0],
+                                    "y1": table.bbox[1],
+                                    "x2": table.bbox[2],
+                                    "y2": table.bbox[3],
+                                },
                                 "cells": table.extract(),
                             }
                         )

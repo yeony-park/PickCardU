@@ -1,0 +1,2041 @@
+{
+  "api": "2.0",
+  "content": {
+    "html": "<p id='0' data-category='paragraph' style='font-size:14px'>UPPER<br>WEST<br>SIDE</p>\n<p id='1' data-category='paragraph' style='font-size:22px'>Broadway</p>\n<br><p id='2' data-category='paragraph' style='font-size:14px'>Central</p>\n<br><p id='3' data-category='paragraph' style='font-size:14px'>Park</p>\n<br><p id='4' data-category='paragraph' style='font-size:14px'>Times</p>\n<br><p id='5' data-category='paragraph' style='font-size:16px'>Square</p>\n<br><p id='6' data-category='paragraph' style='font-size:18px'>LO<br>CA</p>\n<br><p id='7' data-category='paragraph' style='font-size:14px'>UPPER</p>\n<br><p id='8' data-category='paragraph' style='font-size:14px'>EAST</p>\n<br><p id='9' data-category='paragraph' style='font-size:14px'>SIDE</p>\n<p id='10' data-category='paragraph' style='font-size:16px'>LOCA LIKIT Eat</p>\n<p id='11' data-category='paragraph' style='font-size:18px'>5th<br>Avenue</p>\n<br><p id='12' data-category='paragraph' style='font-size:22px'>ROOSEVELT</p>\n<br><p id='13' data-category='paragraph' style='font-size:20px'>ISLAND</p>\n<p id='14' data-category='paragraph' style='font-size:20px'>EAST</p>\n<br><p id='15' data-category='paragraph' style='font-size:20px'>RIVER</p>\n<p id='16' data-category='paragraph' style='font-size:14px'>CHINATOWN</p>\n<p id='17' data-category='paragraph' style='font-size:14px'>WALL<br>STREET</p>\n<p id='18' data-category='paragraph' style='font-size:16px'>롯데카드</p>\n<p id='19' data-category='paragraph' style='font-size:16px'>UPPER<br>WEST<br>SIDE</p>\n<br><p id='20' data-category='paragraph' style='font-size:22px'>ROOSEVELT<br>ISLAND</p>\n<br><p id='21' data-category='paragraph' style='font-size:22px'>Broadway</p>\n<br><p id='22' data-category='paragraph' style='font-size:14px'>Central<br>Park</p>\n<br><h1 id='23' style='font-size:14px'>UPPER</h1>\n<br><p id='24' data-category='paragraph' style='font-size:14px'>EAST</p>\n<br><p id='25' data-category='paragraph' style='font-size:14px'>SIDE</p>\n<figure id='26'><img style='font-size:14px' alt=\"Timec\nLO EAST\nUPPER\nROOSEVELT\nSTX\nCA\nISLAND\nCentral\n-lark\nTimes\nSquare\n如\nEAST RIVER\nWALL\nSTREET\" data-coord=\"top-left:(247,409); bottom-right:(481,786)\" /></figure>\n<br><p id='27' data-category='paragraph' style='font-size:18px'>5th</p>\n<br><p id='28' data-category='paragraph' style='font-size:20px'>Avenue</p>\n<p id='29' data-category='paragraph' style='font-size:16px'>LOCA LIKIT Eat<br>음식점, 배달앱, 커피 60% 할인</p>\n<br><p id='30' data-category='paragraph' style='font-size:18px'>EAST</p>\n<br><p id='31' data-category='paragraph' style='font-size:20px'>RIVER</p>\n<p id='32' data-category='paragraph' style='font-size:16px'>CHINATOWN</p>\n<p id='33' data-category='paragraph' style='font-size:16px'>WALL<br>STREET</p>\n<h1 id='34' style='font-size:22px'>LOCA LIKIT Eat 혜택 안내</h1>\n<p id='35' data-category='paragraph' style='font-size:16px'>* 음식점</p>\n<br><p id='36' data-category='paragraph' style='font-size:20px'>음식점 60% 결제일 할인</p>\n<p id='37' data-category='paragraph' style='font-size:14px'>음식점 업종으로 등록된 가맹점에서 혜택이 제공되며,<br>주점,유흥업소, 커피전문점, 베이커리, 제과점 및 백화점·마트 등에<br>입점한 음식점 이용금액은 혜택이 제공되지 않습니다.</p>\n<h1 id='38' style='font-size:18px'>* 배달앱</h1>\n<br><p id='39' data-category='paragraph' style='font-size:20px'>배달의 민족, 쿠팡이츠, 요기요 60% 결제일 할인</p>\n<br><p id='40' data-category='paragraph' style='font-size:14px'>공식 홈페이지 및 앱을 통한 결제 건에만 혜택이 제공되며,<br>배달원 또는 가맹점 직접 결제 건은 혜택이 제공되지 않습니다.</p>\n<h1 id='41' style='font-size:16px'>* 커피</h1>\n<br><p id='42' data-category='paragraph' style='font-size:20px'>스타벅스, 투썸플레이스, 할리스커피, 폴바셋<br>60% 결제일 할인</p>\n<br><p id='43' data-category='paragraph' style='font-size:14px'>백화점, 할인점, 쇼핑몰 등에 입점한 매장에서는 혜택이 제공되지 않습니다.</p>\n<h1 id='44' style='font-size:20px'>멤버십</h1>\n<br><p id='45' data-category='paragraph' style='font-size:20px'>쿠팡 로켓와우, 네이버플러스 멤버십<br>60% 결제일 할인</p>\n<h1 id='46' style='font-size:20px'>할인 공통기준</h1>\n<p id='47' data-category='list' style='font-size:14px'>지난달 1일~말일까지 LOCA LIKIT Eat 카드로 40만원 이상 이용 시<br>혜택이 제공됩니다.<br>할인한도는 모든 혜택 통합 월 1만 3천원 한도 내에서 제공합니다.<br>롯데카드 가맹점 및 업종 분류 기준으로 혜택을 제공합니다.<br>할인 적용 제외 대상<br>모든 무이자할부 이용금액, 포인트 충전, 기프트·선불카드 충전 및 구매,<br>상품권(모바일 상품권 포함) 구매</p>\n<p id='48' data-category='paragraph' style='font-size:18px'>* 실적기준</p>\n<p id='49' data-category='list' style='font-size:14px'>LOCA LIKIT Eat 카드를 최초 발급받은 경우 카드발급일~다음 달 말일까지<br>이용실적에 관계없이 혜택이 제공됩니다.<br>지난달 실적 산정 시 가족카드 이용금액도 동일한 기준으로 본인카드<br>이용실적에 포함됩니다.<br>취소 매출은 실제 승인된 달의 실적에서 제외하며, 실적에 포함된 매출을<br>취소하는 경우 실적 금액 및 할인 혜택이 변경될 수 있습니다.<br>예) 6월에 5월 승인건 취소 시, 5월 이용실적에서 제외<br>할부 이용 시에는 전체 할부 이용금액이 승인된 달의 실적에 포함됩니다.<br>해외 이용금액은 롯데카드에 접수되는 현지 매출일자를 기준으로 실적에<br>포함되며, 롯데카드에 접수된 후 확인 가능합니다.<br>이동통신 자동납부 건은 한 달 동안 이용한 금액이 다음 달에 결제되며,<br>롯데카드에 접수되는 일자를 기준으로 실적에 포함됩니다.<br>이용실적 산정 시 제외 대상 : LOCALIKITEat카드 할인 혜택이 적용된 이용금액<br>(할인 혜택이 적용된 전체 이용금액),LOCALIKIT Eat 카드가 아닌 롯데카드<br>이용금액, 국세, 지방세, 도시가스비,공과금, 건강보험, 국민연금, 고용보험,<br>산재보험, 초·중·고교 납입금, 대학등록금,LH·SH 공사 공공임대료, 부동산<br>임대료, 장애인 고용부담금, 아파트관리비, 오토·스마트 캐시백 신청 이용금액,<br>기프트·선불카드 충전 및 구매, 포인트 충전, 상품권(모바일 상품권 포함) 구매,<br>대중교통(버스, 지하철), 택시, 고속도로 통행요금, 고속버스, 무승인전표(자판기,<br>터널통행료, 항공 기내 이용),벌금, 과태료, 민원 발급 수수료, 관세 납부, 인지세,<br>송달료, 모든 무이자할부 이용금액, 단기카드대출(현금서비스), 장기카드대출<br>(카드론), 연회비, 이자 및 각종 수수료</p>\n<p id='50' data-category='paragraph' style='font-size:18px'>이용기준</p>\n<p id='51' data-category='list' style='font-size:14px'>롯데카드의 다른 결제일 할인(청구할인) 혜택과 중복 시 할인이 큰 혜택으로<br>제공됩니다. (중복 혜택 적용 불가)<br>본인카드와 가족카드의 할인한도는 합산되며, 남은 할인한도는<br>이월되지 않습니다.<br>할부 이용 시 이용일 기준 전체 할부 이용금액에 대하여 할인 혜택이 제공됩니다.<br>승인시점 기준으로 남은 할인한도 내에서 할인 혜택이 제공됩니다.<br>할인 혜택이 제공된 결제 건을 취소하는 경우 취소 건이 롯데카드에 접수된 후<br>(약2~3일 소요) 할인 한도가 복원됩니다.<br>할인한도가 복원되기 전의 결제 건은 승인 시점 기준 할인한도로 할인 혜택이<br>제공되며, 한도 복원 후에 즉시 할인이 되지 않을 수 있습니다.<br>결제 취소 건 접수 내역은 롯데카드 홈페이지(www.lottecard.co.kr)에<br>회원가입 후 MY&gt; 이용내역(매출전표) &gt; 정상 · 취소구분 &gt; 취소 선택 후<br>조회할 수 있습니다.</p>\n<h1 id='52' style='font-size:18px'>L.POINT</h1>\n<p id='53' data-category='list' style='font-size:14px'>롯데멤버스(주) 고객정보 제공에 동의하신 회원만 L.POINT 회원가입이 가능합니다.<br>· L.POINT는 L.POINT 제휴사 이용 시 결제금액에 따라 적립받고 현금처럼<br>사용가능한 포인트 입니다.<br>LOCALIKIT Eat 카드로 결제 시 롯데카드가 제공하는 L.POINT 적립서비스가<br>제공되지 않습니다.<br>다른 L.POINT 제휴사가 제공하는 L.POINT는 적립 가능합니다.<br>* L.POINT의 사용과 적립에 관한 자세한 내용은<br>L.POINT홈페이지(www.lpoint.com)에서 확인할 수 있습니다.</p>\n<h1 id='54' style='font-size:18px'>* 연회비</h1>\n<br><table id='55' style='font-size:16px'><thead><tr><td>구분</td><td>총 연회비</td><td>기본 연회비</td><td>제휴 연회비</td></tr></thead><tbody><tr><td>국내전용</td><td>10,000원</td><td>10,000원</td><td>0원</td></tr><tr><td>해외겸용 (MASTER, AMEX)</td><td>10,000원</td><td>10,000원</td><td>0원</td></tr></tbody></table>\n<br><p id='56' data-category='list' style='font-size:14px'>· 가족카드는 연회비가 없습니다.<br>· 카드 연회비(기본 연회비+제휴 연회비)는 카드 별로 청구됩니다.<br>회원이 유효기간이 다가오기 전에 카드를 해지하는 경우, 연회비 반환 금액은<br>회원이 카드사와 계약을 해지한 날부터 일 단위로 나누어 계산하여 산정합니다.<br>신규 가입연도의 카드 발행, 배송 등 카드발급에 소요된 비용은 반환금액에서<br>제외되며, 제휴연회비가 있는 경우에는 카드 이용 시 제공되는 추가적인 혜택 등<br>부가서비스 제공에 소요된 비용이 추가적으로 제외됩니다.<br>연회비는 계약을 해지한 날부터 영업일 기준 10일 이내 반환하여 드립니다.<br>단, 부가서비스 제공내역 확인에 시간이 소요되는 등의 불가피한 사유 시에는<br>계약 해지 날부터 3개월 이내 반환하여 드립니다.</p>\n<p id='57' data-category='paragraph' style='font-size:20px'>* 가족카드 안내</p>\n<p id='58' data-category='list' style='font-size:14px'>가족카드 연회비는 각 상품별 연회비 부과기준을 따르며, 가족카드<br>발급매수에는 제한이 없습니다.<br>가족카드의 부가서비스 이용 조건 및 제공 범위는 본인카드의 이용 조건 및<br>제공 범위와 동일하며 합산 적용됩니다.<br>가족카드 연말정산 시 가족카드 신용카드 등 이용금액은 가족카드 명의자<br>(카드에 표기된 이름)의 신용카드 등 이용금액으로 포함됩니다.<br>연간 소득금액 기준은 국세청 기준에 따릅니다.<br>가족회원이 카드사용 내역에 대한 알림을 받고자 하는 경우 고객센터<br>(1588-8100)에서 별도 신청해야 합니다.<br>· 가족카드 이용대금명세서는 본인회원이 지정한 주소 및 방법으로 발송됩니다.<br>+ 가족카드 이용으로 적립된 롯데카드 포인트는 양도가 불가하며, 본인회원<br>포인트로 합산되어 적립·사용 가능합니다.<br>이혼, 사망, 파양 등 가족관계 변동 시 본인회원 또는 가족회원이 고객센터<br>(1588-8100) 및 홈페이지 - 앱&gt;카드정보관리&gt;카드해지신청에서 가족카드<br>정지 또는 해지 가능합니다. (홈페이지·앱 해지는 본인회원만 가능)<br>가족관계 변동이 되었음에도 가족카드를 정지 또는 해지하지 않은 경우<br>본인회원에게 의도하지 않은 카드사용 및 책임이 발생할 수 있습니다.<br>본인회원이 요청할 경우 가족회원의 동의없이 가족카드가 한도감액· 정지·<br>해지될 수 있습니다.</p>\n<h1 id='59' style='font-size:20px'>롯데카드</h1>\n<p id='60' data-category='paragraph' style='font-size:14px'>LOCA LIKIT Eat</p>\n<br><p id='61' data-category='list' style='font-size:14px'>출시일: 2021년 9월 15일<br>연회비: 국내전용 10,000원, 해외겸용(MASTER,AMEX) 10,000원, 가족카드 면제<br>해외 이용 시(해외 온라인 거래 포함) 미화(USD)기준 이용 금액에 국제<br>A158<br>브랜드사가 부과하는 수수료 (MASTER 1%,AMEX1.4%)를 포함하여<br>접수일의 우리은행 최초고시 전신환 매도율을 적용한 후 롯데카드가 부과하는 해외 이용 수수료<br>(신용카드 0.2%)를 포함한 금액으로 청구됩니다.</p>\n<br><p id='62' data-category='list' style='font-size:14px'>※ 해외 이용 시 청구금액 산출방법<br>해외 이용 시 청구금액 = (거래미화금액 × 전신환 매도율1) + 국제브랜드 수수료2 + 해외서비스 수수료3<br>1. 전신환 매도율: 접수일의 우리은행 최초고시 전신환 매도율<br>2. 국제브랜드수수료 = (거래미화금액 × 국제브랜드 이용수수료율 1.0%) × 전신환 매도율<br>3. 해외서비스수수료 = (거래미화금액 × 해외서비스 수수료율 0.2%) × 전신환 매도율<br>※ 국제브랜드사 수수료의 경우, 국제브랜드사 정책에 따라 달라질 수 있습니다.<br>※ 해외 단기카드대출(현금서비스) 거래 시 부과되는 수수료율은 회원등급에 따라 국내거래와<br>동일하게 적용됩니다.<br>※ 해외 가맹점에서 원화로 결제 시 통화 환전이 한번 더 발생하여 청구금액에 불이익이<br>발생되오니, 미화 또는 현지 통화거래를 권장합니다.<br>※ 해외 원화결제 차단 방법(홈페이지, 앱)<br>메뉴 → 라이프 → 해외 이용서비스 → 해외 원화승인 차단 → 설정내역 조회 → 해당 카드 선택</p>\n<br><p id='63' data-category='list' style='font-size:14px'>이 설명서는 2024년 09월 기준이며, 추가적인 혜택(포인트 및 할인혜택 등)에는 제공조건 및 한도<br>등이 적용됩니다. 상세한 안내는 롯데카드 홈페이지(www.lottecard.co.kr) 참고하시기 바랍니다.<br>카드 이용시 제공되는 추가적인 혜택은 카드 신규출시 이후 3년 이상 축소 폐지 없이 유지됩니다.<br>상기에도 불구하고, 다음과 같은 사유가 발생한 경우 카드사는 추가적인 혜택을 변경 할 수 있습니다.</p>\n<br><p id='64' data-category='list' style='font-size:14px'>① 카드사의 휴업 · 파산· 경영상의 위기 등에 따른 불가피한 경우<br>② 제휴업체의 휴업 - 파산· 경영상의 위기로 인해 불가피하게 부가서비스를 축소·변경하는 경우로서<br>다른 제휴업체를 통해 동종의 유사한 부가서비스 제공이 불가한 경우<br>③ 제휴업체가 카드사의 의사에 반하여 해당 부가서비스를 축소하거나 변경 시, 당초 부가서비스에<br>상응하는 다른 부가서비스를 제공하는 경우<br>④ 부가서비스를 3년 이상 제공한 상태에서 해당 부가서비스로 인해 상품의 수익성이 현저히 낮아진 경우</p>\n<br><p id='65' data-category='paragraph' style='font-size:14px'>카드사가 부가서비스를 변경하는 경우에는 변경 사유, 변경 내용 등을 사유 발생 즉시 아래의 고지방법<br>중 2가지 이상으로 고지하여 드립니다. 다만, 상품의 수익성이 현저히 낮아져 부가서비스를 변경하는<br>경우에는 6개월 이전부터 아래의 고지방법 중 2가지 이상으로 매월 고지하여 드립니다.</p>\n<br><p id='66' data-category='paragraph' style='font-size:14px'>고지방법: 서면교부, 우편 또는 전자우편, 전화 또는 팩스, 휴대폰 메시지 또는 이에 준하는<br>전자적 의사표시 방법</p>\n<br><p id='67' data-category='list' style='font-size:14px'>결제일 카드대금 납부: 결제계좌 개설기관의 영업 마감시간(16시) 이후 결제계좌에 입금된 금액은 개설<br>기관의 사정에 따라 당일 출금되지 못하여 연체로 처리될 수 있으니 유의하시기 바랍니다. 자동 납부<br>업무 마감시간 이후 무통장, 가상계좌 입금을 통해 당일 결제가 가능합니다.<br>(세부내용 홈페이지/모바일 앱 참조)<br>다수의 신용카드 발급은 개인 신용등급 또는 신용평점, 이용한도 등에 영향을 미칠 수 있습니다.<br>계약체결 전 금융상품설명서와 약관을 확인하시기 바랍니다.<br>신용카드 발급이 부적정한 경우(개인신용평점 낮음 등) 카드발급이 제한될 수 있습니다.<br>카드이용대금과 이에 수반되는 모든 수수료를 지정된 대금결제일에 상환해야 합니다.<br>금융소비자는 금소법 제19조 제1항에 따라 해당상품 또는 서비스에 대하여 설명을 받을<br>권리가 있으며, 그 설명을 듣고 내용을 충분히 이해한 후 거래하시기 바랍니다.</p>\n<br><p id='68' data-category='paragraph' style='font-size:22px'>연체이자율:회원별·이용상품별 약정이율+최대 3%, 법정 최고금리(연 20%) 이내<br>*단, 연체 발생 시점에 약정이율이 없는 경우 아래와 같이 약정이율을 적용</p>\n<br><p id='69' data-category='list' style='font-size:22px'>-일시불 거래 연체 시: :거래 발생 시점의 최소기간(2개월) 유이자 할부 금리<br>-무이자 할부 거래 연체 시:거래 발생 시점의 동일한 할부 계약기간의 유이자 할부 금리<br>· 상환능력에 비해 신용카드 사용액이 과도할 경우 귀하의개인신용평점이하락할수 있습니다.<br>·개인신용평점 하락시 금융거래와 관련된 불이익이 발생할 수 있습니다.<br>·일정기간 원리금을 연체할 경우, 모든 원리금을 변제할 의무가 발생할 수 있습니다.</p>\n<br><p id='70' data-category='paragraph' style='font-size:16px'>여신금융협회 심의필 제2024-C1a-13377호 (2024.10.29) 준법감시인 심의필 제2024-B00429호 (2024.10.28)</p>\n<table id='71' style='font-size:18px'><thead></thead><tbody><tr><td><table><thead><tr><td>고객센터</td></tr></thead><tbody><tr><td>1588-8100</td></tr></tbody></table></td><td>· 분실신고</td><td>한도승인</td><td>1588-8300</td></tr><tr><td>금융서비스</td><td></td><td>1588-8200</td><td></td></tr></tbody></table>",
+    "markdown": "UPPER\nWEST\nSIDE\n\nBroadway\n\nCentral\n\nPark\n\nTimes\n\nSquare\n\nLO\nCA\n\nUPPER\n\nEAST\n\nSIDE\n\nLOCA LIKIT Eat\n\n5th\nAvenue\n\nROOSEVELT\n\nISLAND\n\nEAST\n\nRIVER\n\nCHINATOWN\n\nWALL\nSTREET\n\n롯데카드\n\nUPPER\nWEST\nSIDE\n\nROOSEVELT\nISLAND\n\nBroadway\n\nCentral\nPark\n\n# UPPER\n\nEAST\n\nSIDE\n\n![image](/image/placeholder)\nTimec\nLO EAST\nUPPER\nROOSEVELT\nSTX\nCA\nISLAND\nCentral\n-lark\nTimes\nSquare\n如\nEAST RIVER\nWALL\nSTREET\n\n5th\n\nAvenue\n\nLOCA LIKIT Eat\n음식점, 배달앱, 커피 60% 할인\n\nEAST\n\nRIVER\n\nCHINATOWN\n\nWALL\nSTREET\n\n# LOCA LIKIT Eat 혜택 안내\n\n* 음식점\n\n음식점 60% 결제일 할인\n\n음식점 업종으로 등록된 가맹점에서 혜택이 제공되며,\n주점,유흥업소, 커피전문점, 베이커리, 제과점 및 백화점·마트 등에\n입점한 음식점 이용금액은 혜택이 제공되지 않습니다.\n\n# * 배달앱\n\n배달의 민족, 쿠팡이츠, 요기요 60% 결제일 할인\n\n공식 홈페이지 및 앱을 통한 결제 건에만 혜택이 제공되며,\n배달원 또는 가맹점 직접 결제 건은 혜택이 제공되지 않습니다.\n\n# * 커피\n\n스타벅스, 투썸플레이스, 할리스커피, 폴바셋\n60% 결제일 할인\n\n백화점, 할인점, 쇼핑몰 등에 입점한 매장에서는 혜택이 제공되지 않습니다.\n\n# 멤버십\n\n쿠팡 로켓와우, 네이버플러스 멤버십\n60% 결제일 할인\n\n# 할인 공통기준\n\n- 지난달 1일~말일까지 LOCA LIKIT Eat 카드로 40만원 이상 이용 시\n- 혜택이 제공됩니다.\n- 할인한도는 모든 혜택 통합 월 1만 3천원 한도 내에서 제공합니다.\n- 롯데카드 가맹점 및 업종 분류 기준으로 혜택을 제공합니다.\n- 할인 적용 제외 대상\n- 모든 무이자할부 이용금액, 포인트 충전, 기프트·선불카드 충전 및 구매,\n- 상품권(모바일 상품권 포함) 구매\n\n\n* 실적기준\n\n- LOCA LIKIT Eat 카드를 최초 발급받은 경우 카드발급일~다음 달 말일까지\n- 이용실적에 관계없이 혜택이 제공됩니다.\n- 지난달 실적 산정 시 가족카드 이용금액도 동일한 기준으로 본인카드\n- 이용실적에 포함됩니다.\n- 취소 매출은 실제 승인된 달의 실적에서 제외하며, 실적에 포함된 매출을\n- 취소하는 경우 실적 금액 및 할인 혜택이 변경될 수 있습니다.\n- 예) 6월에 5월 승인건 취소 시, 5월 이용실적에서 제외\n- 할부 이용 시에는 전체 할부 이용금액이 승인된 달의 실적에 포함됩니다.\n- 해외 이용금액은 롯데카드에 접수되는 현지 매출일자를 기준으로 실적에\n- 포함되며, 롯데카드에 접수된 후 확인 가능합니다.\n- 이동통신 자동납부 건은 한 달 동안 이용한 금액이 다음 달에 결제되며,\n- 롯데카드에 접수되는 일자를 기준으로 실적에 포함됩니다.\n- 이용실적 산정 시 제외 대상 : LOCALIKITEat카드 할인 혜택이 적용된 이용금액\n- (할인 혜택이 적용된 전체 이용금액),LOCALIKIT Eat 카드가 아닌 롯데카드\n- 이용금액, 국세, 지방세, 도시가스비,공과금, 건강보험, 국민연금, 고용보험,\n- 산재보험, 초·중·고교 납입금, 대학등록금,LH·SH 공사 공공임대료, 부동산\n- 임대료, 장애인 고용부담금, 아파트관리비, 오토·스마트 캐시백 신청 이용금액,\n- 기프트·선불카드 충전 및 구매, 포인트 충전, 상품권(모바일 상품권 포함) 구매,\n- 대중교통(버스, 지하철), 택시, 고속도로 통행요금, 고속버스, 무승인전표(자판기,\n- 터널통행료, 항공 기내 이용),벌금, 과태료, 민원 발급 수수료, 관세 납부, 인지세,\n- 송달료, 모든 무이자할부 이용금액, 단기카드대출(현금서비스), 장기카드대출\n- (카드론), 연회비, 이자 및 각종 수수료\n\n\n이용기준\n\n- 롯데카드의 다른 결제일 할인(청구할인) 혜택과 중복 시 할인이 큰 혜택으로\n- 제공됩니다. (중복 혜택 적용 불가)\n- 본인카드와 가족카드의 할인한도는 합산되며, 남은 할인한도는\n- 이월되지 않습니다.\n- 할부 이용 시 이용일 기준 전체 할부 이용금액에 대하여 할인 혜택이 제공됩니다.\n- 승인시점 기준으로 남은 할인한도 내에서 할인 혜택이 제공됩니다.\n- 할인 혜택이 제공된 결제 건을 취소하는 경우 취소 건이 롯데카드에 접수된 후\n- (약2~3일 소요) 할인 한도가 복원됩니다.\n- 할인한도가 복원되기 전의 결제 건은 승인 시점 기준 할인한도로 할인 혜택이\n- 제공되며, 한도 복원 후에 즉시 할인이 되지 않을 수 있습니다.\n- 결제 취소 건 접수 내역은 롯데카드 홈페이지(www.lottecard.co.kr)에\n- 회원가입 후 MY> 이용내역(매출전표) > 정상 · 취소구분 > 취소 선택 후\n- 조회할 수 있습니다.\n\n\n# L.POINT\n\n- 롯데멤버스(주) 고객정보 제공에 동의하신 회원만 L.POINT 회원가입이 가능합니다.\n- · L.POINT는 L.POINT 제휴사 이용 시 결제금액에 따라 적립받고 현금처럼\n- 사용가능한 포인트 입니다.\n- LOCALIKIT Eat 카드로 결제 시 롯데카드가 제공하는 L.POINT 적립서비스가\n- 제공되지 않습니다.\n- 다른 L.POINT 제휴사가 제공하는 L.POINT는 적립 가능합니다.\n- * L.POINT의 사용과 적립에 관한 자세한 내용은\n- L.POINT홈페이지(www.lpoint.com)에서 확인할 수 있습니다.\n\n\n# * 연회비\n\n| 구분 | 총 연회비 | 기본 연회비 | 제휴 연회비 |\n| --- | --- | --- | --- |\n| 국내전용 | 10,000원 | 10,000원 | 0원 |\n| 해외겸용 (MASTER, AMEX) | 10,000원 | 10,000원 | 0원 |\n\n\n- · 가족카드는 연회비가 없습니다.\n- · 카드 연회비(기본 연회비+제휴 연회비)는 카드 별로 청구됩니다.\n- 회원이 유효기간이 다가오기 전에 카드를 해지하는 경우, 연회비 반환 금액은\n- 회원이 카드사와 계약을 해지한 날부터 일 단위로 나누어 계산하여 산정합니다.\n- 신규 가입연도의 카드 발행, 배송 등 카드발급에 소요된 비용은 반환금액에서\n- 제외되며, 제휴연회비가 있는 경우에는 카드 이용 시 제공되는 추가적인 혜택 등\n- 부가서비스 제공에 소요된 비용이 추가적으로 제외됩니다.\n- 연회비는 계약을 해지한 날부터 영업일 기준 10일 이내 반환하여 드립니다.\n- 단, 부가서비스 제공내역 확인에 시간이 소요되는 등의 불가피한 사유 시에는\n- 계약 해지 날부터 3개월 이내 반환하여 드립니다.\n\n\n* 가족카드 안내\n\n- 가족카드 연회비는 각 상품별 연회비 부과기준을 따르며, 가족카드\n- 발급매수에는 제한이 없습니다.\n- 가족카드의 부가서비스 이용 조건 및 제공 범위는 본인카드의 이용 조건 및\n- 제공 범위와 동일하며 합산 적용됩니다.\n- 가족카드 연말정산 시 가족카드 신용카드 등 이용금액은 가족카드 명의자\n- (카드에 표기된 이름)의 신용카드 등 이용금액으로 포함됩니다.\n- 연간 소득금액 기준은 국세청 기준에 따릅니다.\n- 가족회원이 카드사용 내역에 대한 알림을 받고자 하는 경우 고객센터\n- (1588-8100)에서 별도 신청해야 합니다.\n- · 가족카드 이용대금명세서는 본인회원이 지정한 주소 및 방법으로 발송됩니다.\n- + 가족카드 이용으로 적립된 롯데카드 포인트는 양도가 불가하며, 본인회원\n- 포인트로 합산되어 적립·사용 가능합니다.\n- 이혼, 사망, 파양 등 가족관계 변동 시 본인회원 또는 가족회원이 고객센터\n- (1588-8100) 및 홈페이지 - 앱>카드정보관리>카드해지신청에서 가족카드\n- 정지 또는 해지 가능합니다. (홈페이지·앱 해지는 본인회원만 가능)\n- 가족관계 변동이 되었음에도 가족카드를 정지 또는 해지하지 않은 경우\n- 본인회원에게 의도하지 않은 카드사용 및 책임이 발생할 수 있습니다.\n- 본인회원이 요청할 경우 가족회원의 동의없이 가족카드가 한도감액· 정지·\n- 해지될 수 있습니다.\n\n\n# 롯데카드\n\nLOCA LIKIT Eat\n\n- 출시일: 2021년 9월 15일\n- 연회비: 국내전용 10,000원, 해외겸용(MASTER,AMEX) 10,000원, 가족카드 면제\n- 해외 이용 시(해외 온라인 거래 포함) 미화(USD)기준 이용 금액에 국제\n- A158\n- 브랜드사가 부과하는 수수료 (MASTER 1%,AMEX1.4%)를 포함하여\n- 접수일의 우리은행 최초고시 전신환 매도율을 적용한 후 롯데카드가 부과하는 해외 이용 수수료\n- (신용카드 0.2%)를 포함한 금액으로 청구됩니다.\n\n\n- ※ 해외 이용 시 청구금액 산출방법\n- 해외 이용 시 청구금액 = (거래미화금액 × 전신환 매도율1) + 국제브랜드 수수료2 + 해외서비스 수수료3\n- 1. 전신환 매도율: 접수일의 우리은행 최초고시 전신환 매도율\n- 2. 국제브랜드수수료 = (거래미화금액 × 국제브랜드 이용수수료율 1.0%) × 전신환 매도율\n- 3. 해외서비스수수료 = (거래미화금액 × 해외서비스 수수료율 0.2%) × 전신환 매도율\n- ※ 국제브랜드사 수수료의 경우, 국제브랜드사 정책에 따라 달라질 수 있습니다.\n- ※ 해외 단기카드대출(현금서비스) 거래 시 부과되는 수수료율은 회원등급에 따라 국내거래와\n- 동일하게 적용됩니다.\n- ※ 해외 가맹점에서 원화로 결제 시 통화 환전이 한번 더 발생하여 청구금액에 불이익이\n- 발생되오니, 미화 또는 현지 통화거래를 권장합니다.\n- ※ 해외 원화결제 차단 방법(홈페이지, 앱)\n- 메뉴 → 라이프 → 해외 이용서비스 → 해외 원화승인 차단 → 설정내역 조회 → 해당 카드 선택\n\n\n- 이 설명서는 2024년 09월 기준이며, 추가적인 혜택(포인트 및 할인혜택 등)에는 제공조건 및 한도\n- 등이 적용됩니다. 상세한 안내는 롯데카드 홈페이지(www.lottecard.co.kr) 참고하시기 바랍니다.\n- 카드 이용시 제공되는 추가적인 혜택은 카드 신규출시 이후 3년 이상 축소 폐지 없이 유지됩니다.\n- 상기에도 불구하고, 다음과 같은 사유가 발생한 경우 카드사는 추가적인 혜택을 변경 할 수 있습니다.\n\n\n- ① 카드사의 휴업 · 파산· 경영상의 위기 등에 따른 불가피한 경우\n- ② 제휴업체의 휴업 - 파산· 경영상의 위기로 인해 불가피하게 부가서비스를 축소·변경하는 경우로서\n- 다른 제휴업체를 통해 동종의 유사한 부가서비스 제공이 불가한 경우\n- ③ 제휴업체가 카드사의 의사에 반하여 해당 부가서비스를 축소하거나 변경 시, 당초 부가서비스에\n- 상응하는 다른 부가서비스를 제공하는 경우\n- ④ 부가서비스를 3년 이상 제공한 상태에서 해당 부가서비스로 인해 상품의 수익성이 현저히 낮아진 경우\n\n\n카드사가 부가서비스를 변경하는 경우에는 변경 사유, 변경 내용 등을 사유 발생 즉시 아래의 고지방법\n중 2가지 이상으로 고지하여 드립니다. 다만, 상품의 수익성이 현저히 낮아져 부가서비스를 변경하는\n경우에는 6개월 이전부터 아래의 고지방법 중 2가지 이상으로 매월 고지하여 드립니다.\n\n고지방법: 서면교부, 우편 또는 전자우편, 전화 또는 팩스, 휴대폰 메시지 또는 이에 준하는\n전자적 의사표시 방법\n\n- 결제일 카드대금 납부: 결제계좌 개설기관의 영업 마감시간(16시) 이후 결제계좌에 입금된 금액은 개설\n- 기관의 사정에 따라 당일 출금되지 못하여 연체로 처리될 수 있으니 유의하시기 바랍니다. 자동 납부\n- 업무 마감시간 이후 무통장, 가상계좌 입금을 통해 당일 결제가 가능합니다.\n- (세부내용 홈페이지/모바일 앱 참조)\n- 다수의 신용카드 발급은 개인 신용등급 또는 신용평점, 이용한도 등에 영향을 미칠 수 있습니다.\n- 계약체결 전 금융상품설명서와 약관을 확인하시기 바랍니다.\n- 신용카드 발급이 부적정한 경우(개인신용평점 낮음 등) 카드발급이 제한될 수 있습니다.\n- 카드이용대금과 이에 수반되는 모든 수수료를 지정된 대금결제일에 상환해야 합니다.\n- 금융소비자는 금소법 제19조 제1항에 따라 해당상품 또는 서비스에 대하여 설명을 받을\n- 권리가 있으며, 그 설명을 듣고 내용을 충분히 이해한 후 거래하시기 바랍니다.\n\n\n연체이자율:회원별·이용상품별 약정이율+최대 3%, 법정 최고금리(연 20%) 이내\n*단, 연체 발생 시점에 약정이율이 없는 경우 아래와 같이 약정이율을 적용\n\n- -일시불 거래 연체 시: :거래 발생 시점의 최소기간(2개월) 유이자 할부 금리\n- -무이자 할부 거래 연체 시:거래 발생 시점의 동일한 할부 계약기간의 유이자 할부 금리\n- · 상환능력에 비해 신용카드 사용액이 과도할 경우 귀하의개인신용평점이하락할수 있습니다.\n- ·개인신용평점 하락시 금융거래와 관련된 불이익이 발생할 수 있습니다.\n- ·일정기간 원리금을 연체할 경우, 모든 원리금을 변제할 의무가 발생할 수 있습니다.\n\n\n여신금융협회 심의필 제2024-C1a-13377호 (2024.10.29) 준법감시인 심의필 제2024-B00429호 (2024.10.28)\n\n| <table><thead><tr><td>고객센터</td></tr></thead><tbody><tr><td>1588-8100</td></tr></tbody></table> | · 분실신고 | 한도승인 | 1588-8300 |\n| --- | --- | --- | --- |\n| 금융서비스 |  | 1588-8200 |  |",
+    "text": ""
+  },
+  "elements": [
+    {
+      "id": 0,
+      "page": 1,
+      "category": "paragraph",
+      "content": {
+        "html": "<p id='0' data-category='paragraph' style='font-size:14px'>UPPER<br>WEST<br>SIDE</p>",
+        "markdown": "UPPER\nWEST\nSIDE",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1617,
+          "y": 0.0729
+        },
+        {
+          "x": 0.2501,
+          "y": 0.0729
+        },
+        {
+          "x": 0.2501,
+          "y": 0.1411
+        },
+        {
+          "x": 0.1617,
+          "y": 0.1411
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "page": 1,
+      "category": "paragraph",
+      "content": {
+        "html": "<p id='1' data-category='paragraph' style='font-size:22px'>Broadway</p>",
+        "markdown": "Broadway",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1782,
+          "y": 0.2249
+        },
+        {
+          "x": 0.2355,
+          "y": 0.2249
+        },
+        {
+          "x": 0.2355,
+          "y": 0.3023
+        },
+        {
+          "x": 0.1782,
+          "y": 0.3023
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "page": 1,
+      "category": "paragraph",
+      "content": {
+        "html": "<br><p id='2' data-category='paragraph' style='font-size:14px'>Central</p>",
+        "markdown": "Central",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.352,
+          "y": 0.2458
+        },
+        {
+          "x": 0.4407,
+          "y": 0.2458
+        },
+        {
+          "x": 0.4407,
+          "y": 0.2634
+        },
+        {
+          "x": 0.352,
+          "y": 0.2634
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "page": 1,
+      "category": "paragraph",
+      "content": {
+        "html": "<br><p id='3' data-category='paragraph' style='font-size:14px'>Park</p>",
+        "markdown": "Park",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.3671,
+          "y": 0.2664
+        },
+        {
+          "x": 0.4255,
+          "y": 0.2664
+        },
+        {
+          "x": 0.4255,
+          "y": 0.2832
+        },
+        {
+          "x": 0.3671,
+          "y": 0.2832
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "page": 1,
+      "category": "paragraph",
+      "content": {
+        "html": "<br><p id='4' data-category='paragraph' style='font-size:14px'>Times</p>",
+        "markdown": "Times",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.3641,
+          "y": 0.2957
+        },
+        {
+          "x": 0.4353,
+          "y": 0.2957
+        },
+        {
+          "x": 0.4353,
+          "y": 0.3143
+        },
+        {
+          "x": 0.3641,
+          "y": 0.3143
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "page": 1,
+      "category": "paragraph",
+      "content": {
+        "html": "<br><p id='5' data-category='paragraph' style='font-size:16px'>Square</p>",
+        "markdown": "Square",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.3542,
+          "y": 0.311
+        },
+        {
+          "x": 0.4439,
+          "y": 0.311
+        },
+        {
+          "x": 0.4439,
+          "y": 0.3322
+        },
+        {
+          "x": 0.3542,
+          "y": 0.3322
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "page": 1,
+      "category": "paragraph",
+      "content": {
+        "html": "<br><p id='6' data-category='paragraph' style='font-size:18px'>LO<br>CA</p>",
+        "markdown": "LO\nCA",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.4194,
+          "y": 0.3316
+        },
+        {
+          "x": 0.5846,
+          "y": 0.3316
+        },
+        {
+          "x": 0.5846,
+          "y": 0.4191
+        },
+        {
+          "x": 0.4194,
+          "y": 0.4191
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "page": 1,
+      "category": "paragraph",
+      "content": {
+        "html": "<br><p id='7' data-category='paragraph' style='font-size:14px'>UPPER</p>",
+        "markdown": "UPPER",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.6262,
+          "y": 0.0618
+        },
+        {
+          "x": 0.7053,
+          "y": 0.0618
+        },
+        {
+          "x": 0.7053,
+          "y": 0.0795
+        },
+        {
+          "x": 0.6262,
+          "y": 0.0795
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "page": 1,
+      "category": "paragraph",
+      "content": {
+        "html": "<br><p id='8' data-category='paragraph' style='font-size:14px'>EAST</p>",
+        "markdown": "EAST",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.6263,
+          "y": 0.0818
+        },
+        {
+          "x": 0.6888,
+          "y": 0.0818
+        },
+        {
+          "x": 0.6888,
+          "y": 0.0985
+        },
+        {
+          "x": 0.6263,
+          "y": 0.0985
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "page": 1,
+      "category": "paragraph",
+      "content": {
+        "html": "<br><p id='9' data-category='paragraph' style='font-size:14px'>SIDE</p>",
+        "markdown": "SIDE",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.6255,
+          "y": 0.1006
+        },
+        {
+          "x": 0.6883,
+          "y": 0.1006
+        },
+        {
+          "x": 0.6883,
+          "y": 0.1189
+        },
+        {
+          "x": 0.6255,
+          "y": 0.1189
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "page": 1,
+      "category": "paragraph",
+      "content": {
+        "html": "<p id='10' data-category='paragraph' style='font-size:16px'>LOCA LIKIT Eat</p>",
+        "markdown": "LOCA LIKIT Eat",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.3034,
+          "y": 0.4556
+        },
+        {
+          "x": 0.6978,
+          "y": 0.4556
+        },
+        {
+          "x": 0.6978,
+          "y": 0.4846
+        },
+        {
+          "x": 0.3034,
+          "y": 0.4846
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "page": 1,
+      "category": "paragraph",
+      "content": {
+        "html": "<p id='11' data-category='paragraph' style='font-size:18px'>5th<br>Avenue</p>",
+        "markdown": "5th\nAvenue",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.2945,
+          "y": 0.5216
+        },
+        {
+          "x": 0.3353,
+          "y": 0.5216
+        },
+        {
+          "x": 0.3353,
+          "y": 0.6054
+        },
+        {
+          "x": 0.2945,
+          "y": 0.6054
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "page": 1,
+      "category": "paragraph",
+      "content": {
+        "html": "<br><p id='12' data-category='paragraph' style='font-size:22px'>ROOSEVELT</p>",
+        "markdown": "ROOSEVELT",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.7338,
+          "y": 0.0664
+        },
+        {
+          "x": 0.7913,
+          "y": 0.0664
+        },
+        {
+          "x": 0.7913,
+          "y": 0.1523
+        },
+        {
+          "x": 0.7338,
+          "y": 0.1523
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "page": 1,
+      "category": "paragraph",
+      "content": {
+        "html": "<br><p id='13' data-category='paragraph' style='font-size:20px'>ISLAND</p>",
+        "markdown": "ISLAND",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.7209,
+          "y": 0.1475
+        },
+        {
+          "x": 0.7707,
+          "y": 0.1475
+        },
+        {
+          "x": 0.7707,
+          "y": 0.2077
+        },
+        {
+          "x": 0.7209,
+          "y": 0.2077
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "page": 1,
+      "category": "paragraph",
+      "content": {
+        "html": "<p id='14' data-category='paragraph' style='font-size:20px'>EAST</p>",
+        "markdown": "EAST",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.7284,
+          "y": 0.4302
+        },
+        {
+          "x": 0.8,
+          "y": 0.4302
+        },
+        {
+          "x": 0.8,
+          "y": 0.4817
+        },
+        {
+          "x": 0.7284,
+          "y": 0.4817
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "page": 1,
+      "category": "paragraph",
+      "content": {
+        "html": "<br><p id='15' data-category='paragraph' style='font-size:20px'>RIVER</p>",
+        "markdown": "RIVER",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.7591,
+          "y": 0.4727
+        },
+        {
+          "x": 0.8407,
+          "y": 0.4727
+        },
+        {
+          "x": 0.8407,
+          "y": 0.5336
+        },
+        {
+          "x": 0.7591,
+          "y": 0.5336
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "page": 1,
+      "category": "paragraph",
+      "content": {
+        "html": "<p id='16' data-category='paragraph' style='font-size:14px'>CHINATOWN</p>",
+        "markdown": "CHINATOWN",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.6879,
+          "y": 0.6884
+        },
+        {
+          "x": 0.8427,
+          "y": 0.6884
+        },
+        {
+          "x": 0.8427,
+          "y": 0.7082
+        },
+        {
+          "x": 0.6879,
+          "y": 0.7082
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "page": 1,
+      "category": "paragraph",
+      "content": {
+        "html": "<p id='17' data-category='paragraph' style='font-size:14px'>WALL<br>STREET</p>",
+        "markdown": "WALL\nSTREET",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.4801,
+          "y": 0.8027
+        },
+        {
+          "x": 0.5771,
+          "y": 0.8027
+        },
+        {
+          "x": 0.5771,
+          "y": 0.8461
+        },
+        {
+          "x": 0.4801,
+          "y": 0.8461
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "page": 1,
+      "category": "paragraph",
+      "content": {
+        "html": "<p id='18' data-category='paragraph' style='font-size:16px'>롯데카드</p>",
+        "markdown": "롯데카드",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.4325,
+          "y": 0.8823
+        },
+        {
+          "x": 0.5663,
+          "y": 0.8823
+        },
+        {
+          "x": 0.5663,
+          "y": 0.9041
+        },
+        {
+          "x": 0.4325,
+          "y": 0.9041
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "page": 2,
+      "category": "paragraph",
+      "content": {
+        "html": "<p id='19' data-category='paragraph' style='font-size:16px'>UPPER<br>WEST<br>SIDE</p>",
+        "markdown": "UPPER\nWEST\nSIDE",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1617,
+          "y": 0.0733
+        },
+        {
+          "x": 0.2502,
+          "y": 0.0733
+        },
+        {
+          "x": 0.2502,
+          "y": 0.1406
+        },
+        {
+          "x": 0.1617,
+          "y": 0.1406
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "page": 2,
+      "category": "paragraph",
+      "content": {
+        "html": "<br><p id='20' data-category='paragraph' style='font-size:22px'>ROOSEVELT<br>ISLAND</p>",
+        "markdown": "ROOSEVELT\nISLAND",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.7241,
+          "y": 0.0681
+        },
+        {
+          "x": 0.7883,
+          "y": 0.0681
+        },
+        {
+          "x": 0.7883,
+          "y": 0.2076
+        },
+        {
+          "x": 0.7241,
+          "y": 0.2076
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "page": 2,
+      "category": "paragraph",
+      "content": {
+        "html": "<br><p id='21' data-category='paragraph' style='font-size:22px'>Broadway</p>",
+        "markdown": "Broadway",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1793,
+          "y": 0.2244
+        },
+        {
+          "x": 0.2353,
+          "y": 0.2244
+        },
+        {
+          "x": 0.2353,
+          "y": 0.3016
+        },
+        {
+          "x": 0.1793,
+          "y": 0.3016
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "page": 2,
+      "category": "paragraph",
+      "content": {
+        "html": "<br><p id='22' data-category='paragraph' style='font-size:14px'>Central<br>Park</p>",
+        "markdown": "Central\nPark",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.3527,
+          "y": 0.2458
+        },
+        {
+          "x": 0.4383,
+          "y": 0.2458
+        },
+        {
+          "x": 0.4383,
+          "y": 0.2841
+        },
+        {
+          "x": 0.3527,
+          "y": 0.2841
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "page": 2,
+      "category": "heading1",
+      "content": {
+        "html": "<br><h1 id='23' style='font-size:14px'>UPPER</h1>",
+        "markdown": "# UPPER",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.6262,
+          "y": 0.0618
+        },
+        {
+          "x": 0.7053,
+          "y": 0.0618
+        },
+        {
+          "x": 0.7053,
+          "y": 0.0795
+        },
+        {
+          "x": 0.6262,
+          "y": 0.0795
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "page": 2,
+      "category": "paragraph",
+      "content": {
+        "html": "<br><p id='24' data-category='paragraph' style='font-size:14px'>EAST</p>",
+        "markdown": "EAST",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.6263,
+          "y": 0.0818
+        },
+        {
+          "x": 0.6888,
+          "y": 0.0818
+        },
+        {
+          "x": 0.6888,
+          "y": 0.0985
+        },
+        {
+          "x": 0.6263,
+          "y": 0.0985
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "page": 2,
+      "category": "paragraph",
+      "content": {
+        "html": "<br><p id='25' data-category='paragraph' style='font-size:14px'>SIDE</p>",
+        "markdown": "SIDE",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.6255,
+          "y": 0.1006
+        },
+        {
+          "x": 0.6883,
+          "y": 0.1006
+        },
+        {
+          "x": 0.6883,
+          "y": 0.119
+        },
+        {
+          "x": 0.6255,
+          "y": 0.119
+        }
+      ]
+    },
+    {
+      "id": 26,
+      "page": 2,
+      "category": "figure",
+      "content": {
+        "html": "<figure id='26'><img style='font-size:14px' alt=\"Timec\nLO EAST\nUPPER\nROOSEVELT\nSTX\nCA\nISLAND\nCentral\n-lark\nTimes\nSquare\n如\nEAST RIVER\nWALL\nSTREET\" data-coord=\"top-left:(247,409); bottom-right:(481,786)\" /></figure>",
+        "markdown": "![image](/image/placeholder)\nTimec\nLO EAST\nUPPER\nROOSEVELT\nSTX\nCA\nISLAND\nCentral\n-lark\nTimes\nSquare\n如\nEAST RIVER\nWALL\nSTREET",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.337,
+          "y": 0.301
+        },
+        {
+          "x": 0.6565,
+          "y": 0.301
+        },
+        {
+          "x": 0.6565,
+          "y": 0.5787
+        },
+        {
+          "x": 0.337,
+          "y": 0.5787
+        }
+      ]
+    },
+    {
+      "id": 27,
+      "page": 2,
+      "category": "paragraph",
+      "content": {
+        "html": "<br><p id='27' data-category='paragraph' style='font-size:18px'>5th</p>",
+        "markdown": "5th",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.2915,
+          "y": 0.52
+        },
+        {
+          "x": 0.3292,
+          "y": 0.52
+        },
+        {
+          "x": 0.3292,
+          "y": 0.5477
+        },
+        {
+          "x": 0.2915,
+          "y": 0.5477
+        }
+      ]
+    },
+    {
+      "id": 28,
+      "page": 2,
+      "category": "paragraph",
+      "content": {
+        "html": "<br><p id='28' data-category='paragraph' style='font-size:20px'>Avenue</p>",
+        "markdown": "Avenue",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.2966,
+          "y": 0.5477
+        },
+        {
+          "x": 0.3413,
+          "y": 0.5477
+        },
+        {
+          "x": 0.3413,
+          "y": 0.6069
+        },
+        {
+          "x": 0.2966,
+          "y": 0.6069
+        }
+      ]
+    },
+    {
+      "id": 29,
+      "page": 2,
+      "category": "paragraph",
+      "content": {
+        "html": "<p id='29' data-category='paragraph' style='font-size:16px'>LOCA LIKIT Eat<br>음식점, 배달앱, 커피 60% 할인</p>",
+        "markdown": "LOCA LIKIT Eat\n음식점, 배달앱, 커피 60% 할인",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.2922,
+          "y": 0.6274
+        },
+        {
+          "x": 0.7052,
+          "y": 0.6274
+        },
+        {
+          "x": 0.7052,
+          "y": 0.6751
+        },
+        {
+          "x": 0.2922,
+          "y": 0.6751
+        }
+      ]
+    },
+    {
+      "id": 30,
+      "page": 2,
+      "category": "paragraph",
+      "content": {
+        "html": "<br><p id='30' data-category='paragraph' style='font-size:18px'>EAST</p>",
+        "markdown": "EAST",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.7274,
+          "y": 0.4298
+        },
+        {
+          "x": 0.8011,
+          "y": 0.4298
+        },
+        {
+          "x": 0.8011,
+          "y": 0.482
+        },
+        {
+          "x": 0.7274,
+          "y": 0.482
+        }
+      ]
+    },
+    {
+      "id": 31,
+      "page": 2,
+      "category": "paragraph",
+      "content": {
+        "html": "<br><p id='31' data-category='paragraph' style='font-size:20px'>RIVER</p>",
+        "markdown": "RIVER",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.7591,
+          "y": 0.4724
+        },
+        {
+          "x": 0.8409,
+          "y": 0.4724
+        },
+        {
+          "x": 0.8409,
+          "y": 0.5338
+        },
+        {
+          "x": 0.7591,
+          "y": 0.5338
+        }
+      ]
+    },
+    {
+      "id": 32,
+      "page": 2,
+      "category": "paragraph",
+      "content": {
+        "html": "<p id='32' data-category='paragraph' style='font-size:16px'>CHINATOWN</p>",
+        "markdown": "CHINATOWN",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.6879,
+          "y": 0.6884
+        },
+        {
+          "x": 0.8431,
+          "y": 0.6884
+        },
+        {
+          "x": 0.8431,
+          "y": 0.7082
+        },
+        {
+          "x": 0.6879,
+          "y": 0.7082
+        }
+      ]
+    },
+    {
+      "id": 33,
+      "page": 2,
+      "category": "paragraph",
+      "content": {
+        "html": "<p id='33' data-category='paragraph' style='font-size:16px'>WALL<br>STREET</p>",
+        "markdown": "WALL\nSTREET",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.4808,
+          "y": 0.8032
+        },
+        {
+          "x": 0.5772,
+          "y": 0.8032
+        },
+        {
+          "x": 0.5772,
+          "y": 0.8464
+        },
+        {
+          "x": 0.4808,
+          "y": 0.8464
+        }
+      ]
+    },
+    {
+      "id": 34,
+      "page": 3,
+      "category": "heading1",
+      "content": {
+        "html": "<h1 id='34' style='font-size:22px'>LOCA LIKIT Eat 혜택 안내</h1>",
+        "markdown": "# LOCA LIKIT Eat 혜택 안내",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1827,
+          "y": 0.1198
+        },
+        {
+          "x": 0.7585,
+          "y": 0.1198
+        },
+        {
+          "x": 0.7585,
+          "y": 0.1502
+        },
+        {
+          "x": 0.1827,
+          "y": 0.1502
+        }
+      ]
+    },
+    {
+      "id": 35,
+      "page": 3,
+      "category": "paragraph",
+      "content": {
+        "html": "<p id='35' data-category='paragraph' style='font-size:16px'>* 음식점</p>",
+        "markdown": "* 음식점",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1653,
+          "y": 0.2221
+        },
+        {
+          "x": 0.2881,
+          "y": 0.2221
+        },
+        {
+          "x": 0.2881,
+          "y": 0.241
+        },
+        {
+          "x": 0.1653,
+          "y": 0.241
+        }
+      ]
+    },
+    {
+      "id": 36,
+      "page": 3,
+      "category": "paragraph",
+      "content": {
+        "html": "<br><p id='36' data-category='paragraph' style='font-size:20px'>음식점 60% 결제일 할인</p>",
+        "markdown": "음식점 60% 결제일 할인",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1827,
+          "y": 0.253
+        },
+        {
+          "x": 0.5068,
+          "y": 0.253
+        },
+        {
+          "x": 0.5068,
+          "y": 0.2731
+        },
+        {
+          "x": 0.1827,
+          "y": 0.2731
+        }
+      ]
+    },
+    {
+      "id": 37,
+      "page": 3,
+      "category": "paragraph",
+      "content": {
+        "html": "<p id='37' data-category='paragraph' style='font-size:14px'>음식점 업종으로 등록된 가맹점에서 혜택이 제공되며,<br>주점,유흥업소, 커피전문점, 베이커리, 제과점 및 백화점·마트 등에<br>입점한 음식점 이용금액은 혜택이 제공되지 않습니다.</p>",
+        "markdown": "음식점 업종으로 등록된 가맹점에서 혜택이 제공되며,\n주점,유흥업소, 커피전문점, 베이커리, 제과점 및 백화점·마트 등에\n입점한 음식점 이용금액은 혜택이 제공되지 않습니다.",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1899,
+          "y": 0.2846
+        },
+        {
+          "x": 0.716,
+          "y": 0.2846
+        },
+        {
+          "x": 0.716,
+          "y": 0.3325
+        },
+        {
+          "x": 0.1899,
+          "y": 0.3325
+        }
+      ]
+    },
+    {
+      "id": 38,
+      "page": 3,
+      "category": "heading1",
+      "content": {
+        "html": "<h1 id='38' style='font-size:18px'>* 배달앱</h1>",
+        "markdown": "# * 배달앱",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1655,
+          "y": 0.3719
+        },
+        {
+          "x": 0.2885,
+          "y": 0.3719
+        },
+        {
+          "x": 0.2885,
+          "y": 0.3909
+        },
+        {
+          "x": 0.1655,
+          "y": 0.3909
+        }
+      ]
+    },
+    {
+      "id": 39,
+      "page": 3,
+      "category": "paragraph",
+      "content": {
+        "html": "<br><p id='39' data-category='paragraph' style='font-size:20px'>배달의 민족, 쿠팡이츠, 요기요 60% 결제일 할인</p>",
+        "markdown": "배달의 민족, 쿠팡이츠, 요기요 60% 결제일 할인",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1816,
+          "y": 0.403
+        },
+        {
+          "x": 0.8079,
+          "y": 0.403
+        },
+        {
+          "x": 0.8079,
+          "y": 0.4242
+        },
+        {
+          "x": 0.1816,
+          "y": 0.4242
+        }
+      ]
+    },
+    {
+      "id": 40,
+      "page": 3,
+      "category": "paragraph",
+      "content": {
+        "html": "<br><p id='40' data-category='paragraph' style='font-size:14px'>공식 홈페이지 및 앱을 통한 결제 건에만 혜택이 제공되며,<br>배달원 또는 가맹점 직접 결제 건은 혜택이 제공되지 않습니다.</p>",
+        "markdown": "공식 홈페이지 및 앱을 통한 결제 건에만 혜택이 제공되며,\n배달원 또는 가맹점 직접 결제 건은 혜택이 제공되지 않습니다.",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1891,
+          "y": 0.4338
+        },
+        {
+          "x": 0.6816,
+          "y": 0.4338
+        },
+        {
+          "x": 0.6816,
+          "y": 0.4654
+        },
+        {
+          "x": 0.1891,
+          "y": 0.4654
+        }
+      ]
+    },
+    {
+      "id": 41,
+      "page": 3,
+      "category": "heading1",
+      "content": {
+        "html": "<h1 id='41' style='font-size:16px'>* 커피</h1>",
+        "markdown": "# * 커피",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1653,
+          "y": 0.5048
+        },
+        {
+          "x": 0.2599,
+          "y": 0.5048
+        },
+        {
+          "x": 0.2599,
+          "y": 0.5241
+        },
+        {
+          "x": 0.1653,
+          "y": 0.5241
+        }
+      ]
+    },
+    {
+      "id": 42,
+      "page": 3,
+      "category": "paragraph",
+      "content": {
+        "html": "<br><p id='42' data-category='paragraph' style='font-size:20px'>스타벅스, 투썸플레이스, 할리스커피, 폴바셋<br>60% 결제일 할인</p>",
+        "markdown": "스타벅스, 투썸플레이스, 할리스커피, 폴바셋\n60% 결제일 할인",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1804,
+          "y": 0.5352
+        },
+        {
+          "x": 0.7557,
+          "y": 0.5352
+        },
+        {
+          "x": 0.7557,
+          "y": 0.5785
+        },
+        {
+          "x": 0.1804,
+          "y": 0.5785
+        }
+      ]
+    },
+    {
+      "id": 43,
+      "page": 3,
+      "category": "paragraph",
+      "content": {
+        "html": "<br><p id='43' data-category='paragraph' style='font-size:14px'>백화점, 할인점, 쇼핑몰 등에 입점한 매장에서는 혜택이 제공되지 않습니다.</p>",
+        "markdown": "백화점, 할인점, 쇼핑몰 등에 입점한 매장에서는 혜택이 제공되지 않습니다.",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1889,
+          "y": 0.5872
+        },
+        {
+          "x": 0.7559,
+          "y": 0.5872
+        },
+        {
+          "x": 0.7559,
+          "y": 0.6015
+        },
+        {
+          "x": 0.1889,
+          "y": 0.6015
+        }
+      ]
+    },
+    {
+      "id": 44,
+      "page": 3,
+      "category": "heading1",
+      "content": {
+        "html": "<h1 id='44' style='font-size:20px'>멤버십</h1>",
+        "markdown": "# 멤버십",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1662,
+          "y": 0.6396
+        },
+        {
+          "x": 0.2885,
+          "y": 0.6396
+        },
+        {
+          "x": 0.2885,
+          "y": 0.6589
+        },
+        {
+          "x": 0.1662,
+          "y": 0.6589
+        }
+      ]
+    },
+    {
+      "id": 45,
+      "page": 3,
+      "category": "paragraph",
+      "content": {
+        "html": "<br><p id='45' data-category='paragraph' style='font-size:20px'>쿠팡 로켓와우, 네이버플러스 멤버십<br>60% 결제일 할인</p>",
+        "markdown": "쿠팡 로켓와우, 네이버플러스 멤버십\n60% 결제일 할인",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1801,
+          "y": 0.6705
+        },
+        {
+          "x": 0.6502,
+          "y": 0.6705
+        },
+        {
+          "x": 0.6502,
+          "y": 0.7157
+        },
+        {
+          "x": 0.1801,
+          "y": 0.7157
+        }
+      ]
+    },
+    {
+      "id": 46,
+      "page": 3,
+      "category": "heading1",
+      "content": {
+        "html": "<h1 id='46' style='font-size:20px'>할인 공통기준</h1>",
+        "markdown": "# 할인 공통기준",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1652,
+          "y": 0.7549
+        },
+        {
+          "x": 0.3843,
+          "y": 0.7549
+        },
+        {
+          "x": 0.3843,
+          "y": 0.775
+        },
+        {
+          "x": 0.1652,
+          "y": 0.775
+        }
+      ]
+    },
+    {
+      "id": 47,
+      "page": 3,
+      "category": "list",
+      "content": {
+        "html": "<p id='47' data-category='list' style='font-size:14px'>지난달 1일~말일까지 LOCA LIKIT Eat 카드로 40만원 이상 이용 시<br>혜택이 제공됩니다.<br>할인한도는 모든 혜택 통합 월 1만 3천원 한도 내에서 제공합니다.<br>롯데카드 가맹점 및 업종 분류 기준으로 혜택을 제공합니다.<br>할인 적용 제외 대상<br>모든 무이자할부 이용금액, 포인트 충전, 기프트·선불카드 충전 및 구매,<br>상품권(모바일 상품권 포함) 구매</p>",
+        "markdown": "- 지난달 1일~말일까지 LOCA LIKIT Eat 카드로 40만원 이상 이용 시\n- 혜택이 제공됩니다.\n- 할인한도는 모든 혜택 통합 월 1만 3천원 한도 내에서 제공합니다.\n- 롯데카드 가맹점 및 업종 분류 기준으로 혜택을 제공합니다.\n- 할인 적용 제외 대상\n- 모든 무이자할부 이용금액, 포인트 충전, 기프트·선불카드 충전 및 구매,\n- 상품권(모바일 상품권 포함) 구매\n",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1877,
+          "y": 0.7868
+        },
+        {
+          "x": 0.7593,
+          "y": 0.7868
+        },
+        {
+          "x": 0.7593,
+          "y": 0.9035
+        },
+        {
+          "x": 0.1877,
+          "y": 0.9035
+        }
+      ]
+    },
+    {
+      "id": 48,
+      "page": 4,
+      "category": "paragraph",
+      "content": {
+        "html": "<p id='48' data-category='paragraph' style='font-size:18px'>* 실적기준</p>",
+        "markdown": "* 실적기준",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1653,
+          "y": 0.2221
+        },
+        {
+          "x": 0.3183,
+          "y": 0.2221
+        },
+        {
+          "x": 0.3183,
+          "y": 0.2422
+        },
+        {
+          "x": 0.1653,
+          "y": 0.2422
+        }
+      ]
+    },
+    {
+      "id": 49,
+      "page": 4,
+      "category": "list",
+      "content": {
+        "html": "<p id='49' data-category='list' style='font-size:14px'>LOCA LIKIT Eat 카드를 최초 발급받은 경우 카드발급일~다음 달 말일까지<br>이용실적에 관계없이 혜택이 제공됩니다.<br>지난달 실적 산정 시 가족카드 이용금액도 동일한 기준으로 본인카드<br>이용실적에 포함됩니다.<br>취소 매출은 실제 승인된 달의 실적에서 제외하며, 실적에 포함된 매출을<br>취소하는 경우 실적 금액 및 할인 혜택이 변경될 수 있습니다.<br>예) 6월에 5월 승인건 취소 시, 5월 이용실적에서 제외<br>할부 이용 시에는 전체 할부 이용금액이 승인된 달의 실적에 포함됩니다.<br>해외 이용금액은 롯데카드에 접수되는 현지 매출일자를 기준으로 실적에<br>포함되며, 롯데카드에 접수된 후 확인 가능합니다.<br>이동통신 자동납부 건은 한 달 동안 이용한 금액이 다음 달에 결제되며,<br>롯데카드에 접수되는 일자를 기준으로 실적에 포함됩니다.<br>이용실적 산정 시 제외 대상 : LOCALIKITEat카드 할인 혜택이 적용된 이용금액<br>(할인 혜택이 적용된 전체 이용금액),LOCALIKIT Eat 카드가 아닌 롯데카드<br>이용금액, 국세, 지방세, 도시가스비,공과금, 건강보험, 국민연금, 고용보험,<br>산재보험, 초·중·고교 납입금, 대학등록금,LH·SH 공사 공공임대료, 부동산<br>임대료, 장애인 고용부담금, 아파트관리비, 오토·스마트 캐시백 신청 이용금액,<br>기프트·선불카드 충전 및 구매, 포인트 충전, 상품권(모바일 상품권 포함) 구매,<br>대중교통(버스, 지하철), 택시, 고속도로 통행요금, 고속버스, 무승인전표(자판기,<br>터널통행료, 항공 기내 이용),벌금, 과태료, 민원 발급 수수료, 관세 납부, 인지세,<br>송달료, 모든 무이자할부 이용금액, 단기카드대출(현금서비스), 장기카드대출<br>(카드론), 연회비, 이자 및 각종 수수료</p>",
+        "markdown": "- LOCA LIKIT Eat 카드를 최초 발급받은 경우 카드발급일~다음 달 말일까지\n- 이용실적에 관계없이 혜택이 제공됩니다.\n- 지난달 실적 산정 시 가족카드 이용금액도 동일한 기준으로 본인카드\n- 이용실적에 포함됩니다.\n- 취소 매출은 실제 승인된 달의 실적에서 제외하며, 실적에 포함된 매출을\n- 취소하는 경우 실적 금액 및 할인 혜택이 변경될 수 있습니다.\n- 예) 6월에 5월 승인건 취소 시, 5월 이용실적에서 제외\n- 할부 이용 시에는 전체 할부 이용금액이 승인된 달의 실적에 포함됩니다.\n- 해외 이용금액은 롯데카드에 접수되는 현지 매출일자를 기준으로 실적에\n- 포함되며, 롯데카드에 접수된 후 확인 가능합니다.\n- 이동통신 자동납부 건은 한 달 동안 이용한 금액이 다음 달에 결제되며,\n- 롯데카드에 접수되는 일자를 기준으로 실적에 포함됩니다.\n- 이용실적 산정 시 제외 대상 : LOCALIKITEat카드 할인 혜택이 적용된 이용금액\n- (할인 혜택이 적용된 전체 이용금액),LOCALIKIT Eat 카드가 아닌 롯데카드\n- 이용금액, 국세, 지방세, 도시가스비,공과금, 건강보험, 국민연금, 고용보험,\n- 산재보험, 초·중·고교 납입금, 대학등록금,LH·SH 공사 공공임대료, 부동산\n- 임대료, 장애인 고용부담금, 아파트관리비, 오토·스마트 캐시백 신청 이용금액,\n- 기프트·선불카드 충전 및 구매, 포인트 충전, 상품권(모바일 상품권 포함) 구매,\n- 대중교통(버스, 지하철), 택시, 고속도로 통행요금, 고속버스, 무승인전표(자판기,\n- 터널통행료, 항공 기내 이용),벌금, 과태료, 민원 발급 수수료, 관세 납부, 인지세,\n- 송달료, 모든 무이자할부 이용금액, 단기카드대출(현금서비스), 장기카드대출\n- (카드론), 연회비, 이자 및 각종 수수료\n",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1849,
+          "y": 0.2544
+        },
+        {
+          "x": 0.8198,
+          "y": 0.2544
+        },
+        {
+          "x": 0.8198,
+          "y": 0.6243
+        },
+        {
+          "x": 0.1849,
+          "y": 0.6243
+        }
+      ]
+    },
+    {
+      "id": 50,
+      "page": 5,
+      "category": "paragraph",
+      "content": {
+        "html": "<p id='50' data-category='paragraph' style='font-size:18px'>이용기준</p>",
+        "markdown": "이용기준",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1651,
+          "y": 0.2221
+        },
+        {
+          "x": 0.3184,
+          "y": 0.2221
+        },
+        {
+          "x": 0.3184,
+          "y": 0.2423
+        },
+        {
+          "x": 0.1651,
+          "y": 0.2423
+        }
+      ]
+    },
+    {
+      "id": 51,
+      "page": 5,
+      "category": "list",
+      "content": {
+        "html": "<p id='51' data-category='list' style='font-size:14px'>롯데카드의 다른 결제일 할인(청구할인) 혜택과 중복 시 할인이 큰 혜택으로<br>제공됩니다. (중복 혜택 적용 불가)<br>본인카드와 가족카드의 할인한도는 합산되며, 남은 할인한도는<br>이월되지 않습니다.<br>할부 이용 시 이용일 기준 전체 할부 이용금액에 대하여 할인 혜택이 제공됩니다.<br>승인시점 기준으로 남은 할인한도 내에서 할인 혜택이 제공됩니다.<br>할인 혜택이 제공된 결제 건을 취소하는 경우 취소 건이 롯데카드에 접수된 후<br>(약2~3일 소요) 할인 한도가 복원됩니다.<br>할인한도가 복원되기 전의 결제 건은 승인 시점 기준 할인한도로 할인 혜택이<br>제공되며, 한도 복원 후에 즉시 할인이 되지 않을 수 있습니다.<br>결제 취소 건 접수 내역은 롯데카드 홈페이지(www.lottecard.co.kr)에<br>회원가입 후 MY&gt; 이용내역(매출전표) &gt; 정상 · 취소구분 &gt; 취소 선택 후<br>조회할 수 있습니다.</p>",
+        "markdown": "- 롯데카드의 다른 결제일 할인(청구할인) 혜택과 중복 시 할인이 큰 혜택으로\n- 제공됩니다. (중복 혜택 적용 불가)\n- 본인카드와 가족카드의 할인한도는 합산되며, 남은 할인한도는\n- 이월되지 않습니다.\n- 할부 이용 시 이용일 기준 전체 할부 이용금액에 대하여 할인 혜택이 제공됩니다.\n- 승인시점 기준으로 남은 할인한도 내에서 할인 혜택이 제공됩니다.\n- 할인 혜택이 제공된 결제 건을 취소하는 경우 취소 건이 롯데카드에 접수된 후\n- (약2~3일 소요) 할인 한도가 복원됩니다.\n- 할인한도가 복원되기 전의 결제 건은 승인 시점 기준 할인한도로 할인 혜택이\n- 제공되며, 한도 복원 후에 즉시 할인이 되지 않을 수 있습니다.\n- 결제 취소 건 접수 내역은 롯데카드 홈페이지(www.lottecard.co.kr)에\n- 회원가입 후 MY> 이용내역(매출전표) > 정상 · 취소구분 > 취소 선택 후\n- 조회할 수 있습니다.\n",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1862,
+          "y": 0.2539
+        },
+        {
+          "x": 0.8037,
+          "y": 0.2539
+        },
+        {
+          "x": 0.8037,
+          "y": 0.4727
+        },
+        {
+          "x": 0.1862,
+          "y": 0.4727
+        }
+      ]
+    },
+    {
+      "id": 52,
+      "page": 6,
+      "category": "heading1",
+      "content": {
+        "html": "<h1 id='52' style='font-size:18px'>L.POINT</h1>",
+        "markdown": "# L.POINT",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1659,
+          "y": 0.2238
+        },
+        {
+          "x": 0.3291,
+          "y": 0.2238
+        },
+        {
+          "x": 0.3291,
+          "y": 0.2419
+        },
+        {
+          "x": 0.1659,
+          "y": 0.2419
+        }
+      ]
+    },
+    {
+      "id": 53,
+      "page": 6,
+      "category": "list",
+      "content": {
+        "html": "<p id='53' data-category='list' style='font-size:14px'>롯데멤버스(주) 고객정보 제공에 동의하신 회원만 L.POINT 회원가입이 가능합니다.<br>· L.POINT는 L.POINT 제휴사 이용 시 결제금액에 따라 적립받고 현금처럼<br>사용가능한 포인트 입니다.<br>LOCALIKIT Eat 카드로 결제 시 롯데카드가 제공하는 L.POINT 적립서비스가<br>제공되지 않습니다.<br>다른 L.POINT 제휴사가 제공하는 L.POINT는 적립 가능합니다.<br>* L.POINT의 사용과 적립에 관한 자세한 내용은<br>L.POINT홈페이지(www.lpoint.com)에서 확인할 수 있습니다.</p>",
+        "markdown": "- 롯데멤버스(주) 고객정보 제공에 동의하신 회원만 L.POINT 회원가입이 가능합니다.\n- · L.POINT는 L.POINT 제휴사 이용 시 결제금액에 따라 적립받고 현금처럼\n- 사용가능한 포인트 입니다.\n- LOCALIKIT Eat 카드로 결제 시 롯데카드가 제공하는 L.POINT 적립서비스가\n- 제공되지 않습니다.\n- 다른 L.POINT 제휴사가 제공하는 L.POINT는 적립 가능합니다.\n- * L.POINT의 사용과 적립에 관한 자세한 내용은\n- L.POINT홈페이지(www.lpoint.com)에서 확인할 수 있습니다.\n",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1849,
+          "y": 0.2536
+        },
+        {
+          "x": 0.8161,
+          "y": 0.2536
+        },
+        {
+          "x": 0.8161,
+          "y": 0.3884
+        },
+        {
+          "x": 0.1849,
+          "y": 0.3884
+        }
+      ]
+    },
+    {
+      "id": 54,
+      "page": 7,
+      "category": "heading1",
+      "content": {
+        "html": "<h1 id='54' style='font-size:18px'>* 연회비</h1>",
+        "markdown": "# * 연회비",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1655,
+          "y": 0.2229
+        },
+        {
+          "x": 0.2883,
+          "y": 0.2229
+        },
+        {
+          "x": 0.2883,
+          "y": 0.2426
+        },
+        {
+          "x": 0.1655,
+          "y": 0.2426
+        }
+      ]
+    },
+    {
+      "id": 55,
+      "page": 7,
+      "category": "table",
+      "content": {
+        "html": "<br><table id='55' style='font-size:16px'><thead><tr><td>구분</td><td>총 연회비</td><td>기본 연회비</td><td>제휴 연회비</td></tr></thead><tbody><tr><td>국내전용</td><td>10,000원</td><td>10,000원</td><td>0원</td></tr><tr><td>해외겸용 (MASTER, AMEX)</td><td>10,000원</td><td>10,000원</td><td>0원</td></tr></tbody></table>",
+        "markdown": "| 구분 | 총 연회비 | 기본 연회비 | 제휴 연회비 |\n| --- | --- | --- | --- |\n| 국내전용 | 10,000원 | 10,000원 | 0원 |\n| 해외겸용 (MASTER, AMEX) | 10,000원 | 10,000원 | 0원 |\n",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1836,
+          "y": 0.2519
+        },
+        {
+          "x": 0.8141,
+          "y": 0.2519
+        },
+        {
+          "x": 0.8141,
+          "y": 0.34
+        },
+        {
+          "x": 0.1836,
+          "y": 0.34
+        }
+      ]
+    },
+    {
+      "id": 56,
+      "page": 7,
+      "category": "list",
+      "content": {
+        "html": "<br><p id='56' data-category='list' style='font-size:14px'>· 가족카드는 연회비가 없습니다.<br>· 카드 연회비(기본 연회비+제휴 연회비)는 카드 별로 청구됩니다.<br>회원이 유효기간이 다가오기 전에 카드를 해지하는 경우, 연회비 반환 금액은<br>회원이 카드사와 계약을 해지한 날부터 일 단위로 나누어 계산하여 산정합니다.<br>신규 가입연도의 카드 발행, 배송 등 카드발급에 소요된 비용은 반환금액에서<br>제외되며, 제휴연회비가 있는 경우에는 카드 이용 시 제공되는 추가적인 혜택 등<br>부가서비스 제공에 소요된 비용이 추가적으로 제외됩니다.<br>연회비는 계약을 해지한 날부터 영업일 기준 10일 이내 반환하여 드립니다.<br>단, 부가서비스 제공내역 확인에 시간이 소요되는 등의 불가피한 사유 시에는<br>계약 해지 날부터 3개월 이내 반환하여 드립니다.</p>",
+        "markdown": "- · 가족카드는 연회비가 없습니다.\n- · 카드 연회비(기본 연회비+제휴 연회비)는 카드 별로 청구됩니다.\n- 회원이 유효기간이 다가오기 전에 카드를 해지하는 경우, 연회비 반환 금액은\n- 회원이 카드사와 계약을 해지한 날부터 일 단위로 나누어 계산하여 산정합니다.\n- 신규 가입연도의 카드 발행, 배송 등 카드발급에 소요된 비용은 반환금액에서\n- 제외되며, 제휴연회비가 있는 경우에는 카드 이용 시 제공되는 추가적인 혜택 등\n- 부가서비스 제공에 소요된 비용이 추가적으로 제외됩니다.\n- 연회비는 계약을 해지한 날부터 영업일 기준 10일 이내 반환하여 드립니다.\n- 단, 부가서비스 제공내역 확인에 시간이 소요되는 등의 불가피한 사유 시에는\n- 계약 해지 날부터 3개월 이내 반환하여 드립니다.\n",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1874,
+          "y": 0.3427
+        },
+        {
+          "x": 0.813,
+          "y": 0.3427
+        },
+        {
+          "x": 0.813,
+          "y": 0.5099
+        },
+        {
+          "x": 0.1874,
+          "y": 0.5099
+        }
+      ]
+    },
+    {
+      "id": 57,
+      "page": 7,
+      "category": "paragraph",
+      "content": {
+        "html": "<p id='57' data-category='paragraph' style='font-size:20px'>* 가족카드 안내</p>",
+        "markdown": "* 가족카드 안내",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1652,
+          "y": 0.5572
+        },
+        {
+          "x": 0.3846,
+          "y": 0.5572
+        },
+        {
+          "x": 0.3846,
+          "y": 0.5769
+        },
+        {
+          "x": 0.1652,
+          "y": 0.5769
+        }
+      ]
+    },
+    {
+      "id": 58,
+      "page": 7,
+      "category": "list",
+      "content": {
+        "html": "<p id='58' data-category='list' style='font-size:14px'>가족카드 연회비는 각 상품별 연회비 부과기준을 따르며, 가족카드<br>발급매수에는 제한이 없습니다.<br>가족카드의 부가서비스 이용 조건 및 제공 범위는 본인카드의 이용 조건 및<br>제공 범위와 동일하며 합산 적용됩니다.<br>가족카드 연말정산 시 가족카드 신용카드 등 이용금액은 가족카드 명의자<br>(카드에 표기된 이름)의 신용카드 등 이용금액으로 포함됩니다.<br>연간 소득금액 기준은 국세청 기준에 따릅니다.<br>가족회원이 카드사용 내역에 대한 알림을 받고자 하는 경우 고객센터<br>(1588-8100)에서 별도 신청해야 합니다.<br>· 가족카드 이용대금명세서는 본인회원이 지정한 주소 및 방법으로 발송됩니다.<br>+ 가족카드 이용으로 적립된 롯데카드 포인트는 양도가 불가하며, 본인회원<br>포인트로 합산되어 적립·사용 가능합니다.<br>이혼, 사망, 파양 등 가족관계 변동 시 본인회원 또는 가족회원이 고객센터<br>(1588-8100) 및 홈페이지 - 앱&gt;카드정보관리&gt;카드해지신청에서 가족카드<br>정지 또는 해지 가능합니다. (홈페이지·앱 해지는 본인회원만 가능)<br>가족관계 변동이 되었음에도 가족카드를 정지 또는 해지하지 않은 경우<br>본인회원에게 의도하지 않은 카드사용 및 책임이 발생할 수 있습니다.<br>본인회원이 요청할 경우 가족회원의 동의없이 가족카드가 한도감액· 정지·<br>해지될 수 있습니다.</p>",
+        "markdown": "- 가족카드 연회비는 각 상품별 연회비 부과기준을 따르며, 가족카드\n- 발급매수에는 제한이 없습니다.\n- 가족카드의 부가서비스 이용 조건 및 제공 범위는 본인카드의 이용 조건 및\n- 제공 범위와 동일하며 합산 적용됩니다.\n- 가족카드 연말정산 시 가족카드 신용카드 등 이용금액은 가족카드 명의자\n- (카드에 표기된 이름)의 신용카드 등 이용금액으로 포함됩니다.\n- 연간 소득금액 기준은 국세청 기준에 따릅니다.\n- 가족회원이 카드사용 내역에 대한 알림을 받고자 하는 경우 고객센터\n- (1588-8100)에서 별도 신청해야 합니다.\n- · 가족카드 이용대금명세서는 본인회원이 지정한 주소 및 방법으로 발송됩니다.\n- + 가족카드 이용으로 적립된 롯데카드 포인트는 양도가 불가하며, 본인회원\n- 포인트로 합산되어 적립·사용 가능합니다.\n- 이혼, 사망, 파양 등 가족관계 변동 시 본인회원 또는 가족회원이 고객센터\n- (1588-8100) 및 홈페이지 - 앱>카드정보관리>카드해지신청에서 가족카드\n- 정지 또는 해지 가능합니다. (홈페이지·앱 해지는 본인회원만 가능)\n- 가족관계 변동이 되었음에도 가족카드를 정지 또는 해지하지 않은 경우\n- 본인회원에게 의도하지 않은 카드사용 및 책임이 발생할 수 있습니다.\n- 본인회원이 요청할 경우 가족회원의 동의없이 가족카드가 한도감액· 정지·\n- 해지될 수 있습니다.\n",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1873,
+          "y": 0.5846
+        },
+        {
+          "x": 0.8026,
+          "y": 0.5846
+        },
+        {
+          "x": 0.8026,
+          "y": 0.9035
+        },
+        {
+          "x": 0.1873,
+          "y": 0.9035
+        }
+      ]
+    },
+    {
+      "id": 59,
+      "page": 8,
+      "category": "heading1",
+      "content": {
+        "html": "<h1 id='59' style='font-size:20px'>롯데카드</h1>",
+        "markdown": "# 롯데카드",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1611,
+          "y": 0.0976
+        },
+        {
+          "x": 0.2562,
+          "y": 0.0976
+        },
+        {
+          "x": 0.2562,
+          "y": 0.113
+        },
+        {
+          "x": 0.1611,
+          "y": 0.113
+        }
+      ]
+    },
+    {
+      "id": 60,
+      "page": 8,
+      "category": "paragraph",
+      "content": {
+        "html": "<p id='60' data-category='paragraph' style='font-size:14px'>LOCA LIKIT Eat</p>",
+        "markdown": "LOCA LIKIT Eat",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1628,
+          "y": 0.1377
+        },
+        {
+          "x": 0.2738,
+          "y": 0.1377
+        },
+        {
+          "x": 0.2738,
+          "y": 0.1479
+        },
+        {
+          "x": 0.1628,
+          "y": 0.1479
+        }
+      ]
+    },
+    {
+      "id": 61,
+      "page": 8,
+      "category": "list",
+      "content": {
+        "html": "<br><p id='61' data-category='list' style='font-size:14px'>출시일: 2021년 9월 15일<br>연회비: 국내전용 10,000원, 해외겸용(MASTER,AMEX) 10,000원, 가족카드 면제<br>해외 이용 시(해외 온라인 거래 포함) 미화(USD)기준 이용 금액에 국제<br>A158<br>브랜드사가 부과하는 수수료 (MASTER 1%,AMEX1.4%)를 포함하여<br>접수일의 우리은행 최초고시 전신환 매도율을 적용한 후 롯데카드가 부과하는 해외 이용 수수료<br>(신용카드 0.2%)를 포함한 금액으로 청구됩니다.</p>",
+        "markdown": "- 출시일: 2021년 9월 15일\n- 연회비: 국내전용 10,000원, 해외겸용(MASTER,AMEX) 10,000원, 가족카드 면제\n- 해외 이용 시(해외 온라인 거래 포함) 미화(USD)기준 이용 금액에 국제\n- A158\n- 브랜드사가 부과하는 수수료 (MASTER 1%,AMEX1.4%)를 포함하여\n- 접수일의 우리은행 최초고시 전신환 매도율을 적용한 후 롯데카드가 부과하는 해외 이용 수수료\n- (신용카드 0.2%)를 포함한 금액으로 청구됩니다.\n",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1677,
+          "y": 0.1492
+        },
+        {
+          "x": 0.7917,
+          "y": 0.1492
+        },
+        {
+          "x": 0.7917,
+          "y": 0.2219
+        },
+        {
+          "x": 0.1677,
+          "y": 0.2219
+        }
+      ]
+    },
+    {
+      "id": 62,
+      "page": 8,
+      "category": "list",
+      "content": {
+        "html": "<br><p id='62' data-category='list' style='font-size:14px'>※ 해외 이용 시 청구금액 산출방법<br>해외 이용 시 청구금액 = (거래미화금액 × 전신환 매도율1) + 국제브랜드 수수료2 + 해외서비스 수수료3<br>1. 전신환 매도율: 접수일의 우리은행 최초고시 전신환 매도율<br>2. 국제브랜드수수료 = (거래미화금액 × 국제브랜드 이용수수료율 1.0%) × 전신환 매도율<br>3. 해외서비스수수료 = (거래미화금액 × 해외서비스 수수료율 0.2%) × 전신환 매도율<br>※ 국제브랜드사 수수료의 경우, 국제브랜드사 정책에 따라 달라질 수 있습니다.<br>※ 해외 단기카드대출(현금서비스) 거래 시 부과되는 수수료율은 회원등급에 따라 국내거래와<br>동일하게 적용됩니다.<br>※ 해외 가맹점에서 원화로 결제 시 통화 환전이 한번 더 발생하여 청구금액에 불이익이<br>발생되오니, 미화 또는 현지 통화거래를 권장합니다.<br>※ 해외 원화결제 차단 방법(홈페이지, 앱)<br>메뉴 → 라이프 → 해외 이용서비스 → 해외 원화승인 차단 → 설정내역 조회 → 해당 카드 선택</p>",
+        "markdown": "- ※ 해외 이용 시 청구금액 산출방법\n- 해외 이용 시 청구금액 = (거래미화금액 × 전신환 매도율1) + 국제브랜드 수수료2 + 해외서비스 수수료3\n- 1. 전신환 매도율: 접수일의 우리은행 최초고시 전신환 매도율\n- 2. 국제브랜드수수료 = (거래미화금액 × 국제브랜드 이용수수료율 1.0%) × 전신환 매도율\n- 3. 해외서비스수수료 = (거래미화금액 × 해외서비스 수수료율 0.2%) × 전신환 매도율\n- ※ 국제브랜드사 수수료의 경우, 국제브랜드사 정책에 따라 달라질 수 있습니다.\n- ※ 해외 단기카드대출(현금서비스) 거래 시 부과되는 수수료율은 회원등급에 따라 국내거래와\n- 동일하게 적용됩니다.\n- ※ 해외 가맹점에서 원화로 결제 시 통화 환전이 한번 더 발생하여 청구금액에 불이익이\n- 발생되오니, 미화 또는 현지 통화거래를 권장합니다.\n- ※ 해외 원화결제 차단 방법(홈페이지, 앱)\n- 메뉴 → 라이프 → 해외 이용서비스 → 해외 원화승인 차단 → 설정내역 조회 → 해당 카드 선택\n",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1783,
+          "y": 0.223
+        },
+        {
+          "x": 0.8333,
+          "y": 0.223
+        },
+        {
+          "x": 0.8333,
+          "y": 0.3697
+        },
+        {
+          "x": 0.1783,
+          "y": 0.3697
+        }
+      ]
+    },
+    {
+      "id": 63,
+      "page": 8,
+      "category": "list",
+      "content": {
+        "html": "<br><p id='63' data-category='list' style='font-size:14px'>이 설명서는 2024년 09월 기준이며, 추가적인 혜택(포인트 및 할인혜택 등)에는 제공조건 및 한도<br>등이 적용됩니다. 상세한 안내는 롯데카드 홈페이지(www.lottecard.co.kr) 참고하시기 바랍니다.<br>카드 이용시 제공되는 추가적인 혜택은 카드 신규출시 이후 3년 이상 축소 폐지 없이 유지됩니다.<br>상기에도 불구하고, 다음과 같은 사유가 발생한 경우 카드사는 추가적인 혜택을 변경 할 수 있습니다.</p>",
+        "markdown": "- 이 설명서는 2024년 09월 기준이며, 추가적인 혜택(포인트 및 할인혜택 등)에는 제공조건 및 한도\n- 등이 적용됩니다. 상세한 안내는 롯데카드 홈페이지(www.lottecard.co.kr) 참고하시기 바랍니다.\n- 카드 이용시 제공되는 추가적인 혜택은 카드 신규출시 이후 3년 이상 축소 폐지 없이 유지됩니다.\n- 상기에도 불구하고, 다음과 같은 사유가 발생한 경우 카드사는 추가적인 혜택을 변경 할 수 있습니다.\n",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1678,
+          "y": 0.3701
+        },
+        {
+          "x": 0.8187,
+          "y": 0.3701
+        },
+        {
+          "x": 0.8187,
+          "y": 0.4178
+        },
+        {
+          "x": 0.1678,
+          "y": 0.4178
+        }
+      ]
+    },
+    {
+      "id": 64,
+      "page": 8,
+      "category": "list",
+      "content": {
+        "html": "<br><p id='64' data-category='list' style='font-size:14px'>① 카드사의 휴업 · 파산· 경영상의 위기 등에 따른 불가피한 경우<br>② 제휴업체의 휴업 - 파산· 경영상의 위기로 인해 불가피하게 부가서비스를 축소·변경하는 경우로서<br>다른 제휴업체를 통해 동종의 유사한 부가서비스 제공이 불가한 경우<br>③ 제휴업체가 카드사의 의사에 반하여 해당 부가서비스를 축소하거나 변경 시, 당초 부가서비스에<br>상응하는 다른 부가서비스를 제공하는 경우<br>④ 부가서비스를 3년 이상 제공한 상태에서 해당 부가서비스로 인해 상품의 수익성이 현저히 낮아진 경우</p>",
+        "markdown": "- ① 카드사의 휴업 · 파산· 경영상의 위기 등에 따른 불가피한 경우\n- ② 제휴업체의 휴업 - 파산· 경영상의 위기로 인해 불가피하게 부가서비스를 축소·변경하는 경우로서\n- 다른 제휴업체를 통해 동종의 유사한 부가서비스 제공이 불가한 경우\n- ③ 제휴업체가 카드사의 의사에 반하여 해당 부가서비스를 축소하거나 변경 시, 당초 부가서비스에\n- 상응하는 다른 부가서비스를 제공하는 경우\n- ④ 부가서비스를 3년 이상 제공한 상태에서 해당 부가서비스로 인해 상품의 수익성이 현저히 낮아진 경우\n",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1757,
+          "y": 0.4188
+        },
+        {
+          "x": 0.824,
+          "y": 0.4188
+        },
+        {
+          "x": 0.824,
+          "y": 0.4918
+        },
+        {
+          "x": 0.1757,
+          "y": 0.4918
+        }
+      ]
+    },
+    {
+      "id": 65,
+      "page": 8,
+      "category": "paragraph",
+      "content": {
+        "html": "<br><p id='65' data-category='paragraph' style='font-size:14px'>카드사가 부가서비스를 변경하는 경우에는 변경 사유, 변경 내용 등을 사유 발생 즉시 아래의 고지방법<br>중 2가지 이상으로 고지하여 드립니다. 다만, 상품의 수익성이 현저히 낮아져 부가서비스를 변경하는<br>경우에는 6개월 이전부터 아래의 고지방법 중 2가지 이상으로 매월 고지하여 드립니다.</p>",
+        "markdown": "카드사가 부가서비스를 변경하는 경우에는 변경 사유, 변경 내용 등을 사유 발생 즉시 아래의 고지방법\n중 2가지 이상으로 고지하여 드립니다. 다만, 상품의 수익성이 현저히 낮아져 부가서비스를 변경하는\n경우에는 6개월 이전부터 아래의 고지방법 중 2가지 이상으로 매월 고지하여 드립니다.",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1689,
+          "y": 0.4928
+        },
+        {
+          "x": 0.8326,
+          "y": 0.4928
+        },
+        {
+          "x": 0.8326,
+          "y": 0.5283
+        },
+        {
+          "x": 0.1689,
+          "y": 0.5283
+        }
+      ]
+    },
+    {
+      "id": 66,
+      "page": 8,
+      "category": "paragraph",
+      "content": {
+        "html": "<br><p id='66' data-category='paragraph' style='font-size:14px'>고지방법: 서면교부, 우편 또는 전자우편, 전화 또는 팩스, 휴대폰 메시지 또는 이에 준하는<br>전자적 의사표시 방법</p>",
+        "markdown": "고지방법: 서면교부, 우편 또는 전자우편, 전화 또는 팩스, 휴대폰 메시지 또는 이에 준하는\n전자적 의사표시 방법",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1754,
+          "y": 0.5296
+        },
+        {
+          "x": 0.7548,
+          "y": 0.5296
+        },
+        {
+          "x": 0.7548,
+          "y": 0.5531
+        },
+        {
+          "x": 0.1754,
+          "y": 0.5531
+        }
+      ]
+    },
+    {
+      "id": 67,
+      "page": 8,
+      "category": "list",
+      "content": {
+        "html": "<br><p id='67' data-category='list' style='font-size:14px'>결제일 카드대금 납부: 결제계좌 개설기관의 영업 마감시간(16시) 이후 결제계좌에 입금된 금액은 개설<br>기관의 사정에 따라 당일 출금되지 못하여 연체로 처리될 수 있으니 유의하시기 바랍니다. 자동 납부<br>업무 마감시간 이후 무통장, 가상계좌 입금을 통해 당일 결제가 가능합니다.<br>(세부내용 홈페이지/모바일 앱 참조)<br>다수의 신용카드 발급은 개인 신용등급 또는 신용평점, 이용한도 등에 영향을 미칠 수 있습니다.<br>계약체결 전 금융상품설명서와 약관을 확인하시기 바랍니다.<br>신용카드 발급이 부적정한 경우(개인신용평점 낮음 등) 카드발급이 제한될 수 있습니다.<br>카드이용대금과 이에 수반되는 모든 수수료를 지정된 대금결제일에 상환해야 합니다.<br>금융소비자는 금소법 제19조 제1항에 따라 해당상품 또는 서비스에 대하여 설명을 받을<br>권리가 있으며, 그 설명을 듣고 내용을 충분히 이해한 후 거래하시기 바랍니다.</p>",
+        "markdown": "- 결제일 카드대금 납부: 결제계좌 개설기관의 영업 마감시간(16시) 이후 결제계좌에 입금된 금액은 개설\n- 기관의 사정에 따라 당일 출금되지 못하여 연체로 처리될 수 있으니 유의하시기 바랍니다. 자동 납부\n- 업무 마감시간 이후 무통장, 가상계좌 입금을 통해 당일 결제가 가능합니다.\n- (세부내용 홈페이지/모바일 앱 참조)\n- 다수의 신용카드 발급은 개인 신용등급 또는 신용평점, 이용한도 등에 영향을 미칠 수 있습니다.\n- 계약체결 전 금융상품설명서와 약관을 확인하시기 바랍니다.\n- 신용카드 발급이 부적정한 경우(개인신용평점 낮음 등) 카드발급이 제한될 수 있습니다.\n- 카드이용대금과 이에 수반되는 모든 수수료를 지정된 대금결제일에 상환해야 합니다.\n- 금융소비자는 금소법 제19조 제1항에 따라 해당상품 또는 서비스에 대하여 설명을 받을\n- 권리가 있으며, 그 설명을 듣고 내용을 충분히 이해한 후 거래하시기 바랍니다.\n",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1682,
+          "y": 0.5538
+        },
+        {
+          "x": 0.8319,
+          "y": 0.5538
+        },
+        {
+          "x": 0.8319,
+          "y": 0.6761
+        },
+        {
+          "x": 0.1682,
+          "y": 0.6761
+        }
+      ]
+    },
+    {
+      "id": 68,
+      "page": 8,
+      "category": "paragraph",
+      "content": {
+        "html": "<br><p id='68' data-category='paragraph' style='font-size:22px'>연체이자율:회원별·이용상품별 약정이율+최대 3%, 법정 최고금리(연 20%) 이내<br>*단, 연체 발생 시점에 약정이율이 없는 경우 아래와 같이 약정이율을 적용</p>",
+        "markdown": "연체이자율:회원별·이용상품별 약정이율+최대 3%, 법정 최고금리(연 20%) 이내\n*단, 연체 발생 시점에 약정이율이 없는 경우 아래와 같이 약정이율을 적용",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1611,
+          "y": 0.6801
+        },
+        {
+          "x": 0.8025,
+          "y": 0.6801
+        },
+        {
+          "x": 0.8025,
+          "y": 0.7228
+        },
+        {
+          "x": 0.1611,
+          "y": 0.7228
+        }
+      ]
+    },
+    {
+      "id": 69,
+      "page": 8,
+      "category": "list",
+      "content": {
+        "html": "<br><p id='69' data-category='list' style='font-size:22px'>-일시불 거래 연체 시: :거래 발생 시점의 최소기간(2개월) 유이자 할부 금리<br>-무이자 할부 거래 연체 시:거래 발생 시점의 동일한 할부 계약기간의 유이자 할부 금리<br>· 상환능력에 비해 신용카드 사용액이 과도할 경우 귀하의개인신용평점이하락할수 있습니다.<br>·개인신용평점 하락시 금융거래와 관련된 불이익이 발생할 수 있습니다.<br>·일정기간 원리금을 연체할 경우, 모든 원리금을 변제할 의무가 발생할 수 있습니다.</p>",
+        "markdown": "- -일시불 거래 연체 시: :거래 발생 시점의 최소기간(2개월) 유이자 할부 금리\n- -무이자 할부 거래 연체 시:거래 발생 시점의 동일한 할부 계약기간의 유이자 할부 금리\n- · 상환능력에 비해 신용카드 사용액이 과도할 경우 귀하의개인신용평점이하락할수 있습니다.\n- ·개인신용평점 하락시 금융거래와 관련된 불이익이 발생할 수 있습니다.\n- ·일정기간 원리금을 연체할 경우, 모든 원리금을 변제할 의무가 발생할 수 있습니다.\n",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1622,
+          "y": 0.7132
+        },
+        {
+          "x": 0.8281,
+          "y": 0.7132
+        },
+        {
+          "x": 0.8281,
+          "y": 0.8397
+        },
+        {
+          "x": 0.1622,
+          "y": 0.8397
+        }
+      ]
+    },
+    {
+      "id": 70,
+      "page": 8,
+      "category": "paragraph",
+      "content": {
+        "html": "<br><p id='70' data-category='paragraph' style='font-size:16px'>여신금융협회 심의필 제2024-C1a-13377호 (2024.10.29) 준법감시인 심의필 제2024-B00429호 (2024.10.28)</p>",
+        "markdown": "여신금융협회 심의필 제2024-C1a-13377호 (2024.10.29) 준법감시인 심의필 제2024-B00429호 (2024.10.28)",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1614,
+          "y": 0.8431
+        },
+        {
+          "x": 0.8359,
+          "y": 0.8431
+        },
+        {
+          "x": 0.8359,
+          "y": 0.8571
+        },
+        {
+          "x": 0.1614,
+          "y": 0.8571
+        }
+      ]
+    },
+    {
+      "id": 71,
+      "page": 8,
+      "category": "table",
+      "content": {
+        "html": "<table id='71' style='font-size:18px'><thead></thead><tbody><tr><td><table><thead><tr><td>고객센터</td></tr></thead><tbody><tr><td>1588-8100</td></tr></tbody></table></td><td>· 분실신고</td><td>한도승인</td><td>1588-8300</td></tr><tr><td>금융서비스</td><td></td><td>1588-8200</td><td></td></tr></tbody></table>",
+        "markdown": "| <table><thead><tr><td>고객센터</td></tr></thead><tbody><tr><td>1588-8100</td></tr></tbody></table> | · 분실신고 | 한도승인 | 1588-8300 |\n| --- | --- | --- | --- |\n| 금융서비스 |  | 1588-8200 |  |\n",
+        "text": ""
+      },
+      "coordinates": [
+        {
+          "x": 0.1633,
+          "y": 0.8684
+        },
+        {
+          "x": 0.5205,
+          "y": 0.8684
+        },
+        {
+          "x": 0.5205,
+          "y": 0.9004
+        },
+        {
+          "x": 0.1633,
+          "y": 0.9004
+        }
+      ]
+    }
+  ],
+  "model": "document-parse-260128",
+  "ocr": true,
+  "usage": {
+    "pages": 8,
+    "standard": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ]
+  }
+}

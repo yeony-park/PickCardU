@@ -4,10 +4,10 @@
   "issuer": "ibk",
   "card_name": "IBK_Point3.8(Credit)",
   "source_pdf": "data/raw/ibk/IBK_Point3.8(Credit).pdf",
-  "started_at": "2026-07-22T13:11:48+09:00",
-  "finished_at": "2026-07-22T13:11:49+09:00",
+  "started_at": "2026-07-22T14:16:18+09:00",
+  "finished_at": "2026-07-22T14:16:19+09:00",
   "page_count": 6,
-  "elapsed_seconds": 0.952,
+  "elapsed_seconds": 1.325,
   "pages": [
     {
       "page_num": 1,
@@ -16,7 +16,12 @@
       "blocks": [],
       "tables": [],
       "error": null,
-      "table_detection_error": null
+      "table_detection_error": null,
+      "dimensions": {
+        "width": 277.7950134277344,
+        "height": 595.2760009765625,
+        "unit": "pt"
+      }
     },
     {
       "page_num": 2,
@@ -25,7 +30,12 @@
       "blocks": [],
       "tables": [],
       "error": null,
-      "table_detection_error": null
+      "table_detection_error": null,
+      "dimensions": {
+        "width": 277.7950134277344,
+        "height": 595.2760009765625,
+        "unit": "pt"
+      }
     },
     {
       "page_num": 3,
@@ -34,7 +44,12 @@
       "blocks": [],
       "tables": [],
       "error": null,
-      "table_detection_error": null
+      "table_detection_error": null,
+      "dimensions": {
+        "width": 277.7950134277344,
+        "height": 595.2760009765625,
+        "unit": "pt"
+      }
     },
     {
       "page_num": 4,
@@ -43,7 +58,12 @@
       "blocks": [],
       "tables": [],
       "error": null,
-      "table_detection_error": null
+      "table_detection_error": null,
+      "dimensions": {
+        "width": 277.7950134277344,
+        "height": 595.2760009765625,
+        "unit": "pt"
+      }
     },
     {
       "page_num": 5,
@@ -52,7 +72,12 @@
       "blocks": [],
       "tables": [],
       "error": null,
-      "table_detection_error": null
+      "table_detection_error": null,
+      "dimensions": {
+        "width": 277.7950134277344,
+        "height": 595.2760009765625,
+        "unit": "pt"
+      }
     },
     {
       "page_num": 6,
@@ -61,7 +86,12 @@
       "blocks": [],
       "tables": [],
       "error": null,
-      "table_detection_error": null
+      "table_detection_error": null,
+      "dimensions": {
+        "width": 277.7950134277344,
+        "height": 595.2760009765625,
+        "unit": "pt"
+      }
     }
   ],
   "metrics": {
@@ -70,7 +100,7 @@
     "empty_output_rate": 1.0,
     "duplicate_output_rate": 0.0,
     "schema_valid": true,
-    "seconds_per_page": 0.15866666666666665,
+    "seconds_per_page": 0.22083333333333333,
     "cost_per_page_usd": 0.0
   }
 }
