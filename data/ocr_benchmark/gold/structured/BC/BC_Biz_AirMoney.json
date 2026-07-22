@@ -1,0 +1,78 @@
+{
+  "schema_version": "1.0",
+  "issuer": "BC",
+  "card_name": "BC_Biz_AirMoney",
+  "source_pdf": "data/raw/BC/BC_Biz_AirMoney.pdf",
+  "raw_annotation": "data/ocr_benchmark/gold/raw/BC/BC_Biz_AirMoney.txt",
+  "annotation_scope": "User-verified selected excerpts. Use this file for key-number and relation metrics only; page-level CER/WER requires complete page transcriptions.",
+  "text_labels": [
+    {
+      "id": "page_2_selected_transcription",
+      "page_num": 2,
+      "raw_start_marker": "### Air Money 적립 서비스"
+    }
+  ],
+  "section_order_labels": [
+    "Air Money 적립 서비스",
+    "Air Money 이용 방법",
+    "공항라운지 서비스",
+    "서비스 제공 조건",
+    "카드 발급 / 이용안내",
+    "해외 이용 안내",
+    "원화결제차단 신청방법"
+  ],
+  "numeric_labels": [
+    {"id": "launch_date", "page_num": 1, "surface_text": "2021년 9월 27일", "normalized_value": "2021-09-27", "context_terms": ["카드 신규 출시"], "critical": false},
+    {"id": "benefit_maintenance_period", "page_num": 1, "surface_text": "3년", "normalized_value": 3, "unit": "year", "context_terms": ["축소·폐지 없이 유지"], "critical": false},
+    {"id": "refund_processing_deadline", "page_num": 1, "surface_text": "10영업일", "normalized_value": 10, "unit": "business_day", "context_terms": ["반환 처리"], "critical": false},
+    {"id": "refund_latest_deadline", "page_num": 1, "surface_text": "3개월", "normalized_value": 3, "unit": "month", "context_terms": ["반환 할 수 있습니다"], "critical": false},
+    {"id": "account_cutoff_time", "page_num": 1, "surface_text": "16시", "normalized_value": "16:00", "context_terms": ["영업 마감시간"], "critical": false},
+    {"id": "air_money_earn_rate", "page_num": 2, "surface_text": "0.2%", "normalized_value": 0.002, "expected_occurrences": 2, "context_terms": ["Air Money", "적립"], "critical": true},
+    {"id": "point_to_won", "page_num": 2, "surface_text": "1포인트 = 1원", "normalized_value": {"point": 1, "won": 1}, "context_terms": ["Air Money"], "critical": true},
+    {"id": "point_expiry", "page_num": 2, "surface_text": "5년(60개월)", "normalized_value": {"year": 5, "month": 60}, "context_terms": ["유효기간"], "critical": false},
+    {"id": "point_expiry_example", "page_num": 2, "surface_text": "2026년 6월1일 00:00분", "normalized_value": "2026-06-01T00:00", "context_terms": ["적립포인트"], "critical": false},
+    {"id": "rounding_threshold", "page_num": 2, "surface_text": "1원미만", "normalized_value": 1, "unit": "won", "context_terms": ["반올림"], "critical": false},
+    {"id": "payment_example_before", "page_num": 2, "surface_text": "10만원", "normalized_value": 100000, "unit": "won", "context_terms": ["결제예정금액"], "critical": false},
+    {"id": "payment_example_points", "page_num": 2, "surface_text": "2만점", "normalized_value": 20000, "unit": "point", "context_terms": ["사용 신청"], "critical": false},
+    {"id": "payment_example_after", "page_num": 2, "surface_text": "8만원", "normalized_value": 80000, "unit": "won", "context_terms": ["최종 결제금액"], "critical": false},
+    {"id": "lounge_phone", "page_num": 2, "surface_text": "02-3272-3731", "normalized_value": "02-3272-3731", "context_terms": ["라운지 서비스 데스크"], "critical": false},
+    {"id": "lounge_hours", "page_num": 2, "surface_text": "09:00~18:00", "normalized_value": "09:00~18:00", "context_terms": ["월~금"], "critical": false},
+    {"id": "lounge_quota", "page_num": 2, "surface_text": "연2회(1일 1회)", "normalized_value": {"year": 2, "day": 1}, "context_terms": ["횟수 기준"], "critical": false},
+    {"id": "lounge_period", "page_num": 2, "surface_text": "1월 1일 ~ 12월 31일", "normalized_value": "01-01~12-31", "context_terms": ["횟수 기준 매년"], "critical": false},
+    {"id": "excluded_four_major_insurances", "page_num": 2, "surface_text": "4대보험", "normalized_value": 4, "unit": "insurance_category", "context_terms": ["제세공과금"], "critical": false},
+    {"id": "domestic_annual_fee_total", "page_num": 2, "surface_text": "5,000원", "normalized_value": 5000, "unit": "won", "context_terms": ["국내전용(BC)", "연회비"], "critical": true},
+    {"id": "domestic_annual_fee_base", "page_num": 2, "surface_text": "5천원", "normalized_value": 5000, "unit": "won", "context_terms": ["국내전용(BC)", "기본연회비"], "critical": true},
+    {"id": "domestic_annual_fee_partner", "page_num": 2, "surface_text": "0원", "normalized_value": 0, "unit": "won", "context_terms": ["국내전용(BC)", "제휴연회비"], "critical": true},
+    {"id": "international_annual_fee_total", "page_num": 2, "surface_text": "10,000원", "normalized_value": 10000, "unit": "won", "context_terms": ["국내외겸용(MC)", "연회비"], "critical": true},
+    {"id": "international_annual_fee_base", "page_num": 2, "surface_text": "1만원", "normalized_value": 10000, "unit": "won", "context_terms": ["국내외겸용(MC)", "기본연회비"], "critical": true},
+    {"id": "international_annual_fee_partner", "page_num": 2, "surface_text": "0원", "normalized_value": 0, "unit": "won", "context_terms": ["국내외겸용(MC)", "제휴연회비"], "critical": true},
+    {"id": "customer_center_phone", "page_num": 2, "surface_text": "1899-7771", "normalized_value": "1899-7771", "context_terms": ["고객센터"], "critical": false},
+    {"id": "international_brand_fee_rate", "page_num": 2, "surface_text": "1.0%", "normalized_value": 0.01, "expected_occurrences": 3, "context_terms": ["국제브랜드"], "critical": true},
+    {"id": "dcc_block_phone", "page_num": 2, "surface_text": "02-950-8510", "normalized_value": "02-950-8510", "context_terms": ["원화결제(DCC)차단"], "critical": false}
+  ],
+  "table_labels": [
+    {
+      "id": "airport_lounge",
+      "page_num": 2,
+      "headers": ["구분1", "구분2", "대상라운지"],
+      "rows": [
+        ["인천공항", "제1여객터미널", "스카이허브 (동편, 서편, 탑승동)"],
+        ["인천공항", "제2여객터미널", "마티나, 마티나(골드)"],
+        ["김포공항(국제선)", "-", "스카이허브"],
+        ["김해공항(국제선)", "-", "스카이허브"]
+      ]
+    },
+    {
+      "id": "card_issue_guide",
+      "page_num": 2,
+      "headers": ["구분", "내용"],
+      "rows": [
+        ["발급대상", "기업 회원 (공용/지정)"],
+        ["브랜드", "BC(국내전용), Master"],
+        ["연회비", "국내전용(BC) : 5,000원(기본연회비 5천원 + 제휴연회비 0원)"],
+        ["연회비", "국내외겸용(MC) : 10,000원(기본연회비 1만원 + 제휴연회비 0원)"],
+        ["교통구분", "비교통"]
+      ]
+    }
+  ]
+}

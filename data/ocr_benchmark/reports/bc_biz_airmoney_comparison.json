@@ -1,0 +1,1245 @@
+{
+  "schema_version": "1.0",
+  "gold_file": "data/ocr_benchmark/gold/structured/BC/BC_Biz_AirMoney.json",
+  "scope": {
+    "operational": "10 cards / 50 pages",
+    "key_number_and_relation": "BC Biz Air Money selected excerpts / 27 labels",
+    "text": "BC Biz Air Money page 2 user-provided transcription",
+    "tables": "BC Biz Air Money page 2 airport-lounge and card-issue tables",
+    "not_evaluated": [
+      "reading_order_error",
+      "block_detection_f1",
+      "bbox_iou",
+      "structured_card_fields",
+      "QA_accuracy"
+    ],
+    "reason": "Block bounding boxes, block order annotations, and card-field extraction ground truth are not labeled yet."
+  },
+  "operational_metrics": {
+    "pymupdf": {
+      "document_count": 10,
+      "page_count": 50,
+      "processing_success_rate": 1.0,
+      "page_coverage": 0.86,
+      "empty_output_rate": 0.14,
+      "duplicate_output_rate": 0.12,
+      "schema_valid_rate": 1.0,
+      "seconds_per_page": 0.1244,
+      "cost_per_page_usd": 0.0
+    },
+    "mistral": {
+      "document_count": 10,
+      "page_count": 50,
+      "processing_success_rate": 1.0,
+      "page_coverage": 1.0,
+      "empty_output_rate": 0.0,
+      "duplicate_output_rate": 0.08,
+      "schema_valid_rate": 1.0,
+      "seconds_per_page": 1.30816,
+      "cost_per_page_usd": 0.004
+    },
+    "upstage": {
+      "document_count": 10,
+      "page_count": 50,
+      "processing_success_rate": 1.0,
+      "page_coverage": 1.0,
+      "empty_output_rate": 0.0,
+      "duplicate_output_rate": 0.08,
+      "schema_valid_rate": 1.0,
+      "seconds_per_page": 1.9902600000000001,
+      "cost_per_page_usd": 0.01
+    },
+    "vision": {
+      "document_count": 10,
+      "page_count": 50,
+      "artifact_success_rate": 1.0,
+      "page_coverage": 1.0,
+      "empty_output_rate": 0.0,
+      "duplicate_output_rate": null,
+      "schema_valid_rate": null,
+      "seconds_per_page": null,
+      "cost_per_page_usd": null,
+      "note": "Existing Vision raw-text files do not retain block schema, elapsed time, or cost metadata."
+    }
+  },
+  "key_number_metrics": {
+    "pymupdf": {
+      "label_count": 27,
+      "numeric_exact_match_rate": 0.8888888888888888,
+      "relation_context_match_rate": 0.7407407407407407,
+      "critical_numeric_exact_match_rate": 0.7777777777777778,
+      "details": [
+        {
+          "id": "launch_date",
+          "expected": "2021년 9월 27일",
+          "expected_occurrences": 1,
+          "found_occurrences": 0,
+          "contextual_occurrences": 0,
+          "surface_exact_match": false,
+          "relation_context_match": false,
+          "critical": false
+        },
+        {
+          "id": "benefit_maintenance_period",
+          "expected": "3년",
+          "expected_occurrences": 1,
+          "found_occurrences": 3,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "refund_processing_deadline",
+          "expected": "10영업일",
+          "expected_occurrences": 1,
+          "found_occurrences": 3,
+          "contextual_occurrences": 0,
+          "surface_exact_match": true,
+          "relation_context_match": false,
+          "critical": false
+        },
+        {
+          "id": "refund_latest_deadline",
+          "expected": "3개월",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "account_cutoff_time",
+          "expected": "16시",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "air_money_earn_rate",
+          "expected": "0.2%",
+          "expected_occurrences": 2,
+          "found_occurrences": 2,
+          "contextual_occurrences": 2,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": true
+        },
+        {
+          "id": "point_to_won",
+          "expected": "1포인트 = 1원",
+          "expected_occurrences": 1,
+          "found_occurrences": 0,
+          "contextual_occurrences": 0,
+          "surface_exact_match": false,
+          "relation_context_match": false,
+          "critical": true
+        },
+        {
+          "id": "point_expiry",
+          "expected": "5년(60개월)",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "point_expiry_example",
+          "expected": "2026년 6월1일 00:00분",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "rounding_threshold",
+          "expected": "1원미만",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "payment_example_before",
+          "expected": "10만원",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "payment_example_points",
+          "expected": "2만점",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "payment_example_after",
+          "expected": "8만원",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "lounge_phone",
+          "expected": "02-3272-3731",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "lounge_hours",
+          "expected": "09:00~18:00",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "lounge_quota",
+          "expected": "연2회(1일 1회)",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "lounge_period",
+          "expected": "1월 1일 ~ 12월 31일",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "excluded_four_major_insurances",
+          "expected": "4대보험",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "domestic_annual_fee_total",
+          "expected": "5,000원",
+          "expected_occurrences": 1,
+          "found_occurrences": 0,
+          "contextual_occurrences": 0,
+          "surface_exact_match": false,
+          "relation_context_match": false,
+          "critical": true
+        },
+        {
+          "id": "domestic_annual_fee_base",
+          "expected": "5천원",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": true
+        },
+        {
+          "id": "domestic_annual_fee_partner",
+          "expected": "0원",
+          "expected_occurrences": 1,
+          "found_occurrences": 3,
+          "contextual_occurrences": 3,
+          "surface_exact_match": true,
+          "relation_context_match": false,
+          "critical": true
+        },
+        {
+          "id": "international_annual_fee_total",
+          "expected": "10,000원",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": true
+        },
+        {
+          "id": "international_annual_fee_base",
+          "expected": "1만원",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": true
+        },
+        {
+          "id": "international_annual_fee_partner",
+          "expected": "0원",
+          "expected_occurrences": 1,
+          "found_occurrences": 3,
+          "contextual_occurrences": 3,
+          "surface_exact_match": true,
+          "relation_context_match": false,
+          "critical": true
+        },
+        {
+          "id": "customer_center_phone",
+          "expected": "1899-7771",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "international_brand_fee_rate",
+          "expected": "1.0%",
+          "expected_occurrences": 3,
+          "found_occurrences": 2,
+          "contextual_occurrences": 2,
+          "surface_exact_match": true,
+          "relation_context_match": false,
+          "critical": true
+        },
+        {
+          "id": "dcc_block_phone",
+          "expected": "02-950-8510",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        }
+      ]
+    },
+    "mistral": {
+      "label_count": 27,
+      "numeric_exact_match_rate": 0.9259259259259259,
+      "relation_context_match_rate": 0.7407407407407407,
+      "critical_numeric_exact_match_rate": 1.0,
+      "details": [
+        {
+          "id": "launch_date",
+          "expected": "2021년 9월 27일",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "benefit_maintenance_period",
+          "expected": "3년",
+          "expected_occurrences": 1,
+          "found_occurrences": 3,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "refund_processing_deadline",
+          "expected": "10영업일",
+          "expected_occurrences": 1,
+          "found_occurrences": 3,
+          "contextual_occurrences": 2,
+          "surface_exact_match": true,
+          "relation_context_match": false,
+          "critical": false
+        },
+        {
+          "id": "refund_latest_deadline",
+          "expected": "3개월",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "account_cutoff_time",
+          "expected": "16시",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "air_money_earn_rate",
+          "expected": "0.2%",
+          "expected_occurrences": 2,
+          "found_occurrences": 2,
+          "contextual_occurrences": 2,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": true
+        },
+        {
+          "id": "point_to_won",
+          "expected": "1포인트 = 1원",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": true
+        },
+        {
+          "id": "point_expiry",
+          "expected": "5년(60개월)",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "point_expiry_example",
+          "expected": "2026년 6월1일 00:00분",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "rounding_threshold",
+          "expected": "1원미만",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "payment_example_before",
+          "expected": "10만원",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "payment_example_points",
+          "expected": "2만점",
+          "expected_occurrences": 1,
+          "found_occurrences": 0,
+          "contextual_occurrences": 0,
+          "surface_exact_match": false,
+          "relation_context_match": false,
+          "critical": false
+        },
+        {
+          "id": "payment_example_after",
+          "expected": "8만원",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "lounge_phone",
+          "expected": "02-3272-3731",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "lounge_hours",
+          "expected": "09:00~18:00",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "lounge_quota",
+          "expected": "연2회(1일 1회)",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "lounge_period",
+          "expected": "1월 1일 ~ 12월 31일",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "excluded_four_major_insurances",
+          "expected": "4대보험",
+          "expected_occurrences": 1,
+          "found_occurrences": 0,
+          "contextual_occurrences": 0,
+          "surface_exact_match": false,
+          "relation_context_match": false,
+          "critical": false
+        },
+        {
+          "id": "domestic_annual_fee_total",
+          "expected": "5,000원",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": true
+        },
+        {
+          "id": "domestic_annual_fee_base",
+          "expected": "5천원",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": true
+        },
+        {
+          "id": "domestic_annual_fee_partner",
+          "expected": "0원",
+          "expected_occurrences": 1,
+          "found_occurrences": 4,
+          "contextual_occurrences": 4,
+          "surface_exact_match": true,
+          "relation_context_match": false,
+          "critical": true
+        },
+        {
+          "id": "international_annual_fee_total",
+          "expected": "10,000원",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 0,
+          "surface_exact_match": true,
+          "relation_context_match": false,
+          "critical": true
+        },
+        {
+          "id": "international_annual_fee_base",
+          "expected": "1만원",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 0,
+          "surface_exact_match": true,
+          "relation_context_match": false,
+          "critical": true
+        },
+        {
+          "id": "international_annual_fee_partner",
+          "expected": "0원",
+          "expected_occurrences": 1,
+          "found_occurrences": 4,
+          "contextual_occurrences": 0,
+          "surface_exact_match": true,
+          "relation_context_match": false,
+          "critical": true
+        },
+        {
+          "id": "customer_center_phone",
+          "expected": "1899-7771",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "international_brand_fee_rate",
+          "expected": "1.0%",
+          "expected_occurrences": 3,
+          "found_occurrences": 3,
+          "contextual_occurrences": 3,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": true
+        },
+        {
+          "id": "dcc_block_phone",
+          "expected": "02-950-8510",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        }
+      ]
+    },
+    "upstage": {
+      "label_count": 27,
+      "numeric_exact_match_rate": 0.9629629629629629,
+      "relation_context_match_rate": 0.8148148148148148,
+      "critical_numeric_exact_match_rate": 1.0,
+      "details": [
+        {
+          "id": "launch_date",
+          "expected": "2021년 9월 27일",
+          "expected_occurrences": 1,
+          "found_occurrences": 0,
+          "contextual_occurrences": 0,
+          "surface_exact_match": false,
+          "relation_context_match": false,
+          "critical": false
+        },
+        {
+          "id": "benefit_maintenance_period",
+          "expected": "3년",
+          "expected_occurrences": 1,
+          "found_occurrences": 3,
+          "contextual_occurrences": 0,
+          "surface_exact_match": true,
+          "relation_context_match": false,
+          "critical": false
+        },
+        {
+          "id": "refund_processing_deadline",
+          "expected": "10영업일",
+          "expected_occurrences": 1,
+          "found_occurrences": 3,
+          "contextual_occurrences": 0,
+          "surface_exact_match": true,
+          "relation_context_match": false,
+          "critical": false
+        },
+        {
+          "id": "refund_latest_deadline",
+          "expected": "3개월",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "account_cutoff_time",
+          "expected": "16시",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "air_money_earn_rate",
+          "expected": "0.2%",
+          "expected_occurrences": 2,
+          "found_occurrences": 2,
+          "contextual_occurrences": 2,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": true
+        },
+        {
+          "id": "point_to_won",
+          "expected": "1포인트 = 1원",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": true
+        },
+        {
+          "id": "point_expiry",
+          "expected": "5년(60개월)",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "point_expiry_example",
+          "expected": "2026년 6월1일 00:00분",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "rounding_threshold",
+          "expected": "1원미만",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "payment_example_before",
+          "expected": "10만원",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "payment_example_points",
+          "expected": "2만점",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "payment_example_after",
+          "expected": "8만원",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "lounge_phone",
+          "expected": "02-3272-3731",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "lounge_hours",
+          "expected": "09:00~18:00",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "lounge_quota",
+          "expected": "연2회(1일 1회)",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "lounge_period",
+          "expected": "1월 1일 ~ 12월 31일",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "excluded_four_major_insurances",
+          "expected": "4대보험",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "domestic_annual_fee_total",
+          "expected": "5,000원",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": true
+        },
+        {
+          "id": "domestic_annual_fee_base",
+          "expected": "5천원",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": true
+        },
+        {
+          "id": "domestic_annual_fee_partner",
+          "expected": "0원",
+          "expected_occurrences": 1,
+          "found_occurrences": 4,
+          "contextual_occurrences": 4,
+          "surface_exact_match": true,
+          "relation_context_match": false,
+          "critical": true
+        },
+        {
+          "id": "international_annual_fee_total",
+          "expected": "10,000원",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": true
+        },
+        {
+          "id": "international_annual_fee_base",
+          "expected": "1만원",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": true
+        },
+        {
+          "id": "international_annual_fee_partner",
+          "expected": "0원",
+          "expected_occurrences": 1,
+          "found_occurrences": 4,
+          "contextual_occurrences": 4,
+          "surface_exact_match": true,
+          "relation_context_match": false,
+          "critical": true
+        },
+        {
+          "id": "customer_center_phone",
+          "expected": "1899-7771",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "international_brand_fee_rate",
+          "expected": "1.0%",
+          "expected_occurrences": 3,
+          "found_occurrences": 3,
+          "contextual_occurrences": 3,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": true
+        },
+        {
+          "id": "dcc_block_phone",
+          "expected": "02-950-8510",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        }
+      ]
+    },
+    "vision": {
+      "label_count": 27,
+      "numeric_exact_match_rate": 0.9629629629629629,
+      "relation_context_match_rate": 0.8518518518518519,
+      "critical_numeric_exact_match_rate": 1.0,
+      "details": [
+        {
+          "id": "launch_date",
+          "expected": "2021년 9월 27일",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "benefit_maintenance_period",
+          "expected": "3년",
+          "expected_occurrences": 1,
+          "found_occurrences": 3,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "refund_processing_deadline",
+          "expected": "10영업일",
+          "expected_occurrences": 1,
+          "found_occurrences": 3,
+          "contextual_occurrences": 2,
+          "surface_exact_match": true,
+          "relation_context_match": false,
+          "critical": false
+        },
+        {
+          "id": "refund_latest_deadline",
+          "expected": "3개월",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "account_cutoff_time",
+          "expected": "16시",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "air_money_earn_rate",
+          "expected": "0.2%",
+          "expected_occurrences": 2,
+          "found_occurrences": 2,
+          "contextual_occurrences": 2,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": true
+        },
+        {
+          "id": "point_to_won",
+          "expected": "1포인트 = 1원",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": true
+        },
+        {
+          "id": "point_expiry",
+          "expected": "5년(60개월)",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "point_expiry_example",
+          "expected": "2026년 6월1일 00:00분",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "rounding_threshold",
+          "expected": "1원미만",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "payment_example_before",
+          "expected": "10만원",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "payment_example_points",
+          "expected": "2만점",
+          "expected_occurrences": 1,
+          "found_occurrences": 0,
+          "contextual_occurrences": 0,
+          "surface_exact_match": false,
+          "relation_context_match": false,
+          "critical": false
+        },
+        {
+          "id": "payment_example_after",
+          "expected": "8만원",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "lounge_phone",
+          "expected": "02-3272-3731",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "lounge_hours",
+          "expected": "09:00~18:00",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "lounge_quota",
+          "expected": "연2회(1일 1회)",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "lounge_period",
+          "expected": "1월 1일 ~ 12월 31일",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "excluded_four_major_insurances",
+          "expected": "4대보험",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "domestic_annual_fee_total",
+          "expected": "5,000원",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": true
+        },
+        {
+          "id": "domestic_annual_fee_base",
+          "expected": "5천원",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": true
+        },
+        {
+          "id": "domestic_annual_fee_partner",
+          "expected": "0원",
+          "expected_occurrences": 1,
+          "found_occurrences": 4,
+          "contextual_occurrences": 4,
+          "surface_exact_match": true,
+          "relation_context_match": false,
+          "critical": true
+        },
+        {
+          "id": "international_annual_fee_total",
+          "expected": "10,000원",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": true
+        },
+        {
+          "id": "international_annual_fee_base",
+          "expected": "1만원",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": true
+        },
+        {
+          "id": "international_annual_fee_partner",
+          "expected": "0원",
+          "expected_occurrences": 1,
+          "found_occurrences": 4,
+          "contextual_occurrences": 4,
+          "surface_exact_match": true,
+          "relation_context_match": false,
+          "critical": true
+        },
+        {
+          "id": "customer_center_phone",
+          "expected": "1899-7771",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        },
+        {
+          "id": "international_brand_fee_rate",
+          "expected": "1.0%",
+          "expected_occurrences": 3,
+          "found_occurrences": 3,
+          "contextual_occurrences": 3,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": true
+        },
+        {
+          "id": "dcc_block_phone",
+          "expected": "02-950-8510",
+          "expected_occurrences": 1,
+          "found_occurrences": 1,
+          "contextual_occurrences": 1,
+          "surface_exact_match": true,
+          "relation_context_match": true,
+          "critical": false
+        }
+      ]
+    }
+  },
+  "text_metrics": {
+    "pymupdf": {
+      "cer": 0.899624765478424,
+      "wer": 0.9399293286219081,
+      "numeric_cer": 0.631578947368421,
+      "normalized_edit_distance": 0.899624765478424
+    },
+    "mistral": {
+      "cer": 0.05300187617260788,
+      "wer": 0.1519434628975265,
+      "numeric_cer": 0.06698564593301436,
+      "normalized_edit_distance": 0.05300187617260788
+    },
+    "upstage": {
+      "cer": 0.24155722326454035,
+      "wer": 0.3003533568904594,
+      "numeric_cer": 0.3014354066985646,
+      "normalized_edit_distance": 0.2388682745825603
+    },
+    "vision": {
+      "cer": 0.0450281425891182,
+      "wer": 0.1431095406360424,
+      "numeric_cer": 0.023923444976076555,
+      "normalized_edit_distance": 0.0450281425891182
+    }
+  },
+  "table_metrics": {
+    "pymupdf": {
+      "teds": 0.07586789863258492,
+      "teds_s": 0.19799498746867172,
+      "table_detection_recall": 0.0
+    },
+    "mistral": {
+      "teds": 0.8024888197657076,
+      "teds_s": 0.8809523809523809,
+      "table_detection_recall": 1.0
+    },
+    "upstage": {
+      "teds": 0.9365079365079365,
+      "teds_s": 1.0,
+      "table_detection_recall": 1.0
+    },
+    "vision": {
+      "teds": null,
+      "teds_s": null,
+      "table_detection_recall": null
+    }
+  },
+  "section_order_metrics": {
+    "pymupdf": {
+      "section_coverage": 0.8571428571428571,
+      "section_order_accuracy": 0.6190476190476191
+    },
+    "mistral": {
+      "section_coverage": 1.0,
+      "section_order_accuracy": 1.0
+    },
+    "upstage": {
+      "section_coverage": 1.0,
+      "section_order_accuracy": 1.0
+    },
+    "vision": {
+      "section_coverage": 1.0,
+      "section_order_accuracy": 1.0
+    }
+  }
+}

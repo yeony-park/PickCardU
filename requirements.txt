@@ -6,6 +6,8 @@ chromadb
 streamlit
 markdown
 pypdf
+PyMuPDF
+apted
 openai
 tiktoken
 python-dotenv
