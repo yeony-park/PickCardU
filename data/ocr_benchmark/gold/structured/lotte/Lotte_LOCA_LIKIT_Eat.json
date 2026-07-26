@@ -1,0 +1,47 @@
+{
+  "schema_version": "1.0",
+  "issuer": "lotte",
+  "card_name": "Lotte_LOCA_LIKIT_Eat",
+  "source_pdf": "data/raw/lotte/Lotte_LOCA_LIKIT_Eat.pdf",
+  "raw_annotation": "data/ocr_benchmark/gold/raw/lotte/Lotte_LOCA_LIKIT_Eat.txt",
+  "annotation_scope": "Field labels derived only from the user-provided raw annotation. The source PDF and OCR-provider outputs were not used to create this file.",
+  "text_labels": [
+    {"id": "page_1_full_transcription", "page_num": 1, "raw_start_marker": "[page 1]"},
+    {"id": "page_2_full_transcription", "page_num": 2, "raw_start_marker": "[page 2]"},
+    {"id": "page_3_full_transcription", "page_num": 3, "raw_start_marker": "[page 3]"},
+    {"id": "page_4_full_transcription", "page_num": 4, "raw_start_marker": "[page 4]"},
+    {"id": "page_5_full_transcription", "page_num": 5, "raw_start_marker": "[page 5]"},
+    {"id": "page_6_full_transcription", "page_num": 6, "raw_start_marker": "[page 6]"},
+    {"id": "page_7_full_transcription", "page_num": 7, "raw_start_marker": "[page 7]"},
+    {"id": "page_8_full_transcription", "page_num": 8, "raw_start_marker": "[page 8]"}
+  ],
+  "field_labels": [
+    {"id": "card_name", "page_num": 1, "value": "LOCA LIKIT Eat", "context_terms": ["LOCA LIKIT Eat", "롯데카드"], "critical": true},
+    {"id": "restaurant_discount", "page_num": 3, "value": {"rate": 0.6, "target": "음식점 업종으로 등록된 가맹점", "discount_type": "결제일 할인"}, "context_terms": ["음식점", "60% 결제일 할인"], "critical": true},
+    {"id": "delivery_app_discount", "page_num": 3, "value": {"rate": 0.6, "targets": ["배달의 민족", "쿠팡이츠", "요기요"], "discount_type": "결제일 할인", "payment_requirement": "공식 홈페이지 및 앱을 통한 결제"}, "context_terms": ["배달앱", "60% 결제일 할인"], "critical": true},
+    {"id": "coffee_discount", "page_num": 3, "value": {"rate": 0.6, "targets": ["스타벅스", "투썸플레이스", "할리스커피", "폴바셋"], "discount_type": "결제일 할인"}, "context_terms": ["커피", "60% 결제일 할인"], "critical": true},
+    {"id": "membership_discount", "page_num": 3, "value": {"rate": 0.6, "targets": ["쿠팡 로켓와우", "네이버플러스 멤버십"], "discount_type": "결제일 할인"}, "context_terms": ["멤버십", "60% 결제일 할인"], "critical": true},
+    {"id": "discount_common_requirement", "page_num": 3, "value": {"previous_month_spend_minimum_krw": 400000, "monthly_integrated_discount_limit_krw": 13000}, "context_terms": ["지난달 1일~말일까지", "40만원 이상", "통합 월 1만 3천원"], "critical": true},
+    {"id": "discount_exclusions", "page_num": 3, "value": ["모든 무이자할부 이용금액", "포인트 충전", "기프트·선불카드 충전 및 구매", "상품권(모바일 상품권 포함) 구매"], "context_terms": ["할인 적용 제외 대상"], "critical": true},
+    {"id": "initial_issue_benefit_rule", "page_num": 4, "value": "카드발급일~다음 달 말일까지 이용실적에 관계없이 혜택 제공", "context_terms": ["최초 발급", "이용실적에 관계없이"], "critical": true},
+    {"id": "previous_month_spend_exclusions", "page_num": 4, "value": ["LOCA LIKIT Eat 카드 할인 혜택이 적용된 이용금액", "LOCA LIKIT Eat 카드가 아닌 롯데카드 이용금액", "국세", "지방세", "도시가스비", "공과금", "건강보험", "국민연금", "고용보험", "산재보험", "기프트·선불카드 충전 및 구매", "포인트 충전", "상품권(모바일 상품권 포함) 구매", "대중교통(버스, 지하철)", "택시", "모든 무이자할부 이용금액", "단기카드대출(현금서비스)", "장기카드대출 (카드론)", "연회비"], "context_terms": ["이용실적 산정 시 제외 대상"], "critical": true},
+    {"id": "annual_fee", "page_num": 7, "value": {"domestic": {"total_krw": 10000, "base_krw": 10000, "partner_krw": 0}, "international": {"brands": ["MASTER", "AMEX"], "total_krw": 10000, "base_krw": 10000, "partner_krw": 0}, "family_card_fee": "none"}, "context_terms": ["연회비", "국내전용", "해외겸용(MASTER, AMEX)", "가족카드는 연회비가 없습니다"], "critical": true},
+    {"id": "overseas_fee_rates", "page_num": 8, "value": {"international_brand_rates": {"MASTER": 0.01, "AMEX": 0.014}, "credit_card_overseas_service_rate": 0.002}, "context_terms": ["국제 브랜드사", "해외 이용 수수료"], "critical": false}
+  ],
+  "numeric_labels": [
+    {"id": "restaurant_discount_rate", "page_num": 3, "surface_text": "60%", "normalized_value": 0.6, "unit": "ratio", "context_terms": ["음식점", "결제일 할인"], "critical": true},
+    {"id": "delivery_app_discount_rate", "page_num": 3, "surface_text": "60%", "normalized_value": 0.6, "unit": "ratio", "context_terms": ["배달의 민족", "쿠팡이츠", "요기요"], "critical": true},
+    {"id": "coffee_discount_rate", "page_num": 3, "surface_text": "60%", "normalized_value": 0.6, "unit": "ratio", "context_terms": ["스타벅스", "투썸플레이스", "할리스커피", "폴바셋"], "critical": true},
+    {"id": "membership_discount_rate", "page_num": 3, "surface_text": "60%", "normalized_value": 0.6, "unit": "ratio", "context_terms": ["쿠팡 로켓와우", "네이버플러스 멤버십"], "critical": true},
+    {"id": "previous_month_spend_requirement", "page_num": 3, "surface_text": "40만원 이상", "normalized_value": 400000, "unit": "KRW", "context_terms": ["지난달 1일~말일까지"], "critical": true},
+    {"id": "monthly_integrated_discount_limit", "page_num": 3, "surface_text": "1만 3천원", "normalized_value": 13000, "unit": "KRW", "context_terms": ["모든 혜택 통합 월"], "critical": true},
+    {"id": "domestic_annual_fee", "page_num": 7, "surface_text": "10,000원", "normalized_value": 10000, "unit": "KRW", "context_terms": ["국내전용", "총 연회비"], "critical": true},
+    {"id": "international_annual_fee", "page_num": 7, "surface_text": "10,000원", "normalized_value": 10000, "unit": "KRW", "context_terms": ["해외겸용(MASTER, AMEX)", "총 연회비"], "critical": true},
+    {"id": "master_international_brand_fee_rate", "page_num": 8, "surface_text": "MASTER 1%", "normalized_value": 0.01, "unit": "ratio", "context_terms": ["국제 브랜드사"], "critical": false},
+    {"id": "amex_international_brand_fee_rate", "page_num": 8, "surface_text": "AMEX 1.4%", "normalized_value": 0.014, "unit": "ratio", "context_terms": ["국제 브랜드사"], "critical": false},
+    {"id": "credit_card_overseas_service_fee_rate", "page_num": 8, "surface_text": "신용카드 0.2%", "normalized_value": 0.002, "unit": "ratio", "context_terms": ["해외 이용 수수료"], "critical": false}
+  ],
+  "table_labels": [
+    {"id": "annual_fee", "page_num": 7, "headers": ["구분", "총 연회비", "기본 연회비", "제휴 연회비"], "rows": [["국내전용", "10,000원", "10,000원", "0원"], ["해외겸용(MASTER, AMEX)", "10,000원", "10,000원", "0원"]]}
+  ]
+}

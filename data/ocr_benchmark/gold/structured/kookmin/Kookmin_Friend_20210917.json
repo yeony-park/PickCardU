@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "issuer": "kookmin",
+  "card_name": "Kookmin_Friend_20210917",
+  "source_pdf": "data/raw/kookmin/Kookmin_Friend_20210917.pdf",
+  "raw_annotation": "data/ocr_benchmark/gold/raw/kookmin/Kookmin_Friend_20210917.txt",
+  "annotation_scope": "Field labels derived only from the user-provided raw annotation. The source PDF and OCR-provider outputs were not used to create this file.",
+  "text_labels": [
+    {"id": "page_1_full_transcription", "page_num": 1, "raw_start_marker": "[page 1]"},
+    {"id": "page_2_full_transcription", "page_num": 2, "raw_start_marker": "[page 2]"}
+  ],
+  "field_labels": [
+    {"id": "card_name", "page_num": 1, "value": "KB국민 프랜드카드", "context_terms": ["KB국민 프랜드카드"], "critical": true},
+    {"id": "fuel_discount", "page_num": 1, "value": {"target": "전주유소(LPG포함)", "discount_krw_per_liter": 70, "daily_spend_limit_krw": 100000, "monthly_spend_limit_krw": 250000}, "context_terms": ["프앤드(주유)카드", "주유할인 서비스", "리터당70원청구할인"], "critical": true},
+    {"id": "fuel_discount_previous_month_requirement", "page_num": 1, "value": {"minimum_krw": 300000, "payment_types": ["일시불", "할부"]}, "context_terms": ["전월 프랜드(주유)카드", "30만원 이상"], "critical": true},
+    {"id": "fuel_discount_previous_month_exclusions", "page_num": 1, "value": ["KB국민 프랜드카드로 주유할인 받은 매출전표", "단기카드대출(현금서비스)", "아파트 관리비", "연회비", "각종 상품권 매출", "선불카드 구입/충전금액", "각종 세금(국세/관세/지방세/공과금 등)", "장기카드대출(카드론)", "대학(대학원)등록금", "각종 수수료"], "context_terms": ["전월 실적산정 시 제외 매출"], "critical": true},
+    {"id": "asiana_mileage_earning", "page_num": 1, "value": {"per_spend_krw": 1000, "miles": 1, "payment_types": ["일시불", "할부"]}, "context_terms": ["프랜드(항공)카드", "아시아나마일리지 적립"], "critical": true},
+    {"id": "mileage_earning_exclusions", "page_num": 1, "value": ["단기카드대출(현금서비스)", "아파트 관리비", "연회비", "각종 상품권 매출", "선불카드 구입/충전금액", "각종 세금(국세/관세/지방세/공과금 등)", "장기카드대출(카드론)", "대학(대학원)등록금", "각종 수수료"], "context_terms": ["마일리지 적립 제외 대상"], "critical": true},
+    {"id": "interest_free_installment", "page_num": 1, "value": {"target_scope": "백화점, 대형 할인점 등 주요 업종", "installment_months": "2~3개월", "classification_standard": "KB국민카드 업종 기준"}, "context_terms": ["무이자 할부"], "critical": true},
+    {"id": "everland_discount", "page_num": 1, "value": {"target": "에버랜드 페스티벌월드", "rate": 0.5, "discount_type": "현장할인", "per_day": 1, "annual_limit": 10, "online_booking_scope": "주간이용권"}, "context_terms": ["에버랜드할인", "50%현장할인", "연간 10회"], "critical": true},
+    {"id": "caribbean_bay_discount", "page_num": 1, "value": {"target": "캐리비안베이", "rate": 0.3, "discount_type": "현장할인", "per_day": 1}, "context_terms": ["캐리비안베이", "30%현장할인"], "critical": true},
+    {"id": "annual_fee", "page_num": 2, "value": {"gold": {"category": "국내외겸용(비자)", "base_krw": 10000, "partner_krw": 0, "total_krw": 10000}, "platinum": {"category": "플래티늄카드(비자,마스터)", "base_krw": 10000, "partner_krw": 90000, "total_krw": 100000}}, "context_terms": ["연회비", "합계(기본+제휴)"], "critical": true},
+    {"id": "next_year_base_annual_fee_waiver", "page_num": 2, "value": {"annual_spend_minimum_krw": 1000000, "waived_fee": "기본 연회비", "includes": "단기카드대출(현금서비스)"}, "context_terms": ["차기년도 연회비", "연간 100만원 이상", "기본 연회비 면제"], "critical": true}
+  ],
+  "numeric_labels": [
+    {"id": "fuel_discount_per_liter", "page_num": 1, "surface_text": "70원", "normalized_value": 70, "unit": "KRW_per_liter", "context_terms": ["전주유소", "청구할인"], "critical": true},
+    {"id": "fuel_discount_daily_spend_limit", "page_num": 1, "surface_text": "1일 10만원", "normalized_value": 100000, "unit": "KRW", "context_terms": ["할인한도"], "critical": true},
+    {"id": "fuel_discount_monthly_spend_limit", "page_num": 1, "surface_text": "월 25만원", "normalized_value": 250000, "unit": "KRW", "context_terms": ["할인한도"], "critical": true},
+    {"id": "fuel_discount_previous_month_spend", "page_num": 1, "surface_text": "30만원 이상", "normalized_value": 300000, "unit": "KRW", "context_terms": ["전월 프랜드(주유)카드"], "critical": true},
+    {"id": "asiana_mileage_spend_unit", "page_num": 1, "surface_text": "1,000원당", "normalized_value": 1000, "unit": "KRW", "context_terms": ["아시아나마일리지 적립"], "critical": true},
+    {"id": "asiana_mileage_earned", "page_num": 1, "surface_text": "1마일", "normalized_value": 1, "unit": "mile", "context_terms": ["일시불 및 할부 이용금액"], "critical": true},
+    {"id": "everland_discount_rate", "page_num": 1, "surface_text": "50%", "normalized_value": 0.5, "unit": "ratio", "context_terms": ["에버랜드 페스티벌월드", "현장할인"], "critical": true},
+    {"id": "everland_annual_limit", "page_num": 1, "surface_text": "연간 10회", "normalized_value": 10, "unit": "per_year", "context_terms": ["에버랜드 할인서비스"], "critical": true},
+    {"id": "caribbean_bay_discount_rate", "page_num": 1, "surface_text": "30%", "normalized_value": 0.3, "unit": "ratio", "context_terms": ["캐리비안베이", "현장할인"], "critical": true},
+    {"id": "gold_annual_fee_total", "page_num": 2, "surface_text": "10,000원", "normalized_value": 10000, "unit": "KRW", "context_terms": ["국내외겸용(비자)", "합계"], "critical": true},
+    {"id": "platinum_annual_fee_total", "page_num": 2, "surface_text": "100,000원", "normalized_value": 100000, "unit": "KRW", "context_terms": ["플래티늄카드(비자,마스터)", "합계"], "critical": true},
+    {"id": "next_year_base_fee_waiver_spend", "page_num": 2, "surface_text": "100만원 이상", "normalized_value": 1000000, "unit": "KRW", "context_terms": ["차기년도 연회비", "기본 연회비 면제"], "critical": true}
+  ],
+  "table_labels": [
+    {"id": "product_services", "page_num": 1, "headers": ["구분", "서비스 내용", ""], "rows": [["프앤드(주유)카드", "주유할인 서비스", "ㅇ 프랜드카드(주유) 전주유소 리터당70원청구할인(LPG포함)  - 전주유소(LPG포함)에서 주유시 리터당 70원 상당 할인 ㅇ 할인한도 1일 10만원, 월 25만원이용분까지 ※ 전월 프랜드(주유)카드로 30만원 이상(일시불+할부) 결제금액 회수 시 주유할인 서비스 제공 ※ 주유할인 선택 시 \"리터당 할인금액(70원)은 GS칼텍스 본사 휘발유 표준고시유가를 기준\"으로 합니다."], ["", "전월 실적산정 시 제외 매출", "KB국민 프랜드카드로 주유할인 받은 매출전표 단기카드대출(현금서비스), 아파트 관리비, 연회비, 각종 상품권 매출, 선불카드 구입/충전금액, 각종 세금(국세/관세/지방세/공과금 등), 장기카드대출(카드론), 대학(대학원)등록금, 각종 수수료(할부수수료, 단기카드대출(현금서비스)이용수수료, 이자 등)"], ["프랜드(항공)카드", "아시아나마일리지 적립", "일시불 및 할부 이용금액 1,000원당 1마일 적립"], ["", "마일리지 적립 제외 대상", "단기카드대출(현금서비스), 아파트 관리비, 연회비, 각종 상품권 매출, 선불카드 구입/충전금액, 각종 세금(국세/관세/지방세/공과금 등), 장기카드대출(카드론), 대학(대학원)등록금, 각종 수수료(할부수수료, 단기카드대출(현금서비스)이용수수료, 이자 등)"], ["공통 서비스(프랜드 주유/항공 카드 공통)", "무이자 할부", "백화점, 대형 할인점 등 주요 업종 2~3개월 무이자 할부 (KB국민카드 업종 기준)"], ["", "에버랜드할인", "ㅇ 에버랜드 페스티벌월드 50%현장할인  - 1일 1매 : 본인, 가족 카드별 1회  - 연간 10회(가족카드 사용분 포함, 회원별 소지한 에버랜드 할인서비스 제공 카드계열 기준으로 연간 10회 제공)  - 할인방법 : 에버랜드 현장 구입 및 에버랜드 홈페이지(www.everland.com)에서 예매/발권 단, 온라인 예매할인은 주간이용권에 한함  ㅇ 캐리비안베이 30%현장할인 - 1일 1매"]]},
+    {"id": "annual_fee", "page_num": 2, "headers": ["구분", "등급", "기본", "제휴", "합계(기본+제휴)"], "rows": [["국내외겸용(비자)", "골드", "10,000원", "-", "10,000원"], ["플래티늄카드(비자,마스터)", "플래티늄", "10,000원", "90,000원", "100,000원"]]}
+  ]
+}

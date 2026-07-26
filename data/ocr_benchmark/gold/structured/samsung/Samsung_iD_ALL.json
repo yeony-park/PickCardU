@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.0",
+  "issuer": "samsung",
+  "card_name": "Samsung_iD_ALL",
+  "source_pdf": "data/raw/samsung/Samsung_iD_ALL.pdf",
+  "raw_annotation": "data/ocr_benchmark/gold/raw/samsung/Samsung_iD_ALL.txt",
+  "annotation_scope": "Field labels derived only from the user-provided raw annotation. The source PDF and OCR-provider outputs were not used to create this file.",
+  "text_labels": [
+    {"id": "page_1_full_transcription", "page_num": 1, "raw_start_marker": "[page 1]"},
+    {"id": "page_2_full_transcription", "page_num": 2, "raw_start_marker": "[page 2]"},
+    {"id": "page_3_full_transcription", "page_num": 3, "raw_start_marker": "[page 3]"},
+    {"id": "page_4_full_transcription", "page_num": 4, "raw_start_marker": "[page 4]"},
+    {"id": "page_5_full_transcription", "page_num": 5, "raw_start_marker": "[page 5]"},
+    {"id": "page_6_full_transcription", "page_num": 6, "raw_start_marker": "[page 6]"},
+    {"id": "page_7_full_transcription", "page_num": 7, "raw_start_marker": "[page 7]"},
+    {"id": "page_8_full_transcription", "page_num": 8, "raw_start_marker": "[page 8]"}
+  ],
+  "field_labels": [
+    {"id": "card_name", "page_num": 1, "value": "삼성 iD ALL 카드", "context_terms": ["삼성 iD ALL 카드"], "critical": true},
+    {"id": "highest_spend_category_discount", "page_num": 2, "value": {"rate": 0.05, "categories": ["백화점", "할인점", "슈퍼마켓"], "selection_rule": "월 이용금액이 가장 큰 1개 영역", "monthly_limit_tiers": [{"previous_month_spend": "40만원 이상", "limit_krw": 5000}, {"previous_month_spend": "70만원 이상", "limit_krw": 10000}]}, "context_terms": ["많이 쓰는 영역", "5% 자동 맞춤 할인"], "critical": true},
+    {"id": "fuel_telecom_apartment_discount", "page_num": 3, "value": {"rate": 0.025, "categories": ["주유", "이동통신", "아파트 관리비"], "monthly_limit_tiers": [{"previous_month_spend": "40만원 이상", "limit_krw": 5000}, {"previous_month_spend": "70만원 이상", "limit_krw": 10000}]}, "context_terms": ["주유", "이동통신", "아파트 관리비", "2.5% 결제일할인"], "critical": true},
+    {"id": "general_domestic_overseas_discount", "page_num": 3, "value": {"rate": 0.005, "scope": "국내외 가맹점", "previous_month_spend_requirement": "none", "discount_limit": "none"}, "context_terms": ["국내외 가맹점", "전월 이용금액에 관계없이", "할인한도 없이"], "critical": true},
+    {"id": "previous_month_spend_exclusions", "page_num": 4, "value": ["건강보험/국민연금/고용보험/산재보험 및 장애인 고용부담금", "국세/지방세/공과금", "부동산 임대료", "초·중·고등학교 학교납입금", "대학 등록금", "대중교통", "택시", "기프트/선불카드 구매 및 충전", "상품권 구매"], "context_terms": ["전월 이용금액 제외 대상"], "critical": true},
+    {"id": "discount_exclusions", "page_num": 4, "value": ["무이자할부 이용금액", "삼성카드 할인이 적용된 일시불 및 할부 이용금액", "부동산 임대료", "대중교통", "택시", "고속버스", "고속도로 통행요금", "문자알림서비스", "스마트오토서비스"], "context_terms": ["할인 제외 대상"], "critical": true},
+    {"id": "primary_international_annual_fee", "page_num": 6, "value": {"brands": ["Mastercard", "VISA"], "total_krw": 20000, "base_krw": 7000, "partner_krw": 13000}, "context_terms": ["본인", "해외겸용", "총 연회비"], "critical": true},
+    {"id": "family_international_annual_fee", "page_num": 6, "value": {"brands": ["Mastercard", "VISA"], "total_krw": 13000, "base_krw": 0, "partner_krw": 13000}, "context_terms": ["가족", "해외겸용", "총 연회비"], "critical": true},
+    {"id": "foreign_currency_conversion_blocking", "page_num": 7, "value": {"service": "해외원화결제서비스(DCC) 차단", "channels": ["홈페이지(PC)", "앱"]}, "context_terms": ["해외원화결제서비스", "차단방법"], "critical": false}
+  ],
+  "numeric_labels": [
+    {"id": "highest_spend_category_discount_rate", "page_num": 2, "surface_text": "5%", "normalized_value": 0.05, "unit": "ratio", "context_terms": ["자동 맞춤 할인"], "critical": true},
+    {"id": "highest_spend_category_limit_low", "page_num": 2, "surface_text": "5,000원", "normalized_value": 5000, "unit": "KRW", "context_terms": ["40만원 이상", "월 할인한도"], "critical": true},
+    {"id": "highest_spend_category_limit_high", "page_num": 2, "surface_text": "10,000원", "normalized_value": 10000, "unit": "KRW", "context_terms": ["70만원 이상", "월 할인한도"], "critical": true},
+    {"id": "fuel_telecom_apartment_discount_rate", "page_num": 3, "surface_text": "2.5%", "normalized_value": 0.025, "unit": "ratio", "context_terms": ["주유", "이동통신", "아파트 관리비"], "critical": true},
+    {"id": "general_discount_rate", "page_num": 3, "surface_text": "0.5%", "normalized_value": 0.005, "unit": "ratio", "context_terms": ["국내외 가맹점"], "critical": true},
+    {"id": "primary_international_annual_fee_total", "page_num": 6, "surface_text": "2만원", "normalized_value": 20000, "unit": "KRW", "context_terms": ["본인", "해외겸용", "Mastercard"], "critical": true},
+    {"id": "family_international_annual_fee_total", "page_num": 6, "surface_text": "1만 3천원", "normalized_value": 13000, "unit": "KRW", "context_terms": ["가족", "해외겸용", "Mastercard"], "critical": true},
+    {"id": "international_mastercard_fee_rate", "page_num": 7, "surface_text": "Mastercard 1%", "normalized_value": 0.01, "unit": "ratio", "context_terms": ["브랜드사수수료"], "critical": false},
+    {"id": "international_visa_fee_rate", "page_num": 7, "surface_text": "VISA 1.1%", "normalized_value": 0.011, "unit": "ratio", "context_terms": ["브랜드사수수료"], "critical": false},
+    {"id": "overseas_service_fee_rate", "page_num": 7, "surface_text": "0.2%", "normalized_value": 0.002, "unit": "ratio", "context_terms": ["해외이용수수료"], "critical": false}
+  ],
+  "table_labels": [
+    {"id": "highest_spend_category_targets", "page_num": 2, "headers": ["영역", "할인 대상"], "rows": [["백화점", "신세계/롯데/현대/갤러리아 백화점, AK플라자"], ["할인점", "이마트, 이마트 트레이더스, 롯데마트, 홈플러스, 농협 하나로마트"], ["슈퍼마켓", "이마트 에브리데이, GS THE FRESH(구. GS 수퍼마켓), 롯데슈퍼, 홈플러스 익스프레스"]]},
+    {"id": "highest_spend_category_limits", "page_num": 2, "headers": ["40만원 이상", "70만원 이상"], "rows": [["5,000원", "10,000원"]]},
+    {"id": "fuel_telecom_apartment_targets", "page_num": 3, "headers": ["업종", "할인 대상"], "rows": [["주유", "주유소, LPG충전소, 전기차충전소"], ["이동통신", "SKT, KT, LG U+, 알뜰폰 이동통신요금 정기결제건"], ["아파트 관리비", "아파트 관리비 정기 결제건"]]},
+    {"id": "fuel_telecom_apartment_limits", "page_num": 3, "headers": ["40만원 이상", "70만원 이상"], "rows": [["5,000원", "10,000원"]]},
+    {"id": "annual_fee", "page_num": 6, "headers": ["", "", "", "총 연회비", "기본 연회비", "제휴 연회비"], "rows": [["본인", "해외겸용", "Mastercard", "2만원", "7천원", "1만 3천원"], ["", "", "VISA", "", "", ""], ["", "국내전용", "", "", "", ""], ["가족", "해외겸용", "Mastercard", "1만 3천원", "-", "1만 3천원"], ["", "", "VISA", "", "", ""], ["", "국내전용", "", "", "", ""]]}
+  ]
+}

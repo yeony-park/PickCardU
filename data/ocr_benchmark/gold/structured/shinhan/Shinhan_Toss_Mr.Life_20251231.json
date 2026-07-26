@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "issuer": "shinhan",
+  "card_name": "Shinhan_Toss_Mr.Life_20251231",
+  "source_pdf": "data/raw/shinhan/Shinhan_Toss_Mr.Life_20251231.pdf",
+  "raw_annotation": "data/ocr_benchmark/gold/raw/shinhan/Shinhan_Toss_Mr.Life_20251231.txt",
+  "annotation_scope": "Field labels derived only from the user-provided raw annotation. The source PDF and OCR-provider outputs were not used to create this file.",
+  "text_labels": [
+    {"id": "page_1_full_transcription", "page_num": 1, "raw_start_marker": "[page 1]"},
+    {"id": "page_2_full_transcription", "page_num": 2, "raw_start_marker": "[page 2]"}
+  ],
+  "field_labels": [
+    {"id": "card_name", "page_num": 1, "value": "토스 신한카드 Mr.Life", "context_terms": ["토스 신한카드 Mr.Life"], "critical": true},
+    {"id": "monthly_bill_discount", "page_num": 2, "value": {"rate": 0.1, "targets": ["전기요금", "도시가스요금", "SKT, LG U+, KT 통신요금"], "tiers": [{"previous_month_spend": "30~50만원", "monthly_limit_krw": 3000}, {"previous_month_spend": "50~100만원", "monthly_limit_krw": 7000}, {"previous_month_spend": "100만원 이상", "monthly_limit_krw": 10000}]}, "context_terms": ["월납요금", "공과금 10% 할인"], "critical": true},
+    {"id": "weekend_discount", "page_num": 2, "value": {"mart_rate": 0.1, "fuel_discount_krw_per_liter": 60, "tiers": [{"previous_month_spend": "30~50만원", "monthly_limit_krw": 3000}, {"previous_month_spend": "50~100만원", "monthly_limit_krw": 7000}, {"previous_month_spend": "100만원 이상", "monthly_limit_krw": 10000}]}, "context_terms": ["주유/쇼핑", "3대 할인마트", "4대 주유소"], "critical": true},
+    {"id": "time_discount", "page_num": 2, "value": {"rate": 0.1, "tiers": [{"previous_month_spend": "30~50만원", "monthly_limit_krw": 10000}, {"previous_month_spend": "50~100만원", "monthly_limit_krw": 20000}, {"previous_month_spend": "100만원 이상", "monthly_limit_krw": 30000}], "all_day_targets": ["편의점", "병원/약국", "세탁소"], "night_targets": ["온라인 쇼핑", "택시", "식음료"], "night_hours": "21:00~09:00"}, "context_terms": ["Time 할인 서비스", "All Day", "Night"], "critical": true},
+    {"id": "all_day_discount_usage_limit", "page_num": 2, "value": {"per_day": 1, "per_month": 5, "max_approval_krw": 10000, "max_discount_krw": 1000}, "context_terms": ["All Day", "일 1회", "월 5회"], "critical": true},
+    {"id": "night_discount_usage_limit", "page_num": 2, "value": {"per_day": 1, "per_month": 10, "max_approval_krw": 10000, "max_discount_krw": 1000}, "context_terms": ["Night", "일 1회", "월 10회"], "critical": true},
+    {"id": "intake_discount", "page_num": 2, "value": {"rate": 0.2, "target": "인테이크몰", "per_month": 4}, "context_terms": ["INTAKE", "20% 할인", "월 4회"], "critical": true},
+    {"id": "annual_fee", "page_num": 1, "value": {"domestic": {"brand": "Local", "total_krw": 15000, "base_krw": 5000, "service_krw": 10000}, "international": {"brand": "VISA", "total_krw": 18000, "base_krw": 5000, "service_krw": 13000}}, "context_terms": ["연회비", "국내전용", "해외겸용"], "critical": true},
+    {"id": "previous_month_spend_exclusions", "page_num": 2, "value": ["단기카드대출(현금서비스)", "장기카드대출(카드론)", "연회비", "각종 수수료/이자", "기프트카드/선불카드 구매·충전금액", "거래 취소금액"], "context_terms": ["전월 실적 제외대상"], "critical": true}
+  ],
+  "numeric_labels": [
+    {"id": "benefit_service_launch_date", "page_num": 1, "surface_text": "2020년 12월 29일", "normalized_value": "2020-12-29", "context_terms": ["카드 신규출시"], "critical": false},
+    {"id": "domestic_annual_fee", "page_num": 1, "surface_text": "1만 5천원", "normalized_value": 15000, "unit": "KRW", "context_terms": ["국내전용", "Local"], "critical": true},
+    {"id": "international_annual_fee", "page_num": 1, "surface_text": "1만 8천원", "normalized_value": 18000, "unit": "KRW", "context_terms": ["해외겸용", "VISA"], "critical": true},
+    {"id": "monthly_bill_discount_rate", "page_num": 2, "surface_text": "10%", "normalized_value": 0.1, "unit": "ratio", "context_terms": ["월납요금", "공과금"], "critical": true},
+    {"id": "fuel_discount_per_liter", "page_num": 2, "surface_text": "60원", "normalized_value": 60, "unit": "KRW_per_liter", "context_terms": ["4대 주유소", "리터당"], "critical": true},
+    {"id": "time_discount_rate", "page_num": 2, "surface_text": "10%", "normalized_value": 0.1, "unit": "ratio", "context_terms": ["Time 할인 서비스"], "critical": true},
+    {"id": "intake_discount_rate", "page_num": 2, "surface_text": "20%", "normalized_value": 0.2, "unit": "ratio", "context_terms": ["INTAKE", "인테이크몰"], "critical": true},
+    {"id": "international_brand_fee_rate", "page_num": 1, "surface_text": "VISA 1.1%", "normalized_value": 0.011, "unit": "ratio", "context_terms": ["국제브랜드 수수료"], "critical": false},
+    {"id": "credit_card_overseas_service_fee_rate", "page_num": 1, "surface_text": "신용 0.18%", "normalized_value": 0.0018, "unit": "ratio", "context_terms": ["해외서비스 수수료"], "critical": false},
+    {"id": "check_card_overseas_service_fee_rate", "page_num": 1, "surface_text": "체크 0.2%", "normalized_value": 0.002, "unit": "ratio", "context_terms": ["해외서비스 수수료"], "critical": false}
+  ],
+  "table_labels": [
+    {"id": "annual_fee", "page_num": 1, "headers": ["구분", "", "총연회비", "기본연회비", "서비스연회비"], "rows": [["국내전용", "Local", "1만 5천원", "5천원", "1만원"], ["해외겸용", "VISA", "1만 8천원", "5천원", "1만 3천원"]]},
+    {"id": "monthly_bill_discount_limits", "page_num": 2, "headers": ["전월 실적", "30~50만원", "50~100만원", "100만원 이상"], "rows": [["할인한도", "3천원", "7천원", "1만원"]]},
+    {"id": "weekend_discount_limits", "page_num": 2, "headers": ["전월 실적", "30~50만원", "50~100만원", "100만원 이상"], "rows": [["할인한도", "3천원", "7천원", "1만원"]]},
+    {"id": "time_discount_limits", "page_num": 2, "headers": ["전월 실적", "30~50만원", "50~100만원", "100만원 이상"], "rows": [["할인한도", "1만원", "2만원", "3만원"]]}
+  ]
+}

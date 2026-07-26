@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "issuer": "woori",
+  "card_name": "Woori_Classic_EVERY_MILE_SKYPASS",
+  "source_pdf": "data/raw/woori/Woori_Classic_EVERY_MILE_SKYPASS.pdf",
+  "raw_annotation": "data/ocr_benchmark/gold/raw/woori/Woori_Classic_EVERY_MILE_SKYPASS.txt",
+  "annotation_scope": "Field labels derived only from the user-provided raw annotation. The source PDF and OCR-provider outputs were not used to create this file.",
+  "text_labels": [
+    {"id": "page_1_full_transcription", "page_num": 1, "raw_start_marker": "[page1]"},
+    {"id": "page_2_full_transcription", "page_num": 2, "raw_start_marker": "[page2]"}
+  ],
+  "field_labels": [
+    {"id": "card_name", "page_num": 1, "value": "카드의정석 EVERY MILE SKYPASS", "context_terms": ["카드의정석", "EVERY MILE SKYPASS"], "critical": true},
+    {"id": "basic_mileage_earning", "page_num": 2, "value": {"merchant_scope": "국내외 가맹점", "per_spend_krw": 1000, "miles": 1, "monthly_cap": null}, "context_terms": ["기본", "국내외 가맹점", "제한 없음"], "critical": true},
+    {"id": "additional_overseas_mileage_earning", "page_num": 2, "value": {"merchant_scope": "해외 가맹점", "per_spend_krw": 1000, "additional_miles": 1, "monthly_cap_miles": 1000}, "context_terms": ["추가", "해외 가맹점", "+1마일", "1천 마일"], "critical": true},
+    {"id": "mileage_previous_month_spend_requirement", "page_num": 2, "value": "none", "context_terms": ["전월실적 조건 없음"], "critical": true},
+    {"id": "airport_lounge_quota", "page_num": 2, "value": {"per_year": 2, "companions_included": 1}, "context_terms": ["연 2회 제공", "동반 1인"], "critical": true},
+    {"id": "airport_lounge_previous_month_spend_requirement", "page_num": 2, "value": {"minimum_krw": 500000, "scope": "본인회원 전월 국내가맹점 이용실적"}, "context_terms": ["전월 국내가맹점", "50만원 이상"], "critical": true},
+    {"id": "international_brand_fee_waiver", "page_num": 2, "value": {"rate": 0.01, "unit": "ratio"}, "context_terms": ["국제브랜드사 수수료", "1% 면제"], "critical": true},
+    {"id": "overseas_service_fee_waiver", "page_num": 2, "value": {"rate": 0.003, "unit": "ratio"}, "context_terms": ["해외이용 수수료", "0.3% 면제"], "critical": true},
+    {"id": "primary_card_annual_fee", "page_num": 1, "value": {"total_krw": 39000, "base_krw": 7000, "partner_krw": 32000, "brand": "Mastercard"}, "context_terms": ["본인카드", "39,000원"], "critical": true},
+    {"id": "family_card_annual_fee", "page_num": 1, "value": {"total_krw": 19000, "base_krw": 7000, "partner_krw": 12000}, "context_terms": ["가족카드", "19,000원"], "critical": true}
+  ],
+  "numeric_labels": [
+    {"id": "launch_date", "page_num": 1, "surface_text": "2023년 7월 24일", "normalized_value": "2023-07-24", "context_terms": ["상품 출시일"], "critical": false},
+    {"id": "benefit_maintenance_period", "page_num": 1, "surface_text": "3년", "normalized_value": 3, "unit": "year", "context_terms": ["축소", "폐지 없이 유지"], "critical": false},
+    {"id": "overseas_atm_withdrawal_fee", "page_num": 1, "surface_text": "$3", "normalized_value": 3, "unit": "USD", "context_terms": ["해외예금인출 수수료"], "critical": false},
+    {"id": "annual_fee_refund_deadline", "page_num": 1, "surface_text": "10영업일", "normalized_value": 10, "unit": "business_day", "context_terms": ["연회비 반환"], "critical": false},
+    {"id": "annual_fee_refund_latest_deadline", "page_num": 1, "surface_text": "3개월", "normalized_value": 3, "unit": "month", "context_terms": ["반환하기 어려운 경우"], "critical": false},
+    {"id": "mileage_earning_unit", "page_num": 2, "surface_text": "1천원당", "normalized_value": 1000, "unit": "KRW", "context_terms": ["SKYPASS", "1마일리지 적립"], "critical": true},
+    {"id": "additional_mileage_monthly_cap", "page_num": 2, "surface_text": "1천 마일", "normalized_value": 1000, "unit": "mile", "context_terms": ["추가", "월 적립한도"], "critical": true},
+    {"id": "lounge_quota", "page_num": 2, "surface_text": "연 2회", "normalized_value": 2, "unit": "per_year", "context_terms": ["국내 공항라운지"], "critical": true},
+    {"id": "lounge_previous_month_spend", "page_num": 2, "surface_text": "50만원 이상", "normalized_value": 500000, "unit": "KRW", "context_terms": ["전월 국내가맹점", "이용실적"], "critical": true},
+    {"id": "lounge_voucher_validity", "page_num": 2, "surface_text": "24시간", "normalized_value": 24, "unit": "hour", "context_terms": ["이용권", "유효"], "critical": false}
+  ],
+  "table_labels": [
+    {"id": "mileage_earning", "page_num": 2, "headers": ["구분", "가맹점", "적립 마일", "월 적립한도"], "rows": [["기본", "국내외 가맹점", "1마일", "제한 없음"], ["추가", "해외 가맹점", "+1마일", "1천 마일"]]},
+    {"id": "domestic_airport_lounges", "page_num": 2, "headers": ["공항", "터미널", "이용 가능 라운지"], "rows": [["인천공항", "1터미널", "스카이허브, Matina"], ["인천공항", "2터미널", "스카이허브(동편/서편), Matina"], ["김포공항", "국제선", "스카이허브"], ["김해공항", "국제선", "스카이 허브"]]}
+  ]
+}
