@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vision OCR · Upstage 교차 검증 보고서</title>
+<style>
+  :root { --ink:#17212b; --muted:#586574; --line:#dbe2e8; --panel:#f6f8fa; --blue:#155eef; --green:#087443; --amber:#a15c00; --red:#b42318; }
+  * { box-sizing:border-box; } body { margin:0; font:14px/1.55 Arial, sans-serif; color:var(--ink); background:#fff; }
+  main { max-width:1280px; margin:auto; padding:44px 28px 64px; }
+  h1 { font-size:28px; margin:0 0 8px; } h2 { font-size:19px; margin:38px 0 12px; } h3 { font-size:16px; margin:0 0 8px; }
+  p { margin:7px 0; } .lead { color:var(--muted); max-width:900px; } .meta { color:var(--muted); font-size:13px; }
+  .summary { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:12px; margin-top:24px; }
+  .metric { border:1px solid var(--line); padding:16px; border-radius:6px; background:var(--panel); } .metric b { display:block; font-size:25px; } .metric span { color:var(--muted); }
+  .notice { border-left:4px solid var(--amber); background:#fff8e8; padding:14px 16px; margin:18px 0; }
+  table { width:100%; border-collapse:collapse; font-size:13px; } th,td { border:1px solid var(--line); padding:9px; text-align:left; vertical-align:top; } th { background:#eef3f7; white-space:nowrap; }
+  .scroll { overflow:auto; } .badge { display:inline-block; padding:2px 7px; border-radius:999px; font-weight:700; white-space:nowrap; }
+  .ok { color:var(--green); background:#e8f7ee; } .neutral { color:#37546d; background:#eaf1f8; } .warn { color:var(--amber); background:#fff1d6; } .bad { color:var(--red); background:#feeceb; }
+  ul { padding-left:20px; } code { background:#f1f3f5; padding:1px 4px; }
+  @media (max-width:700px) { main { padding:28px 16px; } .summary { grid-template-columns:repeat(2, 1fr); } table { font-size:12px; } }
+</style>
+</head>
+<body><main>
+<h1>Vision OCR · Upstage 교차 검증 보고서</h1>
+<p class="lead">BC·NH 카드사 전체 PDF를 대상으로 Vision OCR과 Upstage 결과를 대조하고, 자동 통과 및 불일치 페이지를 원본 PDF 기준으로 다시 판정한 결과입니다.</p>
+<p class="meta">대상: 20개 PDF / 46페이지 · 엔진: Vision OCR, Upstage · Claude: 비활성 · 보고서 생성일: 2026-07-22</p>
+
+<section class="summary">
+  <div class="metric"><b>46</b><span>비교 페이지</span></div>
+  <div class="metric"><b>18</b><span>정상 자동 통과</span></div>
+  <div class="metric"><b>0</b><span>잘못된 자동 통과</span></div>
+  <div class="metric"><b>28</b><span>자동 통과되지 않은 페이지</span></div>
+</section>
+
+<h2>판정 기준</h2>
+<p>현재 자동 규칙은 같은 페이지에서 <b>비율, 금액, 전월 실적 관련 문구</b>를 추출해 두 엔진의 결과를 비교합니다. 원본 PDF의 텍스트 레이어를 우선 대조했고, 텍스트 레이어가 없는 BC 8페이지는 페이지 이미지를 직접 확인했습니다.</p>
+<div class="notice"><b>범위 제한:</b> 이 보고서의 “정확/오류”는 현재 자동 규칙이 보는 핵심 사실 기준입니다. 페이지 전체 문장, 모든 표 셀, 읽기 순서까지 완전히 정확하다는 의미는 아닙니다. 따라서 “정상 자동 통과”는 최종 무검수 확정이 아니라 표본 수동 검토를 거친 자동 처리 후보입니다.</div>
+
+<h2>요약 판정</h2>
+<div class="scroll"><table><thead><tr><th>구분</th><th>페이지 수</th><th>원본 대조 결과</th></tr></thead><tbody>
+<tr><td>자동 통과</td><td>18</td><td>두 엔진이 일치했고, 검증 대상 핵심 사실도 원본과 일치했습니다.</td></tr>
+<tr><td>잘못된 자동 통과</td><td>0</td><td>이번 18페이지 표본에서는 확인되지 않았습니다.</td></tr>
+<tr><td>불일치: 형식 차이</td><td>23</td><td>두 엔진 모두 핵심값은 맞았으며 전월 실적 문구의 표·공백·문장 분할 차이만 탐지됐습니다.</td></tr>
+<tr><td>불일치: Vision 오류</td><td>3</td><td>Upstage가 원본 핵심 사실과 일치했습니다.</td></tr>
+<tr><td>불일치: Upstage 오류</td><td>1</td><td>Vision이 원본 핵심 사실과 일치했습니다.</td></tr>
+<tr><td>불일치: 둘 다 오류</td><td>1</td><td>두 엔진 모두 원본에 없는 값 또는 잘못된 값을 포함했습니다.</td></tr>
+</tbody></table></div>
+
+<h2>엔진 오류 사례</h2>
+<div class="scroll"><table><thead><tr><th>PDF / 페이지</th><th>원본 기준 판정</th><th>근거</th></tr></thead><tbody>
+<tr><td>NH_Olbareun_Earth.pdf / 2</td><td>Vision 오류, Upstage 정확</td><td>Vision이 원문에 없는 <code>0원</code>을 추가했습니다.</td></tr>
+<tr><td>NH_Olbareun_OIL&amp;PASS.pdf / 1</td><td>Vision 정확, Upstage 오류</td><td>Upstage가 원문에 없는 <code>25%</code>를 추가했습니다.</td></tr>
+<tr><td>NH_Olbareun_OIL&amp;PASS.pdf / 2</td><td>Vision 오류, Upstage 정확</td><td>Vision은 <code>1%</code>를 누락하고 <code>400만원</code>, <code>800만원</code>, <code>50원</code> 등을 잘못 읽었습니다.</td></tr>
+<tr><td>NH_zgm_living.pdf / 1</td><td>Vision 오류, Upstage 정확</td><td>Vision이 원문에 없는 <code>0%</code>을 추가했습니다.</td></tr>
+<tr><td>NH_zgm_shopping.pdf / 1</td><td>둘 다 오류</td><td>Vision은 <code>JCB 없음</code>을 <code>JCB 0%</code>로 읽었고, Upstage는 원문에 없는 <code>50%/30%/15%/5%</code> 표를 추가했습니다.</td></tr>
+</tbody></table></div>
+
+<h2>카드사별 분포</h2>
+<div class="scroll"><table><thead><tr><th>카드사</th><th>정상 자동 통과</th><th>형식 차이</th><th>Vision 오류</th><th>Upstage 오류</th><th>둘 다 오류</th></tr></thead><tbody>
+<tr><td>BC</td><td>15</td><td>11</td><td>0</td><td>0</td><td>0</td></tr><tr><td>NH</td><td>3</td><td>12</td><td>3</td><td>1</td><td>1</td></tr>
+</tbody></table></div>
+
+<h2>페이지별 원본 대조</h2>
+<div class="scroll"><table><thead><tr><th>카드사</th><th>PDF</th><th>쪽</th><th>자동 분류</th><th>탐지 항목</th><th>원본 대조 결과</th><th>판정 근거</th></tr></thead><tbody>
+<tr><td>BC</td><td>BC_Baro_Clear_Plus.pdf</td><td>1</td><td>자동 통과 후보</td><td>-</td><td><span class="badge ok">정상 통과</span></td><td>원본 PDF의 검증 대상 핵심 사실과 두 엔진 결과가 일치했습니다.</td></tr><tr><td>BC</td><td>BC_Baro_Clear_Plus.pdf</td><td>2</td><td>수동 검토</td><td>previous_month_spend</td><td><span class="badge neutral">양쪽 모두 핵심값 일치</span></td><td>전월 실적 문구의 공백·표·문장 분할 차이로 탐지됐지만, 원본의 핵심 비율·금액·조건은 양쪽에서 확인됐습니다.</td></tr><tr><td>BC</td><td>BC_Baro_KaPick.pdf</td><td>1</td><td>자동 통과 후보</td><td>-</td><td><span class="badge ok">정상 통과</span></td><td>원본 PDF의 검증 대상 핵심 사실과 두 엔진 결과가 일치했습니다.</td></tr><tr><td>BC</td><td>BC_Baro_KaPick.pdf</td><td>2</td><td>수동 검토</td><td>previous_month_spend</td><td><span class="badge neutral">양쪽 모두 핵심값 일치</span></td><td>전월 실적 문구의 공백·표·문장 분할 차이로 탐지됐지만, 원본의 핵심 비율·금액·조건은 양쪽에서 확인됐습니다.</td></tr><tr><td>BC</td><td>BC_BizCorporate.pdf</td><td>1</td><td>수동 검토</td><td>previous_month_spend</td><td><span class="badge neutral">양쪽 모두 핵심값 일치</span></td><td>전월 실적 문구의 공백·표·문장 분할 차이로 탐지됐지만, 원본의 핵심 비율·금액·조건은 양쪽에서 확인됐습니다.</td></tr><tr><td>BC</td><td>BC_BizCorporate.pdf</td><td>2</td><td>수동 검토</td><td>previous_month_spend</td><td><span class="badge neutral">양쪽 모두 핵심값 일치</span></td><td>전월 실적 문구의 공백·표·문장 분할 차이로 탐지됐지만, 원본의 핵심 비율·금액·조건은 양쪽에서 확인됐습니다.</td></tr><tr><td>BC</td><td>BC_Biz_AirMoney.pdf</td><td>1</td><td>자동 통과 후보</td><td>-</td><td><span class="badge ok">정상 통과</span></td><td>원본 PDF의 검증 대상 핵심 사실과 두 엔진 결과가 일치했습니다.</td></tr><tr><td>BC</td><td>BC_Biz_AirMoney.pdf</td><td>2</td><td>자동 통과 후보</td><td>-</td><td><span class="badge ok">정상 통과</span></td><td>원본 PDF의 검증 대상 핵심 사실과 두 엔진 결과가 일치했습니다.</td></tr><tr><td>BC</td><td>BC_Business_Sky.pdf</td><td>1</td><td>자동 통과 후보</td><td>-</td><td><span class="badge ok">정상 통과</span></td><td>원본 PDF의 검증 대상 핵심 사실과 두 엔진 결과가 일치했습니다.</td></tr><tr><td>BC</td><td>BC_Business_Sky.pdf</td><td>2</td><td>자동 통과 후보</td><td>-</td><td><span class="badge ok">정상 통과</span></td><td>원본 PDF의 검증 대상 핵심 사실과 두 엔진 결과가 일치했습니다.</td></tr><tr><td>BC</td><td>BC_Business_Sky.pdf</td><td>3</td><td>자동 통과 후보</td><td>-</td><td><span class="badge ok">정상 통과</span></td><td>원본 PDF의 검증 대상 핵심 사실과 두 엔진 결과가 일치했습니다.</td></tr><tr><td>BC</td><td>BC_Business_Sky.pdf</td><td>4</td><td>자동 통과 후보</td><td>-</td><td><span class="badge ok">정상 통과</span></td><td>원본 PDF의 검증 대상 핵심 사실과 두 엔진 결과가 일치했습니다.</td></tr><tr><td>BC</td><td>BC_Green_v2.pdf</td><td>1</td><td>자동 통과 후보</td><td>-</td><td><span class="badge ok">정상 통과</span></td><td>원본 PDF의 검증 대상 핵심 사실과 두 엔진 결과가 일치했습니다.</td></tr><tr><td>BC</td><td>BC_Green_v2.pdf</td><td>2</td><td>수동 검토</td><td>previous_month_spend</td><td><span class="badge neutral">양쪽 모두 핵심값 일치</span></td><td>전월 실적 문구의 공백·표·문장 분할 차이로 탐지됐지만, 원본의 핵심 비율·금액·조건은 양쪽에서 확인됐습니다.</td></tr><tr><td>BC</td><td>BC_Green_v2.pdf</td><td>3</td><td>수동 검토</td><td>previous_month_spend</td><td><span class="badge neutral">양쪽 모두 핵심값 일치</span></td><td>전월 실적 문구의 공백·표·문장 분할 차이로 탐지됐지만, 원본의 핵심 비율·금액·조건은 양쪽에서 확인됐습니다.</td></tr><tr><td>BC</td><td>BC_Green_v2.pdf</td><td>4</td><td>수동 검토</td><td>previous_month_spend</td><td><span class="badge neutral">양쪽 모두 핵심값 일치</span></td><td>전월 실적 문구의 공백·표·문장 분할 차이로 탐지됐지만, 원본의 핵심 비율·금액·조건은 양쪽에서 확인됐습니다.</td></tr><tr><td>BC</td><td>BC_Green_v2.pdf</td><td>5</td><td>자동 통과 후보</td><td>-</td><td><span class="badge ok">정상 통과</span></td><td>원본 PDF의 검증 대상 핵심 사실과 두 엔진 결과가 일치했습니다.</td></tr><tr><td>BC</td><td>BC_Green_v2.pdf</td><td>6</td><td>자동 통과 후보</td><td>-</td><td><span class="badge ok">정상 통과</span></td><td>원본 PDF의 검증 대상 핵심 사실과 두 엔진 결과가 일치했습니다.</td></tr><tr><td>BC</td><td>BC_KBank_SIMPLE.pdf</td><td>1</td><td>자동 통과 후보</td><td>-</td><td><span class="badge ok">정상 통과</span></td><td>원본 PDF의 검증 대상 핵심 사실과 두 엔진 결과가 일치했습니다.</td></tr><tr><td>BC</td><td>BC_KBank_SIMPLE.pdf</td><td>2</td><td>수동 검토</td><td>previous_month_spend</td><td><span class="badge neutral">양쪽 모두 핵심값 일치</span></td><td>전월 실적 문구의 공백·표·문장 분할 차이로 탐지됐지만, 원본의 핵심 비율·금액·조건은 양쪽에서 확인됐습니다.</td></tr><tr><td>BC</td><td>BC_K_FRIST.pdf</td><td>1</td><td>자동 통과 후보</td><td>-</td><td><span class="badge ok">정상 통과</span></td><td>원본 PDF의 검증 대상 핵심 사실과 두 엔진 결과가 일치했습니다.</td></tr><tr><td>BC</td><td>BC_K_FRIST.pdf</td><td>2</td><td>수동 검토</td><td>previous_month_spend</td><td><span class="badge neutral">양쪽 모두 핵심값 일치</span></td><td>전월 실적 문구의 공백·표·문장 분할 차이로 탐지됐지만, 원본의 핵심 비율·금액·조건은 양쪽에서 확인됐습니다.</td></tr><tr><td>BC</td><td>BC_ON&amp;OFF.pdf</td><td>1</td><td>자동 통과 후보</td><td>-</td><td><span class="badge ok">정상 통과</span></td><td>원본 PDF의 검증 대상 핵심 사실과 두 엔진 결과가 일치했습니다.</td></tr><tr><td>BC</td><td>BC_ON&amp;OFF.pdf</td><td>2</td><td>수동 검토</td><td>previous_month_spend</td><td><span class="badge neutral">양쪽 모두 핵심값 일치</span></td><td>전월 실적 문구의 공백·표·문장 분할 차이로 탐지됐지만, 원본의 핵심 비율·금액·조건은 양쪽에서 확인됐습니다.</td></tr><tr><td>BC</td><td>BC_Shopping&amp;.pdf</td><td>1</td><td>자동 통과 후보</td><td>-</td><td><span class="badge ok">정상 통과</span></td><td>원본 PDF의 검증 대상 핵심 사실과 두 엔진 결과가 일치했습니다.</td></tr><tr><td>BC</td><td>BC_Shopping&amp;.pdf</td><td>2</td><td>수동 검토</td><td>previous_month_spend</td><td><span class="badge neutral">양쪽 모두 핵심값 일치</span></td><td>전월 실적 문구의 공백·표·문장 분할 차이로 탐지됐지만, 원본의 핵심 비율·금액·조건은 양쪽에서 확인됐습니다.</td></tr><tr><td>NH</td><td>NH_AllWonderful.pdf</td><td>1</td><td>자동 통과 후보</td><td>-</td><td><span class="badge ok">정상 통과</span></td><td>원본 PDF의 검증 대상 핵심 사실과 두 엔진 결과가 일치했습니다.</td></tr><tr><td>NH</td><td>NH_AllWonderful.pdf</td><td>2</td><td>수동 검토</td><td>previous_month_spend</td><td><span class="badge neutral">양쪽 모두 핵심값 일치</span></td><td>전월 실적 문구의 공백·표·문장 분할 차이로 탐지됐지만, 원본의 핵심 비율·금액·조건은 양쪽에서 확인됐습니다.</td></tr><tr><td>NH</td><td>NH_AllWonderful.pdf</td><td>3</td><td>수동 검토</td><td>previous_month_spend</td><td><span class="badge neutral">양쪽 모두 핵심값 일치</span></td><td>전월 실적 문구의 공백·표·문장 분할 차이로 탐지됐지만, 원본의 핵심 비율·금액·조건은 양쪽에서 확인됐습니다.</td></tr><tr><td>NH</td><td>NH_Namu_NH.pdf</td><td>1</td><td>수동 검토</td><td>previous_month_spend</td><td><span class="badge neutral">양쪽 모두 핵심값 일치</span></td><td>전월 실적 문구의 공백·표·문장 분할 차이로 탐지됐지만, 원본의 핵심 비율·금액·조건은 양쪽에서 확인됐습니다.</td></tr><tr><td>NH</td><td>NH_Namu_NH.pdf</td><td>2</td><td>수동 검토</td><td>previous_month_spend</td><td><span class="badge neutral">양쪽 모두 핵심값 일치</span></td><td>전월 실적 문구의 공백·표·문장 분할 차이로 탐지됐지만, 원본의 핵심 비율·금액·조건은 양쪽에서 확인됐습니다.</td></tr><tr><td>NH</td><td>NH_Olbareun_Earth.pdf</td><td>1</td><td>수동 검토</td><td>previous_month_spend</td><td><span class="badge neutral">양쪽 모두 핵심값 일치</span></td><td>전월 실적 문구의 공백·표·문장 분할 차이로 탐지됐지만, 원본의 핵심 비율·금액·조건은 양쪽에서 확인됐습니다.</td></tr><tr><td>NH</td><td>NH_Olbareun_Earth.pdf</td><td>2</td><td>수동 검토</td><td>money, previous_month_spend</td><td><span class="badge warn">Upstage 정확</span></td><td>Vision이 원문에 없는 `0원`을 추가했습니다.</td></tr><tr><td>NH</td><td>NH_Olbareun_FLEX.pdf</td><td>1</td><td>수동 검토</td><td>previous_month_spend</td><td><span class="badge neutral">양쪽 모두 핵심값 일치</span></td><td>전월 실적 문구의 공백·표·문장 분할 차이로 탐지됐지만, 원본의 핵심 비율·금액·조건은 양쪽에서 확인됐습니다.</td></tr><tr><td>NH</td><td>NH_Olbareun_FLEX.pdf</td><td>2</td><td>수동 검토</td><td>previous_month_spend</td><td><span class="badge neutral">양쪽 모두 핵심값 일치</span></td><td>전월 실적 문구의 공백·표·문장 분할 차이로 탐지됐지만, 원본의 핵심 비율·금액·조건은 양쪽에서 확인됐습니다.</td></tr><tr><td>NH</td><td>NH_Olbareun_OIL&amp;PASS.pdf</td><td>1</td><td>수동 검토</td><td>percent, previous_month_spend</td><td><span class="badge warn">Vision 정확</span></td><td>Upstage가 원문에 없는 `25%`를 추가했습니다.</td></tr><tr><td>NH</td><td>NH_Olbareun_OIL&amp;PASS.pdf</td><td>2</td><td>수동 검토</td><td>percent, money, previous_month_spend</td><td><span class="badge warn">Upstage 정확</span></td><td>Vision은 `1%`를 누락하고 `400만원`, `800만원`, `50원` 등을 잘못 읽었습니다.</td></tr><tr><td>NH</td><td>NH_SKYPASS.pdf</td><td>1</td><td>자동 통과 후보</td><td>-</td><td><span class="badge ok">정상 통과</span></td><td>원본 PDF의 검증 대상 핵심 사실과 두 엔진 결과가 일치했습니다.</td></tr><tr><td>NH</td><td>NH_SKYPASS.pdf</td><td>2</td><td>자동 통과 후보</td><td>-</td><td><span class="badge ok">정상 통과</span></td><td>원본 PDF의 검증 대상 핵심 사실과 두 엔진 결과가 일치했습니다.</td></tr><tr><td>NH</td><td>NH_SOHO_Dasaroi_OIL.pdf</td><td>1</td><td>수동 검토</td><td>previous_month_spend</td><td><span class="badge neutral">양쪽 모두 핵심값 일치</span></td><td>전월 실적 문구의 공백·표·문장 분할 차이로 탐지됐지만, 원본의 핵심 비율·금액·조건은 양쪽에서 확인됐습니다.</td></tr><tr><td>NH</td><td>NH_SOHO_Dasaroi_OIL.pdf</td><td>2</td><td>수동 검토</td><td>previous_month_spend</td><td><span class="badge neutral">양쪽 모두 핵심값 일치</span></td><td>전월 실적 문구의 공백·표·문장 분할 차이로 탐지됐지만, 원본의 핵심 비율·금액·조건은 양쪽에서 확인됐습니다.</td></tr><tr><td>NH</td><td>NH_zgm_Self.pdf</td><td>1</td><td>수동 검토</td><td>previous_month_spend</td><td><span class="badge neutral">양쪽 모두 핵심값 일치</span></td><td>전월 실적 문구의 공백·표·문장 분할 차이로 탐지됐지만, 원본의 핵심 비율·금액·조건은 양쪽에서 확인됐습니다.</td></tr><tr><td>NH</td><td>NH_zgm_living.pdf</td><td>1</td><td>수동 검토</td><td>percent, previous_month_spend</td><td><span class="badge warn">Upstage 정확</span></td><td>Vision이 원문에 없는 `0%`를 추가했습니다.</td></tr><tr><td>NH</td><td>NH_zgm_living.pdf</td><td>2</td><td>수동 검토</td><td>previous_month_spend</td><td><span class="badge neutral">양쪽 모두 핵심값 일치</span></td><td>전월 실적 문구의 공백·표·문장 분할 차이로 탐지됐지만, 원본의 핵심 비율·금액·조건은 양쪽에서 확인됐습니다.</td></tr><tr><td>NH</td><td>NH_zgm_shopping.pdf</td><td>1</td><td>수동 검토</td><td>percent, previous_month_spend</td><td><span class="badge bad">둘 다 오류</span></td><td>Vision은 `JCB 없음`을 `JCB 0%`로 읽었고, Upstage는 원문에 없는 `50%/30%/15%/5%` 표를 추가했습니다.</td></tr><tr><td>NH</td><td>NH_zgm_shopping.pdf</td><td>2</td><td>수동 검토</td><td>previous_month_spend</td><td><span class="badge neutral">양쪽 모두 핵심값 일치</span></td><td>전월 실적 문구의 공백·표·문장 분할 차이로 탐지됐지만, 원본의 핵심 비율·금액·조건은 양쪽에서 확인됐습니다.</td></tr>
+</tbody></table></div>
+
+<h2>개선 사항</h2>
+<ul>
+<li><b>전월 실적 비교 단위 축소:</b> 현재 40자 문구 전체 비교는 Markdown 표, 공백, 줄바꿈 차이에도 불일치를 만듭니다. “전월 실적” 주변의 금액·조건을 구조화해 비교해야 합니다.</li>
+<li><b>자동 통과 보강:</b> 두 엔진 일치만으로 처리하지 말고, 수치가 없는 페이지는 표본 검수 비율을 높이고 엔진 원문·모델 버전도 함께 기록해야 합니다.</li>
+<li><b>수동 검토 화면:</b> 원본 페이지 이미지와 Vision·Upstage 텍스트를 한 화면에 놓고, 판정 결과를 정답 데이터로 축적해야 임계값을 보정할 수 있습니다.</li>
+</ul>
+<p class="meta">원본: <code>data/documents/raw/BC</code>, <code>data/documents/raw/NH</code> · 실행 결과: <code>notebooks/data/06_ocr_validation_pipeline/validation/validation_results.json</code></p>
+</main></body></html>

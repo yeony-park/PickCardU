@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hierarchical Chunking Retrieval — 결과 보고서</title>
+  <style>
+    :root{--ink:#172033;--muted:#5e6a7d;--line:#dfe5ed;--bg:#f5f7fb;--paper:#fff;--navy:#16375f;--teal:#087a7b;--gold:#896000;--red:#a53a40}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.68 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans KR",sans-serif}main{max-width:1160px;margin:auto;padding:30px 20px 64px}header{padding:38px;background:linear-gradient(135deg,#133158,#286b89);color:#fff;border-radius:18px}h1{font-size:clamp(28px,4vw,42px);line-height:1.2;margin:0 0 12px}h2{font-size:25px;margin:44px 0 13px}h3{font-size:18px;margin:27px 0 9px}p{margin:8px 0}.lead{font-size:18px;max-width:850px}.tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}.tag{padding:3px 10px;border:1px solid #ffffff55;background:#ffffff1b;border-radius:999px;font-size:13px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(205px,1fr));gap:12px}.stat,.panel{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:17px}.stat b{display:block;color:var(--navy);font-size:25px}.callout{background:#fff;border:1px solid var(--line);border-left:5px solid var(--teal);border-radius:10px;padding:15px 17px;margin:16px 0}.warn{border-left-color:var(--gold)}.risk{border-left-color:var(--red)}.flow{display:flex;align-items:center;flex-wrap:wrap;gap:8px}.flow span{background:#e6f0f9;padding:8px 11px;border-radius:8px;font-weight:650}.flow i{font-style:normal;color:var(--muted)}table{width:100%;border-collapse:collapse;background:var(--paper);font-size:14px;margin:10px 0 0}th,td{border:1px solid var(--line);padding:9px;vertical-align:top;text-align:left}th{background:#edf3f9;color:#203f65}.num{text-align:right;font-variant-numeric:tabular-nums}.guide{margin:0 0 21px;padding:12px 14px;background:#edf8f6;color:#28524f;border-radius:0 0 10px 10px;font-size:13px}.small{font-size:13px;color:var(--muted)}code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.9em;word-break:break-all}a{color:#075f9c;text-decoration-thickness:1px}li{margin:5px 0}ol,ul{padding-left:22px}.delta{color:#08675f;font-weight:650}.down{color:#9a5c00;font-weight:650}@media print{body{background:#fff}main{max-width:none;padding:0}header{border-radius:0}.panel,.stat{break-inside:avoid}}
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Hierarchical Chunking Retrieval</h1>
+    <p class="lead">카드 혜택 gold fixture를 계층 청크로 만들고, 키워드·벡터·RRF 검색과 ablation을 비교한 오프라인 retrieval 평가 보고서입니다.</p>
+    <div class="tags"><span class="tag">10 cards</span><span class="tag">327 chunks</span><span class="tag">30 fixed queries</span><span class="tag">offline retrieval / ablation</span></div>
+  </header>
+
+  <section>
+    <h2>목적과 범위</h2>
+    <p>이 실험은 10개 카드의 <strong>gold raw TXT와 gold structured JSON</strong>만으로 만든 canonical fixture에서, 카드 혜택 근거 청크를 얼마나 잘 찾는지 확인한다. 실제 서비스 요청 로그·사용자 질의·운영 인덱스 성능을 평가한 것이 아니다.</p>
+    <div class="grid"><div class="stat"><b>10</b>gold raw / structured 카드 쌍</div><div class="stat"><b>30</b>고정 평가 질의</div><div class="stat"><b>327</b>계층형 canonical 청크</div><div class="stat"><b>0</b>ablation 추가 API 호출</div></div>
+    <div class="callout warn"><strong>coverage 주의.</strong> BC는 selected excerpt, IBK는 incomplete/ambiguous fixture다. 나머지 8개 카드도 visual audit 전 full-page candidate다. 따라서 결과는 이 canonical fixture 범위에서만 해석한다.</div>
+  </section>
+
+  <section>
+    <h2>파이프라인과 인덱스</h2>
+    <div class="flow"><span>gold raw + structured</span><i>→</i><span>계층 청킹</span><i>→</i><span>text-embedding-3-small</span><i>→</i><span>로컬 Chroma</span><i>→</i><span>BM25 / vector / RRF</span><i>→</i><span>30질의 평가</span></div>
+    <p>청킹은 card → page → section → benefit 계층을 사용한다. card는 본문을 반복한 parent가 아니라 제목·heading 기반의 routing overview다. page와 section은 문단·heading 경계를 우선하고 fixed overlap은 0이다. benefit은 structured label이 가장 관련 있는 raw 문단과 앞뒤 한 문단을 포함하며, 같은 normalized raw 범위를 고른 label은 한 benefit chunk로 병합한다.</p>
+    <table><thead><tr><th>계층</th><th class="num">청크 수</th><th class="num">문자 길이 min / p50 / p95 / max</th><th class="num">토큰 길이 min / p50 / p95 / max</th><th>크기 상한</th></tr></thead><tbody>
+      <tr><td>card</td><td class="num">10</td><td class="num">372 / 596 / 1,025 / 1,143</td><td class="num">352 / 550 / 1,040 / 1,134</td><td>2,000 chars</td></tr>
+      <tr><td>page</td><td class="num">50</td><td class="num">7 / 1,135 / 3,949 / 4,478</td><td class="num">2 / 1,055 / 3,503 / 4,157</td><td>6,000 chars</td></tr>
+      <tr><td>section</td><td class="num">158</td><td class="num">7 / 314 / 1,252 / 2,423</td><td class="num">2 / 283 / 1,127 / 2,247</td><td>4,000 chars</td></tr>
+      <tr><td>benefit</td><td class="num">109</td><td class="num">20 / 317 / 1,378 / 2,264</td><td class="num">12 / 283 / 1,290 / 2,126</td><td>3,000 chars</td></tr>
+    </tbody></table>
+    <div class="guide"><strong>표 읽기.</strong> 이는 canonical 청크의 분포이지 검색 정확도 표가 아니다. 길이 상한은 청크 생성 정책이며, 긴 page/section은 문단 경계에서만 나뉜다. benefit의 문단 인접 포함은 의도적 국소 overlap이므로 전체 계층의 fixed overlap 0과 모순되지 않는다.</div>
+    <table><thead><tr><th>중복·범위 지표</th><th class="num">값</th><th>의미</th></tr></thead><tbody>
+      <tr><td>원문 / 청크 문자 수</td><td class="num">70,471 / 196,412</td><td>계층·benefit 인접 문단 포함으로 청크 총량이 원문보다 크다.</td></tr><tr><td>chunk-to-raw multiplier</td><td class="num">2.7871×</td><td>전체 청크 문자 수 ÷ raw 문자 수다.</td></tr><tr><td>동일 본문 duplicate groups / excess</td><td class="num">34 / 41</td><td>모든 계층을 함께 볼 때의 exact duplicate 진단이다.</td></tr><tr><td>같은 card·level exact duplicate excess</td><td class="num">0</td><td>동일 카드·동일 계층 안에는 초과 exact duplicate가 없다.</td></tr><tr><td>near-duplicate pairs (Jaccard ≥ 0.9)</td><td class="num">3</td><td>같은 카드·계층 내 근접 중복 쌍이다.</td></tr><tr><td>benefit overlap</td><td class="num">26,905 chars (13.70%)</td><td>모든 청크 문자 중 benefit 인접 문단 포함으로 생긴 부분이다.</td></tr>
+    </tbody></table>
+    <div class="guide"><strong>한계.</strong> 중복 진단은 답변 품질이나 실제 사용자가 느끼는 다양성을 측정하지 않는다. 특히 section·benefit의 <code>parent_id</code>가 현재 card를 가리켜 parent cap은 section-local 중복 제어가 아니라 사실상 카드당 결과 제한에 가깝다.</div>
+    <div class="panel"><strong>Embedding 및 저장소.</strong> <code>text-embedding-3-small</code>로 청크 327개와 고정 질의 30개, 합계 <strong>357 items</strong>를 embedding했다. 최초 적재는 <strong>6 requests</strong>, <strong>180,066 input tokens</strong>, cache hit batch 0건이며, 인덱스는 로컬 Chroma에 저장됐다. secret은 산출물에 저장되지 않았다.</div>
+  </section>
+
+  <section>
+    <h2>Baseline: 세 가지 검색 방법</h2>
+    <p><strong>keyword</strong>는 결정론적 토크나이저 기반 BM25 계열 순위, <strong>vector</strong>는 cache된 질의 embedding과 로컬 Chroma 유사도 순위, <strong>hybrid</strong>는 양쪽 상위 50개를 RRF(상수 60)로 결합한 equal-weight 순위다.</p>
+    <table><thead><tr><th>방법</th><th class="num">Hit@3</th><th class="num">Recall@5</th><th class="num">MRR@5</th><th class="num">nDCG@5</th></tr></thead><tbody>
+      <tr><td>keyword</td><td class="num">0.9333</td><td class="num">0.6167</td><td class="num">0.3817</td><td class="num">0.4294</td></tr>
+      <tr><td>vector</td><td class="num">0.9667</td><td class="num">0.7250</td><td class="num">0.5111</td><td class="num">0.5370</td></tr>
+      <tr><td>equal RRF (0.5:0.5)</td><td class="num">0.9000</td><td class="num">0.7250</td><td class="num">0.4539</td><td class="num">0.5037</td></tr>
+    </tbody></table>
+    <div class="guide"><strong>지표 계약과 분모.</strong> baseline은 30개 고정 질의 평균이다. <strong>Hit@3</strong>은 상위 3개에 expected card 청크가 하나 있으면 1로, 카드 라우팅만 본다. <strong>Recall@5</strong>은 expected card·expected level·모든 required term을 충족한 relevant chunk 중 top 5가 회수한 비율이다. <strong>MRR@5</strong>는 첫 relevant chunk의 reciprocal rank(5위 밖이면 0), <strong>nDCG@5</strong>는 같은 binary relevance를 순위 할인해 ideal DCG로 정규화한다. relevant 계약은 용어 포함 기반이므로 동의어·부분적으로 유용한 청크와 5위 이후 결과를 충분히 평가하지 못한다.</div>
+  </section>
+
+  <section>
+    <h2>Ablation 설계와 최종 구성</h2>
+    <ol><li><strong>Weighted RRF:</strong> vector:keyword 0.5:0.5, 0.6:0.4, 0.7:0.3, 0.8:0.2를 비교했다.</li><li><strong>Hierarchy:</strong> card, page, section, benefit, section+benefit, all을 분리했다.</li><li><strong>Two-stage:</strong> card 후보 top N(1/3/5)을 먼저 고른 뒤 section+benefit evidence를 재순위화했다.</li><li><strong>Duplicate control:</strong> 카드당 최대 1·2개와 parent cap을 비교했다.</li><li><strong>Explicit alias metadata:</strong> 질의에서 단 하나의 카드 alias만 감지될 때만 corpus metadata로 필터했다.</li><li><strong>Final:</strong> 0.7:0.3 RRF + unique explicit alias + two-stage N3 + evidence card max 2를 사용했다.</li></ol>
+    <div class="callout"><strong>Final 구성.</strong> <code>rrf_0.7_0.3_alias_two_stage_n3_card2</code>는 semantic recall을 고려한 vector-forward 0.7:0.3 RRF, 명시 alias가 유일할 때의 metadata filter, 그렇지 않을 때 top-3 card 후보, card intent의 routing, evidence 결과 카드당 최대 2개를 결합한다.</div>
+    <table><thead><tr><th>구성 (all, 30질의)</th><th class="num">Card Hit@3</th><th class="num">Strict evidence Hit@3</th><th class="num">Recall@5</th><th class="num">MRR@5</th><th class="num">nDCG@5</th></tr></thead><tbody>
+      <tr><td>keyword</td><td class="num">0.9333</td><td class="num">0.5333</td><td class="num">0.6167</td><td class="num">0.3817</td><td class="num">0.4294</td></tr>
+      <tr><td>vector</td><td class="num">0.9667</td><td class="num">0.6000</td><td class="num">0.7250</td><td class="num">0.5111</td><td class="num">0.5370</td></tr>
+      <tr><td>equal RRF</td><td class="num">0.9000</td><td class="num">0.6000</td><td class="num">0.7250</td><td class="num">0.4539</td><td class="num">0.5037</td></tr>
+      <tr><th>final</th><th class="num">0.9000</th><th class="num">0.7000</th><th class="num">0.6250</th><th class="num">0.6500</th><th class="num">0.6116</th></tr>
+      <tr><td>final − vector</td><td class="num down">−0.0667</td><td class="num delta">+0.1000</td><td class="num down">−0.1000</td><td class="num delta">+0.1389</td><td class="num delta">+0.0745</td></tr>
+    </tbody></table>
+    <div class="guide"><strong>표 읽기.</strong> 모두 분모 30이다. final은 vector보다 top-5 전체 relevant 회수(Recall@5)와 카드 라우팅(Card Hit@3)는 낮았지만, 첫 strict 근거의 위치(MRR@5)와 상위권 strict relevance(nDCG@5), top-3 strict 근거 hit은 높다. 이 증감은 동일 고정 질의에서의 관측값이다. 이번 세션에서 test-engineer가 추가 API·network 없이 독립 재계산해 순위·지표 일치를 확인했다. 다만 그 verifier 결과 파일·실행 로그는 영속 산출물로 저장되지 않아, 저장소만으로 이 독립 검증 과정을 재감사할 수는 없다. 또한 같은 30질의로 설정을 골랐으므로 holdout 검증 전 일반화 성능 향상으로 단정하지 않는다.</div>
+
+    <h3>Card Hit@3와 Strict Evidence Hit@3는 다르다</h3>
+    <p><strong>Card Hit@3</strong>은 상위 3개에 expected card의 어떤 청크라도 있으면 통과한다. 반면 <strong>Strict Evidence Hit@3</strong>은 expected card, expected level, required terms를 모두 만족하는 청크가 상위 3개에 있어야 한다. strict relevant chunk가 구성에 없으면 해당 strict 지표는 N/A로 분모에서 제외한다.</p>
+    <div class="callout warn"><strong>카드 혜택 예시.</strong> “LOCA LIKIT Eat 음식점 결제일 할인율”에서 LOCA 카드의 다른 안내 청크가 상위 3개에 있으면 Card Hit@3는 pass일 수 있다. 하지만 <code>benefit</code> 계층이며 ‘음식점’과 ‘60%’를 모두 포함한 청크가 아니면 Strict Evidence Hit@3는 fail이다. 카드 식별과 답변 근거 검색을 한 점수로 합치지 않은 이유다.</div>
+
+    <h3>True two-stage 재평가</h3>
+    <p>기존 ‘최종 2단계’(<code>existing_rrf_filtered</code>)는 전체 RRF 순위를 alias·후보 카드·card cap으로 <strong>필터링</strong>한 방식이며, 후보 subset 안에서 검색 점수를 다시 계산한 true two-stage가 아니다. 새 true two-stage는 card 10개에 대해 cached vector로 Top-3 후보 카드를 먼저 고르고, 그 카드들의 section+benefit subset에서 vector 거리·BM25·RRF를 실제로 재계산한다.</p>
+    <table><thead><tr><th>evidence-only (20질의)</th><th class="num">Card Hit@3</th><th class="num">Strict Hit@3</th><th class="num">Recall@5</th><th class="num">MRR@5</th><th class="num">nDCG@5</th></tr></thead><tbody>
+      <tr><td>full vector</td><td class="num">.9500</td><td class="num">.6500</td><td class="num">.6875</td><td class="num">.5792</td><td class="num">.5648</td></tr>
+      <tr><td>V→V</td><td class="num">.8000</td><td class="num">.6000</td><td class="num">.6000</td><td class="num">.5292</td><td class="num">.5293</td></tr>
+      <tr><td>V→keyword</td><td class="num">.8000</td><td class="num">.5000</td><td class="num">.5250</td><td class="num">.4375</td><td class="num">.4220</td></tr>
+      <tr><td>V→RRF .5:.5</td><td class="num">.7500</td><td class="num">.5500</td><td class="num">.6500</td><td class="num">.4767</td><td class="num">.5042</td></tr>
+      <tr><td>V→RRF .7:.3</td><td class="num">.7500</td><td class="num">.5500</td><td class="num">.6750</td><td class="num">.5167</td><td class="num">.5442</td></tr>
+    </tbody></table>
+    <div class="guide"><strong>지표·분모.</strong> evidence-only는 card 질문 10개를 제외한 20개 근거 질문만의 평균이며 모든 행의 retrieval 지표 분모는 20이다. strict relevance는 expected card·level·required terms를 모두 만족해야 한다. all 평균은 card 질문 10개의 stage1 순위와 evidence 질문 20개의 stage2 순위를 섞으므로 근거 검색 성능으로 해석하지 않는다. 개발셋에서는 true two-stage 어느 구성도 full vector를 넘지 못했으며, holdout에서 다시 검증해야 한다.</div>
+    <p class="small">Stage1 병목(30질의 category 평균): proper noun Hit@1/Hit@3 = 1.0/1.0, numeric condition = .9/.9, semantic = .4/.7. 10개 card chunk가 각각 하나라 oracle ceiling은 구조적으로 1.0이며, expected card가 Top-3 밖이면 stage2는 해당 근거를 회수할 수 없다.</p>
+  </section>
+
+  <section>
+    <h2>해석: broad discovery와 evidence rank</h2>
+    <p>baseline에서 vector는 Card Hit@3 0.9667, Recall@5 0.7250으로 세 방법 중 넓은 후보 탐색(broad discovery) 관점에서 가장 높은 관측값을 보였다. final은 Card Hit@3 0.9000, Recall@5 0.6250이지만 Strict Evidence Hit@3 0.7000, MRR@5 0.6500, nDCG@5 0.6116으로 evidence rank에 더 강한 관측값을 보였다. 즉 이 고정 fixture에서는 vector가 넓게 찾는 후보 생성에, final이 상위권 근거 배치에 적합한 후보라는 해석이 가능하다.</p>
+    <div class="callout risk"><strong>오류·실패 사례.</strong> baseline representative evidence에서 “쿠팡과 G마켓 같은 온라인 쇼핑 혜택” 질의의 expected card는 IBK였지만 상위 1~3위가 신한의 온라인 쇼핑 할인 청크였다. 또한 “전월 실적 없이 해외 결제로 마일리지를 더 받는 혜택”의 expected card는 우리였지만 상위 1~3위가 삼성의 해외·무실적 할인 청크였다. 공통 용어·의미가 가까운 다른 카드 혜택이 높은 순위를 차지하는 cross-card 혼동 사례다.</div>
+    <p>반대로 “나무멤버스 월 이용료를 돌려받는 혜택”은 NH section 근거가 1위였고, “프랜드 주유카드의 리터당 할인 금액”은 KB benefit 근거가 1위였다. 그러나 같은 카드·본문이더라도 expected level 또는 required term 계약을 만족하지 않으면 strict relevance는 false가 될 수 있다. 이는 오류라기보다 계층·용어 기반 평가 계약의 엄격성도 함께 반영한다.</p>
+  </section>
+
+  <section>
+    <h2>누수 감사, 재현성 및 제한</h2>
+    <table><thead><tr><th>검사</th><th>결과</th><th>의미 / 한계</th></tr></thead><tbody>
+      <tr><td>정답 누수 감사</td><td>passed</td><td>rank 생성에는 질의 문자열, corpus 청크 text/scalar metadata, cache된 embedding, corpus-derived alias만 사용했다. expected card·level·required terms·category는 평가와 보고에만 사용했다.</td></tr>
+      <tr><td>ablation 외부 호출</td><td>API 0회</td><td>offline cache와 임시 Chroma 복제본을 사용했다.</td></tr>
+      <tr><td>baseline / cache / Chroma</td><td>불변 확인</td><td>ablation 전후 API requests 6, input tokens 180,066, Chroma count 327 및 cache·Chroma hash가 같다고 기록됐다.</td></tr>
+      <tr><td>독립 재계산 검증</td><td>이번 세션에서 통과</td><td>test-engineer가 추가 API·network 없이 25개 configuration, 620개 per-query 행을 독립 재계산했다. baseline 90개 top-5 순위 완전 재현, cache·Chroma hash/count와 usage 불변, 지표·분모·N/A 계약, 검색 누수 부재 및 final 수치 일치를 확인했다. verifier 결과 파일·실행 로그는 영속 산출물로 저장되지 않았다.</td></tr>
+    </tbody></table>
+    <div class="guide"><strong>검증 범위와 남은 한계.</strong> 이번 세션의 독립 재계산은 기록된 순위·지표·분모·N/A·누수 계약과 cache/Chroma 불변을 확인한 것이다. 그러나 verifier 결과 파일과 실행 로그가 영속 산출물로 저장되지 않았으므로, <strong>저장소만으로 독립 검증 과정을 재감사하거나 재현했다고 말할 수 없다.</strong> 또한 (1) ‘predeclared final’이라는 설정 명칭과 selection criterion만으로는 선택이 결과 관측 이전에 확정됐다는 <strong>시간적 사전성</strong>을 증명할 수 없고, (2) 실행 전후 baseline 파일 자체의 hash는 남아 있지 않아 파일 바이트 불변까지는 증명하지 못한다. 대신 이번 세션에서 baseline 90개 top-5 순위와 지표는 재현됐다.</div>
+    <ul><li><strong>Holdout 없음:</strong> 모든 configuration 탐색과 final 선택이 같은 30질의에서 이뤄져 tuning 과적합 위험이 있다.</li><li>BC selected excerpt, IBK incomplete/ambiguous, 나머지 8개 visual-audit 전 candidate이라는 corpus 범위 한계가 있다.</li><li>keyword 토크나이저는 한국어 형태소 분석을 사용하지 않아 조사·복합어·표기 변형에 민감하다.</li><li><code>parent_id</code>가 card를 가리켜 parent cap의 의미가 세부 section 중복 제어와 다르다.</li></ul>
+  </section>
+
+  <section>
+    <h2>다음 단계</h2>
+    <div class="callout"><strong>운영 선택 전 별도 holdout 질의 검증이 필요하다.</strong> 현재 30질의와 분리된 카드·표현·난이도의 holdout을 고정해 broad discovery(vector)와 evidence rank(final)의 trade-off를 재검증한 뒤 운영 구성을 선택한다. 동시에 visual audit와 corpus 범위 보완, 한국어 형태소·동의어 평가, section-local parent 구조 개선을 검토한다.</div>
+  </section>
+
+  <section class="panel">
+    <h2>근거 산출물과 재현 참조</h2>
+    <p>아래는 이 보고서에서 사용한 로컬 상대경로다. 수치와 계약은 summary/CSV 및 노트북 구현을 대조해 작성했다.</p>
+    <ul>
+      <li><a href="../notebooks/13_hierarchical_chunking_retrieval.ipynb">13번 실험 노트북</a></li>
+      <li><a href="../notebooks/data/13_hierarchical_chunking_retrieval/input_manifest.json">input_manifest.json</a>, <a href="../notebooks/data/13_hierarchical_chunking_retrieval/embedding_usage.json">embedding_usage.json</a>, <a href="../notebooks/data/13_hierarchical_chunking_retrieval/index_manifest.json">index_manifest.json</a></li>
+      <li><a href="../notebooks/data/13_hierarchical_chunking_retrieval/retrieval_summary.json">retrieval_summary.json</a>, <a href="../notebooks/data/13_hierarchical_chunking_retrieval/retrieval_per_query.csv">retrieval_per_query.csv</a></li>
+      <li><a href="../notebooks/data/13_hierarchical_chunking_retrieval/retrieval_ablation_summary.json">retrieval_ablation_summary.json</a>, <a href="../notebooks/data/13_hierarchical_chunking_retrieval/retrieval_ablation_summary.csv">retrieval_ablation_summary.csv</a>, <a href="../notebooks/data/13_hierarchical_chunking_retrieval/retrieval_ablation_per_query.csv">retrieval_ablation_per_query.csv</a></li>
+      <li><a href="OCR_EVALUATION_METRICS.md">OCR_EVALUATION_METRICS.md</a> — retrieval 및 ablation 지표 계약</li>
+    </ul>
+  </section>
+</main>
+</body>
+</html>

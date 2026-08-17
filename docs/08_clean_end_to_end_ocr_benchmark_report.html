@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Clean End-to-End OCR Benchmark — 최종 보고서</title>
+  <style>
+    :root{--ink:#172033;--muted:#5d6b82;--line:#dfe5ee;--bg:#f6f8fb;--card:#fff;--navy:#193761;--teal:#047a7a;--amber:#986500;--red:#aa3941}
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.65 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans KR",sans-serif} main{max-width:1180px;margin:auto;padding:32px 22px 64px} header{padding:36px;background:linear-gradient(135deg,#162f54,#275f87);color:#fff;border-radius:18px} h1{font-size:clamp(27px,4vw,42px);line-height:1.2;margin:0 0 12px} h2{font-size:25px;margin:44px 0 14px} h3{font-size:18px;margin:28px 0 10px} p{margin:8px 0}.lead{font-size:18px;max-width:800px}.meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}.tag{padding:3px 10px;border-radius:999px;background:#ffffff20;border:1px solid #ffffff40;font-size:13px}.panel,.callout{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;margin:16px 0}.callout{border-left:5px solid var(--teal)}.warn{border-left-color:var(--amber)}.danger{border-left-color:var(--red)}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}.stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}.stat b{display:block;font-size:25px;color:var(--navy)}table{width:100%;border-collapse:collapse;background:var(--card);font-size:14px;margin:10px 0 14px}th,td{border:1px solid var(--line);padding:9px;vertical-align:top;text-align:left}th{background:#edf3f9;color:#213c63}td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}.guide{margin:-14px 0 20px;padding:12px 14px;background:#edf8f7;border-radius:0 0 10px 10px;color:#264b4b;font-size:13px}.guide strong{color:#075c5c}code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.9em;word-break:break-all}a{color:#075f9d;text-decoration-thickness:1px}ol,ul{padding-left:22px}.flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.flow span{background:#e8f0f9;border-radius:8px;padding:8px 11px;font-weight:650}.flow i{color:var(--muted);font-style:normal}.small{font-size:13px;color:var(--muted)}.na{color:var(--muted);font-style:italic}@media print{body{background:#fff}main{max-width:none;padding:0}header{border-radius:0}.panel,.stat{break-inside:avoid}}
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Clean End-to-End OCR Benchmark</h1>
+    <p class="lead">10개 카드 PDF를 3개 OCR 엔진으로 읽고, 동일한 Luna 구조화 단계와 오프라인 평가로 비교한 최종 단발 실행 보고서입니다.</p>
+    <div class="meta"><span class="tag">run 20260812T190400Z</span><span class="tag">generation 20260812T210623.806401Z</span><span class="tag">완료 2026-08-12 21:06 UTC</span><span class="tag">단일 실행</span></div>
+  </header>
+
+  <section>
+    <h2>요약</h2>
+    <div class="grid">
+      <div class="stat"><b>10 cards / 50 pages</b>동일 카드·페이지 범위</div>
+      <div class="stat"><b>30 / 30</b>정규화·구조화 문서 유효</div>
+      <div class="stat"><b>0 failures</b>OCR·구조화 완료 문서 기준</div>
+      <div class="stat"><b>Luna 고정</b>모든 엔진의 구조화 모델·프롬프트·스키마 동일</div>
+    </div>
+    <div class="callout"><strong>핵심 해석.</strong> 구조화 exact와 critical fact 기준에서는 Luna가 전반적으로 균형적이다. <strong>구조화 normalized numeric exact</strong>는 Upstage가 123/126 (97.6%)로 가장 높고, <strong>critical numeric</strong>은 Terra가 238/245 (97.1%)로 근소하게 가장 높다. Upstage는 구조화된 수치와 relation group에서 강점을 보였고, Terra는 critical numeric에서 강점을 보였다. 다만 OCR 뒤의 구조화 모델이 모두 Luna로 고정되어 있어 이 결과에는 <em>downstream Luna 친화성</em>이 섞일 수 있다. 단발 실행이므로 모델 비결정성·표본 변동을 확정적 순위로 해석하지 않는다.</div>
+  </section>
+
+  <section>
+    <h2>목적과 실행 범위</h2>
+    <p>목적은 카드 혜택 PDF의 OCR 결과가 정규화와 구조화 단계를 거쳐 검색·비교에 필요한 사실을 얼마나 보존하는지 확인하는 것이다. OCR 엔진은 <strong>OpenAI Luna</strong>(<code>gpt-5.6-luna</code>), <strong>OpenAI Terra</strong>(<code>gpt-5.6-terra</code>), <strong>Upstage</strong>(<code>document-parse-260630</code>) 3종이다. 각 엔진은 10카드 50페이지를 처리했고, 각 정규화 결과는 동일한 <code>gpt-5.6-luna</code> 구조화 호출로 변환되었다.</p>
+    <div class="flow" aria-label="파이프라인"><span>PDF</span><i>→</i><span>OCR</span><i>→</i><span>normalized v2</span><i>→</i><span>Luna JSON</span><i>→</i><span>오프라인 평가</span></div>
+    <p class="small">구조화 단계는 30개 입력 중 25개 cache hit, 새 호출 5개로 완료되었으며 실패는 없다. 결과 파일의 generation ID가 모두 최종 generation과 일치하는지 확인했다.</p>
+  </section>
+
+  <section>
+    <h2>완전성 및 사용량</h2>
+    <table><thead><tr><th>OCR 엔진</th><th class="num">예상 / 실제 페이지</th><th class="num">빈 페이지</th><th class="num">정규화 유효</th><th class="num">구조화 유효</th><th class="num">전체 실행 OCR API usage</th><th class="num">구조화 API usage</th></tr></thead><tbody>
+      <tr><td>Luna</td><td class="num">50 / 50</td><td class="num">0</td><td class="num">10 / 10</td><td class="num">10 / 10</td><td class="num">164,974</td><td class="num">83,452</td></tr>
+      <tr><td>Terra</td><td class="num">50 / 50</td><td class="num">0</td><td class="num">10 / 10</td><td class="num">10 / 10</td><td class="num">150,078</td><td class="num">86,259</td></tr>
+      <tr><td>Upstage</td><td class="num">50 / 50</td><td class="num">0</td><td class="num">10 / 10</td><td class="num">10 / 10</td><td class="num">50 pages</td><td class="num">86,605</td></tr>
+    </tbody></table>
+    <div class="guide"><strong>표 읽기.</strong> 비교 데이터는 실행 manifest가 기대한 50페이지와 각 엔진의 normalized/structured 산출물이다. 페이지·문서 수가 기대치와 같고 빈 페이지가 0이면 이 완전성 검사의 pass 조건을 충족한다. 이는 OCR 내용 정확도를 뜻하지 않는다. Luna·Terra의 OCR 수치는 50페이지 전체 실행의 <code>total_tokens</code>이고, Upstage는 summary가 토큰 대신 처리 페이지 수(50 pages)만 기록한다. 구조화 열도 summary의 API usage(<code>total_tokens</code>)다. 최신 공식 가격을 이 보고서에서 확인하지 않았으므로 비용을 추정하지 않는다.</div>
+  </section>
+
+  <section>
+    <h2>일반 엔진별 결과: 구조화 exact</h2>
+    <p>아래는 OCR 텍스트 자체의 정답률이 아니라, 각 OCR 결과를 동일 Luna 구조화기로 JSON 라벨에 넣었을 때 gold structured 값과 정확히 일치한 수다. 따라서 OCR과 downstream 구조화의 결합 결과이며, 일반 라벨 범위의 비교다.</p>
+    <table><thead><tr><th>엔진</th><th class="num">Field exact</th><th class="num">Numeric normalized exact</th><th class="num">Table header exact</th><th class="num">Table rows exact</th></tr></thead><tbody>
+      <tr><td>Luna</td><td class="num">50 / 77 (64.9%)</td><td class="num">120 / 126 (95.2%)</td><td class="num">16 / 25 (64.0%)</td><td class="num">11 / 25 (44.0%)</td></tr>
+      <tr><td>Terra</td><td class="num">46 / 77 (59.7%)</td><td class="num">121 / 126 (96.0%)</td><td class="num">14 / 25 (56.0%)</td><td class="num">11 / 25 (44.0%)</td></tr>
+      <tr><td>Upstage</td><td class="num">45 / 77 (58.4%)</td><td class="num">123 / 126 (97.6%)</td><td class="num">8 / 25 (32.0%)</td><td class="num">10 / 25 (40.0%)</td></tr>
+      <tr><th>전체</th><th class="num">141 / 231 (61.0%)</th><th class="num">364 / 378 (96.3%)</th><th class="num">38 / 75 (50.7%)</th><th class="num">32 / 75 (42.7%)</th></tr>
+    </tbody></table>
+    <div class="guide"><strong>지표 안내 — Field exact.</strong> gold의 일반 필드 값과 구조화 JSON의 해당 필드를 exact 비교한다. 예: 카드명·혜택 조건 텍스트가 정규화 규칙 아래 완전히 같으면 pass, 다르면 fail이다. 문구 의미가 같아도 표현·공백·정규화 범위가 다르면 fail일 수 있다.<br><strong>Numeric normalized exact.</strong> gold의 정규 수치값과 JSON의 <code>normalized_value</code>를 비교한다. 예: ‘전월 30만원 이상’의 정규 값이 같으면 pass다. 원문 표기(surface)나 조건 연결이 맞다는 보장은 없다.<br><strong>Table header / rows exact.</strong> gold 표의 헤더 또는 전체 행 배열과 JSON 표를 각각 exact 비교한다. 예: ‘구간 / 적립률’ 헤더와 행 순서·셀 값까지 같아야 pass다. 표 한 셀의 작은 차이도 전체 행 결과를 fail로 만들며, 표 위치 관계의 정확도는 이 표만으로 검증되지 않는다.</div>
+
+    <h3>일반 OCR 텍스트: 공식 수치와 candidate preview</h3>
+    <div class="callout warn"><strong>공식 full-page CER은 현재 unavailable이다.</strong> visual audit 전에는 8카드가 <code>excluded_until_visual_audit</code>라 공식 aggregate에서 제외되고, BC는 selected excerpt, IBK는 범위가 모호해 별도 취급된다. 따라서 공식 full-page 집계 분모는 0이며, 아래 8카드 값은 <strong>candidate preview</strong>일 뿐 성능 결론에 사용하지 않는다.</div>
+    <table><thead><tr><th>엔진</th><th class="num">preview 카드</th><th class="num">Macro CER ↓</th><th class="num">Micro CER ↓</th><th class="num">Numeric token F1 ↑</th><th class="num">Numeric token exact</th></tr></thead><tbody>
+      <tr><td>Luna</td><td class="num">8</td><td class="num">18.96%</td><td class="num">18.12%</td><td class="num">94.09%</td><td class="num">0 / 8 (0.0%)</td></tr>
+      <tr><td>Terra</td><td class="num">8</td><td class="num">19.89%</td><td class="num">20.09%</td><td class="num">93.35%</td><td class="num">0 / 8 (0.0%)</td></tr>
+      <tr><td>Upstage</td><td class="num">8</td><td class="num">21.86%</td><td class="num">20.28%</td><td class="num">93.35%</td><td class="num">0 / 8 (0.0%)</td></tr>
+    </tbody></table>
+    <div class="guide"><strong>지표 안내 — OCR macro/micro CER.</strong> normalized gold 텍스트와 OCR 텍스트의 문자 편집거리/참조 문자 수를 비교한다. macro는 카드별 CER의 평균, micro는 모든 문자를 합쳐 계산하며 낮을수록 좋다. 예: ‘5% 적립’을 ‘5% 적립’으로 읽으면 손실 0에 가깝다. 표 레이아웃·의미 보존과는 별개이고, 이 표는 8개 미감사 candidate만의 preview다.<br><strong>Numeric token F1.</strong> 숫자·금액·백분율·기간 등의 토큰 multiset을 비교한다. 정밀도와 재현율의 조화평균이 높을수록 pass에 가깝지만, 이 실행에는 별도 임계 pass 기준이 없다. ‘30만원’, ‘5%’를 모두 잡았는지 보되, 어느 혜택 조건에 연결됐는지는 판단하지 못한다. <strong>Numeric token exact</strong>는 카드 내 수치 토큰 순서열이 전부 동일할 때만 pass라 0/8이며, 단 하나의 표기 차이에도 fail이다.</div>
+
+    <h3>BC Biz AirMoney selected excerpt CER (별도)</h3>
+    <table><thead><tr><th>엔진</th><th class="num">페이지</th><th class="num">CER ↓</th><th class="num">Numeric token F1 ↑</th><th class="num">Numeric token exact</th></tr></thead><tbody>
+      <tr><td>Luna</td><td class="num">2</td><td class="num">9.22%</td><td class="num">96.36%</td><td class="num">fail</td></tr>
+      <tr><td>Terra</td><td class="num">2</td><td class="num">10.84%</td><td class="num">93.69%</td><td class="num">fail</td></tr>
+      <tr><td>Upstage</td><td class="num">2</td><td class="num">8.24%</td><td class="num">98.18%</td><td class="num">fail</td></tr>
+    </tbody></table>
+    <div class="guide"><strong>비교 범위와 한계.</strong> BC는 gold structured의 page 2와 지정 start marker(‘Air Money 적립 서비스’)부터 해당 페이지 끝까지를 양쪽에서 동일하게 잘라 CER·수치 토큰을 계산했다. marker가 같은 페이지에 line exact로 있어야 평가하며, marker 누락·다른 페이지 대체·fuzzy match는 허용하지 않는다. 이 값은 BC의 선택 발췌 범위만 나타내므로 full-page CER과 합산하거나 대체하지 않는다.</div>
+  </section>
+
+  <section>
+    <h2>Critical fact 결과: 관계를 포함한 안전성 평가</h2>
+    <p>critical fact 평가는 ‘수치가 등장했는가’를 넘어 그 수치가 맞는 혜택·조건·단위와 연결됐는지를 본다. 일반 구조화 exact보다 대상이 좁고 관계 제약이 강하므로, 두 표의 수치를 직접 동일한 정확도로 비교하면 안 된다.</p>
+    <table><thead><tr><th>엔진</th><th class="num">Atomic relation</th><th class="num">Critical numeric</th><th class="num">Critical unit</th><th class="num">Relation group</th><th class="num">unsafe mismatch</th></tr></thead><tbody>
+      <tr><td>Luna</td><td class="num">236 / 297 (79.5%)</td><td class="num">237 / 245 (96.7%)</td><td class="num">85 / 88 (96.6%)</td><td class="num">104 / 129 (80.6%)</td><td class="num">22</td></tr>
+      <tr><td>Terra</td><td class="num">232 / 297 (78.1%)</td><td class="num">238 / 245 (97.1%)</td><td class="num">82 / 88 (93.2%)</td><td class="num">100 / 129 (77.5%)</td><td class="num">22</td></tr>
+      <tr><td>Upstage</td><td class="num">236 / 297 (79.5%)</td><td class="num">237 / 245 (96.7%)</td><td class="num">85 / 88 (96.6%)</td><td class="num">105 / 129 (81.4%)</td><td class="num">22</td></tr>
+      <tr><th>전체</th><th class="num">704 / 891 (79.0%)</th><th class="num">712 / 735 (96.9%)</th><th class="num">252 / 264 (95.5%)</th><th class="num">309 / 387 (79.8%)</th><th class="num">66</th></tr>
+    </tbody></table>
+    <div class="guide"><strong>지표 안내 — Critical atomic relation.</strong> source-supported이고 relation-scorable인 원자 사실의 값·대상·관계 제약을 gold와 함께 만족할 때 pass다. 예: ‘커피 10% 할인’에서 10%가 다른 업종이 아니라 커피 혜택에 연결되어야 한다. 값만 우연히 맞는 오류를 줄이지만, scorable locator가 없는 표 행은 포함하지 못한다.<br><strong>Critical numeric.</strong> 위 관계형 범위 중 숫자 사실의 값 비교다. 예: ‘월 2만원 한도’의 2만원이 맞으면 pass다. 단독 숫자 정확도라 관련 조건·단위까지 맞았는지는 보장하지 않는다.<br><strong>Critical unit.</strong> expected-unit 계약이 있는 relation-scorable numeric/supplementary numeric 사실의 단위를 비교한다. ‘3만원’과 ‘3%’는 값 3이 같아도 단위가 다르면 fail이며 누락 unit도 fail이다. 필드의 TEXT/BOOLEAN에는 별도 unit을 요구하지 않는다.<br><strong>Relation group.</strong> 같은 혜택·수수료 묶음의 scorable 원자 관계가 모두 exact여야 pass다. 예: 적립률·월 한도·전월 실적 조건이 한 혜택 그룹 안에서 모두 맞아야 한다. 그룹 크기와 어려움이 달라 단일 숫자보다 엄격하다.</div>
+
+    <h3>표 행 관계는 왜 제외했는가</h3>
+    <div class="callout danger"><strong>438개 table-row fact(엔진당 146)는 relation pass 분모에서 제외했다.</strong> 원 fact는 엔진당 146개이며, 실제 표에 해당하는 81개와 비표 65개로 구분된다. table-row fact에는 <code>table_id</code>, <code>row_index</code>, <code>column_index</code> explicit locator가 없어 표의 어느 셀·행과 대응하는지 확정할 수 없다. 따라서 relation-scoring 분모는 엔진당 297(전체 891)이고 table-row relation accuracy는 <span class="na">not available (0 / 0)</span>이다.</div>
+    <p>페이지·ID 유사도 기반 heuristic projection(전체 관측 288건 중 값 일치 96건)과 field fallback(438건 중 값 일치 355건)은 진단용 관측치일 뿐 pass metric이 아니다. 불확실한 매핑 heuristic을 성능 수치로 사용하지 않았다. explicit locator를 gold에 보강한 뒤에만 table-row 관계 정확도를 보고할 수 있다.</p>
+  </section>
+
+  <section>
+    <h2>오류 해석과 한계</h2>
+    <ul>
+      <li><strong>일반 결과와 critical 결과의 차이:</strong> 전자는 구조화 라벨의 exact 값·표 재현을, 후자는 핵심 카드 혜택 사실의 값·단위·관계 안전성을 본다. 분모와 pass 계약이 달라 우열을 하나의 점수로 환산하지 않는다.</li>
+      <li><strong>구조화 고정 효과:</strong> 세 엔진의 downstream 단계가 모두 Luna이므로, 이 파이프라인에서의 호환성을 함께 측정한다. OCR 엔진만의 순수한 성능이나 다른 구조화 모델에서의 결과를 뜻하지 않는다.</li>
+      <li><strong>단발 실행:</strong> 이 보고서는 generation <code>20260812T210623.806401Z</code> 한 번만 사용한다. 반복 평균·표준편차가 없으므로 근소한 차이는 안정적인 차이라고 단정할 수 없다.</li>
+      <li><strong>귀속(triage):</strong> OCR 오류와 structure 오류를 자동으로 나누는 표시는 조사 우선순위를 위한 <code>needs_review</code> 후보이며, 오류 원인의 확정 판정이 아니다.</li>
+      <li><strong>텍스트 공식 집계:</strong> visual audit 전 8카드 candidate preview와 BC selected excerpt를 공식 full-page CER로 해석하지 않는다. IBK의 full-page 범위도 모호해 분리됐다.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>권장 다음 단계</h2>
+    <ol>
+      <li>8개 candidate 카드(특히 Hyundai 1–2쪽)의 visual audit를 완료해 공식 full-page CER 범위를 확정한다.</li>
+      <li>critical gold의 table-row에 explicit <code>table_id / row_index / column_index</code> locator를 추가해 관계 정확도 분모를 정의한다.</li>
+      <li>구조화 prompt ablation으로 동일 OCR 결과에서 prompt·스키마 지시가 exact에 미치는 영향을 분리한다.</li>
+      <li>동일 계약으로 반복 실행해 평균과 분산을 보고하고, 단발 결과의 비결정성 위험을 줄인다.</li>
+    </ol>
+  </section>
+
+  <section class="panel">
+    <h2>근거 파일과 재현</h2>
+    <p>본 보고서는 아래 최종 generation의 summary와 CSV만 수치 원천으로 사용했으며, 과거 generation은 섞지 않았다.</p>
+    <ul>
+      <li><a href="../notebooks/data/12_clean_end_to_end/current/runs/20260812T190400Z/evaluated/evaluation_summary.json">evaluation_summary.json</a> — 최종 집계·usage</li>
+      <li><a href="../notebooks/data/12_clean_end_to_end/current/runs/20260812T190400Z/evaluated/integrity.csv">integrity.csv</a>, <a href="../notebooks/data/12_clean_end_to_end/current/runs/20260812T190400Z/evaluated/text_metrics.csv">text_metrics.csv</a>, <a href="../notebooks/data/12_clean_end_to_end/current/runs/20260812T190400Z/evaluated/structured_metrics.csv">structured_metrics.csv</a>, <a href="../notebooks/data/12_clean_end_to_end/current/runs/20260812T190400Z/evaluated/critical_facts.csv">critical_facts.csv</a></li>
+      <li><a href="../notebooks/data/12_clean_end_to_end/current/runs/20260812T190400Z/structure_summary.json">structure_summary.json</a> — 구조화 실행 상태</li>
+      <li><a href="../notebooks/data/12_clean_end_to_end/README.md">12번 데이터 README</a>, <a href="../notebooks/12_clean_end_to_end_evaluator.py">오프라인 evaluator</a> — 계약·계산 구현</li>
+    </ul>
+    <p class="small">오프라인 평가 재현 명령: <code>conda run -n skn25 python notebooks/12_clean_end_to_end_runner.py --stage evaluate --run-id 20260812T190400Z --execute-offline --allow-incomplete</code>. 생성 결과는 입력 산출물 상태에 의존하며, 이 보고서는 기록된 최종 summary를 설명한다.</p>
+  </section>
+</main>
+</body>
+</html>

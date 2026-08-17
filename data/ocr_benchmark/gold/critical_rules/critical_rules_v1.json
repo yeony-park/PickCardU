@@ -1,0 +1,3103 @@
+{
+  "schema_version": "semantic_fact_gold_v1",
+  "created_at": "2026-08-07T14:23:02.828238+00:00",
+  "annotation_scope": "기존 수작업 structured 정답셋의 critical field_labels와 numeric_labels를 의미 사실 단위로 재표현. 값은 수작업 정답셋에서만 사용하며 OCR 구조화 프롬프트에 제공하지 않는다.",
+  "cards": [
+    {
+      "issuer": "BC",
+      "card_name": "BC_Biz_AirMoney",
+      "source_file": "data/ocr_benchmark/gold/structured/BC/BC_Biz_AirMoney.json",
+      "facts": [
+        {
+          "fact_id": "numeric__air_money_earn_rate",
+          "fact_kind": "numeric_fact",
+          "field_id": "air_money_earn_rate",
+          "page_num": 2,
+          "context_terms": [
+            "Air Money",
+            "적립"
+          ],
+          "expected": {
+            "value": 0.002
+          },
+          "source": {
+            "structured_numeric_id": "air_money_earn_rate",
+            "surface_text": "0.2%"
+          }
+        },
+        {
+          "fact_id": "numeric__point_to_won",
+          "fact_kind": "numeric_fact",
+          "field_id": "point_to_won",
+          "page_num": 2,
+          "context_terms": [
+            "Air Money"
+          ],
+          "expected": {
+            "value": {
+              "point": 1,
+              "won": 1
+            }
+          },
+          "source": {
+            "structured_numeric_id": "point_to_won",
+            "surface_text": "1포인트 = 1원"
+          }
+        },
+        {
+          "fact_id": "numeric__domestic_annual_fee_total",
+          "fact_kind": "numeric_fact",
+          "field_id": "domestic_annual_fee_total",
+          "page_num": 2,
+          "context_terms": [
+            "국내전용(BC)",
+            "연회비"
+          ],
+          "expected": {
+            "value": 5000,
+            "unit": "won"
+          },
+          "source": {
+            "structured_numeric_id": "domestic_annual_fee_total",
+            "surface_text": "5,000원"
+          }
+        },
+        {
+          "fact_id": "numeric__domestic_annual_fee_base",
+          "fact_kind": "numeric_fact",
+          "field_id": "domestic_annual_fee_base",
+          "page_num": 2,
+          "context_terms": [
+            "국내전용(BC)",
+            "기본연회비"
+          ],
+          "expected": {
+            "value": 5000,
+            "unit": "won"
+          },
+          "source": {
+            "structured_numeric_id": "domestic_annual_fee_base",
+            "surface_text": "5천원"
+          }
+        },
+        {
+          "fact_id": "numeric__domestic_annual_fee_partner",
+          "fact_kind": "numeric_fact",
+          "field_id": "domestic_annual_fee_partner",
+          "page_num": 2,
+          "context_terms": [
+            "국내전용(BC)",
+            "제휴연회비"
+          ],
+          "expected": {
+            "value": 0,
+            "unit": "won"
+          },
+          "source": {
+            "structured_numeric_id": "domestic_annual_fee_partner",
+            "surface_text": "0원"
+          }
+        },
+        {
+          "fact_id": "numeric__international_annual_fee_total",
+          "fact_kind": "numeric_fact",
+          "field_id": "international_annual_fee_total",
+          "page_num": 2,
+          "context_terms": [
+            "국내외겸용(MC)",
+            "연회비"
+          ],
+          "expected": {
+            "value": 10000,
+            "unit": "won"
+          },
+          "source": {
+            "structured_numeric_id": "international_annual_fee_total",
+            "surface_text": "10,000원"
+          }
+        },
+        {
+          "fact_id": "numeric__international_annual_fee_base",
+          "fact_kind": "numeric_fact",
+          "field_id": "international_annual_fee_base",
+          "page_num": 2,
+          "context_terms": [
+            "국내외겸용(MC)",
+            "기본연회비"
+          ],
+          "expected": {
+            "value": 10000,
+            "unit": "won"
+          },
+          "source": {
+            "structured_numeric_id": "international_annual_fee_base",
+            "surface_text": "1만원"
+          }
+        },
+        {
+          "fact_id": "numeric__international_annual_fee_partner",
+          "fact_kind": "numeric_fact",
+          "field_id": "international_annual_fee_partner",
+          "page_num": 2,
+          "context_terms": [
+            "국내외겸용(MC)",
+            "제휴연회비"
+          ],
+          "expected": {
+            "value": 0,
+            "unit": "won"
+          },
+          "source": {
+            "structured_numeric_id": "international_annual_fee_partner",
+            "surface_text": "0원"
+          }
+        },
+        {
+          "fact_id": "numeric__international_brand_fee_rate",
+          "fact_kind": "numeric_fact",
+          "field_id": "international_brand_fee_rate",
+          "page_num": 2,
+          "context_terms": [
+            "국제브랜드"
+          ],
+          "expected": {
+            "value": 0.01
+          },
+          "source": {
+            "structured_numeric_id": "international_brand_fee_rate",
+            "surface_text": "1.0%"
+          }
+        }
+      ]
+    },
+    {
+      "issuer": "NH",
+      "card_name": "NH_Namu_NH",
+      "source_file": "data/ocr_benchmark/gold/structured/NH/NH_Namu_NH.json",
+      "facts": [
+        {
+          "fact_id": "field__smart_cashback",
+          "fact_kind": "semantic_field",
+          "field_id": "smart_cashback",
+          "page_num": 2,
+          "context_terms": [
+            "나무증권 스마트 캐시백",
+            "8%와 4%",
+            "전월실적 40만원 이상"
+          ],
+          "expected": {
+            "first_rank_rate": 0.08,
+            "second_rank_rate": 0.04,
+            "ranking_scope": "6개 영역 중 당월 이용금액 1위와 2위 영역",
+            "previous_month_spend_minimum_krw": 400000
+          },
+          "source": {
+            "structured_field_id": "smart_cashback"
+          }
+        },
+        {
+          "fact_id": "field__smart_cashback_limit",
+          "fact_kind": "semantic_field",
+          "field_id": "smart_cashback_limit",
+          "page_num": 2,
+          "context_terms": [
+            "전월실적 구간별 캐시백 한도"
+          ],
+          "expected": {
+            "400000_to_under_800000": {
+              "first_rank_krw": 8000,
+              "second_rank_krw": 7000,
+              "total_krw": 15000
+            },
+            "800000_to_under_1500000": {
+              "first_rank_krw": 11000,
+              "second_rank_krw": 9000,
+              "total_krw": 20000
+            },
+            "1500000_or_more": {
+              "first_rank_krw": 16000,
+              "second_rank_krw": 14000,
+              "total_krw": 30000
+            }
+          },
+          "source": {
+            "structured_field_id": "smart_cashback_limit"
+          }
+        },
+        {
+          "fact_id": "field__namu_members_cashback",
+          "fact_kind": "semantic_field",
+          "field_id": "namu_members_cashback",
+          "page_num": 2,
+          "context_terms": [
+            "나무멤버스 월 이용료 캐시백",
+            "월 최대 2,900원",
+            "전월실적 40만원 이상"
+          ],
+          "expected": {
+            "monthly_maximum_krw": 2900,
+            "previous_month_spend_minimum_krw": 400000,
+            "payment_destination": "나무멤버스 이용료 결제 계좌"
+          },
+          "source": {
+            "structured_field_id": "namu_members_cashback"
+          }
+        },
+        {
+          "fact_id": "field__airport_lounge_benefit",
+          "fact_kind": "semantic_field",
+          "field_id": "airport_lounge_benefit",
+          "page_num": 2,
+          "context_terms": [
+            "국제공항 라운지 무료이용",
+            "월 1회 연 2회",
+            "전월실적 40만원 이상"
+          ],
+          "expected": {
+            "previous_month_spend_minimum_krw": 400000,
+            "monthly_limit": 1,
+            "annual_limit": 2
+          },
+          "source": {
+            "structured_field_id": "airport_lounge_benefit"
+          }
+        },
+        {
+          "fact_id": "field__annual_fee",
+          "fact_kind": "semantic_field",
+          "field_id": "annual_fee",
+          "page_num": 2,
+          "context_terms": [
+            "연회비 안내",
+            "국내전용",
+            "Mastercard"
+          ],
+          "expected": {
+            "domestic_local": {
+              "total_krw": 15000,
+              "base_krw": 6000,
+              "partner_krw": 9000
+            },
+            "international_mastercard": {
+              "total_krw": 15000,
+              "base_krw": 6000,
+              "partner_krw": 9000
+            }
+          },
+          "source": {
+            "structured_field_id": "annual_fee"
+          }
+        },
+        {
+          "fact_id": "numeric__smart_cashback_first_rank_rate",
+          "fact_kind": "numeric_fact",
+          "field_id": "smart_cashback_first_rank_rate",
+          "page_num": 2,
+          "context_terms": [
+            "1위",
+            "스마트 캐시백"
+          ],
+          "expected": {
+            "value": 0.08,
+            "unit": "ratio"
+          },
+          "source": {
+            "structured_numeric_id": "smart_cashback_first_rank_rate",
+            "surface_text": "8%"
+          }
+        },
+        {
+          "fact_id": "numeric__smart_cashback_second_rank_rate",
+          "fact_kind": "numeric_fact",
+          "field_id": "smart_cashback_second_rank_rate",
+          "page_num": 2,
+          "context_terms": [
+            "2위",
+            "스마트 캐시백"
+          ],
+          "expected": {
+            "value": 0.04,
+            "unit": "ratio"
+          },
+          "source": {
+            "structured_numeric_id": "smart_cashback_second_rank_rate",
+            "surface_text": "4%"
+          }
+        },
+        {
+          "fact_id": "numeric__smart_cashback_previous_month_spend",
+          "fact_kind": "numeric_fact",
+          "field_id": "smart_cashback_previous_month_spend",
+          "page_num": 2,
+          "context_terms": [
+            "전월실적",
+            "스마트 캐시백"
+          ],
+          "expected": {
+            "value": 400000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "smart_cashback_previous_month_spend",
+            "surface_text": "40만원 이상"
+          }
+        },
+        {
+          "fact_id": "numeric__smart_cashback_total_limit_low",
+          "fact_kind": "numeric_fact",
+          "field_id": "smart_cashback_total_limit_low",
+          "page_num": 2,
+          "context_terms": [
+            "합계",
+            "40만원 이상 ~ 80만원 미만"
+          ],
+          "expected": {
+            "value": 15000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "smart_cashback_total_limit_low",
+            "surface_text": "15,000원"
+          }
+        },
+        {
+          "fact_id": "numeric__smart_cashback_total_limit_mid",
+          "fact_kind": "numeric_fact",
+          "field_id": "smart_cashback_total_limit_mid",
+          "page_num": 2,
+          "context_terms": [
+            "합계",
+            "80만원 이상 ~ 150만원 미만"
+          ],
+          "expected": {
+            "value": 20000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "smart_cashback_total_limit_mid",
+            "surface_text": "20,000원"
+          }
+        },
+        {
+          "fact_id": "numeric__smart_cashback_total_limit_high",
+          "fact_kind": "numeric_fact",
+          "field_id": "smart_cashback_total_limit_high",
+          "page_num": 2,
+          "context_terms": [
+            "합계",
+            "150만원 이상"
+          ],
+          "expected": {
+            "value": 30000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "smart_cashback_total_limit_high",
+            "surface_text": "30,000원"
+          }
+        },
+        {
+          "fact_id": "numeric__namu_members_monthly_cashback_limit",
+          "fact_kind": "numeric_fact",
+          "field_id": "namu_members_monthly_cashback_limit",
+          "page_num": 2,
+          "context_terms": [
+            "나무멤버스",
+            "캐시백"
+          ],
+          "expected": {
+            "value": 2900,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "namu_members_monthly_cashback_limit",
+            "surface_text": "월 최대 2,900원"
+          }
+        },
+        {
+          "fact_id": "numeric__airport_lounge_monthly_limit",
+          "fact_kind": "numeric_fact",
+          "field_id": "airport_lounge_monthly_limit",
+          "page_num": 2,
+          "context_terms": [
+            "국제공항 라운지"
+          ],
+          "expected": {
+            "value": 1,
+            "unit": "per_month"
+          },
+          "source": {
+            "structured_numeric_id": "airport_lounge_monthly_limit",
+            "surface_text": "월 1회"
+          }
+        },
+        {
+          "fact_id": "numeric__airport_lounge_annual_limit",
+          "fact_kind": "numeric_fact",
+          "field_id": "airport_lounge_annual_limit",
+          "page_num": 2,
+          "context_terms": [
+            "국제공항 라운지"
+          ],
+          "expected": {
+            "value": 2,
+            "unit": "per_year"
+          },
+          "source": {
+            "structured_numeric_id": "airport_lounge_annual_limit",
+            "surface_text": "연 2회"
+          }
+        },
+        {
+          "fact_id": "numeric__domestic_annual_fee_total",
+          "fact_kind": "numeric_fact",
+          "field_id": "domestic_annual_fee_total",
+          "page_num": 2,
+          "context_terms": [
+            "국내전용",
+            "총 연회비"
+          ],
+          "expected": {
+            "value": 15000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "domestic_annual_fee_total",
+            "surface_text": "15,000원"
+          }
+        },
+        {
+          "fact_id": "numeric__international_annual_fee_total",
+          "fact_kind": "numeric_fact",
+          "field_id": "international_annual_fee_total",
+          "page_num": 2,
+          "context_terms": [
+            "Mastercard",
+            "총 연회비"
+          ],
+          "expected": {
+            "value": 15000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "international_annual_fee_total",
+            "surface_text": "15,000원"
+          }
+        }
+      ]
+    },
+    {
+      "issuer": "hana",
+      "card_name": "Hana_One_More_SOHO",
+      "source_file": "data/ocr_benchmark/gold/structured/hana/Hana_One_More_SOHO.json",
+      "facts": [
+        {
+          "fact_id": "field__operating_expense_discount",
+          "fact_kind": "semantic_field",
+          "field_id": "operating_expense_discount",
+          "page_num": 1,
+          "context_terms": [
+            "운영경비 5% 청구할인",
+            "지난달 실적별 통합할인한도"
+          ],
+          "expected": {
+            "rate": 0.05,
+            "previous_month_spend_tiers_krw": [
+              500000,
+              1000000,
+              1500000
+            ],
+            "monthly_limits_krw": [
+              10000,
+              15000,
+              20000
+            ]
+          },
+          "source": {
+            "structured_field_id": "operating_expense_discount"
+          }
+        },
+        {
+          "fact_id": "field__essential_expense_discount",
+          "fact_kind": "semantic_field",
+          "field_id": "essential_expense_discount",
+          "page_num": 1,
+          "context_terms": [
+            "필수 경비 3% 청구할인",
+            "지난달 실적"
+          ],
+          "expected": {
+            "rate": 0.03,
+            "previous_month_spend_tiers_krw": [
+              500000,
+              1000000,
+              1500000
+            ],
+            "monthly_limits_krw": [
+              10000,
+              15000,
+              20000
+            ]
+          },
+          "source": {
+            "structured_field_id": "essential_expense_discount"
+          }
+        },
+        {
+          "fact_id": "field__overseas_merchant_discount",
+          "fact_kind": "semantic_field",
+          "field_id": "overseas_merchant_discount",
+          "page_num": 1,
+          "context_terms": [
+            "해외 가맹점 2% 청구할인"
+          ],
+          "expected": {
+            "rate": 0.02,
+            "limit": "없음",
+            "previous_month_spend_required": false
+          },
+          "source": {
+            "structured_field_id": "overseas_merchant_discount"
+          }
+        },
+        {
+          "fact_id": "field__domestic_merchant_discount",
+          "fact_kind": "semantic_field",
+          "field_id": "domestic_merchant_discount",
+          "page_num": 1,
+          "context_terms": [
+            "국내 가맹점 0.5% 청구할인"
+          ],
+          "expected": {
+            "rate": 0.005,
+            "limit": "없음",
+            "previous_month_spend_required": false
+          },
+          "source": {
+            "structured_field_id": "domestic_merchant_discount"
+          }
+        },
+        {
+          "fact_id": "field__interest_free_installment",
+          "fact_kind": "semantic_field",
+          "field_id": "interest_free_installment",
+          "page_num": 1,
+          "context_terms": [
+            "국내 2~3개월 무이자 할부",
+            "5만원 이상"
+          ],
+          "expected": {
+            "installment_months": "2~3개월",
+            "minimum_payment_krw": 50000,
+            "interest": "없음"
+          },
+          "source": {
+            "structured_field_id": "interest_free_installment"
+          }
+        },
+        {
+          "fact_id": "field__annual_fee",
+          "fact_kind": "semantic_field",
+          "field_id": "annual_fee",
+          "page_num": 2,
+          "context_terms": [
+            "연회비",
+            "국내전용",
+            "국내외겸용"
+          ],
+          "expected": {
+            "domestic": {
+              "total_krw": 23000,
+              "base_krw": 23000,
+              "partner_krw": 0
+            },
+            "upi": {
+              "total_krw": 23000,
+              "base_krw": 23000,
+              "partner_krw": 0
+            },
+            "visa_amex_mastercard": {
+              "total_krw": 25000,
+              "base_krw": 25000,
+              "partner_krw": 0
+            }
+          },
+          "source": {
+            "structured_field_id": "annual_fee"
+          }
+        },
+        {
+          "fact_id": "numeric__operating_expense_discount_rate",
+          "fact_kind": "numeric_fact",
+          "field_id": "operating_expense_discount_rate",
+          "page_num": 1,
+          "context_terms": [
+            "운영경비",
+            "청구할인"
+          ],
+          "expected": {
+            "value": 0.05,
+            "unit": "ratio"
+          },
+          "source": {
+            "structured_numeric_id": "operating_expense_discount_rate",
+            "surface_text": "5%"
+          }
+        },
+        {
+          "fact_id": "numeric__essential_expense_discount_rate",
+          "fact_kind": "numeric_fact",
+          "field_id": "essential_expense_discount_rate",
+          "page_num": 1,
+          "context_terms": [
+            "필수 경비",
+            "청구할인"
+          ],
+          "expected": {
+            "value": 0.03,
+            "unit": "ratio"
+          },
+          "source": {
+            "structured_numeric_id": "essential_expense_discount_rate",
+            "surface_text": "3%"
+          }
+        },
+        {
+          "fact_id": "numeric__overseas_merchant_discount_rate",
+          "fact_kind": "numeric_fact",
+          "field_id": "overseas_merchant_discount_rate",
+          "page_num": 1,
+          "context_terms": [
+            "해외 가맹점",
+            "청구할인"
+          ],
+          "expected": {
+            "value": 0.02,
+            "unit": "ratio"
+          },
+          "source": {
+            "structured_numeric_id": "overseas_merchant_discount_rate",
+            "surface_text": "2%"
+          }
+        },
+        {
+          "fact_id": "numeric__domestic_merchant_discount_rate",
+          "fact_kind": "numeric_fact",
+          "field_id": "domestic_merchant_discount_rate",
+          "page_num": 1,
+          "context_terms": [
+            "국내 가맹점",
+            "청구할인"
+          ],
+          "expected": {
+            "value": 0.005,
+            "unit": "ratio"
+          },
+          "source": {
+            "structured_numeric_id": "domestic_merchant_discount_rate",
+            "surface_text": "0.5%"
+          }
+        },
+        {
+          "fact_id": "numeric__operating_expense_monthly_limit_high",
+          "fact_kind": "numeric_fact",
+          "field_id": "operating_expense_monthly_limit_high",
+          "page_num": 1,
+          "context_terms": [
+            "운영경비",
+            "150만원 이상"
+          ],
+          "expected": {
+            "value": 20000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "operating_expense_monthly_limit_high",
+            "surface_text": "월 2만원"
+          }
+        },
+        {
+          "fact_id": "numeric__essential_expense_monthly_limit_high",
+          "fact_kind": "numeric_fact",
+          "field_id": "essential_expense_monthly_limit_high",
+          "page_num": 1,
+          "context_terms": [
+            "필수 경비",
+            "150만원 이상"
+          ],
+          "expected": {
+            "value": 20000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "essential_expense_monthly_limit_high",
+            "surface_text": "월 2만원"
+          }
+        },
+        {
+          "fact_id": "numeric__minimum_installment_payment",
+          "fact_kind": "numeric_fact",
+          "field_id": "minimum_installment_payment",
+          "page_num": 1,
+          "context_terms": [
+            "무이자 할부"
+          ],
+          "expected": {
+            "value": 50000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "minimum_installment_payment",
+            "surface_text": "5만원 이상"
+          }
+        },
+        {
+          "fact_id": "numeric__domestic_annual_fee_total",
+          "fact_kind": "numeric_fact",
+          "field_id": "domestic_annual_fee_total",
+          "page_num": 2,
+          "context_terms": [
+            "국내전용",
+            "연회비"
+          ],
+          "expected": {
+            "value": 23000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "domestic_annual_fee_total",
+            "surface_text": "23,000원"
+          }
+        },
+        {
+          "fact_id": "numeric__international_premium_annual_fee_total",
+          "fact_kind": "numeric_fact",
+          "field_id": "international_premium_annual_fee_total",
+          "page_num": 2,
+          "context_terms": [
+            "Visa, AMEX, Mastercard",
+            "연회비"
+          ],
+          "expected": {
+            "value": 25000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "international_premium_annual_fee_total",
+            "surface_text": "25,000원"
+          }
+        }
+      ]
+    },
+    {
+      "issuer": "hyundai",
+      "card_name": "Hyundai_The_Orange_20260330",
+      "source_file": "data/ocr_benchmark/gold/structured/hyundai/Hyundai_The_Orange_20260330.json",
+      "facts": [
+        {
+          "fact_id": "field__annual_fee",
+          "fact_kind": "semantic_field",
+          "field_id": "annual_fee",
+          "page_num": 3,
+          "context_terms": [
+            "연회비",
+            "가족 카드"
+          ],
+          "expected": {
+            "primary": {
+              "total_krw": 200000,
+              "base_krw": 50000,
+              "partner_krw": 150000,
+              "brand": "Visa Signature"
+            },
+            "family": {
+              "total_krw": 50000,
+              "base_krw": 0,
+              "partner_krw": 50000
+            }
+          },
+          "source": {
+            "structured_field_id": "annual_fee"
+          }
+        },
+        {
+          "fact_id": "field__basic_m_point_earning",
+          "fact_kind": "semantic_field",
+          "field_id": "basic_m_point_earning",
+          "page_num": 4,
+          "context_terms": [
+            "기본 혜택",
+            "국내외 가맹점 1% M포인트 적립"
+          ],
+          "expected": {
+            "rate": 0.01,
+            "previous_month_spend_minimum_krw": 500000,
+            "limit": "1회 및 연간 적립 한도 제한 없음"
+          },
+          "source": {
+            "structured_field_id": "basic_m_point_earning"
+          }
+        },
+        {
+          "fact_id": "field__additional_m_point_earning",
+          "fact_kind": "semantic_field",
+          "field_id": "additional_m_point_earning",
+          "page_num": 4,
+          "context_terms": [
+            "추가 혜택",
+            "10% M포인트 적립"
+          ],
+          "expected": {
+            "rate": 0.1,
+            "previous_month_spend_minimum_krw": 1000000,
+            "monthly_limit_m_point": 10000,
+            "target_areas": [
+              "온라인몰",
+              "다이닝",
+              "웰니스",
+              "테크"
+            ]
+          },
+          "source": {
+            "structured_field_id": "additional_m_point_earning"
+          }
+        },
+        {
+          "fact_id": "field__annual_voucher",
+          "fact_kind": "semantic_field",
+          "field_id": "annual_voucher",
+          "page_num": 6,
+          "context_terms": [
+            "연간 보너스",
+            "15만원권 바우처",
+            "20만 M포인트"
+          ],
+          "expected": {
+            "voucher_krw": 150000,
+            "m_point_exchange": 200000,
+            "annual_limit": 1,
+            "first_year_spend_minimum_krw": 1000000,
+            "later_year_spend_minimum_krw": 12000000
+          },
+          "source": {
+            "structured_field_id": "annual_voucher"
+          }
+        },
+        {
+          "fact_id": "field__emergency_m_point",
+          "fact_kind": "semantic_field",
+          "field_id": "emergency_m_point",
+          "page_num": 7,
+          "context_terms": [
+            "M 긴급적립",
+            "최대 50만",
+            "최대 24개월"
+          ],
+          "expected": {
+            "maximum_m_point": 500000,
+            "repayment_months": 24,
+            "cash_settlement_per_m_point_krw": 1
+          },
+          "source": {
+            "structured_field_id": "emergency_m_point"
+          }
+        },
+        {
+          "fact_id": "field__airport_lounge_benefit",
+          "fact_kind": "semantic_field",
+          "field_id": "airport_lounge_benefit",
+          "page_num": 8,
+          "context_terms": [
+            "THE LOUNGE",
+            "연간 5회",
+            "전월 이용 금액 50만원 이상"
+          ],
+          "expected": {
+            "previous_month_spend_minimum_krw": 500000,
+            "annual_limit": 5,
+            "eligible_member": "본인 회원"
+          },
+          "source": {
+            "structured_field_id": "airport_lounge_benefit"
+          }
+        },
+        {
+          "fact_id": "field__valet_parking_benefit",
+          "fact_kind": "semantic_field",
+          "field_id": "valet_parking_benefit",
+          "page_num": 8,
+          "context_terms": [
+            "발레파킹",
+            "월 5회",
+            "전월 이용 금액 50만원 이상"
+          ],
+          "expected": {
+            "previous_month_spend_minimum_krw": 500000,
+            "monthly_limit": 5,
+            "scope": "공항·호텔 통합"
+          },
+          "source": {
+            "structured_field_id": "valet_parking_benefit"
+          }
+        },
+        {
+          "fact_id": "numeric__primary_annual_fee_total",
+          "fact_kind": "numeric_fact",
+          "field_id": "primary_annual_fee_total",
+          "page_num": 3,
+          "context_terms": [
+            "연회비",
+            "Visa Signature"
+          ],
+          "expected": {
+            "value": 200000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "primary_annual_fee_total",
+            "surface_text": "200,000원"
+          }
+        },
+        {
+          "fact_id": "numeric__family_annual_fee_total",
+          "fact_kind": "numeric_fact",
+          "field_id": "family_annual_fee_total",
+          "page_num": 3,
+          "context_terms": [
+            "가족 카드"
+          ],
+          "expected": {
+            "value": 50000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "family_annual_fee_total",
+            "surface_text": "50,000원"
+          }
+        },
+        {
+          "fact_id": "numeric__basic_earning_rate",
+          "fact_kind": "numeric_fact",
+          "field_id": "basic_earning_rate",
+          "page_num": 4,
+          "context_terms": [
+            "기본 혜택",
+            "M포인트"
+          ],
+          "expected": {
+            "value": 0.01,
+            "unit": "ratio"
+          },
+          "source": {
+            "structured_numeric_id": "basic_earning_rate",
+            "surface_text": "1%"
+          }
+        },
+        {
+          "fact_id": "numeric__basic_earning_previous_month_spend",
+          "fact_kind": "numeric_fact",
+          "field_id": "basic_earning_previous_month_spend",
+          "page_num": 4,
+          "context_terms": [
+            "기본 혜택",
+            "전월 이용 금액"
+          ],
+          "expected": {
+            "value": 500000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "basic_earning_previous_month_spend",
+            "surface_text": "50만원 이상"
+          }
+        },
+        {
+          "fact_id": "numeric__additional_earning_rate",
+          "fact_kind": "numeric_fact",
+          "field_id": "additional_earning_rate",
+          "page_num": 4,
+          "context_terms": [
+            "추가 혜택",
+            "M포인트"
+          ],
+          "expected": {
+            "value": 0.1,
+            "unit": "ratio"
+          },
+          "source": {
+            "structured_numeric_id": "additional_earning_rate",
+            "surface_text": "10%"
+          }
+        },
+        {
+          "fact_id": "numeric__additional_earning_previous_month_spend",
+          "fact_kind": "numeric_fact",
+          "field_id": "additional_earning_previous_month_spend",
+          "page_num": 4,
+          "context_terms": [
+            "추가 혜택",
+            "전월 이용 금액"
+          ],
+          "expected": {
+            "value": 1000000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "additional_earning_previous_month_spend",
+            "surface_text": "100만원 이상"
+          }
+        },
+        {
+          "fact_id": "numeric__additional_earning_monthly_limit",
+          "fact_kind": "numeric_fact",
+          "field_id": "additional_earning_monthly_limit",
+          "page_num": 4,
+          "context_terms": [
+            "대상 영역별",
+            "적립 한도"
+          ],
+          "expected": {
+            "value": 10000,
+            "unit": "M_point"
+          },
+          "source": {
+            "structured_numeric_id": "additional_earning_monthly_limit",
+            "surface_text": "월 1만 M포인트"
+          }
+        },
+        {
+          "fact_id": "numeric__annual_voucher_value",
+          "fact_kind": "numeric_fact",
+          "field_id": "annual_voucher_value",
+          "page_num": 6,
+          "context_terms": [
+            "연간 보너스",
+            "바우처"
+          ],
+          "expected": {
+            "value": 150000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "annual_voucher_value",
+            "surface_text": "15만원"
+          }
+        },
+        {
+          "fact_id": "numeric__annual_voucher_m_point_exchange",
+          "fact_kind": "numeric_fact",
+          "field_id": "annual_voucher_m_point_exchange",
+          "page_num": 6,
+          "context_terms": [
+            "M포인트",
+            "교환"
+          ],
+          "expected": {
+            "value": 200000,
+            "unit": "M_point"
+          },
+          "source": {
+            "structured_numeric_id": "annual_voucher_m_point_exchange",
+            "surface_text": "20만 M포인트"
+          }
+        },
+        {
+          "fact_id": "numeric__emergency_m_point_maximum",
+          "fact_kind": "numeric_fact",
+          "field_id": "emergency_m_point_maximum",
+          "page_num": 7,
+          "context_terms": [
+            "M 긴급적립"
+          ],
+          "expected": {
+            "value": 500000,
+            "unit": "M_point"
+          },
+          "source": {
+            "structured_numeric_id": "emergency_m_point_maximum",
+            "surface_text": "최대 50만 M포인트"
+          }
+        },
+        {
+          "fact_id": "numeric__airport_lounge_annual_limit",
+          "fact_kind": "numeric_fact",
+          "field_id": "airport_lounge_annual_limit",
+          "page_num": 8,
+          "context_terms": [
+            "THE LOUNGE"
+          ],
+          "expected": {
+            "value": 5,
+            "unit": "per_year"
+          },
+          "source": {
+            "structured_numeric_id": "airport_lounge_annual_limit",
+            "surface_text": "연간 5회"
+          }
+        },
+        {
+          "fact_id": "numeric__valet_parking_monthly_limit",
+          "fact_kind": "numeric_fact",
+          "field_id": "valet_parking_monthly_limit",
+          "page_num": 8,
+          "context_terms": [
+            "발레파킹"
+          ],
+          "expected": {
+            "value": 5,
+            "unit": "per_month"
+          },
+          "source": {
+            "structured_numeric_id": "valet_parking_monthly_limit",
+            "surface_text": "월 5회"
+          }
+        }
+      ]
+    },
+    {
+      "issuer": "ibk",
+      "card_name": "IBK_Point3.8(Credit)",
+      "source_file": "data/ocr_benchmark/gold/structured/ibk/IBK_Point3.8(Credit).json",
+      "facts": [
+        {
+          "fact_id": "field__basic_point_earning",
+          "fact_kind": "semantic_field",
+          "field_id": "basic_point_earning",
+          "page_num": 2,
+          "context_terms": [
+            "기본 포인트",
+            "1.5% 적립",
+            "50만원 이상"
+          ],
+          "expected": {
+            "rate": 0.015,
+            "target": "국내·외 가맹점 이용금액",
+            "previous_month_spend_minimum_krw": 500000,
+            "monthly_limit": "없음"
+          },
+          "source": {
+            "structured_field_id": "basic_point_earning"
+          }
+        },
+        {
+          "fact_id": "field__special_point_overseas",
+          "fact_kind": "semantic_field",
+          "field_id": "special_point_overseas",
+          "page_num": 2,
+          "context_terms": [
+            "특별 포인트Ⅰ",
+            "5% 적립",
+            "15,000포인트"
+          ],
+          "expected": {
+            "rate": 0.05,
+            "target": "해외 가맹점 이용금액",
+            "previous_month_spend_minimum_krw": 500000,
+            "monthly_limit_point": 15000
+          },
+          "source": {
+            "structured_field_id": "special_point_overseas"
+          }
+        },
+        {
+          "fact_id": "field__special_point_online_shopping",
+          "fact_kind": "semantic_field",
+          "field_id": "special_point_online_shopping",
+          "page_num": 2,
+          "context_terms": [
+            "특별 포인트Ⅱ",
+            "온라인 쇼핑",
+            "0.5% 적립"
+          ],
+          "expected": {
+            "rate": 0.005,
+            "target_merchants": [
+              "쿠팡",
+              "G마켓",
+              "옥션",
+              "11번가"
+            ],
+            "previous_month_spend_minimum_krw": 500000,
+            "monthly_limit_point": 10000
+          },
+          "source": {
+            "structured_field_id": "special_point_online_shopping"
+          }
+        },
+        {
+          "fact_id": "field__point_value",
+          "fact_kind": "semantic_field",
+          "field_id": "point_value",
+          "page_num": 2,
+          "context_terms": [
+            "IBK포인트 1포인트는 1원"
+          ],
+          "expected": {
+            "point": 1,
+            "krw": 1
+          },
+          "source": {
+            "structured_field_id": "point_value"
+          }
+        },
+        {
+          "fact_id": "field__annual_fee",
+          "fact_kind": "semantic_field",
+          "field_id": "annual_fee",
+          "page_num": 3,
+          "context_terms": [
+            "카드발급 안내",
+            "연회비"
+          ],
+          "expected": {
+            "international_primary": {
+              "total_krw": 38000,
+              "base_krw": 4000,
+              "partner_krw": 34000
+            },
+            "domestic_primary": {
+              "total_krw": 37000,
+              "base_krw": 4000,
+              "partner_krw": 33000
+            },
+            "international_family": {
+              "total_krw": 36000,
+              "base_krw": 4000,
+              "partner_krw": 32000
+            },
+            "domestic_family": {
+              "total_krw": 35000,
+              "base_krw": 4000,
+              "partner_krw": 31000
+            }
+          },
+          "source": {
+            "structured_field_id": "annual_fee"
+          }
+        },
+        {
+          "fact_id": "numeric__basic_point_rate",
+          "fact_kind": "numeric_fact",
+          "field_id": "basic_point_rate",
+          "page_num": 2,
+          "context_terms": [
+            "기본 포인트"
+          ],
+          "expected": {
+            "value": 0.015,
+            "unit": "ratio"
+          },
+          "source": {
+            "structured_numeric_id": "basic_point_rate",
+            "surface_text": "1.5%"
+          }
+        },
+        {
+          "fact_id": "numeric__special_point_overseas_rate",
+          "fact_kind": "numeric_fact",
+          "field_id": "special_point_overseas_rate",
+          "page_num": 2,
+          "context_terms": [
+            "특별 포인트Ⅰ",
+            "해외"
+          ],
+          "expected": {
+            "value": 0.05,
+            "unit": "ratio"
+          },
+          "source": {
+            "structured_numeric_id": "special_point_overseas_rate",
+            "surface_text": "5%"
+          }
+        },
+        {
+          "fact_id": "numeric__special_point_overseas_monthly_limit",
+          "fact_kind": "numeric_fact",
+          "field_id": "special_point_overseas_monthly_limit",
+          "page_num": 2,
+          "context_terms": [
+            "특별 포인트Ⅰ",
+            "월 적립한도"
+          ],
+          "expected": {
+            "value": 15000,
+            "unit": "point"
+          },
+          "source": {
+            "structured_numeric_id": "special_point_overseas_monthly_limit",
+            "surface_text": "15,000포인트"
+          }
+        },
+        {
+          "fact_id": "numeric__special_point_online_shopping_rate",
+          "fact_kind": "numeric_fact",
+          "field_id": "special_point_online_shopping_rate",
+          "page_num": 2,
+          "context_terms": [
+            "특별 포인트Ⅱ",
+            "온라인 쇼핑"
+          ],
+          "expected": {
+            "value": 0.005,
+            "unit": "ratio"
+          },
+          "source": {
+            "structured_numeric_id": "special_point_online_shopping_rate",
+            "surface_text": "0.5%"
+          }
+        },
+        {
+          "fact_id": "numeric__special_point_online_shopping_monthly_limit",
+          "fact_kind": "numeric_fact",
+          "field_id": "special_point_online_shopping_monthly_limit",
+          "page_num": 2,
+          "context_terms": [
+            "온라인쇼핑",
+            "월 적립한도"
+          ],
+          "expected": {
+            "value": 10000,
+            "unit": "point"
+          },
+          "source": {
+            "structured_numeric_id": "special_point_online_shopping_monthly_limit",
+            "surface_text": "10,000포인트"
+          }
+        },
+        {
+          "fact_id": "numeric__point_earning_previous_month_spend",
+          "fact_kind": "numeric_fact",
+          "field_id": "point_earning_previous_month_spend",
+          "page_num": 2,
+          "context_terms": [
+            "전월 이용실적",
+            "적립"
+          ],
+          "expected": {
+            "value": 500000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "point_earning_previous_month_spend",
+            "surface_text": "50만원 이상"
+          }
+        },
+        {
+          "fact_id": "numeric__fuel_spend_monthly_recognition_limit",
+          "fact_kind": "numeric_fact",
+          "field_id": "fuel_spend_monthly_recognition_limit",
+          "page_num": 2,
+          "context_terms": [
+            "주유",
+            "적립대상"
+          ],
+          "expected": {
+            "value": 1000000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "fuel_spend_monthly_recognition_limit",
+            "surface_text": "월 100만원"
+          }
+        },
+        {
+          "fact_id": "numeric__international_primary_annual_fee_total",
+          "fact_kind": "numeric_fact",
+          "field_id": "international_primary_annual_fee_total",
+          "page_num": 3,
+          "context_terms": [
+            "해외겸용",
+            "본인",
+            "연회비"
+          ],
+          "expected": {
+            "value": 38000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "international_primary_annual_fee_total",
+            "surface_text": "3만 8천원"
+          }
+        },
+        {
+          "fact_id": "numeric__domestic_primary_annual_fee_total",
+          "fact_kind": "numeric_fact",
+          "field_id": "domestic_primary_annual_fee_total",
+          "page_num": 3,
+          "context_terms": [
+            "국내전용",
+            "본인",
+            "연회비"
+          ],
+          "expected": {
+            "value": 37000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "domestic_primary_annual_fee_total",
+            "surface_text": "3만 7천원"
+          }
+        }
+      ]
+    },
+    {
+      "issuer": "kookmin",
+      "card_name": "Kookmin_Friend_20210917",
+      "source_file": "data/ocr_benchmark/gold/structured/kookmin/Kookmin_Friend_20210917.json",
+      "facts": [
+        {
+          "fact_id": "field__fuel_discount",
+          "fact_kind": "semantic_field",
+          "field_id": "fuel_discount",
+          "page_num": 1,
+          "context_terms": [
+            "프앤드(주유)카드",
+            "주유할인 서비스",
+            "리터당70원청구할인"
+          ],
+          "expected": {
+            "target": "전주유소(LPG포함)",
+            "discount_krw_per_liter": 70,
+            "daily_spend_limit_krw": 100000,
+            "monthly_spend_limit_krw": 250000
+          },
+          "source": {
+            "structured_field_id": "fuel_discount"
+          }
+        },
+        {
+          "fact_id": "field__fuel_discount_previous_month_requirement",
+          "fact_kind": "semantic_field",
+          "field_id": "fuel_discount_previous_month_requirement",
+          "page_num": 1,
+          "context_terms": [
+            "전월 프랜드(주유)카드",
+            "30만원 이상"
+          ],
+          "expected": {
+            "minimum_krw": 300000,
+            "payment_types": [
+              "일시불",
+              "할부"
+            ]
+          },
+          "source": {
+            "structured_field_id": "fuel_discount_previous_month_requirement"
+          }
+        },
+        {
+          "fact_id": "field__fuel_discount_previous_month_exclusions",
+          "fact_kind": "semantic_field",
+          "field_id": "fuel_discount_previous_month_exclusions",
+          "page_num": 1,
+          "context_terms": [
+            "전월 실적산정 시 제외 매출"
+          ],
+          "expected": [
+            "KB국민 프랜드카드로 주유할인 받은 매출전표",
+            "단기카드대출(현금서비스)",
+            "아파트 관리비",
+            "연회비",
+            "각종 상품권 매출",
+            "선불카드 구입/충전금액",
+            "각종 세금(국세/관세/지방세/공과금 등)",
+            "장기카드대출(카드론)",
+            "대학(대학원)등록금",
+            "각종 수수료"
+          ],
+          "source": {
+            "structured_field_id": "fuel_discount_previous_month_exclusions"
+          }
+        },
+        {
+          "fact_id": "field__asiana_mileage_earning",
+          "fact_kind": "semantic_field",
+          "field_id": "asiana_mileage_earning",
+          "page_num": 1,
+          "context_terms": [
+            "프랜드(항공)카드",
+            "아시아나마일리지 적립"
+          ],
+          "expected": {
+            "per_spend_krw": 1000,
+            "miles": 1,
+            "payment_types": [
+              "일시불",
+              "할부"
+            ]
+          },
+          "source": {
+            "structured_field_id": "asiana_mileage_earning"
+          }
+        },
+        {
+          "fact_id": "field__mileage_earning_exclusions",
+          "fact_kind": "semantic_field",
+          "field_id": "mileage_earning_exclusions",
+          "page_num": 1,
+          "context_terms": [
+            "마일리지 적립 제외 대상"
+          ],
+          "expected": [
+            "단기카드대출(현금서비스)",
+            "아파트 관리비",
+            "연회비",
+            "각종 상품권 매출",
+            "선불카드 구입/충전금액",
+            "각종 세금(국세/관세/지방세/공과금 등)",
+            "장기카드대출(카드론)",
+            "대학(대학원)등록금",
+            "각종 수수료"
+          ],
+          "source": {
+            "structured_field_id": "mileage_earning_exclusions"
+          }
+        },
+        {
+          "fact_id": "field__interest_free_installment",
+          "fact_kind": "semantic_field",
+          "field_id": "interest_free_installment",
+          "page_num": 1,
+          "context_terms": [
+            "무이자 할부"
+          ],
+          "expected": {
+            "target_scope": "백화점, 대형 할인점 등 주요 업종",
+            "installment_months": "2~3개월",
+            "classification_standard": "KB국민카드 업종 기준"
+          },
+          "source": {
+            "structured_field_id": "interest_free_installment"
+          }
+        },
+        {
+          "fact_id": "field__everland_discount",
+          "fact_kind": "semantic_field",
+          "field_id": "everland_discount",
+          "page_num": 1,
+          "context_terms": [
+            "에버랜드할인",
+            "50%현장할인",
+            "연간 10회"
+          ],
+          "expected": {
+            "target": "에버랜드 페스티벌월드",
+            "rate": 0.5,
+            "discount_type": "현장할인",
+            "per_day": 1,
+            "annual_limit": 10,
+            "online_booking_scope": "주간이용권"
+          },
+          "source": {
+            "structured_field_id": "everland_discount"
+          }
+        },
+        {
+          "fact_id": "field__caribbean_bay_discount",
+          "fact_kind": "semantic_field",
+          "field_id": "caribbean_bay_discount",
+          "page_num": 1,
+          "context_terms": [
+            "캐리비안베이",
+            "30%현장할인"
+          ],
+          "expected": {
+            "target": "캐리비안베이",
+            "rate": 0.3,
+            "discount_type": "현장할인",
+            "per_day": 1
+          },
+          "source": {
+            "structured_field_id": "caribbean_bay_discount"
+          }
+        },
+        {
+          "fact_id": "field__annual_fee",
+          "fact_kind": "semantic_field",
+          "field_id": "annual_fee",
+          "page_num": 2,
+          "context_terms": [
+            "연회비",
+            "합계(기본+제휴)"
+          ],
+          "expected": {
+            "gold": {
+              "category": "국내외겸용(비자)",
+              "base_krw": 10000,
+              "partner_krw": 0,
+              "total_krw": 10000
+            },
+            "platinum": {
+              "category": "플래티늄카드(비자,마스터)",
+              "base_krw": 10000,
+              "partner_krw": 90000,
+              "total_krw": 100000
+            }
+          },
+          "source": {
+            "structured_field_id": "annual_fee"
+          }
+        },
+        {
+          "fact_id": "field__next_year_base_annual_fee_waiver",
+          "fact_kind": "semantic_field",
+          "field_id": "next_year_base_annual_fee_waiver",
+          "page_num": 2,
+          "context_terms": [
+            "차기년도 연회비",
+            "연간 100만원 이상",
+            "기본 연회비 면제"
+          ],
+          "expected": {
+            "annual_spend_minimum_krw": 1000000,
+            "waived_fee": "기본 연회비",
+            "includes": "단기카드대출(현금서비스)"
+          },
+          "source": {
+            "structured_field_id": "next_year_base_annual_fee_waiver"
+          }
+        },
+        {
+          "fact_id": "numeric__fuel_discount_per_liter",
+          "fact_kind": "numeric_fact",
+          "field_id": "fuel_discount_per_liter",
+          "page_num": 1,
+          "context_terms": [
+            "전주유소",
+            "청구할인"
+          ],
+          "expected": {
+            "value": 70,
+            "unit": "KRW_per_liter"
+          },
+          "source": {
+            "structured_numeric_id": "fuel_discount_per_liter",
+            "surface_text": "70원"
+          }
+        },
+        {
+          "fact_id": "numeric__fuel_discount_daily_spend_limit",
+          "fact_kind": "numeric_fact",
+          "field_id": "fuel_discount_daily_spend_limit",
+          "page_num": 1,
+          "context_terms": [
+            "할인한도"
+          ],
+          "expected": {
+            "value": 100000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "fuel_discount_daily_spend_limit",
+            "surface_text": "1일 10만원"
+          }
+        },
+        {
+          "fact_id": "numeric__fuel_discount_monthly_spend_limit",
+          "fact_kind": "numeric_fact",
+          "field_id": "fuel_discount_monthly_spend_limit",
+          "page_num": 1,
+          "context_terms": [
+            "할인한도"
+          ],
+          "expected": {
+            "value": 250000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "fuel_discount_monthly_spend_limit",
+            "surface_text": "월 25만원"
+          }
+        },
+        {
+          "fact_id": "numeric__fuel_discount_previous_month_spend",
+          "fact_kind": "numeric_fact",
+          "field_id": "fuel_discount_previous_month_spend",
+          "page_num": 1,
+          "context_terms": [
+            "전월 프랜드(주유)카드"
+          ],
+          "expected": {
+            "value": 300000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "fuel_discount_previous_month_spend",
+            "surface_text": "30만원 이상"
+          }
+        },
+        {
+          "fact_id": "numeric__asiana_mileage_spend_unit",
+          "fact_kind": "numeric_fact",
+          "field_id": "asiana_mileage_spend_unit",
+          "page_num": 1,
+          "context_terms": [
+            "아시아나마일리지 적립"
+          ],
+          "expected": {
+            "value": 1000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "asiana_mileage_spend_unit",
+            "surface_text": "1,000원당"
+          }
+        },
+        {
+          "fact_id": "numeric__asiana_mileage_earned",
+          "fact_kind": "numeric_fact",
+          "field_id": "asiana_mileage_earned",
+          "page_num": 1,
+          "context_terms": [
+            "일시불 및 할부 이용금액"
+          ],
+          "expected": {
+            "value": 1,
+            "unit": "mile"
+          },
+          "source": {
+            "structured_numeric_id": "asiana_mileage_earned",
+            "surface_text": "1마일"
+          }
+        },
+        {
+          "fact_id": "numeric__everland_discount_rate",
+          "fact_kind": "numeric_fact",
+          "field_id": "everland_discount_rate",
+          "page_num": 1,
+          "context_terms": [
+            "에버랜드 페스티벌월드",
+            "현장할인"
+          ],
+          "expected": {
+            "value": 0.5,
+            "unit": "ratio"
+          },
+          "source": {
+            "structured_numeric_id": "everland_discount_rate",
+            "surface_text": "50%"
+          }
+        },
+        {
+          "fact_id": "numeric__everland_annual_limit",
+          "fact_kind": "numeric_fact",
+          "field_id": "everland_annual_limit",
+          "page_num": 1,
+          "context_terms": [
+            "에버랜드 할인서비스"
+          ],
+          "expected": {
+            "value": 10,
+            "unit": "per_year"
+          },
+          "source": {
+            "structured_numeric_id": "everland_annual_limit",
+            "surface_text": "연간 10회"
+          }
+        },
+        {
+          "fact_id": "numeric__caribbean_bay_discount_rate",
+          "fact_kind": "numeric_fact",
+          "field_id": "caribbean_bay_discount_rate",
+          "page_num": 1,
+          "context_terms": [
+            "캐리비안베이",
+            "현장할인"
+          ],
+          "expected": {
+            "value": 0.3,
+            "unit": "ratio"
+          },
+          "source": {
+            "structured_numeric_id": "caribbean_bay_discount_rate",
+            "surface_text": "30%"
+          }
+        },
+        {
+          "fact_id": "numeric__gold_annual_fee_total",
+          "fact_kind": "numeric_fact",
+          "field_id": "gold_annual_fee_total",
+          "page_num": 2,
+          "context_terms": [
+            "국내외겸용(비자)",
+            "합계"
+          ],
+          "expected": {
+            "value": 10000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "gold_annual_fee_total",
+            "surface_text": "10,000원"
+          }
+        },
+        {
+          "fact_id": "numeric__platinum_annual_fee_total",
+          "fact_kind": "numeric_fact",
+          "field_id": "platinum_annual_fee_total",
+          "page_num": 2,
+          "context_terms": [
+            "플래티늄카드(비자,마스터)",
+            "합계"
+          ],
+          "expected": {
+            "value": 100000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "platinum_annual_fee_total",
+            "surface_text": "100,000원"
+          }
+        },
+        {
+          "fact_id": "numeric__next_year_base_fee_waiver_spend",
+          "fact_kind": "numeric_fact",
+          "field_id": "next_year_base_fee_waiver_spend",
+          "page_num": 2,
+          "context_terms": [
+            "차기년도 연회비",
+            "기본 연회비 면제"
+          ],
+          "expected": {
+            "value": 1000000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "next_year_base_fee_waiver_spend",
+            "surface_text": "100만원 이상"
+          }
+        }
+      ]
+    },
+    {
+      "issuer": "lotte",
+      "card_name": "Lotte_LOCA_LIKIT_Eat",
+      "source_file": "data/ocr_benchmark/gold/structured/lotte/Lotte_LOCA_LIKIT_Eat.json",
+      "facts": [
+        {
+          "fact_id": "field__restaurant_discount",
+          "fact_kind": "semantic_field",
+          "field_id": "restaurant_discount",
+          "page_num": 3,
+          "context_terms": [
+            "음식점",
+            "60% 결제일 할인"
+          ],
+          "expected": {
+            "rate": 0.6,
+            "target": "음식점 업종으로 등록된 가맹점",
+            "discount_type": "결제일 할인"
+          },
+          "source": {
+            "structured_field_id": "restaurant_discount"
+          }
+        },
+        {
+          "fact_id": "field__delivery_app_discount",
+          "fact_kind": "semantic_field",
+          "field_id": "delivery_app_discount",
+          "page_num": 3,
+          "context_terms": [
+            "배달앱",
+            "60% 결제일 할인"
+          ],
+          "expected": {
+            "rate": 0.6,
+            "targets": [
+              "배달의 민족",
+              "쿠팡이츠",
+              "요기요"
+            ],
+            "discount_type": "결제일 할인",
+            "payment_requirement": "공식 홈페이지 및 앱을 통한 결제"
+          },
+          "source": {
+            "structured_field_id": "delivery_app_discount"
+          }
+        },
+        {
+          "fact_id": "field__coffee_discount",
+          "fact_kind": "semantic_field",
+          "field_id": "coffee_discount",
+          "page_num": 3,
+          "context_terms": [
+            "커피",
+            "60% 결제일 할인"
+          ],
+          "expected": {
+            "rate": 0.6,
+            "targets": [
+              "스타벅스",
+              "투썸플레이스",
+              "할리스커피",
+              "폴바셋"
+            ],
+            "discount_type": "결제일 할인"
+          },
+          "source": {
+            "structured_field_id": "coffee_discount"
+          }
+        },
+        {
+          "fact_id": "field__membership_discount",
+          "fact_kind": "semantic_field",
+          "field_id": "membership_discount",
+          "page_num": 3,
+          "context_terms": [
+            "멤버십",
+            "60% 결제일 할인"
+          ],
+          "expected": {
+            "rate": 0.6,
+            "targets": [
+              "쿠팡 로켓와우",
+              "네이버플러스 멤버십"
+            ],
+            "discount_type": "결제일 할인"
+          },
+          "source": {
+            "structured_field_id": "membership_discount"
+          }
+        },
+        {
+          "fact_id": "field__discount_common_requirement",
+          "fact_kind": "semantic_field",
+          "field_id": "discount_common_requirement",
+          "page_num": 3,
+          "context_terms": [
+            "지난달 1일~말일까지",
+            "40만원 이상",
+            "통합 월 1만 3천원"
+          ],
+          "expected": {
+            "previous_month_spend_minimum_krw": 400000,
+            "monthly_integrated_discount_limit_krw": 13000
+          },
+          "source": {
+            "structured_field_id": "discount_common_requirement"
+          }
+        },
+        {
+          "fact_id": "field__discount_exclusions",
+          "fact_kind": "semantic_field",
+          "field_id": "discount_exclusions",
+          "page_num": 3,
+          "context_terms": [
+            "할인 적용 제외 대상"
+          ],
+          "expected": [
+            "모든 무이자할부 이용금액",
+            "포인트 충전",
+            "기프트·선불카드 충전 및 구매",
+            "상품권(모바일 상품권 포함) 구매"
+          ],
+          "source": {
+            "structured_field_id": "discount_exclusions"
+          }
+        },
+        {
+          "fact_id": "field__initial_issue_benefit_rule",
+          "fact_kind": "semantic_field",
+          "field_id": "initial_issue_benefit_rule",
+          "page_num": 4,
+          "context_terms": [
+            "최초 발급",
+            "이용실적에 관계없이"
+          ],
+          "expected": "카드발급일~다음 달 말일까지 이용실적에 관계없이 혜택 제공",
+          "source": {
+            "structured_field_id": "initial_issue_benefit_rule"
+          }
+        },
+        {
+          "fact_id": "field__previous_month_spend_exclusions",
+          "fact_kind": "semantic_field",
+          "field_id": "previous_month_spend_exclusions",
+          "page_num": 4,
+          "context_terms": [
+            "이용실적 산정 시 제외 대상"
+          ],
+          "expected": [
+            "LOCA LIKIT Eat 카드 할인 혜택이 적용된 이용금액",
+            "LOCA LIKIT Eat 카드가 아닌 롯데카드 이용금액",
+            "국세",
+            "지방세",
+            "도시가스비",
+            "공과금",
+            "건강보험",
+            "국민연금",
+            "고용보험",
+            "산재보험",
+            "기프트·선불카드 충전 및 구매",
+            "포인트 충전",
+            "상품권(모바일 상품권 포함) 구매",
+            "대중교통(버스, 지하철)",
+            "택시",
+            "모든 무이자할부 이용금액",
+            "단기카드대출(현금서비스)",
+            "장기카드대출 (카드론)",
+            "연회비"
+          ],
+          "source": {
+            "structured_field_id": "previous_month_spend_exclusions"
+          }
+        },
+        {
+          "fact_id": "field__annual_fee",
+          "fact_kind": "semantic_field",
+          "field_id": "annual_fee",
+          "page_num": 7,
+          "context_terms": [
+            "연회비",
+            "국내전용",
+            "해외겸용(MASTER, AMEX)",
+            "가족카드는 연회비가 없습니다"
+          ],
+          "expected": {
+            "domestic": {
+              "total_krw": 10000,
+              "base_krw": 10000,
+              "partner_krw": 0
+            },
+            "international": {
+              "brands": [
+                "MASTER",
+                "AMEX"
+              ],
+              "total_krw": 10000,
+              "base_krw": 10000,
+              "partner_krw": 0
+            },
+            "family_card_fee": "none"
+          },
+          "source": {
+            "structured_field_id": "annual_fee"
+          }
+        },
+        {
+          "fact_id": "numeric__restaurant_discount_rate",
+          "fact_kind": "numeric_fact",
+          "field_id": "restaurant_discount_rate",
+          "page_num": 3,
+          "context_terms": [
+            "음식점",
+            "결제일 할인"
+          ],
+          "expected": {
+            "value": 0.6,
+            "unit": "ratio"
+          },
+          "source": {
+            "structured_numeric_id": "restaurant_discount_rate",
+            "surface_text": "60%"
+          }
+        },
+        {
+          "fact_id": "numeric__delivery_app_discount_rate",
+          "fact_kind": "numeric_fact",
+          "field_id": "delivery_app_discount_rate",
+          "page_num": 3,
+          "context_terms": [
+            "배달의 민족",
+            "쿠팡이츠",
+            "요기요"
+          ],
+          "expected": {
+            "value": 0.6,
+            "unit": "ratio"
+          },
+          "source": {
+            "structured_numeric_id": "delivery_app_discount_rate",
+            "surface_text": "60%"
+          }
+        },
+        {
+          "fact_id": "numeric__coffee_discount_rate",
+          "fact_kind": "numeric_fact",
+          "field_id": "coffee_discount_rate",
+          "page_num": 3,
+          "context_terms": [
+            "스타벅스",
+            "투썸플레이스",
+            "할리스커피",
+            "폴바셋"
+          ],
+          "expected": {
+            "value": 0.6,
+            "unit": "ratio"
+          },
+          "source": {
+            "structured_numeric_id": "coffee_discount_rate",
+            "surface_text": "60%"
+          }
+        },
+        {
+          "fact_id": "numeric__membership_discount_rate",
+          "fact_kind": "numeric_fact",
+          "field_id": "membership_discount_rate",
+          "page_num": 3,
+          "context_terms": [
+            "쿠팡 로켓와우",
+            "네이버플러스 멤버십"
+          ],
+          "expected": {
+            "value": 0.6,
+            "unit": "ratio"
+          },
+          "source": {
+            "structured_numeric_id": "membership_discount_rate",
+            "surface_text": "60%"
+          }
+        },
+        {
+          "fact_id": "numeric__previous_month_spend_requirement",
+          "fact_kind": "numeric_fact",
+          "field_id": "previous_month_spend_requirement",
+          "page_num": 3,
+          "context_terms": [
+            "지난달 1일~말일까지"
+          ],
+          "expected": {
+            "value": 400000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "previous_month_spend_requirement",
+            "surface_text": "40만원 이상"
+          }
+        },
+        {
+          "fact_id": "numeric__monthly_integrated_discount_limit",
+          "fact_kind": "numeric_fact",
+          "field_id": "monthly_integrated_discount_limit",
+          "page_num": 3,
+          "context_terms": [
+            "모든 혜택 통합 월"
+          ],
+          "expected": {
+            "value": 13000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "monthly_integrated_discount_limit",
+            "surface_text": "1만 3천원"
+          }
+        },
+        {
+          "fact_id": "numeric__domestic_annual_fee",
+          "fact_kind": "numeric_fact",
+          "field_id": "domestic_annual_fee",
+          "page_num": 7,
+          "context_terms": [
+            "국내전용",
+            "총 연회비"
+          ],
+          "expected": {
+            "value": 10000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "domestic_annual_fee",
+            "surface_text": "10,000원"
+          }
+        },
+        {
+          "fact_id": "numeric__international_annual_fee",
+          "fact_kind": "numeric_fact",
+          "field_id": "international_annual_fee",
+          "page_num": 7,
+          "context_terms": [
+            "해외겸용(MASTER, AMEX)",
+            "총 연회비"
+          ],
+          "expected": {
+            "value": 10000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "international_annual_fee",
+            "surface_text": "10,000원"
+          }
+        }
+      ]
+    },
+    {
+      "issuer": "samsung",
+      "card_name": "Samsung_iD_ALL",
+      "source_file": "data/ocr_benchmark/gold/structured/samsung/Samsung_iD_ALL.json",
+      "facts": [
+        {
+          "fact_id": "field__highest_spend_category_discount",
+          "fact_kind": "semantic_field",
+          "field_id": "highest_spend_category_discount",
+          "page_num": 2,
+          "context_terms": [
+            "많이 쓰는 영역",
+            "5% 자동 맞춤 할인"
+          ],
+          "expected": {
+            "rate": 0.05,
+            "categories": [
+              "백화점",
+              "할인점",
+              "슈퍼마켓"
+            ],
+            "selection_rule": "월 이용금액이 가장 큰 1개 영역",
+            "monthly_limit_tiers": [
+              {
+                "previous_month_spend": "40만원 이상",
+                "limit_krw": 5000
+              },
+              {
+                "previous_month_spend": "70만원 이상",
+                "limit_krw": 10000
+              }
+            ]
+          },
+          "source": {
+            "structured_field_id": "highest_spend_category_discount"
+          }
+        },
+        {
+          "fact_id": "field__fuel_telecom_apartment_discount",
+          "fact_kind": "semantic_field",
+          "field_id": "fuel_telecom_apartment_discount",
+          "page_num": 3,
+          "context_terms": [
+            "주유",
+            "이동통신",
+            "아파트 관리비",
+            "2.5% 결제일할인"
+          ],
+          "expected": {
+            "rate": 0.025,
+            "categories": [
+              "주유",
+              "이동통신",
+              "아파트 관리비"
+            ],
+            "monthly_limit_tiers": [
+              {
+                "previous_month_spend": "40만원 이상",
+                "limit_krw": 5000
+              },
+              {
+                "previous_month_spend": "70만원 이상",
+                "limit_krw": 10000
+              }
+            ]
+          },
+          "source": {
+            "structured_field_id": "fuel_telecom_apartment_discount"
+          }
+        },
+        {
+          "fact_id": "field__general_domestic_overseas_discount",
+          "fact_kind": "semantic_field",
+          "field_id": "general_domestic_overseas_discount",
+          "page_num": 3,
+          "context_terms": [
+            "국내외 가맹점",
+            "전월 이용금액에 관계없이",
+            "할인한도 없이"
+          ],
+          "expected": {
+            "rate": 0.005,
+            "scope": "국내외 가맹점",
+            "previous_month_spend_requirement": "none",
+            "discount_limit": "none"
+          },
+          "source": {
+            "structured_field_id": "general_domestic_overseas_discount"
+          }
+        },
+        {
+          "fact_id": "field__previous_month_spend_exclusions",
+          "fact_kind": "semantic_field",
+          "field_id": "previous_month_spend_exclusions",
+          "page_num": 4,
+          "context_terms": [
+            "전월 이용금액 제외 대상"
+          ],
+          "expected": [
+            "건강보험/국민연금/고용보험/산재보험 및 장애인 고용부담금",
+            "국세/지방세/공과금",
+            "부동산 임대료",
+            "초·중·고등학교 학교납입금",
+            "대학 등록금",
+            "대중교통",
+            "택시",
+            "기프트/선불카드 구매 및 충전",
+            "상품권 구매"
+          ],
+          "source": {
+            "structured_field_id": "previous_month_spend_exclusions"
+          }
+        },
+        {
+          "fact_id": "field__discount_exclusions",
+          "fact_kind": "semantic_field",
+          "field_id": "discount_exclusions",
+          "page_num": 4,
+          "context_terms": [
+            "할인 제외 대상"
+          ],
+          "expected": [
+            "무이자할부 이용금액",
+            "삼성카드 할인이 적용된 일시불 및 할부 이용금액",
+            "부동산 임대료",
+            "대중교통",
+            "택시",
+            "고속버스",
+            "고속도로 통행요금",
+            "문자알림서비스",
+            "스마트오토서비스"
+          ],
+          "source": {
+            "structured_field_id": "discount_exclusions"
+          }
+        },
+        {
+          "fact_id": "field__primary_international_annual_fee",
+          "fact_kind": "semantic_field",
+          "field_id": "primary_international_annual_fee",
+          "page_num": 6,
+          "context_terms": [
+            "본인",
+            "해외겸용",
+            "총 연회비"
+          ],
+          "expected": {
+            "brands": [
+              "Mastercard",
+              "VISA"
+            ],
+            "total_krw": 20000,
+            "base_krw": 7000,
+            "partner_krw": 13000
+          },
+          "source": {
+            "structured_field_id": "primary_international_annual_fee"
+          }
+        },
+        {
+          "fact_id": "field__family_international_annual_fee",
+          "fact_kind": "semantic_field",
+          "field_id": "family_international_annual_fee",
+          "page_num": 6,
+          "context_terms": [
+            "가족",
+            "해외겸용",
+            "총 연회비"
+          ],
+          "expected": {
+            "brands": [
+              "Mastercard",
+              "VISA"
+            ],
+            "total_krw": 13000,
+            "base_krw": 0,
+            "partner_krw": 13000
+          },
+          "source": {
+            "structured_field_id": "family_international_annual_fee"
+          }
+        },
+        {
+          "fact_id": "numeric__highest_spend_category_discount_rate",
+          "fact_kind": "numeric_fact",
+          "field_id": "highest_spend_category_discount_rate",
+          "page_num": 2,
+          "context_terms": [
+            "자동 맞춤 할인"
+          ],
+          "expected": {
+            "value": 0.05,
+            "unit": "ratio"
+          },
+          "source": {
+            "structured_numeric_id": "highest_spend_category_discount_rate",
+            "surface_text": "5%"
+          }
+        },
+        {
+          "fact_id": "numeric__highest_spend_category_limit_low",
+          "fact_kind": "numeric_fact",
+          "field_id": "highest_spend_category_limit_low",
+          "page_num": 2,
+          "context_terms": [
+            "40만원 이상",
+            "월 할인한도"
+          ],
+          "expected": {
+            "value": 5000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "highest_spend_category_limit_low",
+            "surface_text": "5,000원"
+          }
+        },
+        {
+          "fact_id": "numeric__highest_spend_category_limit_high",
+          "fact_kind": "numeric_fact",
+          "field_id": "highest_spend_category_limit_high",
+          "page_num": 2,
+          "context_terms": [
+            "70만원 이상",
+            "월 할인한도"
+          ],
+          "expected": {
+            "value": 10000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "highest_spend_category_limit_high",
+            "surface_text": "10,000원"
+          }
+        },
+        {
+          "fact_id": "numeric__fuel_telecom_apartment_discount_rate",
+          "fact_kind": "numeric_fact",
+          "field_id": "fuel_telecom_apartment_discount_rate",
+          "page_num": 3,
+          "context_terms": [
+            "주유",
+            "이동통신",
+            "아파트 관리비"
+          ],
+          "expected": {
+            "value": 0.025,
+            "unit": "ratio"
+          },
+          "source": {
+            "structured_numeric_id": "fuel_telecom_apartment_discount_rate",
+            "surface_text": "2.5%"
+          }
+        },
+        {
+          "fact_id": "numeric__general_discount_rate",
+          "fact_kind": "numeric_fact",
+          "field_id": "general_discount_rate",
+          "page_num": 3,
+          "context_terms": [
+            "국내외 가맹점"
+          ],
+          "expected": {
+            "value": 0.005,
+            "unit": "ratio"
+          },
+          "source": {
+            "structured_numeric_id": "general_discount_rate",
+            "surface_text": "0.5%"
+          }
+        },
+        {
+          "fact_id": "numeric__primary_international_annual_fee_total",
+          "fact_kind": "numeric_fact",
+          "field_id": "primary_international_annual_fee_total",
+          "page_num": 6,
+          "context_terms": [
+            "본인",
+            "해외겸용",
+            "Mastercard"
+          ],
+          "expected": {
+            "value": 20000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "primary_international_annual_fee_total",
+            "surface_text": "2만원"
+          }
+        },
+        {
+          "fact_id": "numeric__family_international_annual_fee_total",
+          "fact_kind": "numeric_fact",
+          "field_id": "family_international_annual_fee_total",
+          "page_num": 6,
+          "context_terms": [
+            "가족",
+            "해외겸용",
+            "Mastercard"
+          ],
+          "expected": {
+            "value": 13000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "family_international_annual_fee_total",
+            "surface_text": "1만 3천원"
+          }
+        }
+      ]
+    },
+    {
+      "issuer": "shinhan",
+      "card_name": "Shinhan_Toss_Mr.Life_20251231",
+      "source_file": "data/ocr_benchmark/gold/structured/shinhan/Shinhan_Toss_Mr.Life_20251231.json",
+      "facts": [
+        {
+          "fact_id": "field__monthly_bill_discount",
+          "fact_kind": "semantic_field",
+          "field_id": "monthly_bill_discount",
+          "page_num": 2,
+          "context_terms": [
+            "월납요금",
+            "공과금 10% 할인"
+          ],
+          "expected": {
+            "rate": 0.1,
+            "targets": [
+              "전기요금",
+              "도시가스요금",
+              "SKT, LG U+, KT 통신요금"
+            ],
+            "tiers": [
+              {
+                "previous_month_spend": "30~50만원",
+                "monthly_limit_krw": 3000
+              },
+              {
+                "previous_month_spend": "50~100만원",
+                "monthly_limit_krw": 7000
+              },
+              {
+                "previous_month_spend": "100만원 이상",
+                "monthly_limit_krw": 10000
+              }
+            ]
+          },
+          "source": {
+            "structured_field_id": "monthly_bill_discount"
+          }
+        },
+        {
+          "fact_id": "field__weekend_discount",
+          "fact_kind": "semantic_field",
+          "field_id": "weekend_discount",
+          "page_num": 2,
+          "context_terms": [
+            "주유/쇼핑",
+            "3대 할인마트",
+            "4대 주유소"
+          ],
+          "expected": {
+            "mart_rate": 0.1,
+            "fuel_discount_krw_per_liter": 60,
+            "tiers": [
+              {
+                "previous_month_spend": "30~50만원",
+                "monthly_limit_krw": 3000
+              },
+              {
+                "previous_month_spend": "50~100만원",
+                "monthly_limit_krw": 7000
+              },
+              {
+                "previous_month_spend": "100만원 이상",
+                "monthly_limit_krw": 10000
+              }
+            ]
+          },
+          "source": {
+            "structured_field_id": "weekend_discount"
+          }
+        },
+        {
+          "fact_id": "field__time_discount",
+          "fact_kind": "semantic_field",
+          "field_id": "time_discount",
+          "page_num": 2,
+          "context_terms": [
+            "Time 할인 서비스",
+            "All Day",
+            "Night"
+          ],
+          "expected": {
+            "rate": 0.1,
+            "tiers": [
+              {
+                "previous_month_spend": "30~50만원",
+                "monthly_limit_krw": 10000
+              },
+              {
+                "previous_month_spend": "50~100만원",
+                "monthly_limit_krw": 20000
+              },
+              {
+                "previous_month_spend": "100만원 이상",
+                "monthly_limit_krw": 30000
+              }
+            ],
+            "all_day_targets": [
+              "편의점",
+              "병원/약국",
+              "세탁소"
+            ],
+            "night_targets": [
+              "온라인 쇼핑",
+              "택시",
+              "식음료"
+            ],
+            "night_hours": "21:00~09:00"
+          },
+          "source": {
+            "structured_field_id": "time_discount"
+          }
+        },
+        {
+          "fact_id": "field__all_day_discount_usage_limit",
+          "fact_kind": "semantic_field",
+          "field_id": "all_day_discount_usage_limit",
+          "page_num": 2,
+          "context_terms": [
+            "All Day",
+            "일 1회",
+            "월 5회"
+          ],
+          "expected": {
+            "per_day": 1,
+            "per_month": 5,
+            "max_approval_krw": 10000,
+            "max_discount_krw": 1000
+          },
+          "source": {
+            "structured_field_id": "all_day_discount_usage_limit"
+          }
+        },
+        {
+          "fact_id": "field__night_discount_usage_limit",
+          "fact_kind": "semantic_field",
+          "field_id": "night_discount_usage_limit",
+          "page_num": 2,
+          "context_terms": [
+            "Night",
+            "일 1회",
+            "월 10회"
+          ],
+          "expected": {
+            "per_day": 1,
+            "per_month": 10,
+            "max_approval_krw": 10000,
+            "max_discount_krw": 1000
+          },
+          "source": {
+            "structured_field_id": "night_discount_usage_limit"
+          }
+        },
+        {
+          "fact_id": "field__intake_discount",
+          "fact_kind": "semantic_field",
+          "field_id": "intake_discount",
+          "page_num": 2,
+          "context_terms": [
+            "INTAKE",
+            "20% 할인",
+            "월 4회"
+          ],
+          "expected": {
+            "rate": 0.2,
+            "target": "인테이크몰",
+            "per_month": 4
+          },
+          "source": {
+            "structured_field_id": "intake_discount"
+          }
+        },
+        {
+          "fact_id": "field__annual_fee",
+          "fact_kind": "semantic_field",
+          "field_id": "annual_fee",
+          "page_num": 1,
+          "context_terms": [
+            "연회비",
+            "국내전용",
+            "해외겸용"
+          ],
+          "expected": {
+            "domestic": {
+              "brand": "Local",
+              "total_krw": 15000,
+              "base_krw": 5000,
+              "service_krw": 10000
+            },
+            "international": {
+              "brand": "VISA",
+              "total_krw": 18000,
+              "base_krw": 5000,
+              "service_krw": 13000
+            }
+          },
+          "source": {
+            "structured_field_id": "annual_fee"
+          }
+        },
+        {
+          "fact_id": "field__previous_month_spend_exclusions",
+          "fact_kind": "semantic_field",
+          "field_id": "previous_month_spend_exclusions",
+          "page_num": 2,
+          "context_terms": [
+            "전월 실적 제외대상"
+          ],
+          "expected": [
+            "단기카드대출(현금서비스)",
+            "장기카드대출(카드론)",
+            "연회비",
+            "각종 수수료/이자",
+            "기프트카드/선불카드 구매·충전금액",
+            "거래 취소금액"
+          ],
+          "source": {
+            "structured_field_id": "previous_month_spend_exclusions"
+          }
+        },
+        {
+          "fact_id": "numeric__domestic_annual_fee",
+          "fact_kind": "numeric_fact",
+          "field_id": "domestic_annual_fee",
+          "page_num": 1,
+          "context_terms": [
+            "국내전용",
+            "Local"
+          ],
+          "expected": {
+            "value": 15000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "domestic_annual_fee",
+            "surface_text": "1만 5천원"
+          }
+        },
+        {
+          "fact_id": "numeric__international_annual_fee",
+          "fact_kind": "numeric_fact",
+          "field_id": "international_annual_fee",
+          "page_num": 1,
+          "context_terms": [
+            "해외겸용",
+            "VISA"
+          ],
+          "expected": {
+            "value": 18000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "international_annual_fee",
+            "surface_text": "1만 8천원"
+          }
+        },
+        {
+          "fact_id": "numeric__monthly_bill_discount_rate",
+          "fact_kind": "numeric_fact",
+          "field_id": "monthly_bill_discount_rate",
+          "page_num": 2,
+          "context_terms": [
+            "월납요금",
+            "공과금"
+          ],
+          "expected": {
+            "value": 0.1,
+            "unit": "ratio"
+          },
+          "source": {
+            "structured_numeric_id": "monthly_bill_discount_rate",
+            "surface_text": "10%"
+          }
+        },
+        {
+          "fact_id": "numeric__fuel_discount_per_liter",
+          "fact_kind": "numeric_fact",
+          "field_id": "fuel_discount_per_liter",
+          "page_num": 2,
+          "context_terms": [
+            "4대 주유소",
+            "리터당"
+          ],
+          "expected": {
+            "value": 60,
+            "unit": "KRW_per_liter"
+          },
+          "source": {
+            "structured_numeric_id": "fuel_discount_per_liter",
+            "surface_text": "60원"
+          }
+        },
+        {
+          "fact_id": "numeric__time_discount_rate",
+          "fact_kind": "numeric_fact",
+          "field_id": "time_discount_rate",
+          "page_num": 2,
+          "context_terms": [
+            "Time 할인 서비스"
+          ],
+          "expected": {
+            "value": 0.1,
+            "unit": "ratio"
+          },
+          "source": {
+            "structured_numeric_id": "time_discount_rate",
+            "surface_text": "10%"
+          }
+        },
+        {
+          "fact_id": "numeric__intake_discount_rate",
+          "fact_kind": "numeric_fact",
+          "field_id": "intake_discount_rate",
+          "page_num": 2,
+          "context_terms": [
+            "INTAKE",
+            "인테이크몰"
+          ],
+          "expected": {
+            "value": 0.2,
+            "unit": "ratio"
+          },
+          "source": {
+            "structured_numeric_id": "intake_discount_rate",
+            "surface_text": "20%"
+          }
+        }
+      ]
+    },
+    {
+      "issuer": "woori",
+      "card_name": "Woori_Classic_EVERY_MILE_SKYPASS",
+      "source_file": "data/ocr_benchmark/gold/structured/woori/Woori_Classic_EVERY_MILE_SKYPASS.json",
+      "facts": [
+        {
+          "fact_id": "field__basic_mileage_earning",
+          "fact_kind": "semantic_field",
+          "field_id": "basic_mileage_earning",
+          "page_num": 2,
+          "context_terms": [
+            "기본",
+            "국내외 가맹점",
+            "제한 없음"
+          ],
+          "expected": {
+            "merchant_scope": "국내외 가맹점",
+            "per_spend_krw": 1000,
+            "miles": 1,
+            "monthly_cap": null
+          },
+          "source": {
+            "structured_field_id": "basic_mileage_earning"
+          }
+        },
+        {
+          "fact_id": "field__additional_overseas_mileage_earning",
+          "fact_kind": "semantic_field",
+          "field_id": "additional_overseas_mileage_earning",
+          "page_num": 2,
+          "context_terms": [
+            "추가",
+            "해외 가맹점",
+            "+1마일",
+            "1천 마일"
+          ],
+          "expected": {
+            "merchant_scope": "해외 가맹점",
+            "per_spend_krw": 1000,
+            "additional_miles": 1,
+            "monthly_cap_miles": 1000
+          },
+          "source": {
+            "structured_field_id": "additional_overseas_mileage_earning"
+          }
+        },
+        {
+          "fact_id": "field__mileage_previous_month_spend_requirement",
+          "fact_kind": "semantic_field",
+          "field_id": "mileage_previous_month_spend_requirement",
+          "page_num": 2,
+          "context_terms": [
+            "전월실적 조건 없음"
+          ],
+          "expected": "none",
+          "source": {
+            "structured_field_id": "mileage_previous_month_spend_requirement"
+          }
+        },
+        {
+          "fact_id": "field__airport_lounge_quota",
+          "fact_kind": "semantic_field",
+          "field_id": "airport_lounge_quota",
+          "page_num": 2,
+          "context_terms": [
+            "연 2회 제공",
+            "동반 1인"
+          ],
+          "expected": {
+            "per_year": 2,
+            "companions_included": 1
+          },
+          "source": {
+            "structured_field_id": "airport_lounge_quota"
+          }
+        },
+        {
+          "fact_id": "field__airport_lounge_previous_month_spend_requirement",
+          "fact_kind": "semantic_field",
+          "field_id": "airport_lounge_previous_month_spend_requirement",
+          "page_num": 2,
+          "context_terms": [
+            "전월 국내가맹점",
+            "50만원 이상"
+          ],
+          "expected": {
+            "minimum_krw": 500000,
+            "scope": "본인회원 전월 국내가맹점 이용실적"
+          },
+          "source": {
+            "structured_field_id": "airport_lounge_previous_month_spend_requirement"
+          }
+        },
+        {
+          "fact_id": "field__international_brand_fee_waiver",
+          "fact_kind": "semantic_field",
+          "field_id": "international_brand_fee_waiver",
+          "page_num": 2,
+          "context_terms": [
+            "국제브랜드사 수수료",
+            "1% 면제"
+          ],
+          "expected": {
+            "rate": 0.01,
+            "unit": "ratio"
+          },
+          "source": {
+            "structured_field_id": "international_brand_fee_waiver"
+          }
+        },
+        {
+          "fact_id": "field__overseas_service_fee_waiver",
+          "fact_kind": "semantic_field",
+          "field_id": "overseas_service_fee_waiver",
+          "page_num": 2,
+          "context_terms": [
+            "해외이용 수수료",
+            "0.3% 면제"
+          ],
+          "expected": {
+            "rate": 0.003,
+            "unit": "ratio"
+          },
+          "source": {
+            "structured_field_id": "overseas_service_fee_waiver"
+          }
+        },
+        {
+          "fact_id": "field__primary_card_annual_fee",
+          "fact_kind": "semantic_field",
+          "field_id": "primary_card_annual_fee",
+          "page_num": 1,
+          "context_terms": [
+            "본인카드",
+            "39,000원"
+          ],
+          "expected": {
+            "total_krw": 39000,
+            "base_krw": 7000,
+            "partner_krw": 32000,
+            "brand": "Mastercard"
+          },
+          "source": {
+            "structured_field_id": "primary_card_annual_fee"
+          }
+        },
+        {
+          "fact_id": "field__family_card_annual_fee",
+          "fact_kind": "semantic_field",
+          "field_id": "family_card_annual_fee",
+          "page_num": 1,
+          "context_terms": [
+            "가족카드",
+            "19,000원"
+          ],
+          "expected": {
+            "total_krw": 19000,
+            "base_krw": 7000,
+            "partner_krw": 12000
+          },
+          "source": {
+            "structured_field_id": "family_card_annual_fee"
+          }
+        },
+        {
+          "fact_id": "numeric__mileage_earning_unit",
+          "fact_kind": "numeric_fact",
+          "field_id": "mileage_earning_unit",
+          "page_num": 2,
+          "context_terms": [
+            "SKYPASS",
+            "1마일리지 적립"
+          ],
+          "expected": {
+            "value": 1000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "mileage_earning_unit",
+            "surface_text": "1천원당"
+          }
+        },
+        {
+          "fact_id": "numeric__additional_mileage_monthly_cap",
+          "fact_kind": "numeric_fact",
+          "field_id": "additional_mileage_monthly_cap",
+          "page_num": 2,
+          "context_terms": [
+            "추가",
+            "월 적립한도"
+          ],
+          "expected": {
+            "value": 1000,
+            "unit": "mile"
+          },
+          "source": {
+            "structured_numeric_id": "additional_mileage_monthly_cap",
+            "surface_text": "1천 마일"
+          }
+        },
+        {
+          "fact_id": "numeric__lounge_quota",
+          "fact_kind": "numeric_fact",
+          "field_id": "lounge_quota",
+          "page_num": 2,
+          "context_terms": [
+            "국내 공항라운지"
+          ],
+          "expected": {
+            "value": 2,
+            "unit": "per_year"
+          },
+          "source": {
+            "structured_numeric_id": "lounge_quota",
+            "surface_text": "연 2회"
+          }
+        },
+        {
+          "fact_id": "numeric__lounge_previous_month_spend",
+          "fact_kind": "numeric_fact",
+          "field_id": "lounge_previous_month_spend",
+          "page_num": 2,
+          "context_terms": [
+            "전월 국내가맹점",
+            "이용실적"
+          ],
+          "expected": {
+            "value": 500000,
+            "unit": "KRW"
+          },
+          "source": {
+            "structured_numeric_id": "lounge_previous_month_spend",
+            "surface_text": "50만원 이상"
+          }
+        }
+      ]
+    }
+  ]
+}

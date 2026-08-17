@@ -6,3 +6,6 @@ chroma_db/chroma.sqlite3
 sqlite_db/*
 !sqlite_db/.gitkeep
 data/vision/vision_raw_text/_tmp/
+WORKLOG.md
+AGENTS.md
+HERMES.md

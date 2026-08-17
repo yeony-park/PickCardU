@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0",
+  "issuer": "hana",
+  "card_name": "Hana_One_More_SOHO",
+  "source_pdf": "data/raw/hana/Hana_One_More_SOHO.pdf",
+  "raw_annotation": "data/ocr_benchmark/gold/raw/hana/Hana_One_More_SOHO.txt",
+  "annotation_scope": "Field labels derived only from the team-provided raw annotation. The source PDF and OCR-provider outputs were not used to create this file.",
+  "text_labels": [{"id": "page_1_full_transcription", "page_num": 1, "raw_start_marker": "[page 1]"}, {"id": "page_2_full_transcription", "page_num": 2, "raw_start_marker": "[page 2]"}],
+  "field_labels": [
+    {"id": "card_name", "page_num": 1, "value": "하나 더 소호 카드", "context_terms": ["하나 더 소호", "HANA THE SOHO CARD"], "critical": true},
+    {"id": "operating_expense_discount", "page_num": 1, "value": {"rate": 0.05, "previous_month_spend_tiers_krw": [500000, 1000000, 1500000], "monthly_limits_krw": [10000, 15000, 20000]}, "context_terms": ["운영경비 5% 청구할인", "지난달 실적별 통합할인한도"], "critical": true},
+    {"id": "essential_expense_discount", "page_num": 1, "value": {"rate": 0.03, "previous_month_spend_tiers_krw": [500000, 1000000, 1500000], "monthly_limits_krw": [10000, 15000, 20000]}, "context_terms": ["필수 경비 3% 청구할인", "지난달 실적"], "critical": true},
+    {"id": "overseas_merchant_discount", "page_num": 1, "value": {"rate": 0.02, "limit": "없음", "previous_month_spend_required": false}, "context_terms": ["해외 가맹점 2% 청구할인"], "critical": true},
+    {"id": "domestic_merchant_discount", "page_num": 1, "value": {"rate": 0.005, "limit": "없음", "previous_month_spend_required": false}, "context_terms": ["국내 가맹점 0.5% 청구할인"], "critical": true},
+    {"id": "interest_free_installment", "page_num": 1, "value": {"installment_months": "2~3개월", "minimum_payment_krw": 50000, "interest": "없음"}, "context_terms": ["국내 2~3개월 무이자 할부", "5만원 이상"], "critical": true},
+    {"id": "annual_fee", "page_num": 2, "value": {"domestic": {"total_krw": 23000, "base_krw": 23000, "partner_krw": 0}, "upi": {"total_krw": 23000, "base_krw": 23000, "partner_krw": 0}, "visa_amex_mastercard": {"total_krw": 25000, "base_krw": 25000, "partner_krw": 0}}, "context_terms": ["연회비", "국내전용", "국내외겸용"], "critical": true}
+  ],
+  "numeric_labels": [
+    {"id": "operating_expense_discount_rate", "page_num": 1, "surface_text": "5%", "normalized_value": 0.05, "unit": "ratio", "context_terms": ["운영경비", "청구할인"], "critical": true},
+    {"id": "essential_expense_discount_rate", "page_num": 1, "surface_text": "3%", "normalized_value": 0.03, "unit": "ratio", "context_terms": ["필수 경비", "청구할인"], "critical": true},
+    {"id": "overseas_merchant_discount_rate", "page_num": 1, "surface_text": "2%", "normalized_value": 0.02, "unit": "ratio", "context_terms": ["해외 가맹점", "청구할인"], "critical": true},
+    {"id": "domestic_merchant_discount_rate", "page_num": 1, "surface_text": "0.5%", "normalized_value": 0.005, "unit": "ratio", "context_terms": ["국내 가맹점", "청구할인"], "critical": true},
+    {"id": "operating_expense_monthly_limit_high", "page_num": 1, "surface_text": "월 2만원", "normalized_value": 20000, "unit": "KRW", "context_terms": ["운영경비", "150만원 이상"], "critical": true},
+    {"id": "essential_expense_monthly_limit_high", "page_num": 1, "surface_text": "월 2만원", "normalized_value": 20000, "unit": "KRW", "context_terms": ["필수 경비", "150만원 이상"], "critical": true},
+    {"id": "minimum_installment_payment", "page_num": 1, "surface_text": "5만원 이상", "normalized_value": 50000, "unit": "KRW", "context_terms": ["무이자 할부"], "critical": true},
+    {"id": "domestic_annual_fee_total", "page_num": 2, "surface_text": "23,000원", "normalized_value": 23000, "unit": "KRW", "context_terms": ["국내전용", "연회비"], "critical": true},
+    {"id": "international_premium_annual_fee_total", "page_num": 2, "surface_text": "25,000원", "normalized_value": 25000, "unit": "KRW", "context_terms": ["Visa, AMEX, Mastercard", "연회비"], "critical": true}
+  ],
+  "table_labels": [
+    {"id": "operating_expense_limits", "page_num": 1, "headers": ["할인율", "지난달 실적", "통합할인한도"], "rows": [["5%", "50만원 이상 100만원 미만", "월 1만원"], ["5%", "100만원 이상 150만원 미만", "월 1만 5천원"], ["5%", "150만원 이상", "월 2만원"]]},
+    {"id": "essential_expense_limits", "page_num": 1, "headers": ["할인율", "지난달 실적", "통합할인한도"], "rows": [["3%", "50만원 이상 100만원 미만", "월 1만원"], ["3%", "100만원 이상 150만원 미만", "월 1만 5천원"], ["3%", "150만원 이상", "월 2만원"]]},
+    {"id": "annual_fee", "page_num": 2, "headers": ["연회비", "", ""], "rows": [["국내전용", "23,000원", "기본연회비 23,000원, 제휴연회비 0원"], ["국내외겸용(UPI)", "23,000원", "기본연회비 23,000원, 제휴연회비 0원"], ["국내외겸용(Visa, AMEX, Mastercard)", "25,000원", "기본연회비 25,000원, 제휴연회비 0원"]]}
+  ]
+}

@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PyMuPDF 텍스트 추출 결과 보고서</title>
+  <style>
+    :root { --ink:#20252b; --muted:#66717c; --line:#d8dee5; --panel:#f6f8fa; --good:#16794c; --warn:#a85d00; --bad:#b42318; --blue:#175cd3; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:#fff; color:var(--ink); font:15px/1.6 Arial, "Noto Sans KR", sans-serif; }
+    main { max-width:1080px; margin:0 auto; padding:48px 28px 72px; }
+    h1 { font-size:30px; line-height:1.25; margin:0 0 8px; }
+    h2 { font-size:21px; margin:44px 0 14px; padding-bottom:8px; border-bottom:2px solid var(--ink); }
+    h3 { font-size:16px; margin:26px 0 8px; }
+    p { margin:8px 0; }
+    .meta { color:var(--muted); margin:0; }
+    .notice { margin-top:24px; padding:16px 18px; background:#eef6ff; border-left:4px solid var(--blue); }
+    .grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; margin-top:18px; }
+    .metric { padding:18px; background:var(--panel); border:1px solid var(--line); }
+    .metric strong { display:block; font-size:28px; line-height:1.1; }
+    .metric span { color:var(--muted); font-size:13px; }
+    table { width:100%; border-collapse:collapse; margin:12px 0 18px; }
+    th, td { padding:11px 10px; border:1px solid var(--line); vertical-align:top; text-align:left; }
+    th { background:#f0f3f6; font-weight:700; }
+    code { padding:2px 5px; background:#f1f3f5; border-radius:3px; font-family:ui-monospace, SFMono-Regular, Consolas, monospace; font-size:.9em; overflow-wrap:anywhere; }
+    .good { color:var(--good); font-weight:700; }
+    .warn { color:var(--warn); font-weight:700; }
+    .bad { color:var(--bad); font-weight:700; }
+    ul { margin:8px 0; padding-left:22px; }
+    .footnote { color:var(--muted); font-size:13px; }
+    @media (max-width:720px) { main { padding:32px 16px 52px; } .grid { grid-template-columns:repeat(2, 1fr); } th, td { padding:8px; font-size:13px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>PyMuPDF 텍스트 추출 결과 보고서</h1>
+    <p class="meta">대상 데이터: 카드 상품설명서 PDF 106개 · 실행 환경: Conda <code>skn25</code> · PyMuPDF 1.28.0 · 작성일: 2026-07-20</p>
+
+    <section class="notice">
+      <strong>결론:</strong> PyMuPDF는 텍스트 레이어 존재 여부를 빠르게 판별하고 다수 문서의 본문을 추출하는 데 유용합니다. 그러나 이 데이터셋에서는 빈 페이지, 제어 문자, 글꼴 인코딩 매핑 오류가 확인되어 OCR을 완전히 대체하는 단일 추출기로 사용하기에는 부적합합니다.
+    </section>
+
+    <h2>1. 검사 범위와 기준</h2>
+    <p>원본 PDF <code>data/documents/raw/</code>의 106개 파일을 대상으로 PyMuPDF <code>page.get_text(&quot;text&quot;)</code>를 실행했습니다. 문서 단위 판정 기준은 다음과 같습니다.</p>
+    <ul>
+      <li>페이지 사용 가능: 공백 제거 후 20자 이상이며 읽을 수 있는 문자 비율이 70% 이상</li>
+      <li>텍스트 레이어 사용 가능: 총 200자 이상이고 사용 가능 페이지 비율이 80% 이상</li>
+      <li>부분 사용 가능: 일부 페이지만 추출 가능</li>
+      <li>OCR 필요: 사용 가능한 텍스트 페이지가 없음</li>
+    </ul>
+    <p>텍스트 레이어 사용 가능으로 분류된 88개 PDF는 페이지 표식을 포함한 PyMuPDF 원문 텍스트로 별도 저장했습니다.</p>
+    <p><code>notebooks/data/02_pdf_text_layer_check/documents/pymupdf/{카드사}/{파일명}.txt</code></p>
+
+    <h2>2. 전체 추출 결과</h2>
+    <div class="grid">
+      <div class="metric"><strong>106</strong><span>전체 PDF</span></div>
+      <div class="metric"><strong>88</strong><span>텍스트 레이어 사용 가능</span></div>
+      <div class="metric"><strong>4</strong><span>부분 사용 가능</span></div>
+      <div class="metric"><strong>14</strong><span>OCR 필요</span></div>
+    </div>
+    <table>
+      <thead><tr><th>분류</th><th>PDF 수</th><th>페이지 수</th><th>추출 문자 수</th><th>의미</th></tr></thead>
+      <tbody>
+        <tr><td class="good">텍스트 레이어 사용 가능</td><td>88</td><td>515</td><td>564,938</td><td>문서 기준으로 텍스트 추출 조건을 충족</td></tr>
+        <tr><td class="warn">부분 사용 가능</td><td>4</td><td>42</td><td>25,935</td><td>일부 페이지에서만 추출 가능</td></tr>
+        <tr><td class="bad">OCR 필요</td><td>14</td><td>60</td><td>0</td><td>PyMuPDF 추출 텍스트가 없음</td></tr>
+      </tbody>
+    </table>
+
+    <h2>3. 텍스트 품질 결과</h2>
+    <p>아래 수치는 텍스트 레이어 사용 가능 88개 PDF, 515개 페이지를 대상으로 한 품질 확인 결과입니다. 상태는 페이지 단위이며 서로 겹칠 수 있는 문제를 우선순위에 따라 하나의 상태로 집계했습니다.</p>
+    <table>
+      <thead><tr><th>상태</th><th>페이지 수</th><th>PDF 수</th><th>해석</th></tr></thead>
+      <tbody>
+        <tr><td class="good">자동 이상 징후 없음</td><td>217</td><td>51</td><td>빈 텍스트, 사설/정의되지 않은 문자, 큰 텍스트 차이 신호가 탐지되지 않음</td></tr>
+        <tr><td class="warn">정제 필요</td><td>225</td><td>49</td><td>보이지 않는 제어 문자가 포함됨. 주로 불릿 또는 레이아웃 표식으로 추정됨</td></tr>
+        <tr><td class="warn">원본 확인 필요</td><td>39</td><td>19</td><td>핵심 숫자 또는 텍스트 구성이 불안정해 원본 대조가 필요한 페이지</td></tr>
+        <tr><td class="bad">깨짐 확인</td><td>11</td><td>8</td><td>정의되지 않은 문자 또는 사설 영역 문자가 포함됨</td></tr>
+        <tr><td class="bad">OCR 보완 필요</td><td>23</td><td>16</td><td>텍스트 레이어 사용 가능 문서 안에서도 해당 페이지의 추출 텍스트가 0자</td></tr>
+      </tbody>
+    </table>
+
+    <h2>4. 깨짐 문자가 탐지된 PDF</h2>
+    <p>사설 영역 문자 또는 정의되지 않은 문자가 확인된 PDF는 8개입니다. 이 중 두 문서는 원본 PDF와 직접 대조하여 실제 본문 또는 숫자 매핑 오류를 확인했습니다.</p>
+    <table>
+      <thead><tr><th>PDF</th><th>페이지</th><th>판정</th><th>확인 내용</th></tr></thead>
+      <tbody>
+        <tr><td><code>Hana_One_More_SOHO.pdf</code></td><td>1, 2</td><td class="bad">본문 매핑 깨짐 확인</td><td>원본의 한글 표, 가맹점명, 실적 구간, 한도 값 일부가 무의미한 문자로 변환됨</td></tr>
+        <tr><td><code>BC_Biz_AirMoney.pdf</code></td><td>1, 2</td><td class="bad">숫자 매핑 깨짐 확인</td><td>원문의 일반 숫자가 <code></code>, <code></code>, <code></code> 같은 사설 영역 문자로 저장됨</td></tr>
+        <tr><td><code>NH_Olbareun_FLEX.pdf</code></td><td>2</td><td class="warn">기호 정제 필요</td><td><code></code> 형태의 비표준 불릿 기호가 반복됨</td></tr>
+        <tr><td><code>Kookmin_AlphaOne_20210923.pdf</code></td><td>1, 2</td><td class="warn">기호 정제 필요</td><td><code></code>, <code></code> 등 불릿 또는 구분 기호가 포함됨</td></tr>
+        <tr><td><code>Kookmin_Star_B_20210923.pdf</code></td><td>3</td><td class="warn">기호 정제 필요</td><td>비표준 구분 기호가 포함됨</td></tr>
+        <tr><td><code>Kookmin_YouthRoad_FunAlpha_20210923.pdf</code></td><td>2</td><td class="warn">기호 정제 필요</td><td><code></code> 형태의 비표준 불릿 기호가 포함됨</td></tr>
+        <tr><td><code>Kookmin_YouthRoad_SweetSleepAlpha_20210923.pdf</code></td><td>2</td><td class="warn">기호 정제 필요</td><td><code></code> 형태의 비표준 불릿 기호가 포함됨</td></tr>
+        <tr><td><code>Lotte_Digiloca_LAS_VEGAS.pdf</code></td><td>2</td><td class="warn">기호 정제 필요</td><td><code></code> 형태의 비표준 구분 기호가 포함됨</td></tr>
+      </tbody>
+    </table>
+    <p class="footnote">기호 정제 필요는 현재 확인 범위에서 본문 전체가 깨졌다는 의미는 아닙니다. 다만 해당 문자를 일반 텍스트로 그대로 색인하면 검색 노이즈가 발생할 수 있습니다.</p>
+
+    <h2>5. 원본 PDF 직접 대조 결과</h2>
+    <p>사설 영역 또는 정의되지 않은 문자가 탐지된 8개 PDF의 해당 11개 페이지를 원본 PDF 이미지와 PyMuPDF <code>.txt</code>를 직접 읽어 대조했습니다. 이 검토는 GPT Vision 결과를 기준으로 사용하지 않았습니다.</p>
+    <table>
+      <thead><tr><th>PDF</th><th>직접 대조 페이지</th><th>원본 대조 결과</th><th>최종 처리</th></tr></thead>
+      <tbody>
+        <tr><td><code>Hana_One_More_SOHO.pdf</code></td><td>1, 2</td><td class="bad">표의 한글 항목, 실적 구간, 한도 값이 무의미한 문자로 바뀜. 원본의 정상 텍스트와 불일치 확인</td><td class="bad">PyMuPDF 텍스트 사용 금지, OCR 또는 원본 기반 대체 필요</td></tr>
+        <tr><td><code>BC_Biz_AirMoney.pdf</code></td><td>1, 2</td><td class="bad">원본의 일반 숫자가 사설 영역 숫자 모양 문자로 저장됨. 연회비·수수료 등 수치 처리에 위험</td><td class="bad">PyMuPDF 텍스트 단독 사용 금지</td></tr>
+        <tr><td><code>NH_Olbareun_FLEX.pdf</code></td><td>2</td><td class="warn">원본의 불릿/별표가 <code></code> 같은 비표준 기호로 추출됨. 본문 문장과 수치는 읽을 수 있음</td><td class="warn">기호 정제 후 사용 가능</td></tr>
+        <tr><td><code>Kookmin_AlphaOne_20210923.pdf</code></td><td>1, 2</td><td class="warn">원본의 아이콘·불릿이 <code></code>, <code></code> 등으로 추출됨. 확인한 본문과 표는 읽을 수 있음</td><td class="warn">기호 정제 후 사용 가능</td></tr>
+        <tr><td><code>Kookmin_Star_B_20210923.pdf</code></td><td>3</td><td class="warn">원본 불릿/화살표 표식이 비표준 문자로 추출됨. 확인한 본문은 읽을 수 있음</td><td class="warn">기호 정제 후 사용 가능</td></tr>
+        <tr><td><code>Kookmin_YouthRoad_FunAlpha_20210923.pdf</code></td><td>2</td><td class="warn">원본의 보조 불릿이 <code></code>로 추출됨. 표와 본문 내용은 읽을 수 있음</td><td class="warn">기호 정제 후 사용 가능</td></tr>
+        <tr><td><code>Kookmin_YouthRoad_SweetSleepAlpha_20210923.pdf</code></td><td>2</td><td class="warn">원본의 보조 불릿이 <code></code>로 추출됨. 표와 본문 내용은 읽을 수 있음</td><td class="warn">기호 정제 후 사용 가능</td></tr>
+        <tr><td><code>Lotte_Digiloca_LAS_VEGAS.pdf</code></td><td>2</td><td class="warn">카드 디자인의 장식 구분자가 <code></code>로 추출됨. 페이지의 핵심 문구는 읽을 수 있음</td><td class="warn">기호 정제 후 사용 가능</td></tr>
+      </tbody>
+    </table>
+    <p><strong>직접 대조 결론:</strong> 문자 이상이 탐지된 8개 PDF 중 실제 추출 내용이 깨져 PyMuPDF 텍스트를 사용하면 안 되는 문서는 <strong>2개</strong>입니다. 나머지 <strong>6개</strong>는 확인한 페이지 기준으로 장식 기호 또는 불릿이 비표준 문자로 바뀐 사례입니다.</p>
+
+    <h2>6. 빈 페이지가 확인된 PDF</h2>
+    <p>문서 전체는 텍스트 레이어 사용 가능으로 분류됐지만, 아래 16개 PDF에는 PyMuPDF 텍스트가 0자인 페이지가 총 23개 존재했습니다. 표지나 이미지 페이지일 수 있으나, 해당 페이지에 카드 조건이 있다면 OCR로 보완해야 합니다.</p>
+    <table>
+      <thead><tr><th>PDF</th><th>빈 추출 페이지</th></tr></thead>
+      <tbody>
+        <tr><td><code>Hyundai_D_250827.pdf</code></td><td>1, 2</td></tr>
+        <tr><td><code>Hyundai_H_250827.pdf</code></td><td>1</td></tr>
+        <tr><td><code>Hyundai_M.pdf</code></td><td>1</td></tr>
+        <tr><td><code>Hyundai_O_250827.pdf</code></td><td>1, 2</td></tr>
+        <tr><td><code>Hyundai_OliveYoung_20260323.pdf</code></td><td>1</td></tr>
+        <tr><td><code>Hyundai_S_250827.pdf</code></td><td>1</td></tr>
+        <tr><td><code>Hyundai_T_20260319.pdf</code></td><td>1</td></tr>
+        <tr><td><code>Hyundai_The_Orange_20260330.pdf</code></td><td>2</td></tr>
+        <tr><td><code>IBK_Bliss5.pdf</code></td><td>1, 4, 16, 20, 39</td></tr>
+        <tr><td><code>Lotte_Digiloca_LONDON.pdf</code></td><td>3</td></tr>
+        <tr><td><code>Lotte_Digiloca_MONACO.pdf</code></td><td>1</td></tr>
+        <tr><td><code>Lotte_Digiloca_PARIS.pdf</code></td><td>1</td></tr>
+        <tr><td><code>Lotte_Hilton_Honors_Amex_Premium.pdf</code></td><td>3</td></tr>
+        <tr><td><code>Shinhan_Marriott_Bonvoy_The_Best_20230820.pdf</code></td><td>11</td></tr>
+        <tr><td><code>Shinhan_The_CLASSIC-S_20240422.pdf</code></td><td>12</td></tr>
+        <tr><td><code>Woori_ALL_Woori_Infinite.pdf</code></td><td>1, 11</td></tr>
+      </tbody>
+    </table>
+
+    <h2>7. 해석과 권장 사용 범위</h2>
+    <table>
+      <thead><tr><th>용도</th><th>PyMuPDF 적합성</th><th>판단</th></tr></thead>
+      <tbody>
+        <tr><td>텍스트 레이어 존재 여부의 빠른 판별</td><td class="good">적합</td><td>106개 전체에서 OCR 우선 대상 14개와 부분 추출 대상 4개를 빠르게 구분할 수 있었음</td></tr>
+        <tr><td>일반 본문 텍스트의 초안 추출</td><td class="good">대체로 적합</td><td>88개 문서가 문서 단위 추출 기준을 충족함</td></tr>
+        <tr><td>금액·할인율·한도 등 핵심 정보의 단독 원본</td><td class="bad">부적합</td><td>글꼴 인코딩 매핑 오류와 빈 페이지가 확인되어 원본 PDF 또는 OCR 보완이 필요함</td></tr>
+        <tr><td>RAG 색인 입력</td><td class="warn">조건부 적합</td><td>제어 문자 정제, 빈 페이지 OCR 보완, 매핑 깨짐 문서 제외 또는 대체 후 사용해야 함</td></tr>
+      </tbody>
+    </table>
+
+    <h2>8. 한계</h2>
+    <ul>
+      <li>자동 이상 징후 없음은 원본 PDF와 문자 단위로 완전히 일치한다는 뜻이 아닙니다.</li>
+      <li>원본 PDF와 직접 대조한 범위는 사설·정의되지 않은 문자가 탐지된 8개 PDF의 11개 페이지입니다.</li>
+      <li>직접 대조에서 실제 매핑 깨짐을 확인한 문서는 <code>Hana_One_More_SOHO.pdf</code>와 <code>BC_Biz_AirMoney.pdf</code>입니다.</li>
+      <li>나머지 텍스트 레이어 사용 가능 페이지 전체를 문자 단위로 대조한 결과는 아닙니다. 따라서 직접 대조하지 않은 페이지를 완전 정상이라고 단정하지 않습니다.</li>
+    </ul>
+
+    <h2>9. PyMuPDF와 Vision OCR 원본 기준 성능 평가</h2>
+    <p>기존의 출력 간 일치도 비교를 삭제하고, 원본 PDF를 직접 확인해 만든 정답셋으로 교체했습니다. 대상은 실제 카드 정보가 있는 10개 PDF의 각 1페이지입니다. 각 페이지마다 전체 텍스트 정답과 필드 정답을 모두 만들고, 두 엔진에 같은 평가를 실행했습니다.</p>
+    <div class="grid">
+      <div class="metric"><strong>10</strong><span>원본 PDF 페이지</span></div>
+      <div class="metric"><strong>10</strong><span>전체 텍스트 정답 페이지</span></div>
+      <div class="metric"><strong>10</strong><span>필드 정답 페이지</span></div>
+      <div class="metric"><strong>2</strong><span>비교 엔진</span></div>
+    </div>
+
+    <h3>정답셋 구성</h3>
+    <p>정답셋 파일은 <code>notebooks/data/02_pdf_text_layer_check/ocr_evaluation/02_pymupdf_vision_full_text_gold.json</code>입니다. 10개 페이지 모두에 전체 텍스트, 핵심 사실 3개, 필드 값 6개를 기록했습니다. 총 필드 값은 60개입니다. 장식 이미지의 위치는 정답에 포함하지 않았고, 사람이 읽을 수 있는 텍스트와 표의 의미를 기준으로 전사했습니다.</p>
+    <table>
+      <thead><tr><th>카드사</th><th>PDF / 페이지</th><th>페이지 유형</th></tr></thead>
+      <tbody>
+        <tr><td>삼성</td><td><code>Samsung_5_V4.pdf</code> / 2</td><td>교육·생활 필수 할인 표</td></tr>
+        <tr><td>롯데</td><td><code>Lotte_LOCA_LIKIT_Play.pdf</code> / 3</td><td>혜택 블록·공통 조건</td></tr>
+        <tr><td>신한</td><td><code>Shinhan_Discount_Plan+_20250509.pdf</code> / 2</td><td>연회비·서비스별 한도 표</td></tr>
+        <tr><td>NH</td><td><code>NH_AllWonderful.pdf</code> / 1</td><td>연회비 표·안내문</td></tr>
+        <tr><td>현대</td><td><code>Hyundai_T_20260319.pdf</code> / 5</td><td>수수료·조건 본문</td></tr>
+        <tr><td>BC</td><td><code>BC_Business_Sky.pdf</code> / 2</td><td>카드 기본정보·연회비</td></tr>
+        <tr><td>하나</td><td><code>Hana_WonderCard2.0.pdf</code> / 12</td><td>월·연 혜택 표</td></tr>
+        <tr><td>국민</td><td><code>Kookmin_My_WE_SH_20250102.pdf</code> / 3</td><td>다단 혜택·할인한도 표</td></tr>
+        <tr><td>삼성</td><td><code>Samsung_iD_ALL.pdf</code> / 2</td><td>할인 대상·한도 표</td></tr>
+        <tr><td>롯데</td><td><code>Lotte_LOCA_LIKIT_Eat.pdf</code> / 3</td><td>혜택 블록·공통 조건</td></tr>
+      </tbody>
+    </table>
+
+    <h3>평가 지표와 정규화</h3>
+    <ul>
+      <li><strong>정규화 CER:</strong> 문자 단위 편집 오류율입니다. 낮을수록 원문 텍스트에 가깝습니다. 엔진별 종합값은 10페이지 오류율의 단순 산술평균입니다.</li>
+      <li><strong>WER:</strong> 단어 단위 편집 오류율입니다. 누락·삽입·순서 변경을 함께 반영하며 낮을수록 좋습니다. 엔진별 종합값은 10페이지 오류율의 단순 산술평균입니다.</li>
+      <li><strong>내용 Recall / Precision:</strong> 순서를 제외한 단어 내용의 보존률입니다. 원문 단어가 빠지지 않았는지와 불필요한 단어가 추가되지 않았는지를 봅니다.</li>
+      <li><strong>읽기 순서 유사도:</strong> 사람이 읽는 원본 순서와 추출 순서의 유사도입니다. 청킹 전 문맥 결속을 보는 보조 지표입니다.</li>
+      <li><strong>핵심 사실 부분문자열 일치 / 토큰 보존률:</strong> 전체 텍스트 페이지별로 직접 라벨링한 할인율·금액·조건 등 3개 사실이 완전 문구 또는 구성 토큰 수준에서 보존됐는지 확인합니다. 부분문자열 일치는 표현 순서에 민감하므로 단독 결론 지표가 아닙니다.</li>
+      <li><strong>필드 값 Recall:</strong> 10개 페이지에 직접 라벨링한 연회비·할인율·한도·브랜드 등 60개 값을 추출 결과에 포함했는지 확인합니다. 값 존재 여부만 보는 지표이므로, 표의 행·열 관계나 필드명과 값의 연결 정확도는 평가하지 않습니다.</li>
+    </ul>
+    <p>Markdown 표의 <code>|</code>, <code>&lt;br&gt;</code>, 글머리표, 제어문자와 줄바꿈은 표현 차이로 정규화했습니다. 따라서 표 형식이 달라도 실제 텍스트 내용이 같으면 CER에 과도한 불이익을 주지 않습니다.</p>
+
+    <h3>엔진별 종합 결과</h3>
+    <table>
+      <thead><tr><th>엔진</th><th>전체 텍스트 페이지</th><th>정규화 CER</th><th>WER</th><th>내용 Recall</th><th>내용 Precision</th><th>읽기 순서 유사도</th><th>핵심 사실 부분문자열 일치</th><th>핵심 사실 토큰 보존률</th></tr></thead>
+      <tbody>
+        <tr><td>PyMuPDF</td><td>10</td><td class="bad">28.20%</td><td class="bad">30.60%</td><td>99.00%</td><td>98.15%</td><td class="warn">80.45%</td><td>80.00%</td><td>98.69%</td></tr>
+        <tr><td>Vision OCR</td><td>10</td><td class="good">6.33%</td><td class="good">6.52%</td><td class="good">99.43%</td><td class="good">98.42%</td><td class="good">96.70%</td><td>93.33%</td><td>99.17%</td></tr>
+      </tbody>
+    </table>
+    <table>
+      <thead><tr><th>엔진</th><th>필드 정답 페이지</th><th>필드 값 수</th><th>필드 값 Recall</th><th>해석</th></tr></thead>
+      <tbody>
+        <tr><td>PyMuPDF</td><td>10</td><td>60</td><td class="good">100.00%</td><td>라벨링한 연회비·할인율·한도·브랜드 값이 모두 존재</td></tr>
+        <tr><td>Vision OCR</td><td>10</td><td>60</td><td class="good">100.00%</td><td>라벨링한 연회비·할인율·한도·브랜드 값이 모두 존재</td></tr>
+      </tbody>
+    </table>
+
+    <h3>카드·페이지·엔진별 결과</h3>
+    <p>아래 행은 같은 페이지에 대해 전체 텍스트 지표와 필드 값 지표를 함께 계산한 결과입니다. CER/WER는 낮을수록 좋고, 나머지 비율은 높을수록 좋습니다.</p>
+    <table>
+      <thead><tr><th>PDF / 페이지</th><th>엔진</th><th>CER</th><th>WER</th><th>핵심 사실 부분문자열</th><th>핵심 사실 토큰</th><th>필드 값 Recall</th></tr></thead>
+      <tbody>
+        <tr><td><code>BC_Business_Sky.pdf</code> / 2</td><td>PyMuPDF</td><td>9.56%</td><td>10.75%</td><td>33.33%</td><td>100.00%</td><td>100.00%</td></tr>
+        <tr><td><code>BC_Business_Sky.pdf</code> / 2</td><td>Vision OCR</td><td class="good">0.00%</td><td class="good">0.00%</td><td>100.00%</td><td>100.00%</td><td>100.00%</td></tr>
+        <tr><td><code>NH_AllWonderful.pdf</code> / 1</td><td>PyMuPDF</td><td>22.56%</td><td>26.23%</td><td>100.00%</td><td>100.00%</td><td>100.00%</td></tr>
+        <tr><td><code>NH_AllWonderful.pdf</code> / 1</td><td>Vision OCR</td><td class="good">0.81%</td><td class="good">1.64%</td><td>100.00%</td><td>100.00%</td><td>100.00%</td></tr>
+        <tr><td><code>Hana_WonderCard2.0.pdf</code> / 12</td><td>PyMuPDF</td><td>1.41%</td><td>2.69%</td><td>100.00%</td><td>91.67%</td><td>100.00%</td></tr>
+        <tr><td><code>Hana_WonderCard2.0.pdf</code> / 12</td><td>Vision OCR</td><td class="good">0.70%</td><td class="good">0.00%</td><td>100.00%</td><td>91.67%</td><td>100.00%</td></tr>
+        <tr><td><code>Hyundai_T_20260319.pdf</code> / 5</td><td>PyMuPDF</td><td class="bad">80.22%</td><td class="bad">83.95%</td><td>100.00%</td><td>100.00%</td><td>100.00%</td></tr>
+        <tr><td><code>Hyundai_T_20260319.pdf</code> / 5</td><td>Vision OCR</td><td class="good">0.44%</td><td class="good">0.00%</td><td>100.00%</td><td>100.00%</td><td>100.00%</td></tr>
+        <tr><td><code>Kookmin_My_WE_SH_20250102.pdf</code> / 3</td><td>PyMuPDF</td><td>25.88%</td><td>36.72%</td><td>100.00%</td><td>100.00%</td><td>100.00%</td></tr>
+        <tr><td><code>Kookmin_My_WE_SH_20250102.pdf</code> / 3</td><td>Vision OCR</td><td class="good">12.10%</td><td class="good">16.95%</td><td>100.00%</td><td>100.00%</td><td>100.00%</td></tr>
+        <tr><td><code>Lotte_LOCA_LIKIT_Eat.pdf</code> / 3</td><td>PyMuPDF</td><td>21.26%</td><td>16.67%</td><td>100.00%</td><td>100.00%</td><td>100.00%</td></tr>
+        <tr><td><code>Lotte_LOCA_LIKIT_Eat.pdf</code> / 3</td><td>Vision OCR</td><td class="good">1.17%</td><td class="good">0.00%</td><td>100.00%</td><td>100.00%</td><td>100.00%</td></tr>
+        <tr><td><code>Lotte_LOCA_LIKIT_Play.pdf</code> / 3</td><td>PyMuPDF</td><td>52.00%</td><td>51.90%</td><td>100.00%</td><td>100.00%</td><td>100.00%</td></tr>
+        <tr><td><code>Lotte_LOCA_LIKIT_Play.pdf</code> / 3</td><td>Vision OCR</td><td class="good">0.00%</td><td class="good">0.00%</td><td>100.00%</td><td>100.00%</td><td>100.00%</td></tr>
+        <tr><td><code>Samsung_5_V4.pdf</code> / 2</td><td>PyMuPDF</td><td>40.71%</td><td>44.72%</td><td>100.00%</td><td>100.00%</td><td>100.00%</td></tr>
+        <tr><td><code>Samsung_5_V4.pdf</code> / 2</td><td>Vision OCR</td><td>41.36%</td><td>42.51%</td><td>100.00%</td><td>100.00%</td><td>100.00%</td></tr>
+        <tr><td><code>Samsung_iD_ALL.pdf</code> / 2</td><td>PyMuPDF</td><td>10.78%</td><td>11.61%</td><td>33.33%</td><td>100.00%</td><td>100.00%</td></tr>
+        <tr><td><code>Samsung_iD_ALL.pdf</code> / 2</td><td>Vision OCR</td><td class="good">4.36%</td><td class="good">2.58%</td><td>33.33%</td><td>100.00%</td><td>100.00%</td></tr>
+        <tr><td><code>Shinhan_Discount_Plan+_20250509.pdf</code> / 2</td><td>PyMuPDF</td><td>17.64%</td><td>20.81%</td><td>33.33%</td><td>95.24%</td><td>100.00%</td></tr>
+        <tr><td><code>Shinhan_Discount_Plan+_20250509.pdf</code> / 2</td><td>Vision OCR</td><td class="good">2.40%</td><td class="good">1.55%</td><td>100.00%</td><td>100.00%</td><td>100.00%</td></tr>
+      </tbody>
+    </table>
+
+    <h3>결과 해석</h3>
+    <ul>
+      <li><strong>텍스트 정확도:</strong> 10개 페이지 평균에서 Vision OCR의 CER/WER은 6.33%/6.52%로 PyMuPDF의 28.20%/30.60%보다 낮았습니다. 단, <code>Samsung_5_V4.pdf</code> / 2는 두 엔진 모두 다단·표·하단 기준문 순서 차이로 CER/WER이 40%를 넘었습니다.</li>
+      <li><strong>내용 존재 여부:</strong> 내용 Recall은 PyMuPDF 99.00%, Vision OCR 99.43%이며, 60개 필드 값은 양쪽 모두 100% 존재했습니다. 이는 핵심 단어·수치가 대체로 남았다는 뜻이며, 필드명과 값의 관계까지 맞았다는 뜻은 아닙니다.</li>
+      <li><strong>문맥과 청킹 위험:</strong> PyMuPDF의 읽기 순서 유사도는 80.45%로 Vision OCR의 96.70%보다 낮았습니다. 특히 현대·롯데·삼성 5 V4처럼 텍스트 블록이 분산된 페이지에서 차이가 컸고, 이는 청킹 시 제목·조건·금액의 관계를 약화시킬 수 있습니다.</li>
+      <li><strong>핵심 사실 부분문자열 일치:</strong> Vision OCR은 93.33%, PyMuPDF는 80.00%입니다. 이 지표는 문구 순서와 띄어쓰기에 민감하므로, 함께 표시한 토큰 보존률(99.17%, 98.69%) 및 CER/WER과 함께 해석해야 합니다.</li>
+    </ul>
+
+    <h3>최종 판단</h3>
+    <div class="notice">
+      <strong>권장 구조:</strong> 이 10페이지 표본 기준에서는 사용자·LLM·RAG 색인에 제공할 기준 텍스트로 <strong>Vision OCR</strong>을 우선 사용하는 것이 적절해 보입니다. PyMuPDF는 텍스트 레이어 유무 판별, 빠른 로컬 초안 추출, Vision OCR 결과와의 교차 검증에 사용합니다. 표 중심 페이지에서는 두 엔진 모두 라벨링한 핵심 값을 보존했지만, 문맥·읽기 순서까지 고려한 기준 텍스트 선택에는 Vision OCR이 더 적합했습니다. 추가 표본 확보 시 이 판단을 재평가합니다.
+    </div>
+    <p class="footnote">한계: 이 평가는 텍스트 레이어가 있는 10개 페이지 표본에 한정됩니다. 이미지 전용 PDF나 전체 106개 문서에 대한 일반화는 별도 OCR 엔진 비교와 추가 표본 검증이 필요합니다.</p>
+  </main>
+</body>
+</html>

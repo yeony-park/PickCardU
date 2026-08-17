@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "issuer": "hyundai",
+  "card_name": "Hyundai_The_Orange_20260330",
+  "source_pdf": "data/raw/hyundai/Hyundai_The_Orange_20260330.pdf",
+  "raw_annotation": "data/ocr_benchmark/gold/raw/hyundai/Hyundai_The_Orange_20260330.txt",
+  "annotation_scope": "Field labels derived only from the team-provided raw annotation. The source PDF and OCR-provider outputs were not used to create this file.",
+  "text_labels": [{"id": "page_1_full_transcription", "page_num": 1, "raw_start_marker": "[page 1]"}, {"id": "page_2_full_transcription", "page_num": 2, "raw_start_marker": "[page 2]"}, {"id": "page_3_full_transcription", "page_num": 3, "raw_start_marker": "[page 3]"}, {"id": "page_4_full_transcription", "page_num": 4, "raw_start_marker": "[page 4]"}, {"id": "page_5_full_transcription", "page_num": 5, "raw_start_marker": "[page 5]"}, {"id": "page_6_full_transcription", "page_num": 6, "raw_start_marker": "[page 6]"}, {"id": "page_7_full_transcription", "page_num": 7, "raw_start_marker": "[page 7]"}, {"id": "page_8_full_transcription", "page_num": 8, "raw_start_marker": "[page 8]"}, {"id": "page_9_full_transcription", "page_num": 9, "raw_start_marker": "[page 9]"}, {"id": "page_10_full_transcription", "page_num": 10, "raw_start_marker": "[page 10]"}, {"id": "page_11_full_transcription", "page_num": 11, "raw_start_marker": "[page 11]"}, {"id": "page_12_full_transcription", "page_num": 12, "raw_start_marker": "[page 12]"}, {"id": "page_13_full_transcription", "page_num": 13, "raw_start_marker": "[page 13]"}, {"id": "page_14_full_transcription", "page_num": 14, "raw_start_marker": "[page 14]"}, {"id": "page_15_full_transcription", "page_num": 15, "raw_start_marker": "[page 15]"}, {"id": "page_16_full_transcription", "page_num": 16, "raw_start_marker": "[page 16]"}],
+  "field_labels": [
+    {"id": "card_name", "page_num": 1, "value": "the Orange", "context_terms": ["the Orange"], "critical": true},
+    {"id": "annual_fee", "page_num": 3, "value": {"primary": {"total_krw": 200000, "base_krw": 50000, "partner_krw": 150000, "brand": "Visa Signature"}, "family": {"total_krw": 50000, "base_krw": 0, "partner_krw": 50000}}, "context_terms": ["연회비", "가족 카드"], "critical": true},
+    {"id": "basic_m_point_earning", "page_num": 4, "value": {"rate": 0.01, "previous_month_spend_minimum_krw": 500000, "limit": "1회 및 연간 적립 한도 제한 없음"}, "context_terms": ["기본 혜택", "국내외 가맹점 1% M포인트 적립"], "critical": true},
+    {"id": "additional_m_point_earning", "page_num": 4, "value": {"rate": 0.1, "previous_month_spend_minimum_krw": 1000000, "monthly_limit_m_point": 10000, "target_areas": ["온라인몰", "다이닝", "웰니스", "테크"]}, "context_terms": ["추가 혜택", "10% M포인트 적립"], "critical": true},
+    {"id": "annual_voucher", "page_num": 6, "value": {"voucher_krw": 150000, "m_point_exchange": 200000, "annual_limit": 1, "first_year_spend_minimum_krw": 1000000, "later_year_spend_minimum_krw": 12000000}, "context_terms": ["연간 보너스", "15만원권 바우처", "20만 M포인트"], "critical": true},
+    {"id": "emergency_m_point", "page_num": 7, "value": {"maximum_m_point": 500000, "repayment_months": 24, "cash_settlement_per_m_point_krw": 1}, "context_terms": ["M 긴급적립", "최대 50만", "최대 24개월"], "critical": true},
+    {"id": "airport_lounge_benefit", "page_num": 8, "value": {"previous_month_spend_minimum_krw": 500000, "annual_limit": 5, "eligible_member": "본인 회원"}, "context_terms": ["THE LOUNGE", "연간 5회", "전월 이용 금액 50만원 이상"], "critical": true},
+    {"id": "valet_parking_benefit", "page_num": 8, "value": {"previous_month_spend_minimum_krw": 500000, "monthly_limit": 5, "scope": "공항·호텔 통합"}, "context_terms": ["발레파킹", "월 5회", "전월 이용 금액 50만원 이상"], "critical": true}
+  ],
+  "numeric_labels": [
+    {"id": "primary_annual_fee_total", "page_num": 3, "surface_text": "200,000원", "normalized_value": 200000, "unit": "KRW", "context_terms": ["연회비", "Visa Signature"], "critical": true},
+    {"id": "family_annual_fee_total", "page_num": 3, "surface_text": "50,000원", "normalized_value": 50000, "unit": "KRW", "context_terms": ["가족 카드"], "critical": true},
+    {"id": "basic_earning_rate", "page_num": 4, "surface_text": "1%", "normalized_value": 0.01, "unit": "ratio", "context_terms": ["기본 혜택", "M포인트"], "critical": true},
+    {"id": "basic_earning_previous_month_spend", "page_num": 4, "surface_text": "50만원 이상", "normalized_value": 500000, "unit": "KRW", "context_terms": ["기본 혜택", "전월 이용 금액"], "critical": true},
+    {"id": "additional_earning_rate", "page_num": 4, "surface_text": "10%", "normalized_value": 0.1, "unit": "ratio", "context_terms": ["추가 혜택", "M포인트"], "critical": true},
+    {"id": "additional_earning_previous_month_spend", "page_num": 4, "surface_text": "100만원 이상", "normalized_value": 1000000, "unit": "KRW", "context_terms": ["추가 혜택", "전월 이용 금액"], "critical": true},
+    {"id": "additional_earning_monthly_limit", "page_num": 4, "surface_text": "월 1만 M포인트", "normalized_value": 10000, "unit": "M_point", "context_terms": ["대상 영역별", "적립 한도"], "critical": true},
+    {"id": "annual_voucher_value", "page_num": 6, "surface_text": "15만원", "normalized_value": 150000, "unit": "KRW", "context_terms": ["연간 보너스", "바우처"], "critical": true},
+    {"id": "annual_voucher_m_point_exchange", "page_num": 6, "surface_text": "20만 M포인트", "normalized_value": 200000, "unit": "M_point", "context_terms": ["M포인트", "교환"], "critical": true},
+    {"id": "emergency_m_point_maximum", "page_num": 7, "surface_text": "최대 50만 M포인트", "normalized_value": 500000, "unit": "M_point", "context_terms": ["M 긴급적립"], "critical": true},
+    {"id": "airport_lounge_annual_limit", "page_num": 8, "surface_text": "연간 5회", "normalized_value": 5, "unit": "per_year", "context_terms": ["THE LOUNGE"], "critical": true},
+    {"id": "valet_parking_monthly_limit", "page_num": 8, "surface_text": "월 5회", "normalized_value": 5, "unit": "per_month", "context_terms": ["발레파킹"], "critical": true}
+  ],
+  "table_labels": [
+    {"id": "additional_benefit_targets", "page_num": 4, "headers": ["영역", "대상"], "rows": [["온라인몰", "네이버플러스 스토어, 쿠팡, 무신사, KREAM, 29CM"], ["다이닝", "일반음식점"], ["웰니스", "피부과 / 스포츠: 헬스장, 필라테스, 요가, 테니스장, 수영장"], ["테크", "디지털 콘텐츠 서비스: 넷플릭스, 유튜브 프리미엄, 디즈니+, 멜론, 지니 / AI 구독 서비스: ChatGPT, Perplexity AI, Google One / 이동통신 요금: SKT, KT, LG U+ / 인앱 결제: 애플 앱스토어, 구글 플레이"]]},
+    {"id": "annual_voucher_usage", "page_num": 6, "headers": ["", ""], "rows": [["쇼핑", "백화점 상품권(신세계/롯데/현대)으로 교환"], ["호텔", "호텔 및 고메 / 그랜드 하얏트 서울, 그랜드 워커힐 서울, 롯데호텔 서울, 그랜드 조선 부산, 63레스토랑"], ["여행", "더현대트래블(국제선 항공/호텔)"], ["M포인트", "20만 M포인트로 교환"]]}
+  ]
+}

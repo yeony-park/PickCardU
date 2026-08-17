@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "issuer": "NH",
+  "card_name": "NH_Namu_NH",
+  "source_pdf": "data/raw/NH/NH_Namu_NH.pdf",
+  "raw_annotation": "data/ocr_benchmark/gold/raw/NH/NH_Namu_NH.txt",
+  "annotation_scope": "Field labels derived only from the team-provided raw annotation. The source PDF and OCR-provider outputs were not used to create this file.",
+  "text_labels": [
+    {"id": "page_1_full_transcription", "page_num": 1, "raw_start_marker": "[page 1]"},
+    {"id": "page_2_full_transcription", "page_num": 2, "raw_start_marker": "[page 2]"}
+  ],
+  "field_labels": [
+    {"id": "card_name", "page_num": 1, "value": "나무 NH농협카드", "context_terms": ["나무", "NH농협카드"], "critical": true},
+    {"id": "smart_cashback", "page_num": 2, "value": {"first_rank_rate": 0.08, "second_rank_rate": 0.04, "ranking_scope": "6개 영역 중 당월 이용금액 1위와 2위 영역", "previous_month_spend_minimum_krw": 400000}, "context_terms": ["나무증권 스마트 캐시백", "8%와 4%", "전월실적 40만원 이상"], "critical": true},
+    {"id": "smart_cashback_limit", "page_num": 2, "value": {"400000_to_under_800000": {"first_rank_krw": 8000, "second_rank_krw": 7000, "total_krw": 15000}, "800000_to_under_1500000": {"first_rank_krw": 11000, "second_rank_krw": 9000, "total_krw": 20000}, "1500000_or_more": {"first_rank_krw": 16000, "second_rank_krw": 14000, "total_krw": 30000}}, "context_terms": ["전월실적 구간별 캐시백 한도"], "critical": true},
+    {"id": "namu_members_cashback", "page_num": 2, "value": {"monthly_maximum_krw": 2900, "previous_month_spend_minimum_krw": 400000, "payment_destination": "나무멤버스 이용료 결제 계좌"}, "context_terms": ["나무멤버스 월 이용료 캐시백", "월 최대 2,900원", "전월실적 40만원 이상"], "critical": true},
+    {"id": "airport_lounge_benefit", "page_num": 2, "value": {"previous_month_spend_minimum_krw": 400000, "monthly_limit": 1, "annual_limit": 2}, "context_terms": ["국제공항 라운지 무료이용", "월 1회 연 2회", "전월실적 40만원 이상"], "critical": true},
+    {"id": "annual_fee", "page_num": 2, "value": {"domestic_local": {"total_krw": 15000, "base_krw": 6000, "partner_krw": 9000}, "international_mastercard": {"total_krw": 15000, "base_krw": 6000, "partner_krw": 9000}}, "context_terms": ["연회비 안내", "국내전용", "Mastercard"], "critical": true}
+  ],
+  "numeric_labels": [
+    {"id": "smart_cashback_first_rank_rate", "page_num": 2, "surface_text": "8%", "normalized_value": 0.08, "unit": "ratio", "context_terms": ["1위", "스마트 캐시백"], "critical": true},
+    {"id": "smart_cashback_second_rank_rate", "page_num": 2, "surface_text": "4%", "normalized_value": 0.04, "unit": "ratio", "context_terms": ["2위", "스마트 캐시백"], "critical": true},
+    {"id": "smart_cashback_previous_month_spend", "page_num": 2, "surface_text": "40만원 이상", "normalized_value": 400000, "unit": "KRW", "context_terms": ["전월실적", "스마트 캐시백"], "critical": true},
+    {"id": "smart_cashback_total_limit_low", "page_num": 2, "surface_text": "15,000원", "normalized_value": 15000, "unit": "KRW", "context_terms": ["합계", "40만원 이상 ~ 80만원 미만"], "critical": true},
+    {"id": "smart_cashback_total_limit_mid", "page_num": 2, "surface_text": "20,000원", "normalized_value": 20000, "unit": "KRW", "context_terms": ["합계", "80만원 이상 ~ 150만원 미만"], "critical": true},
+    {"id": "smart_cashback_total_limit_high", "page_num": 2, "surface_text": "30,000원", "normalized_value": 30000, "unit": "KRW", "context_terms": ["합계", "150만원 이상"], "critical": true},
+    {"id": "namu_members_monthly_cashback_limit", "page_num": 2, "surface_text": "월 최대 2,900원", "normalized_value": 2900, "unit": "KRW", "context_terms": ["나무멤버스", "캐시백"], "critical": true},
+    {"id": "airport_lounge_monthly_limit", "page_num": 2, "surface_text": "월 1회", "normalized_value": 1, "unit": "per_month", "context_terms": ["국제공항 라운지"], "critical": true},
+    {"id": "airport_lounge_annual_limit", "page_num": 2, "surface_text": "연 2회", "normalized_value": 2, "unit": "per_year", "context_terms": ["국제공항 라운지"], "critical": true},
+    {"id": "domestic_annual_fee_total", "page_num": 2, "surface_text": "15,000원", "normalized_value": 15000, "unit": "KRW", "context_terms": ["국내전용", "총 연회비"], "critical": true},
+    {"id": "international_annual_fee_total", "page_num": 2, "surface_text": "15,000원", "normalized_value": 15000, "unit": "KRW", "context_terms": ["Mastercard", "총 연회비"], "critical": true},
+    {"id": "international_brand_fee_rate", "page_num": 1, "surface_text": "Mastercard 1%", "normalized_value": 0.01, "unit": "ratio", "context_terms": ["국제브랜드수수료"], "critical": false},
+    {"id": "overseas_service_fee_rate", "page_num": 1, "surface_text": "0.25%", "normalized_value": 0.0025, "unit": "ratio", "context_terms": ["해외서비스수수료"], "critical": false}
+  ],
+  "table_labels": [
+    {"id": "annual_fee", "page_num": 2, "headers": ["구분", "브랜드", "총 연회비", "기본연회비", "제휴연회비"], "rows": [["국내전용", "Local", "15,000원", "6,000원", "9,000원"], ["국내외겸용", "Mastercard", "15,000원", "6,000원", "9,000원"]]},
+    {"id": "smart_cashback_limits", "page_num": 2, "headers": ["구분", "40만원 이상 ~ 80만원 미만", "80만원 이상 ~ 150만원 미만", "150만원 이상"], "rows": [["1위 영역", "8,000원", "11,000원", "16,000원"], ["2위 영역", "7,000원", "9,000원", "14,000원"], ["합계", "15,000원", "20,000원", "30,000원"]]}
+  ]
+}

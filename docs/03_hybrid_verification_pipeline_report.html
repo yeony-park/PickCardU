@@ -1,0 +1,623 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><title>혼합형 OCR 검증 파이프라인(confidence 라우팅 + 교차검증) 결과 보고서</title>
+<style>
+body{font-family:Arial,sans-serif;line-height:1.6;margin:32px;color:#1f2937;max-width:1200px}
+h1,h2,h3{color:#111827}
+h1{border-bottom:3px solid #334155;padding-bottom:10px}
+h2{border-bottom:1px solid #cbd5e1;padding-bottom:6px;margin-top:40px}
+table{border-collapse:collapse;width:100%;font-size:12.5px;margin:12px 0 28px}
+th,td{border:1px solid #cbd5e1;padding:6px 8px;text-align:left;vertical-align:top}
+th{background:#e2e8f0;position:sticky;top:0}
+td:nth-child(1),td:nth-child(2),td:nth-child(3){white-space:nowrap}
+.note{background:#f8fafc;border-left:4px solid #64748b;padding:14px 16px;margin:16px 0}
+.warning{background:#fef2f2;border-left:4px solid #dc2626;padding:14px 16px;margin:16px 0}
+.good{background:#f0fdf4;border-left:4px solid #16a34a;padding:14px 16px;margin:16px 0}
+.history{background:#f8fafc;border:1px dashed #94a3b8;border-radius:8px;padding:14px 16px;margin:16px 0}
+.kpi-grid{display:flex;gap:16px;flex-wrap:wrap;margin:16px 0}
+.kpi{flex:1;min-width:160px;background:#f1f5f9;border-radius:8px;padding:16px;text-align:center}
+.kpi .num{font-size:28px;font-weight:700;color:#0f172a}
+.kpi .label{font-size:12.5px;color:#475569;margin-top:4px}
+tr.review td{background:#fff7ed}
+tr.warn td{background:#fef2f2}
+td.ok{color:#16a34a;font-weight:700}
+td.bad{color:#dc2626;font-weight:700}
+code{background:#f1f5f9;padding:1px 5px;border-radius:4px;font-size:0.92em}
+.small{font-size:12.5px;color:#475569}
+.tag{display:inline-block;background:#e2e8f0;border-radius:4px;padding:1px 8px;font-size:11.5px;margin-left:6px}
+</style></head>
+<body>
+<h1>혼합형 OCR 검증 파이프라인 결과 보고서</h1>
+<p class="small">confidence 임계값 라우팅 + 위험도 계층화 + 멀티엔진 교차검증을 결합한 파이프라인을 실제로 구현·실행한 결과. 신용카드 상품설명서 OCR 파이프라인에서 "잘못된 정보가 검증 없이 사용자에게 전달되는" 리스크를 어떻게 줄일지에 대한 논의를 코드로 검증했다. <b>이 보고서는 v2(교차검증 상시 적용) 기준으로 갱신됐고, v1(confidence 지름길 포함) 시점의 발견 사항은 3절에 요약으로 남겨뒀다.</b></p>
+
+<div class="note">
+<b>범위</b>: 기존 3엔진 비교(<code>03_ocr_engine_comparison.ipynb</code>)와 동일한 10개 카드사, 10페이지, 43개 필드 표본을 재사용했다. 노트북은 <code>notebooks/05_hybrid_verification_pipeline.ipynb</code>이며 전 과정이 실행 완료된 상태로 저장되어 있다.
+</div>
+
+<h2>1. 배경 및 설계 조정 사항</h2>
+<p>애초 논의에서는 "Upstage 같은 Document AI는 필드별 confidence를 제공한다"는 일반론을 전제로 설계를 시작했다. 그러나 실제 이 프로젝트가 받은 Upstage Document Parse API 응답(<code>notebooks/data/03_ocr_engine_comparison/upstage_raw/*.json</code>)을 직접 열어본 결과, <code>elements</code>에는 <code>id/page/category/content/coordinates</code>만 있고 confidence 관련 필드는 전혀 없었다 (<code>ocr</code> 키는 단순 불리언 플래그였다). 이 발견에 따라 설계를 다음과 같이 조정했다.</p>
+<ul>
+<li><b>Upstage는 confidence 없는 엔진으로 취급한다.</b> Upstage의 원문(markdown 또는 html)을 별도 LLM 호출로 구조화하는 <b>어댑터 방식</b>을 썼다. 필드값만 주고 confidence는 주지 않는다.</li>
+<li><b>GPT Vision의 confidence는 self-reported(언어모델이 말로 지어내서 보고하는 확신도)다.</b> 모델 내부의 진짜 토큰 확률이 아니라 "0~1 사이로 스스로 평가해서 답하라"고 프롬프트로 지시해서 받은 값이며, 실제 정답률과 상관관계가 약한 신호로 알려져 있다.</li>
+</ul>
+
+<h2>2. 정답셋 재검증</h2>
+<p>기존 <code>03_manual_field_gold.json</code>은 다른 AI 세션이 작성한 것이어서 사용자가 신뢰도에 우려를 제기했다. Claude가 동일한 10장의 렌더링 페이지 이미지(<code>03/rendered_pages/*.png</code>)를 <b>직접 읽고</b> 43개 필드값을 재검증했다. 결과는 <code>05/manual_field_gold_claude_verified.json</code>이다.</p>
+<div class="good"><b>재검증 결과</b>: 43개 필드 중 <b>42개는 원문과 정확히 일치</b>했다. 1개 필드만 캡처된 페이지 이미지 내에서 명시적 근거를 찾지 못해 낮은 신뢰도로 별도 표시했다.</div>
+<ul><li><b>woori/minimum_transaction</b>: 렌더링된 페이지 이미지 안에서 &#x27;2만원 이상&#x27;이라는 건당 최소 결제금액 조건의 명시적 근거 문구를 찾지 못함. 이전 라벨값을 그대로 유지하되 낮은 신뢰도로 표시함. 원본 PDF의 다른 페이지(예: 유의사항 상세 페이지)에 있을 가능성이 있으나 확인하지 않음.</li></ul>
+
+<h2>3. v1(1차 버전)에서 있었던 테스트와 발견된 문제 <span class="tag">이력 요약</span></h2>
+<div class="history">
+<p><b>v1 설계</b>: 고위험 필드는 항상 GPT Vision-Upstage 교차검증, <b>저위험 필드는 GPT Vision의 self-reported confidence가 0.8 이상이면 Upstage 대조 없이 단일 엔진만으로 자동통과</b>시켰다 (비용 절감 목적).</p>
+<p><b>v1 실행 결과(첫 실행 기준)</b>: 전체 43개 필드 중 자동통과율 62.79%, 자동통과분 정확도 96.3%, GPT Vision이 확신했지만 틀린 사례 7건.</p>
+<p><b>발견된 문제</b>: <code>lotte / excluded_loan</code> 필드에서 GPT Vision이 confidence 0.95로 확신하며 오답("장기카드대출(카드론)", 정답은 "단기카드대출(현금서비스)")을 냈는데, 이 필드가 저위험으로 분류되어 있어 confidence만 보고 <b>Upstage 대조 없이 그대로 자동통과됐다.</b> 원문에는 두 항목이 나란히 나열돼 있었고, GPT가 confidence 0.95로 확신하며 바로 옆의 다른 항목을 골라 틀린 것이었다.</p>
+<p><b>조치</b>: 이 발견을 근거로 "위험도·confidence와 무관하게 항상 GPT Vision과 Upstage가 일치해야만 자동통과"하는 v2로 라우팅 로직을 수정했다. 근거: 이 표본에서 고위험 필드가 43개 중 37개(86%)라 confidence 지름길로 아낄 수 있는 비용 자체가 애초에 작았고, 반면 안전성 손실 사례는 실제로 확인됐기 때문이다.</p>
+</div>
+
+<h2>4. v2 파이프라인 설계</h2>
+<p>필드명을 규칙기반 키워드(<code>rate, limit, fee, spend, cashback, transaction, date, center, time</code>)로 위험도를 나누되, <b>위험도와 무관하게 모든 필드는 GPT Vision과 Upstage 두 엔진의 값이 일치해야만 자동통과</b>한다. confidence는 더 이상 통과 여부를 결정하지 않고 진단용 참고 데이터로만 기록한다.</p>
+<p class="small">정확한 구현: <code>notebooks/05_hybrid_verification_pipeline.ipynb</code> 셀 7(라우팅 로직 v2) 참고.</p>
+
+<h2>5. v2 전체 결과 지표</h2>
+<div class="kpi-grid">
+<div class="kpi"><div class="num">43</div><div class="label">전체 필드 수</div></div>
+<div class="kpi"><div class="num">60.47%</div><div class="label">자동통과율(STP)</div></div>
+<div class="kpi"><div class="num">92.31%</div><div class="label">자동통과분 정확도</div></div>
+<div class="kpi"><div class="num">39.53%</div><div class="label">사람 검토 큐 비율</div></div>
+<div class="kpi"><div class="num">8</div><div class="label">GPT Vision 확신했지만 틀린 사례</div></div>
+</div>
+
+<h3>위험도 × 결정 분포</h3>
+<div class="note">
+<b>주의(오해 방지)</b>: <b>HIGH/LOW(위험도)는 "정답인지 오답인지"와 무관하다.</b> 필드 이름에 요율/한도/수수료 등 키워드가 있으면 실제 값이 맞든 틀리든 무조건 HIGH로 분류되고, 판정(정답/오답)은 그 다음 단계에서 <code>gold_value</code>와 별도로 대조해서 정한다. 즉 "HIGH=오답, LOW=정답" 같은 대응관계는 없다. 아래 표의 마지막 열이 자동통과된 것 중 실제 정답/오답이 몇 건인지를 보여준다 (사람 검토 큐로 간 것은 아직 확정값이 없어 정답/오답 판정 대상이 아니다).
+</div>
+<table><thead><tr><th>위험도</th><th>결정</th><th>필드 수</th><th>실제 정답/오답 (해당 시)</th></tr></thead>
+<tbody><tr><td>HIGH</td><td>자동통과(교차검증 일치)</td><td>24</td><td><span class="ok">정답 22</span> / <span class="bad">오답 2</span></td></tr><tr><td>HIGH</td><td>사람 검토 큐</td><td>13</td><td><span class="small">해당 없음 (사람 검토 대기 중, 아직 확정값 없음)</span></td></tr><tr><td>LOW</td><td>자동통과(교차검증 일치)</td><td>2</td><td><span class="ok">정답 2</span> / <span class="bad">오답 0</span></td></tr><tr><td>LOW</td><td>사람 검토 큐</td><td>4</td><td><span class="small">해당 없음 (사람 검토 대기 중, 아직 확정값 없음)</span></td></tr></tbody></table>
+<p class="small">예: HIGH 위험도로 분류된 37개 필드 중 24개가 자동통과됐고, 그 24개를 정답과 대조해보니 22개는 정답, 2개(7절의 woori 상관 오류)는 오답이었다. 나머지 13개는 자동통과되지 않고 사람 검토 큐로 갔다.</p>
+
+<h2>6. v1 → v2 정책 비교, 그리고 비결정성에 대한 주의</h2>
+<div class="warning">
+<b>중요한 주의사항</b>: GPT Vision은 결정론적이지 않다. v1과 v2는 <b>서로 다른 시점에 API를 재호출</b>해서 얻은 결과라, 순수하게 "정책 차이"만 비교한 게 아니라 "모델의 실행별 무작위성"도 섞여 있다. 그래서 v1 실행(위 3절)과 v2 실행(5절)의 전체 지표를 직접 비교해 "정책 변경 효과"라고 결론 내리는 것은 부정확하다.
+</div>
+<p>대신 <b>같은 v2 실행 데이터 안에서</b> v1이었다면 어떻게 됐을지를 재계산해서 비교했다(같은 엔진 출력값 기준이라 이 비교는 공정하다). 그 결과 정책 차이로 최종 통과 여부가 달라진 필드는 <b>2건</b>이다.</p>
+<table><thead><tr><th>카드사</th><th>필드</th><th>v1이었다면</th><th>v2(실제)</th><th>정답</th><th>GPT Vision 값(이번 실행)</th></tr></thead>
+<tbody><tr>
+<td>kookmin</td><td>family_card</td>
+<td>자동통과(저위험/단일엔진 confidence, v1 전용)</td>
+<td>자동통과(교차검증 일치)</td>
+<td>가족카드 발급 불가</td><td>KB국민 My WE:SH 카드는 가족카드 발급 불가</td>
+</tr><tr>
+<td>lotte</td><td>excluded_loan</td>
+<td>자동통과(저위험/단일엔진 confidence, v1 전용)</td>
+<td>자동통과(교차검증 일치)</td>
+<td>단기카드대출(현금서비스)</td><td>단기카드대출(현금서비스), 장기카드대출(카드론)</td>
+</tr></tbody></table>
+<p class="small">두 필드 모두 이번 실행에서는 GPT Vision이 (지난 v1 실행 때와 달리) 정답을 포함한 값을 냈기 때문에 v1/v2 결과가 우연히 같았다. <code>lotte/excluded_loan</code>의 v1 실패는 3절에 기록된 사실이며, 이번 실행에서 재현되지 않았다고 해서 없었던 일이 되는 것은 아니다 — 모델 출력이 매번 달라질 수 있다는 것을 보여주는 사례로 해석해야 한다.</p>
+
+<h2>7. 핵심 발견: 교차검증도 놓친 상관 오류 (신규)</h2>
+<div class="warning">
+<b>woori / <code>monthly_limit_1</code>, <code>monthly_limit_3</code></b> (고위험으로 분류됨, v2 로직 적용됨에도 자동통과 후 오답으로 확인)
+<table style="margin-top:10px">
+<thead><tr><th>필드</th><th>정답</th><th>GPT Vision</th><th>Upstage</th><th>결정</th></tr></thead>
+<tbody>
+<tr><td>monthly_limit_1</td><td>2만 8천원</td><td>4천원</td><td>4천원</td><td>자동통과(오답)</td></tr>
+<tr><td>monthly_limit_3</td><td>8만 4천원</td><td>1만 2천원</td><td>1만 2천원</td><td>자동통과(오답)</td></tr>
+</tbody>
+</table>
+<p>원본 표는 "영역별 할인 한도"와 "월 최대 할인 한도" 두 열을 나란히 갖고 있다. <code>monthly_limit_1</code>의 정답은 "월 최대 할인 한도" 열의 값("2만 8천원")인데, <b>GPT Vision과 Upstage가 독립적으로 같은 표를 보고도 똑같이 "영역별 할인 한도" 열("4천원")을 골라 틀렸다.</b> 두 엔진이 서로 다른 방식으로 동작하는데도 같은 열을 혼동한 것이다.</p>
+<p><b>왜 중요한가</b>: 이 프로젝트 논의 초반에 "두 엔진이 같은 이유로 같이 틀리는 상관 오류는 교차검증으로 못 잡는다"고 이론적으로 언급했던 리스크가, 실제 실행에서 그대로 재현된 사례다. v1의 문제(confidence 지름길)는 v2로 고쳤지만, <b>이 상관 오류는 구조적으로 "두 엔진을 비교하는 방식" 자체로는 고칠 수 없다.</b> 필드명(<code>monthly_limit</code>)이 "영역별 한도"와 "월 최대 한도" 중 어느 쪽을 가리키는지 모호했던 것이 근본 원인으로 보이며, 프롬프트에 필드 의미를 더 명확히 설명하거나, 표가 있는 페이지는 별도 검증 단계를 추가하는 방식의 보완이 필요하다.</p>
+</div>
+
+<h2>8. Confidence가 신뢰할 수 없었던 8개 사례</h2>
+<p>GPT Vision이 스스로 confidence를 높게 보고했지만 실제로는 틀렸거나(또는 값을 못 찾았는데 confidence만 높게 나온) 사례. v2에서는 <b>6건이 교차검증(불일치)으로 사람 검토 큐에 정확히 걸러졌고</b>, <b>2건(woori, 7절)은 두 엔진이 같은 오답에 동의해서 자동통과로 새어나갔다.</b></p>
+<table><thead><tr><th>카드사</th><th>필드</th><th>위험도</th><th>정답</th><th>GPT Vision 값</th><th>confidence</th><th>Upstage 값</th><th>걸러졌나</th></tr></thead>
+<tbody><tr>
+<td>BC</td><td>minimum_spend_1</td><td>HIGH</td>
+<td>15만원 이상</td>
+<td>1만원 이상</td><td>0.98</td>
+<td>15만원 이상</td>
+<td class="ok">예 (사람 검토로)</td>
+</tr><tr>
+<td>BC</td><td>minimum_spend_3</td><td>HIGH</td>
+<td>50만원 이상</td>
+<td>15만원 이상</td><td>0.97</td>
+<td>50만원 이상</td>
+<td class="ok">예 (사람 검토로)</td>
+</tr><tr>
+<td>BC</td><td>integrated_limit_3</td><td>HIGH</td>
+<td>20,000원</td>
+<td>5,000원</td><td>0.95</td>
+<td>20,000원</td>
+<td class="ok">예 (사람 검토로)</td>
+</tr><tr>
+<td>hana</td><td>minimum_spend</td><td>HIGH</td>
+<td>40만원 이상</td>
+<td>1만원 이상 결제 건</td><td>0.88</td>
+<td>지난달 1일부터 말일(승인 시점 기준)까지 국내외 일시불/할부 이용금액 40만원 이상 시 서비스 제공</td>
+<td class="ok">예 (사람 검토로)</td>
+</tr><tr>
+<td>hyundai</td><td>brand_fee</td><td>HIGH</td>
+<td>1.1%</td>
+<td><i>(빈값)</i></td><td>0.98</td>
+<td>15,000원(기본연회비 10,000원 + 제휴연회비 5,000원)</td>
+<td class="ok">예 (사람 검토로)</td>
+</tr><tr>
+<td>ibk</td><td>additional_limit</td><td>HIGH</td>
+<td>10만원</td>
+<td>최대 월 50만원까지</td><td>0.97</td>
+<td>추가캐시백 한도 10만원</td>
+<td class="ok">예 (사람 검토로)</td>
+</tr><tr>
+<td>woori</td><td>monthly_limit_1</td><td>HIGH</td>
+<td>2만 8천원</td>
+<td>4천원</td><td>0.86</td>
+<td>4천원</td>
+<td class="bad">아니오 (자동통과, 상관 오류)</td>
+</tr><tr>
+<td>woori</td><td>monthly_limit_3</td><td>HIGH</td>
+<td>8만 4천원</td>
+<td>1만 2천원</td><td>0.86</td>
+<td>1만 2천원</td>
+<td class="bad">아니오 (자동통과, 상관 오류)</td>
+</tr></tbody></table>
+
+<h2>9. 사람 검토 큐 전체 목록 (17건)</h2>
+<p>실제 운영이라면 사람이 이 목록만 확인하면 된다. 나머지 26건은 자동으로 다음 단계(청킹/임베딩)로 넘어간다.</p>
+<table><thead><tr><th>카드사</th><th>필드</th><th>위험도</th><th>정답</th><th>GPT Vision 값</th><th>Upstage 값</th></tr></thead>
+<tbody><tr>
+<td>BC</td><td>minimum_spend_1</td><td>HIGH</td>
+<td>15만원 이상</td>
+<td>1만원 이상</td>
+<td>15만원 이상</td>
+</tr><tr>
+<td>BC</td><td>integrated_limit_1</td><td>HIGH</td>
+<td>5,000원</td>
+<td><i>(빈값)</i></td>
+<td>5,000원</td>
+</tr><tr>
+<td>BC</td><td>minimum_spend_3</td><td>HIGH</td>
+<td>50만원 이상</td>
+<td>15만원 이상</td>
+<td>50만원 이상</td>
+</tr><tr>
+<td>BC</td><td>integrated_limit_3</td><td>HIGH</td>
+<td>20,000원</td>
+<td>5,000원</td>
+<td>20,000원</td>
+</tr><tr>
+<td>NH</td><td>benefit_maintenance</td><td>LOW</td>
+<td>3년 이상</td>
+<td><i>(빈값)</i></td>
+<td><i>(빈값)</i></td>
+</tr><tr>
+<td>NH</td><td>launch_date</td><td>HIGH</td>
+<td>2026년 1월 28일</td>
+<td><i>(빈값)</i></td>
+<td>2026년 1월 28일</td>
+</tr><tr>
+<td>hana</td><td>department_discount_rate</td><td>HIGH</td>
+<td>5%</td>
+<td><i>(빈값)</i></td>
+<td>5%</td>
+</tr><tr>
+<td>hana</td><td>department_limit</td><td>HIGH</td>
+<td>20,000원 / 월</td>
+<td><i>(빈값)</i></td>
+<td>20,000원 / 월</td>
+</tr><tr>
+<td>hana</td><td>cafe_discount_rate</td><td>HIGH</td>
+<td>20%</td>
+<td><i>(빈값)</i></td>
+<td>20%</td>
+</tr><tr>
+<td>hana</td><td>minimum_spend</td><td>HIGH</td>
+<td>40만원 이상</td>
+<td>1만원 이상 결제 건</td>
+<td>지난달 1일부터 말일(승인 시점 기준)까지 국내외 일시불/할부 이용금액 40만원 이상 시 서비스 제공</td>
+</tr><tr>
+<td>hyundai</td><td>brand_fee</td><td>HIGH</td>
+<td>1.1%</td>
+<td><i>(빈값)</i></td>
+<td>15,000원(기본연회비 10,000원 + 제휴연회비 5,000원)</td>
+</tr><tr>
+<td>ibk</td><td>additional_limit</td><td>HIGH</td>
+<td>10만원</td>
+<td>최대 월 50만원까지</td>
+<td>추가캐시백 한도 10만원</td>
+</tr><tr>
+<td>kookmin</td><td>statement_period</td><td>LOW</td>
+<td>전월 1일 ~ 말일</td>
+<td><i>(빈값)</i></td>
+<td><i>(빈값)</i></td>
+</tr><tr>
+<td>lotte</td><td>benefit_grace_period</td><td>LOW</td>
+<td>다음 달 말일까지</td>
+<td><i>(빈값)</i></td>
+<td><i>(빈값)</i></td>
+</tr><tr>
+<td>lotte</td><td>example_month</td><td>LOW</td>
+<td>6월</td>
+<td><i>(빈값)</i></td>
+<td>6월</td>
+</tr><tr>
+<td>woori</td><td>living_discount_rate</td><td>HIGH</td>
+<td>10%</td>
+<td>10%</td>
+<td><i>(빈값)</i></td>
+</tr><tr>
+<td>woori</td><td>minimum_transaction</td><td>HIGH</td>
+<td>2만원 이상</td>
+<td><i>(빈값)</i></td>
+<td>건당 2만원 이상</td>
+</tr></tbody></table>
+
+<h2>10. 전체 43개 필드 상세 결과 (v2 기준)</h2>
+<p class="small">주황색 배경 행 = 사람 검토 큐로 감. 빨간색 배경 행 = GPT Vision이 확신했지만 틀린 경우. ★ = v1이었다면 다른 결정이 나왔을 필드(6절 참고).</p>
+<table><thead><tr><th>카드사</th><th>필드</th><th>위험도</th><th>정답</th><th>GPT Vision 값</th><th>Vision confidence</th><th>Upstage 값</th><th>교차검증</th><th>결정</th><th>정답 여부</th></tr></thead>
+<tbody><tr class="pass">
+<td>BC</td><td>daily_discount_rate</td><td>HIGH</td>
+<td>7%</td>
+<td>매일 할인 7%</td><td>0.99</td>
+<td>매일 할인 7%</td>
+<td>일치</td>
+<td>자동통과(교차검증 일치)</td>
+<td class="ok">정답</td>
+</tr><tr class="review warn">
+<td>BC</td><td>minimum_spend_1</td><td>HIGH</td>
+<td>15만원 이상</td>
+<td>1만원 이상</td><td>0.98</td>
+<td>15만원 이상</td>
+<td>불일치</td>
+<td>사람 검토 큐</td>
+<td class="">-</td>
+</tr><tr class="review">
+<td>BC</td><td>integrated_limit_1</td><td>HIGH</td>
+<td>5,000원</td>
+<td><i>(빈값)</i></td><td>0.02</td>
+<td>5,000원</td>
+<td>불일치</td>
+<td>사람 검토 큐</td>
+<td class="">-</td>
+</tr><tr class="review warn">
+<td>BC</td><td>minimum_spend_3</td><td>HIGH</td>
+<td>50만원 이상</td>
+<td>15만원 이상</td><td>0.97</td>
+<td>50만원 이상</td>
+<td>불일치</td>
+<td>사람 검토 큐</td>
+<td class="">-</td>
+</tr><tr class="review warn">
+<td>BC</td><td>integrated_limit_3</td><td>HIGH</td>
+<td>20,000원</td>
+<td>5,000원</td><td>0.95</td>
+<td>20,000원</td>
+<td>불일치</td>
+<td>사람 검토 큐</td>
+<td class="">-</td>
+</tr><tr class="review">
+<td>NH</td><td>benefit_maintenance</td><td>LOW</td>
+<td>3년 이상</td>
+<td><i>(빈값)</i></td><td>0.18</td>
+<td><i>(빈값)</i></td>
+<td>불일치</td>
+<td>사람 검토 큐</td>
+<td class="">-</td>
+</tr><tr class="review">
+<td>NH</td><td>launch_date</td><td>HIGH</td>
+<td>2026년 1월 28일</td>
+<td><i>(빈값)</i></td><td>0.16</td>
+<td>2026년 1월 28일</td>
+<td>불일치</td>
+<td>사람 검토 큐</td>
+<td class="">-</td>
+</tr><tr class="pass">
+<td>NH</td><td>customer_center</td><td>HIGH</td>
+<td>1644-4000</td>
+<td>카드고객상담센터 1644-4000</td><td>0.97</td>
+<td>카드고객상담센터 1644-4000 해외에서 문의 시 82-2-6942-6478</td>
+<td>일치</td>
+<td>자동통과(교차검증 일치)</td>
+<td class="ok">정답</td>
+</tr><tr class="review">
+<td>hana</td><td>department_discount_rate</td><td>HIGH</td>
+<td>5%</td>
+<td><i>(빈값)</i></td><td>0.14</td>
+<td>5%</td>
+<td>불일치</td>
+<td>사람 검토 큐</td>
+<td class="">-</td>
+</tr><tr class="review">
+<td>hana</td><td>department_limit</td><td>HIGH</td>
+<td>20,000원 / 월</td>
+<td><i>(빈값)</i></td><td>0.13</td>
+<td>20,000원 / 월</td>
+<td>불일치</td>
+<td>사람 검토 큐</td>
+<td class="">-</td>
+</tr><tr class="review">
+<td>hana</td><td>cafe_discount_rate</td><td>HIGH</td>
+<td>20%</td>
+<td><i>(빈값)</i></td><td>0.15</td>
+<td>20%</td>
+<td>불일치</td>
+<td>사람 검토 큐</td>
+<td class="">-</td>
+</tr><tr class="pass">
+<td>hana</td><td>play_discount_rate</td><td>HIGH</td>
+<td>30%</td>
+<td>30%</td><td>0.92</td>
+<td>30%</td>
+<td>일치</td>
+<td>자동통과(교차검증 일치)</td>
+<td class="ok">정답</td>
+</tr><tr class="review warn">
+<td>hana</td><td>minimum_spend</td><td>HIGH</td>
+<td>40만원 이상</td>
+<td>1만원 이상 결제 건</td><td>0.88</td>
+<td>지난달 1일부터 말일(승인 시점 기준)까지 국내외 일시불/할부 이용금액 40만원 이상 시 서비스 제공</td>
+<td>불일치</td>
+<td>사람 검토 큐</td>
+<td class="">-</td>
+</tr><tr class="review warn">
+<td>hyundai</td><td>brand_fee</td><td>HIGH</td>
+<td>1.1%</td>
+<td><i>(빈값)</i></td><td>0.98</td>
+<td>15,000원(기본연회비 10,000원 + 제휴연회비 5,000원)</td>
+<td>불일치</td>
+<td>사람 검토 큐</td>
+<td class="">-</td>
+</tr><tr class="pass">
+<td>hyundai</td><td>overseas_service_fee</td><td>HIGH</td>
+<td>0.2%</td>
+<td>- 해외서비스 수수료 : 0.2%</td><td>0.97</td>
+<td>0.2%</td>
+<td>일치</td>
+<td>자동통과(교차검증 일치)</td>
+<td class="ok">정답</td>
+</tr><tr class="pass">
+<td>hyundai</td><td>fee_discount</td><td>HIGH</td>
+<td>100%</td>
+<td>100% 청구 할인</td><td>0.99</td>
+<td>국제브랜드 수수료 및 해외서비스 수수료 100% 청구 할인</td>
+<td>일치</td>
+<td>자동통과(교차검증 일치)</td>
+<td class="ok">정답</td>
+</tr><tr class="pass">
+<td>hyundai</td><td>metal_plate_fee</td><td>HIGH</td>
+<td>7만원</td>
+<td>발급 수수료 7만원 별도 부과(재발급 및 갱신 시 동일 적용)</td><td>0.96</td>
+<td>발급 수수료 7만원 별도 부과</td>
+<td>일치</td>
+<td>자동통과(교차검증 일치)</td>
+<td class="ok">정답</td>
+</tr><tr class="pass">
+<td>ibk</td><td>base_cashback_rate</td><td>HIGH</td>
+<td>1%</td>
+<td>1%</td><td>0.99</td>
+<td>6대 생활영역 이용금액 1% 기본캐시백</td>
+<td>일치</td>
+<td>자동통과(교차검증 일치)</td>
+<td class="ok">정답</td>
+</tr><tr class="pass">
+<td>ibk</td><td>additional_cashback_rate</td><td>HIGH</td>
+<td>1%</td>
+<td>1%</td><td>0.99</td>
+<td>6대 생활영역 중 이용금액이 가장 많은 영역은 1% 추가캐시백</td>
+<td>일치</td>
+<td>자동통과(교차검증 일치)</td>
+<td class="ok">정답</td>
+</tr><tr class="pass">
+<td>ibk</td><td>minimum_spend</td><td>HIGH</td>
+<td>50만원 이상</td>
+<td>50만원 이상</td><td>0.98</td>
+<td>전월 1일부터 말일까지 국내외 가맹점 이용금액이
+50만원 이상 시 제공</td>
+<td>일치</td>
+<td>자동통과(교차검증 일치)</td>
+<td class="ok">정답</td>
+</tr><tr class="review warn">
+<td>ibk</td><td>additional_limit</td><td>HIGH</td>
+<td>10만원</td>
+<td>최대 월 50만원까지</td><td>0.97</td>
+<td>추가캐시백 한도 10만원</td>
+<td>불일치</td>
+<td>사람 검토 큐</td>
+<td class="">-</td>
+</tr><tr class="pass">
+<td>ibk</td><td>example_total_cashback</td><td>HIGH</td>
+<td>15,000원</td>
+<td>15,000원</td><td>0.99</td>
+<td>15,000원</td>
+<td>일치</td>
+<td>자동통과(교차검증 일치)</td>
+<td class="ok">정답</td>
+</tr><tr class="review">
+<td>kookmin</td><td>statement_period</td><td>LOW</td>
+<td>전월 1일 ~ 말일</td>
+<td><i>(빈값)</i></td><td>0.00</td>
+<td><i>(빈값)</i></td>
+<td>불일치</td>
+<td>사람 검토 큐</td>
+<td class="">-</td>
+</tr><tr class="pass">
+<td>kookmin</td><td>family_card ★</td><td>LOW</td>
+<td>가족카드 발급 불가</td>
+<td>KB국민 My WE:SH 카드는 가족카드 발급 불가</td><td>0.97</td>
+<td>KB국민 My WE:SH 카드는 가족카드 발급 불가</td>
+<td>일치</td>
+<td>자동통과(교차검증 일치)</td>
+<td class="ok">정답</td>
+</tr><tr class="pass">
+<td>kookmin</td><td>customer_center</td><td>HIGH</td>
+<td>1588-1688</td>
+<td>1588-1688</td><td>0.93</td>
+<td>고객센터 1588-1688</td>
+<td>일치</td>
+<td>자동통과(교차검증 일치)</td>
+<td class="ok">정답</td>
+</tr><tr class="review">
+<td>lotte</td><td>benefit_grace_period</td><td>LOW</td>
+<td>다음 달 말일까지</td>
+<td><i>(빈값)</i></td><td>0.08</td>
+<td><i>(빈값)</i></td>
+<td>불일치</td>
+<td>사람 검토 큐</td>
+<td class="">-</td>
+</tr><tr class="review">
+<td>lotte</td><td>example_month</td><td>LOW</td>
+<td>6월</td>
+<td><i>(빈값)</i></td><td>0.04</td>
+<td>6월</td>
+<td>불일치</td>
+<td>사람 검토 큐</td>
+<td class="">-</td>
+</tr><tr class="pass">
+<td>lotte</td><td>excluded_loan ★</td><td>LOW</td>
+<td>단기카드대출(현금서비스)</td>
+<td>단기카드대출(현금서비스), 장기카드대출(카드론)</td><td>0.97</td>
+<td>단기카드대출(현금서비스), 장기카드대출
+(카드론)</td>
+<td>일치</td>
+<td>자동통과(교차검증 일치)</td>
+<td class="ok">정답</td>
+</tr><tr class="pass">
+<td>samsung</td><td>education_discount_rate</td><td>HIGH</td>
+<td>5%</td>
+<td>5%</td><td>0.99</td>
+<td>5%</td>
+<td>일치</td>
+<td>자동통과(교차검증 일치)</td>
+<td class="ok">정답</td>
+</tr><tr class="pass">
+<td>samsung</td><td>living_discount_rate</td><td>HIGH</td>
+<td>2%</td>
+<td>2%</td><td>0.99</td>
+<td>2%</td>
+<td>일치</td>
+<td>자동통과(교차검증 일치)</td>
+<td class="ok">정답</td>
+</tr><tr class="pass">
+<td>samsung</td><td>education_limit_1</td><td>HIGH</td>
+<td>7,000원</td>
+<td>7,000원</td><td>0.98</td>
+<td>7,000원</td>
+<td>일치</td>
+<td>자동통과(교차검증 일치)</td>
+<td class="ok">정답</td>
+</tr><tr class="pass">
+<td>samsung</td><td>education_limit_3</td><td>HIGH</td>
+<td>30,000원</td>
+<td>30,000원</td><td>0.98</td>
+<td>30,000원</td>
+<td>일치</td>
+<td>자동통과(교차검증 일치)</td>
+<td class="ok">정답</td>
+</tr><tr class="pass">
+<td>samsung</td><td>living_limit_2</td><td>HIGH</td>
+<td>20,000원</td>
+<td>20,000원</td><td>0.98</td>
+<td>20,000원</td>
+<td>일치</td>
+<td>자동통과(교차검증 일치)</td>
+<td class="ok">정답</td>
+</tr><tr class="pass">
+<td>shinhan</td><td>day_discount_rate</td><td>HIGH</td>
+<td>10%</td>
+<td>10%</td><td>0.99</td>
+<td>10%</td>
+<td>일치</td>
+<td>자동통과(교차검증 일치)</td>
+<td class="ok">정답</td>
+</tr><tr class="pass">
+<td>shinhan</td><td>night_discount_rate</td><td>HIGH</td>
+<td>10%</td>
+<td>10%</td><td>0.99</td>
+<td>10%</td>
+<td>일치</td>
+<td>자동통과(교차검증 일치)</td>
+<td class="ok">정답</td>
+</tr><tr class="pass">
+<td>shinhan</td><td>day_time</td><td>HIGH</td>
+<td>07~15시</td>
+<td>07~15시</td><td>0.99</td>
+<td>07~15시</td>
+<td>일치</td>
+<td>자동통과(교차검증 일치)</td>
+<td class="ok">정답</td>
+</tr><tr class="pass">
+<td>shinhan</td><td>night_time</td><td>HIGH</td>
+<td>18~22시</td>
+<td>18~22시</td><td>0.99</td>
+<td>18~22시</td>
+<td>일치</td>
+<td>자동통과(교차검증 일치)</td>
+<td class="ok">정답</td>
+</tr><tr class="pass">
+<td>shinhan</td><td>time_plan_limit_1</td><td>HIGH</td>
+<td>5천원</td>
+<td>5천원</td><td>0.98</td>
+<td>5천원</td>
+<td>일치</td>
+<td>자동통과(교차검증 일치)</td>
+<td class="ok">정답</td>
+</tr><tr class="pass">
+<td>shinhan</td><td>time_plan_limit_4</td><td>HIGH</td>
+<td>2만원</td>
+<td>2만원</td><td>0.98</td>
+<td>2만원</td>
+<td>일치</td>
+<td>자동통과(교차검증 일치)</td>
+<td class="ok">정답</td>
+</tr><tr class="review">
+<td>woori</td><td>living_discount_rate</td><td>HIGH</td>
+<td>10%</td>
+<td>10%</td><td>0.95</td>
+<td><i>(빈값)</i></td>
+<td>불일치</td>
+<td>사람 검토 큐</td>
+<td class="">-</td>
+</tr><tr class="review">
+<td>woori</td><td>minimum_transaction</td><td>HIGH</td>
+<td>2만원 이상</td>
+<td><i>(빈값)</i></td><td>0.24</td>
+<td>건당 2만원 이상</td>
+<td>불일치</td>
+<td>사람 검토 큐</td>
+<td class="">-</td>
+</tr><tr class="pass warn">
+<td>woori</td><td>monthly_limit_1</td><td>HIGH</td>
+<td>2만 8천원</td>
+<td>4천원</td><td>0.86</td>
+<td>4천원</td>
+<td>일치</td>
+<td>자동통과(교차검증 일치)</td>
+<td class="bad">오답</td>
+</tr><tr class="pass warn">
+<td>woori</td><td>monthly_limit_3</td><td>HIGH</td>
+<td>8만 4천원</td>
+<td>1만 2천원</td><td>0.86</td>
+<td>1만 2천원</td>
+<td>일치</td>
+<td>자동통과(교차검증 일치)</td>
+<td class="bad">오답</td>
+</tr></tbody></table>
+
+<h2>11. 한계 및 다음 단계</h2>
+<ol>
+<li><b>표본 규모</b>: 10페이지, 43개 필드는 스모크 테스트 규모다. 통계적으로 확정적인 결론(예: 임계값 최적값)을 내리기엔 작다.</li>
+<li><b>모델 비결정성</b>: GPT Vision을 재호출하면 같은 페이지에서도 다른 답이 나올 수 있다는 것을 이번 v1→v2 재실행에서 직접 확인했다 (6절). 향후 비교 실험은 가능하면 동일 실행 내에서 정책만 바꿔 비교하거나, 여러 번 반복 실행한 분포로 판단해야 한다.</li>
+<li><b>상관 오류는 구조적 한계</b>: 7절에서 확인했듯, 두 엔진이 같은 표/같은 모호한 필드명을 두고 같은 실수를 하면 교차검증으로 못 잡는다. 이건 엔진을 더 늘리는 것만으로는 완전히 해결되지 않으며, 필드 정의를 더 명확히 하거나 표 구조 자체를 별도로 검증하는 장치가 필요하다.</li>
+<li><b>값 비교 로직 개선 필요</b>: 나열형 필드(여러 항목이 쉼표로 나열된 경우)에서 부분문자열 포함 기반 비교가 오탐(false agree)을 낼 수 있다. 정확한 항목 단위 비교로 개선이 필요하다.</li>
+<li><b>GPT Vision 프롬프트 개선</b>: 이번 프롬프트는 필드명만 bare하게 제시했다. 실제 프로덕션 파이프라인의 <code>extract_02_structure_json.py</code>처럼 각 필드가 무엇을 의미하는지 상세히 설명하면, NH/hana 사례의 누락이나 woori 사례의 열 혼동이 줄어들 가능성이 있다 (확인 안 됨, 추측).</li>
+<li><b>Upstage confidence 부재 재확인 필요</b>: 이번에 확인한 것은 <code>document-parse-260128</code> 모델 응답 1건 기준이다. 다른 엔드포인트/파라미터 조합에서는 confidence가 제공될 수도 있으므로 운영 전환 시 공식 문서로 재확인이 필요하다 (확실하지 않음).</li>
+</ol>
+
+<h2>12. 재현 방법</h2>
+<ul>
+<li>노트북: <code>notebooks/05_hybrid_verification_pipeline.ipynb</code> (v2 로직으로 실행 완료 상태로 저장됨)</li>
+<li>정답셋: <code>notebooks/data/05_hybrid_verification_pipeline/manual_field_gold_claude_verified.json</code></li>
+<li>원시 결과: <code>notebooks/data/05_hybrid_verification_pipeline/routing_results.json</code>, <code>pipeline_summary.json</code></li>
+<li>실행 환경: <code>conda run -n skn25 jupyter execute --inplace 05_hybrid_verification_pipeline.ipynb</code></li>
+<li>사용 모델: GPT <code>gpt-5.4-mini-2026-03-17</code> (Vision 추출 + Upstage 어댑터 구조화 모두 동일 모델 사용). Claude Vision은 사용하지 않음(사용자 지정).</li>
+</ul>
+
+</body></html>

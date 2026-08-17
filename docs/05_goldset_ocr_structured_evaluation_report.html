@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>수기 정답셋 기반 OCR·구조화 평가 보고서</title>
+<style>
+  :root{--ink:#17212b;--muted:#5b6875;--line:#dce3e8;--panel:#f6f8fa;--blue:#155eef;--green:#087443;--amber:#a15c00;--red:#b42318;--navy:#0b2e4f}
+  *{box-sizing:border-box} body{margin:0;color:var(--ink);font:14px/1.6 Arial,"Noto Sans KR",sans-serif;background:#fff} main{max-width:1280px;margin:auto;padding:42px 28px 72px}
+  h1{margin:0 0 7px;font-size:30px;line-height:1.3} h2{font-size:20px;margin:42px 0 12px;padding-top:4px} h3{font-size:16px;margin:22px 0 8px} p{margin:7px 0}.lead{max-width:980px;color:var(--muted);font-size:15px}.meta{font-size:13px;color:var(--muted)}
+  .summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:24px 0}.metric{padding:15px 16px;border:1px solid var(--line);border-radius:8px;background:var(--panel)}.metric b{display:block;font-size:25px;line-height:1.2}.metric span{color:var(--muted)}
+  .notice{margin:18px 0;padding:14px 16px;border-left:4px solid var(--amber);background:#fff8e8}.info{margin:18px 0;padding:14px 16px;border-left:4px solid var(--blue);background:#eef5ff}.good{border-left-color:var(--green);background:#edf9f1}
+  table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:9px;border:1px solid var(--line);text-align:left;vertical-align:top}th{white-space:nowrap;background:#edf3f7}.scroll{overflow:auto}.num{text-align:right;font-variant-numeric:tabular-nums}.center{text-align:center}.badge{display:inline-block;border-radius:999px;padding:2px 8px;font-weight:700}.ok{background:#e7f7ed;color:var(--green)}.warn{background:#fff0d7;color:var(--amber)}.bad{background:#feeceb;color:var(--red)}.neutral{background:#eaf1f8;color:#36536d}
+  code{padding:1px 4px;background:#f0f3f5;border-radius:3px;word-break:break-all}.flow{display:flex;gap:8px;align-items:stretch;flex-wrap:wrap;margin:16px 0}.flow div{flex:1 1 175px;border:1px solid var(--line);border-radius:7px;padding:12px;background:var(--panel)}.flow strong{display:block;color:var(--navy)}.arrow{align-self:center;color:var(--blue);font-size:20px}.toc{columns:2;max-width:850px}.toc a{color:var(--blue);text-decoration:none}.small{font-size:12px;color:var(--muted)}ul{padding-left:20px}li{margin:5px 0}
+  @media(max-width:720px){main{padding:28px 16px}.summary{grid-template-columns:repeat(2,minmax(0,1fr))}.toc{columns:1}table{font-size:12px}.arrow{display:none}}
+</style>
+</head>
+<body><main>
+<h1>수기 정답셋 기반 OCR·구조화 평가 보고서</h1>
+<p class="lead">5개 카드 PDF에 대해 OpenAI Vision OCR과 Upstage OCR의 전체 텍스트 품질을 수기 정답 TXT로 평가하고, 각 OCR TXT를 동일한 OpenAI 구조화 API로 필드 JSON으로 변환한 뒤 수기 필드 정답셋과 비교한 결과입니다.</p>
+<p class="meta">생성일: 2026-07-25 · 실행 ID: <code>2026-07-25_live_ocr / evaluation_v4</code> · 카드 5개 · 페이지 22개 · 평가 필드 117개</p>
+
+<section class="summary">
+  <div class="metric"><b>22</b><span>전체 OCR 비교 페이지</span></div>
+  <div class="metric"><b>117</b><span>필드·수치·표 정답 항목</span></div>
+  <div class="metric"><b>91.95%</b><span>Upstage 평균 토큰 F1</span></div>
+  <div class="metric"><b>39.32%</b><span>필드 exact match (양 엔진)</span></div>
+</section>
+
+<div class="notice"><b>해석 주의:</b> 전체 TXT 지표는 OCR 자체 평가입니다. 반면 필드 JSON 지표는 <b>OCR + 공통 OpenAI 구조화 API</b>를 함께 평가합니다. 따라서 필드 결과를 OCR 엔진 단독 성능으로 해석하면 안 됩니다. 두 TXT를 같은 구조화기로 처리했으므로, 구조화 조건을 고정한 상태에서 OCR 입력 차이가 결과에 미친 영향을 비교하는 용도입니다.</div>
+
+<h2 id="scope">1. 평가 범위와 데이터 흐름</h2>
+<div class="flow">
+  <div><strong>1) 원본 PDF</strong>5개 카드, 총 22페이지. 원본 <code>data/raw/</code>는 수정하지 않았습니다.</div><span class="arrow">→</span>
+  <div><strong>2) OCR 원문 보존</strong>OpenAI Vision과 Upstage가 각각 PDF를 OCR하여 원문 응답과 공통 TXT를 별도 저장했습니다.</div><span class="arrow">→</span>
+  <div><strong>3) 전체 텍스트 평가</strong><code>gold/raw</code> TXT와 엔진별 TXT를 페이지 단위로 비교했습니다.</div><span class="arrow">→</span>
+  <div><strong>4) 공통 구조화</strong>각 엔진의 TXT를 OpenAI Structured Outputs로 동일한 필드 JSON 스키마에 맞췄습니다.</div><span class="arrow">→</span>
+  <div><strong>5) 필드 평가</strong><code>gold/structured</code> JSON과 엔진별 예측 JSON을 필드 단위로 비교했습니다.</div>
+</div>
+<div class="scroll"><table><thead><tr><th>카드사</th><th>카드</th><th class="num">페이지</th><th class="num">평가 항목</th></tr></thead><tbody>
+<tr><td>우리</td><td>Woori_Classic_EVERY_MILE_SKYPASS</td><td class="num">2</td><td class="num">22</td></tr>
+<tr><td>신한</td><td>Shinhan_Toss_Mr.Life_20251231</td><td class="num">5</td><td class="num">23</td></tr>
+<tr><td>삼성</td><td>Samsung_iD_ALL</td><td class="num">7</td><td class="num">24</td></tr>
+<tr><td>롯데</td><td>Lotte_LOCA_LIKIT_Eat</td><td class="num">5</td><td class="num">23</td></tr>
+<tr><td>국민</td><td>Kookmin_Friend_20210917</td><td class="num">3</td><td class="num">25</td></tr>
+</tbody></table></div>
+
+<h2 id="raw">2. 전체 OCR 텍스트 평가: <code>gold/raw</code> 기준</h2>
+<p>수치는 페이지별 결과의 단순 평균(macro average)입니다. 토큰 F1은 정규화한 토큰의 겹침 정도이고, CER(Character Error Rate)은 정규화 문자열의 편집 거리 비율입니다. CER은 예측 텍스트가 정답보다 크게 길면 1보다 커질 수 있습니다.</p>
+<div class="scroll"><table><thead><tr><th>엔진</th><th class="num">CER ↓</th><th class="num">토큰 정밀도 ↑</th><th class="num">토큰 재현율 ↑</th><th class="num">토큰 F1 ↑</th><th class="num">수치 F1 ↑</th><th class="num">완전 일치 ↑</th></tr></thead><tbody>
+<tr><td>OpenAI Vision</td><td class="num">0.6242</td><td class="num">86.26%</td><td class="num">94.92%</td><td class="num">88.26%</td><td class="num">81.28%</td><td class="num">0 / 22 (0.00%)</td></tr>
+<tr><td>Upstage</td><td class="num"><b>0.5675</b></td><td class="num"><b>90.39%</b></td><td class="num"><b>98.04%</b></td><td class="num"><b>91.95%</b></td><td class="num"><b>84.02%</b></td><td class="num">2 / 22 (9.09%)</td></tr>
+</tbody></table></div>
+<p>이 표본에서 Upstage는 모든 전체 텍스트 평균 지표에서 더 높았습니다. 다만 22페이지·5개 카드의 한정된 표본이므로, 일반적인 우위로 단정할 근거는 충분하지 않습니다.</p>
+
+<h3>카드별 전체 텍스트 결과</h3>
+<div class="scroll"><table><thead><tr><th>카드사</th><th>OpenAI CER</th><th>Upstage CER</th><th>OpenAI 토큰 F1</th><th>Upstage 토큰 F1</th><th>OpenAI 수치 F1</th><th>Upstage 수치 F1</th></tr></thead><tbody>
+<tr><td>국민</td><td class="num">0.0380</td><td class="num">0.1929</td><td class="num">93.27%</td><td class="num">93.36%</td><td class="num">100.00%</td><td class="num">100.00%</td></tr>
+<tr><td>롯데</td><td class="num">1.4030</td><td class="num">1.3484</td><td class="num">82.11%</td><td class="num">83.22%</td><td class="num">70.46%</td><td class="num">70.34%</td></tr>
+<tr><td>삼성</td><td class="num">0.0618</td><td class="num">0.0387</td><td class="num">95.53%</td><td class="num">97.85%</td><td class="num">82.83%</td><td class="num">85.96%</td></tr>
+<tr><td>신한</td><td class="num">0.2786</td><td class="num">0.0528</td><td class="num">83.86%</td><td class="num">96.60%</td><td class="num">91.55%</td><td class="num">98.99%</td></tr>
+<tr><td>우리</td><td class="num">0.6904</td><td class="num">0.4488</td><td class="num">83.13%</td><td class="num">97.21%</td><td class="num">89.33%</td><td class="num">100.00%</td></tr>
+</tbody></table></div>
+<p class="small">롯데의 높은 CER은 정규화된 정답 문자열보다 OCR 출력이 길거나 차이가 큰 페이지가 있었음을 뜻합니다. CER만으로 누락·삽입·순서 오류를 구분할 수는 없으므로 토큰·수치 F1을 함께 봐야 합니다.</p>
+
+<h2 id="cross-raw">3. 전체 TXT 교차검증: OpenAI ↔ Upstage</h2>
+<p>페이지별로 두 엔진의 토큰 F1이 0.98 이상이고 수치 토큰 F1이 1.00인 경우를 <b>자동 통과 후보</b>로 표시했습니다. 이는 두 엔진이 서로 일치한다는 뜻일 뿐 정답을 보장하지 않으며, gold/raw로 별도 판정했습니다.</p>
+<div class="scroll"><table><thead><tr><th>분류</th><th class="num">페이지</th><th class="num">비율</th><th>의미</th></tr></thead><tbody>
+<tr><td>자동 통과 후보</td><td class="num">7</td><td class="num">31.82%</td><td>엔진 간 텍스트·수치 일치 임계값을 충족한 검수 후보입니다.</td></tr>
+<tr><td>양쪽 모두 gold 전체 TXT 완전 일치</td><td class="num">0</td><td class="num">0.00%</td><td>엄격한 전체 문자열 일치 기준입니다.</td></tr>
+<tr><td>OpenAI만 gold 전체 TXT 완전 일치</td><td class="num">0</td><td class="num">0.00%</td><td>해당 없음</td></tr>
+<tr><td>Upstage만 gold 전체 TXT 완전 일치</td><td class="num">2</td><td class="num">9.09%</td><td>두 페이지에서만 Upstage 전체 문자열이 gold와 일치했습니다.</td></tr>
+<tr><td>양쪽 모두 전체 TXT 완전 불일치</td><td class="num">20</td><td class="num">90.91%</td><td>공백·줄바꿈·표현·읽기 순서까지 모두 같은지를 요구하므로 매우 엄격합니다.</td></tr>
+</tbody></table></div>
+<div class="info"><b>판정:</b> 전체 TXT의 완전 일치는 운영 통과 기준으로 너무 엄격합니다. 자동화 검증에서는 이 결과를 단독으로 쓰지 말고, 수치·핵심 필드·표 구조 평가와 조합해야 합니다.</div>
+
+<h2 id="structured">4. 필드 JSON 평가: <code>gold/structured</code> 기준</h2>
+<p>각 OCR TXT를 OpenAI Structured Outputs에 보냈으며, 수기 정답 JSON의 <b>값을 제외한</b> 필드 ID·페이지·문맥 용어·값 형태만 스키마로 제공했습니다. API는 모든 필드 ID를 반환하도록 강제했고, 검증 결과 10개 예측 JSON 모두 gold와 동일한 필드 그룹·ID 구성을 갖습니다.</p>
+<div class="scroll"><table><thead><tr><th>엔진 입력 TXT</th><th class="num">항목 수</th><th class="num">값 존재율</th><th class="num">전체 exact match</th><th class="num">핵심 항목 exact</th></tr></thead><tbody>
+<tr><td>OpenAI Vision OCR TXT</td><td class="num">117</td><td class="num">100.00%</td><td class="num">46 / 117 (39.32%)</td><td class="num">38 / 88 (43.18%)</td></tr>
+<tr><td>Upstage OCR TXT</td><td class="num">117</td><td class="num">100.00%</td><td class="num">46 / 117 (39.32%)</td><td class="num">37 / 88 (42.05%)</td></tr>
+</tbody></table></div>
+<p>값 존재율 100%는 API가 모든 필드에 null 또는 값을 채웠다는 구조적 완결성 지표입니다. 정확도 100%를 뜻하지 않습니다. 전체 exact match가 낮은 것은 복합 객체, 긴 배열, 표 전체가 정답과 한 글자라도 다르면 실패하는 엄격한 비교 방식의 영향도 포함합니다.</p>
+
+<h3>필드 종류별 exact match</h3>
+<div class="scroll"><table><thead><tr><th>종류</th><th class="num">항목 수</th><th class="num">OpenAI TXT 기반</th><th class="num">Upstage TXT 기반</th><th>비교 단위</th></tr></thead><tbody>
+<tr><td>일반 필드</td><td class="num">50</td><td class="num">17 / 50 (34.00%)</td><td class="num">17 / 50 (34.00%)</td><td>문자열·객체·배열 전체</td></tr>
+<tr><td>수치 필드</td><td class="num">53</td><td class="num">21 / 53 (39.62%)</td><td class="num">21 / 53 (39.62%)</td><td><code>surface_text</code>와 <code>normalized_value</code> 모두</td></tr>
+<tr><td>표 필드</td><td class="num">14</td><td class="num">8 / 14 (57.14%)</td><td class="num">8 / 14 (57.14%)</td><td>헤더와 모든 행·셀 전체</td></tr>
+</tbody></table></div>
+
+<h3>카드별 필드 exact match</h3>
+<div class="scroll"><table><thead><tr><th>카드사</th><th class="num">OpenAI TXT 기반</th><th class="num">Upstage TXT 기반</th></tr></thead><tbody>
+<tr><td>국민</td><td class="num">52.00%</td><td class="num">48.00%</td></tr>
+<tr><td>롯데</td><td class="num">30.43%</td><td class="num">30.43%</td></tr>
+<tr><td>삼성</td><td class="num">25.00%</td><td class="num">29.17%</td></tr>
+<tr><td>신한</td><td class="num">47.83%</td><td class="num">43.48%</td></tr>
+<tr><td>우리</td><td class="num">40.91%</td><td class="num">45.45%</td></tr>
+</tbody></table></div>
+
+<h2 id="cross-field">5. 필드 JSON 교차검증</h2>
+<p>같은 field ID에서 두 예측 JSON의 값이 정규화 후 같은지 비교하고, gold와의 정오답 조합을 분류했습니다.</p>
+<div class="scroll"><table><thead><tr><th>분류</th><th class="num">항목</th><th class="num">비율</th><th>해석</th></tr></thead><tbody>
+<tr><td>두 엔진 예측값 일치</td><td class="num">92</td><td class="num">78.63%</td><td>동일한 구조화 API를 거친 최종 필드 값이 같습니다.</td></tr>
+<tr><td>양쪽 모두 정답</td><td class="num">42</td><td class="num">35.90%</td><td>자동 통과 후보의 가장 강한 근거입니다.</td></tr>
+<tr><td>OpenAI TXT 기반만 정답</td><td class="num">4</td><td class="num">3.42%</td><td>OCR 입력 또는 구조화 해석 차이를 검토할 후보입니다.</td></tr>
+<tr><td>Upstage TXT 기반만 정답</td><td class="num">4</td><td class="num">3.42%</td><td>OCR 입력 또는 구조화 해석 차이를 검토할 후보입니다.</td></tr>
+<tr><td>양쪽 모두 오답</td><td class="num">67</td><td class="num">57.26%</td><td>두 엔진의 일치만으로 정답을 보장할 수 없음을 보여줍니다.</td></tr>
+</tbody></table></div>
+<div class="scroll"><table><thead><tr><th>필드 종류</th><th class="num">엔진 일치</th><th class="num">양쪽 정답</th><th class="num">양쪽 오답</th></tr></thead><tbody>
+<tr><td>일반 필드</td><td class="num">76.00%</td><td class="num">32.00%</td><td class="num">64.00%</td></tr>
+<tr><td>수치 필드</td><td class="num">81.13%</td><td class="num">33.96%</td><td class="num">54.72%</td></tr>
+<tr><td>표 필드</td><td class="num">78.57%</td><td class="num">57.14%</td><td class="num">42.86%</td></tr>
+</tbody></table></div>
+
+<h2 id="model-runtime">6. 추가 실험: GPT-5.6 모델·Codex CLI 실행 경로</h2>
+<p>기존 07 기준선(OpenAI API <code>gpt-5.4-mini</code>, Upstage)을 다시 OCR하지 않고 참조한 상태에서, 동일한 5개 카드·22페이지·수기 gold set으로 API·Codex CLI 구성을 추가 실행했습니다. 새 OCR 원문과 평가 산출물은 <code>notebooks/data/08_ocr_model_runtime_comparison/runs/20260726T000000Z/</code>에 보존했습니다.</p>
+<div class="flow">
+  <div><strong>API Luna</strong><code>gpt-5.6-luna</code> + <code>detail=high</code></div><span class="arrow">·</span>
+  <div><strong>API Terra</strong><code>gpt-5.6-terra</code> + <code>detail=high</code></div><span class="arrow">·</span>
+  <div><strong>Codex CLI Luna</strong><code>codex exec -m gpt-5.6-luna -i &lt;PNG&gt;</code></div><span class="arrow">·</span>
+  <div><strong>Codex CLI Terra</strong><code>codex exec -m gpt-5.6-terra -i &lt;PNG&gt;</code></div>
+</div>
+<div class="notice"><b>초기 high 비교 범위:</b> API Luna·Terra는 동일한 2× PDF 렌더링 PNG와 동일 OCR 프롬프트, <code>detail=high</code>를 사용했습니다. Codex CLI도 같은 PNG·프롬프트·모델명을 사용했지만, CLI에서 <code>high</code>/<code>original</code>을 명시하는 옵션은 확인하지 못했습니다. 따라서 API와 CLI 사이의 차이는 모델 차이만이 아니라 실행 경로·내부 이미지 처리 차이를 포함할 수 있습니다.</div>
+
+<h3>추가 조건: API <code>detail=original</code></h3>
+<p>API Luna·Terra에는 같은 PNG·프롬프트를 유지한 채 이미지 detail만 <code>original</code>로 바꾼 추가 실행을 수행했습니다. 각 모델의 OCR 원문 22페이지와 동일한 고정 구조화 단계(<code>gpt-5.4-mini</code>)의 필드 JSON 5개를 새로 생성했습니다. Codex CLI는 대응 detail 옵션을 확인하지 못했으므로 이 비교에서 제외했습니다.</p>
+
+<h3>전체 OCR 결과: 08 동일 평가식 내부 비교</h3>
+<p>아래 수치는 08에서 6개 구성을 같은 정규화·페이지 단위 macro average로 다시 계산한 결과입니다. 기존 07의 CER 구현값과 직접 수치 비교하지 말고, 이 표 내부의 구성 간 순위에 사용해야 합니다. 토큰 F1·수치 F1은 07 기준선과 같은 원문을 사용합니다.</p>
+<div class="scroll"><table><thead><tr><th>구성</th><th>실행 경로</th><th class="num">CER ↓</th><th class="num">토큰 F1 ↑</th><th class="num">수치 F1 ↑</th><th class="num">전체 TXT 완전 일치 ↑</th></tr></thead><tbody>
+<tr><td>Upstage 기준선</td><td>Document Parse</td><td class="num"><b>0.1517</b></td><td class="num"><b>91.95%</b></td><td class="num">83.37%</td><td class="num">2 / 22 (9.09%)</td></tr>
+<tr><td>Codex CLI Luna</td><td>구독 로그인 CLI</td><td class="num">0.1601</td><td class="num">89.76%</td><td class="num"><b>84.12%</b></td><td class="num">2 / 22 (9.09%)</td></tr>
+<tr><td>API Luna + original</td><td>OpenAI Responses API</td><td class="num">0.1660</td><td class="num">89.00%</td><td class="num">82.19%</td><td class="num">0 / 22 (0.00%)</td></tr>
+<tr><td>API Luna + high</td><td>OpenAI Responses API</td><td class="num">0.1710</td><td class="num">88.97%</td><td class="num">83.03%</td><td class="num">0 / 22 (0.00%)</td></tr>
+<tr><td>Codex CLI Terra</td><td>구독 로그인 CLI</td><td class="num">0.1722</td><td class="num">88.39%</td><td class="num">82.24%</td><td class="num">1 / 22 (4.55%)</td></tr>
+<tr><td>API Terra + original</td><td>OpenAI Responses API</td><td class="num">0.1802</td><td class="num">87.34%</td><td class="num">82.10%</td><td class="num">1 / 22 (4.55%)</td></tr>
+<tr><td>API Terra + high</td><td>OpenAI Responses API</td><td class="num">0.1903</td><td class="num">87.01%</td><td class="num">81.17%</td><td class="num">1 / 22 (4.55%)</td></tr>
+<tr><td>API 5.4-mini 기준선</td><td>OpenAI Responses API</td><td class="num">0.1904</td><td class="num">88.26%</td><td class="num">80.43%</td><td class="num">0 / 22 (0.00%)</td></tr>
+</tbody></table></div>
+
+<h3>필드 exact-match 결과</h3>
+<p>새 4개 OCR TXT와 기존 2개 기준선 TXT는 모두 같은 <code>gpt-5.4-mini</code> 구조화 모델·프롬프트·gold 스키마로 필드 JSON을 만들었습니다. 따라서 이 표는 <b>OCR TXT + 고정 구조화 단계</b>의 종단 성능입니다.</p>
+<div class="scroll"><table><thead><tr><th>구성</th><th class="num">정답 필드</th><th class="num">전체 exact match ↑</th></tr></thead><tbody>
+<tr><td>API Luna + high</td><td class="num">48 / 117</td><td class="num"><b>41.03%</b></td></tr>
+<tr><td>API Terra + original</td><td class="num">48 / 117</td><td class="num"><b>41.03%</b></td></tr>
+<tr><td>API Luna + original</td><td class="num">47 / 117</td><td class="num">40.17%</td></tr>
+<tr><td>API 5.4-mini 기준선</td><td class="num">46 / 117</td><td class="num">39.32%</td></tr>
+<tr><td>Upstage 기준선</td><td class="num">44 / 117</td><td class="num">37.61%</td></tr>
+<tr><td>API Terra + high</td><td class="num">44 / 117</td><td class="num">37.61%</td></tr>
+<tr><td>Codex CLI Luna</td><td class="num">44 / 117</td><td class="num">37.61%</td></tr>
+<tr><td>Codex CLI Terra</td><td class="num">38 / 117</td><td class="num">32.48%</td></tr>
+</tbody></table></div>
+
+<div class="info"><b><code>original</code> 추가 결과의 현재 판단:</b> Luna는 <code>high → original</code>에서 CER 0.1710→0.1660, 토큰 F1 88.97%→89.00%로 소폭 좋아졌지만 수치 F1은 83.03%→82.19%, 필드 exact match는 48→47로 낮아졌습니다. Terra는 CER 0.1903→0.1802, 토큰 F1 87.01%→87.34%, 수치 F1 81.17%→82.10%, 필드 exact match 44→48로 모두 개선됐습니다. 이는 관측된 결과입니다. 다만 22페이지 단일 실행과 OCR의 비결정성 가능성 때문에 <code>original</code>이 항상 더 낫다고 결론낼 근거는 아직 없습니다.</div>
+<ul>
+  <li><b>API 운영 후보:</b> API Luna는 전체 OCR CER·토큰 F1에서, API Terra + original은 필드 exact match에서 가장 높았습니다. 용도별 지표와 비용·지연을 함께 두고 재실행으로 우위를 확인합니다.</li>
+  <li><b>CLI 결과 해석:</b> Codex CLI Luna는 수치 F1이 가장 높았지만, API와 이미지 detail·에이전트 실행 조건을 동일하게 고정하지 못했습니다. API OCR의 대체 결과가 아니라 별도 엔진 결과로 유지합니다.</li>
+  <li><b>재검증:</b> <code>original</code> 효과는 모델별로 다르게 관측됐습니다. 같은 조건의 재실행과 표·각주가 밀집한 페이지 표본에서 Luna·Terra를 다시 비교해야 합니다.</li>
+</ul>
+
+<h2 id="definitions">7. 지표 정의와 해석 한계</h2>
+<div class="scroll"><table><thead><tr><th>지표</th><th>정의</th><th>주의점</th></tr></thead><tbody>
+<tr><td>CER</td><td>정규화 문자열 편집 거리 / gold 문자열 길이</td><td>순서·삽입·삭제에 민감하며 1 초과가 가능합니다.</td></tr>
+<tr><td>토큰 정밀도·재현율·F1</td><td>정규화된 단어 토큰의 다중집합 교집합</td><td>텍스트 내용 유사도는 보지만 읽기 순서와 문장 구조를 완전히 보지 않습니다.</td></tr>
+<tr><td>수치 F1</td><td>숫자·비율·금액 형태 토큰의 F1</td><td>숫자의 문맥 연결이나 단위 의미가 완전히 맞는지까지는 검증하지 않습니다.</td></tr>
+<tr><td>필드 exact match</td><td>정규화 후 gold 필드 값과 예측 필드 값이 동일</td><td>복합 객체·배열·표는 일부만 틀려도 전체 실패입니다.</td></tr>
+<tr><td>엔진 일치</td><td>두 엔진의 같은 필드 예측값이 동일</td><td>둘 다 같은 오류를 낼 수 있으므로 정답 판정이 아닙니다.</td></tr>
+</tbody></table></div>
+<div class="notice"><b>현재 미포함 지표:</b> 표 헤더·행·셀 단위 정확도, 필드별 부분 일치, 읽기 순서(LCS 등), 필드별 근거 위치 일치도는 아직 별도 산출하지 않았습니다. 현재 표 평가는 표 전체 exact match이므로, 실무에서 표 품질을 세밀하게 보려면 셀 단위 지표를 추가해야 합니다.</div>
+
+<h2 id="conclusion">8. 결론과 다음 적용 기준</h2>
+<ul>
+  <li><b>전체 OCR 품질:</b> 08의 8개 구성 재계산에서는 Upstage가 CER·토큰 F1, Codex CLI Luna가 수치 F1에서 가장 높았습니다. API 구성만 보면 Luna + original이 CER·토큰 F1, Terra + original이 수치 F1에서 가장 높았습니다.</li>
+  <li><b>자동 통과:</b> 전체 TXT 일치만으로 확정하지 말고, 엔진 간 수치 일치·핵심 필드 일치·gold 기반 검증을 함께 사용해야 합니다.</li>
+  <li><b>필드 구조화:</b> 두 OCR TXT를 같은 구조화기로 처리해 공정한 입력 비교는 가능해졌지만, 현재 39.32% exact match는 자동 확정에 사용하기에는 낮습니다.</li>
+  <li><b>우선 개선:</b> 핵심 필드부터 부분 일치와 근거 문장 검증을 추가하고, 표는 헤더/행/셀 단위 지표로 분해하는 것이 다음 단계입니다.</li>
+  <li><b>운영 제안:</b> “양쪽 핵심 필드 정답 또는 강한 일치”만 자동 통과 후보로 두고, 나머지는 원문 TXT·구조화 JSON·PDF 페이지를 함께 보여 주는 검수 큐로 보내는 방식이 적절합니다.</li>
+</ul>
+
+<p class="meta">근거 산출물: 07 기준선의 <code>notebooks/data/07_goldset_vision_upstage_comparison/2026-07-25_live_ocr/evaluation_v4/</code>, 추가 실험의 <code>notebooks/data/08_ocr_model_runtime_comparison/runs/20260726T000000Z/</code>에 있는 <code>full_page_metrics.csv</code>, <code>field_exact_metrics.csv</code>, 원문·구조화 JSON·실행 manifest. 원본 PDF와 gold 정답셋은 수정하지 않았습니다.</p>
+</main></body></html>

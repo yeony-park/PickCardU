@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "issuer": "ibk",
+  "card_name": "IBK_Point3.8(Credit)",
+  "source_pdf": "data/raw/ibk/IBK_Point3.8(Credit).pdf",
+  "raw_annotation": "data/ocr_benchmark/gold/raw/ibk/IBK_Point3.8(Credit).txt",
+  "annotation_scope": "Field labels derived only from the team-provided raw annotation. The source PDF and OCR-provider outputs were not used to create this file.",
+  "text_labels": [{"id": "page_1_full_transcription", "page_num": 1, "raw_start_marker": "[page 1]"}, {"id": "page_2_full_transcription", "page_num": 2, "raw_start_marker": "[page 2]"}, {"id": "page_3_full_transcription", "page_num": 3, "raw_start_marker": "[page 3]"}, {"id": "page_4_full_transcription", "page_num": 4, "raw_start_marker": "[page 4]"}, {"id": "page_5_full_transcription", "page_num": 5, "raw_start_marker": "[page 5]"}, {"id": "page_6_full_transcription", "page_num": 6, "raw_start_marker": "[page 6]"}],
+  "field_labels": [
+    {"id": "card_name", "page_num": 1, "value": "IBK포인트 3.8(신용)", "context_terms": ["IBK포인트 3.8(신용)"], "critical": true},
+    {"id": "basic_point_earning", "page_num": 2, "value": {"rate": 0.015, "target": "국내·외 가맹점 이용금액", "previous_month_spend_minimum_krw": 500000, "monthly_limit": "없음"}, "context_terms": ["기본 포인트", "1.5% 적립", "50만원 이상"], "critical": true},
+    {"id": "special_point_overseas", "page_num": 2, "value": {"rate": 0.05, "target": "해외 가맹점 이용금액", "previous_month_spend_minimum_krw": 500000, "monthly_limit_point": 15000}, "context_terms": ["특별 포인트Ⅰ", "5% 적립", "15,000포인트"], "critical": true},
+    {"id": "special_point_online_shopping", "page_num": 2, "value": {"rate": 0.005, "target_merchants": ["쿠팡", "G마켓", "옥션", "11번가"], "previous_month_spend_minimum_krw": 500000, "monthly_limit_point": 10000}, "context_terms": ["특별 포인트Ⅱ", "온라인 쇼핑", "0.5% 적립"], "critical": true},
+    {"id": "point_value", "page_num": 2, "value": {"point": 1, "krw": 1}, "context_terms": ["IBK포인트 1포인트는 1원"], "critical": true},
+    {"id": "annual_fee", "page_num": 3, "value": {"international_primary": {"total_krw": 38000, "base_krw": 4000, "partner_krw": 34000}, "domestic_primary": {"total_krw": 37000, "base_krw": 4000, "partner_krw": 33000}, "international_family": {"total_krw": 36000, "base_krw": 4000, "partner_krw": 32000}, "domestic_family": {"total_krw": 35000, "base_krw": 4000, "partner_krw": 31000}}, "context_terms": ["카드발급 안내", "연회비"], "critical": true}
+  ],
+  "numeric_labels": [
+    {"id": "basic_point_rate", "page_num": 2, "surface_text": "1.5%", "normalized_value": 0.015, "unit": "ratio", "context_terms": ["기본 포인트"], "critical": true},
+    {"id": "special_point_overseas_rate", "page_num": 2, "surface_text": "5%", "normalized_value": 0.05, "unit": "ratio", "context_terms": ["특별 포인트Ⅰ", "해외"], "critical": true},
+    {"id": "special_point_overseas_monthly_limit", "page_num": 2, "surface_text": "15,000포인트", "normalized_value": 15000, "unit": "point", "context_terms": ["특별 포인트Ⅰ", "월 적립한도"], "critical": true},
+    {"id": "special_point_online_shopping_rate", "page_num": 2, "surface_text": "0.5%", "normalized_value": 0.005, "unit": "ratio", "context_terms": ["특별 포인트Ⅱ", "온라인 쇼핑"], "critical": true},
+    {"id": "special_point_online_shopping_monthly_limit", "page_num": 2, "surface_text": "10,000포인트", "normalized_value": 10000, "unit": "point", "context_terms": ["온라인쇼핑", "월 적립한도"], "critical": true},
+    {"id": "point_earning_previous_month_spend", "page_num": 2, "surface_text": "50만원 이상", "normalized_value": 500000, "unit": "KRW", "context_terms": ["전월 이용실적", "적립"], "critical": true},
+    {"id": "fuel_spend_monthly_recognition_limit", "page_num": 2, "surface_text": "월 100만원", "normalized_value": 1000000, "unit": "KRW", "context_terms": ["주유", "적립대상"], "critical": true},
+    {"id": "international_primary_annual_fee_total", "page_num": 3, "surface_text": "3만 8천원", "normalized_value": 38000, "unit": "KRW", "context_terms": ["해외겸용", "본인", "연회비"], "critical": true},
+    {"id": "domestic_primary_annual_fee_total", "page_num": 3, "surface_text": "3만 7천원", "normalized_value": 37000, "unit": "KRW", "context_terms": ["국내전용", "본인", "연회비"], "critical": true},
+    {"id": "international_brand_visa_fee_rate", "page_num": 4, "surface_text": "VISA 1.1%", "normalized_value": 0.011, "unit": "ratio", "context_terms": ["국제브랜드 수수료"], "critical": false},
+    {"id": "international_brand_mastercard_fee_rate", "page_num": 4, "surface_text": "Mastercard 1.0%", "normalized_value": 0.01, "unit": "ratio", "context_terms": ["국제브랜드 수수료"], "critical": false},
+    {"id": "overseas_service_fee_rate", "page_num": 4, "surface_text": "0.18%", "normalized_value": 0.0018, "unit": "ratio", "context_terms": ["해외이용 수수료"], "critical": false}
+  ],
+  "table_labels": [
+    {"id": "online_shopping_point_limit", "page_num": 2, "headers": ["구분", "대상 가맹점", "월 적립한도"], "rows": [["온라인쇼핑", "쿠팡, G마켓, 옥션, 11번가", "10,000포인트"]]},
+    {"id": "card_issue_annual_fee", "page_num": 3, "headers": ["구분", "", "해외겸용(VISA, Mastercard)", "국내전용(BC)"], "rows": [["발급대상", "", "개인(본인 및 가족)", "개인(본인 및 가족)"], ["연회비", "본인", "3만 8천원(기본연회비 4천원 + 제휴연회비 3만4천원)", "3만 7천원(기본연회비 4천원 + 제휴연회비 3만3천원)"], ["연회비", "가족", "3만 6천원(기본연회비 4천원 + 제휴연회비 3만2천원)", "3만 5천원(기본연회비 4천원 + 제휴연회비 3만1천원)"], ["후불교통", "", "선택 시 가능", "선택 시 가능"]]}
+  ]
+}
