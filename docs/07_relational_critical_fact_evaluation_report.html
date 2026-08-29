@@ -36,7 +36,7 @@
     @media (max-width:760px) { .grid { grid-template-columns:1fr 1fr; } th,td { font-size:13px; padding:8px 7px; } }
   </style>
 </head>
-<body>
+<body><section class="report-context"><h2>왜 이 테스트를 했나</h2><p>값 하나만 맞는지보다 혜택·조건·표 행 관계가 맞는지와 수치 오류 발생 단계를 확인하려 했다.</p><h2>이 테스트로 무엇을 확인하려 했나</h2><p>관계형 평가가 위험 오답을 드러내고, 오류가 OCR·JSON·규칙 중 어디에서 생겼는지 구분하는지 확인했다.</p></section>
 <main>
   <h1>관계형 Critical Fact 평가 및 수치 오류 귀속</h1>
   <p class="meta">10번 노트북 유효 실행: <code>20260808T082345Z</code> · 오류 귀속 실행: <code>20260810T060240Z</code> · 추가 API 호출 없음</p>
@@ -153,5 +153,5 @@
     <p class="note">이 귀속은 수기 gold와 structured gold가 정확하다는 가정에 의존한다. 또한 현재 발견된 31개 수치 불일치를 근거 문맥으로 감사한 결과이며, 앞으로 새로운 오류 유형이 나오면 귀속 규칙과 사람이 확인할 근거가 추가되어야 한다.</p>
   </section>
 </main>
-</body>
+<section class="report-conclusion"><h2>최종 결과</h2><p>관계형 평가에서는 83.33, 95.56, 86.07과 99.63의 지표가 함께 기록됐다. 이 결과는 값 exact만으로 채택하지 않고 혜택·조건·표 행 관계와 오류 귀속을 함께 보는 기준을 만들었다. 수치가 맞아도 대상·조건 또는 source 관계가 틀리면 위험 오답이 될 수 있다는 실패가 핵심이다. 이 기준은 clean end-to-end OCR benchmark의 critical fact 계약으로 이어졌다.</p></section></body>
 </html>

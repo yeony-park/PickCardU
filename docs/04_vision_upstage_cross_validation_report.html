@@ -20,7 +20,7 @@
   @media (max-width:700px) { main { padding:28px 16px; } .summary { grid-template-columns:repeat(2, 1fr); } table { font-size:12px; } }
 </style>
 </head>
-<body><main>
+<body><section class="report-context"><h2>왜 이 테스트를 했나</h2><p>Vision과 Upstage의 차이를 원본 페이지 기준으로 다시 확인해 자동 판정의 신뢰 범위를 정하려 했다.</p><h2>이 테스트로 무엇을 확인하려 했나</h2><p>두 엔진의 일치·불일치가 핵심 금액·비율·전월실적 사실과 어떻게 연결되는지 확인했다.</p></section><main>
 <h1>Vision OCR · Upstage 교차 검증 보고서</h1>
 <p class="lead">BC·NH 카드사 전체 PDF를 대상으로 Vision OCR과 Upstage 결과를 대조하고, 자동 통과 및 불일치 페이지를 원본 PDF 기준으로 다시 판정한 결과입니다.</p>
 <p class="meta">대상: 20개 PDF / 46페이지 · 엔진: Vision OCR, Upstage · Claude: 비활성 · 보고서 생성일: 2026-07-22</p>
@@ -72,4 +72,4 @@
 <li><b>수동 검토 화면:</b> 원본 페이지 이미지와 Vision·Upstage 텍스트를 한 화면에 놓고, 판정 결과를 정답 데이터로 축적해야 임계값을 보정할 수 있습니다.</li>
 </ul>
 <p class="meta">원본: <code>data/documents/raw/BC</code>, <code>data/documents/raw/NH</code> · 실행 결과: <code>notebooks/data/06_ocr_validation_pipeline/validation/validation_results.json</code></p>
-</main></body></html>
+</main><section class="report-conclusion"><h2>최종 결과</h2><p>결과는 제한된 페이지의 교차검증 기록이다. 엔진 일치는 정답 증명이 아니며 불일치 사례는 원본 검토가 다음 단계다. 본문 표와 근거 링크에 기록된 수치가 이 결론의 근거이며, 이 보고서 자체는 해당 고정 표본·계약에서의 비교 기록이다. 따라서 이 결과만으로 운영 채택을 확정하지 않고, 실패 사례와 범위 제한을 다음 평가의 입력으로 남긴다. 다음 단계에서는 같은 평가 계약을 유지한 채 필요한 원본 대조·독립 표본·후속 실험으로 결론을 다시 확인해야 한다.</p></section></body></html>

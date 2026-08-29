@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>26번 cross-package holdout v2 무효 종료 보고서</title>
+<style>
+:root{--ink:#172033;--muted:#5d697b;--line:#dce4ed;--paper:#fff;--bg:#f5f7fb;--navy:#16375f;--teal:#087a7b;--red:#a43b42;--amber:#795c09}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.7 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans KR",sans-serif}main{max-width:1120px;margin:auto;padding:28px 20px 60px}header{padding:34px;background:linear-gradient(135deg,#133158,#286b89);color:#fff;border-radius:18px}h1{font-size:clamp(27px,4vw,41px);line-height:1.2;margin:0 0 12px}h2{font-size:25px;margin:42px 0 12px}h3{font-size:18px;margin:0 0 7px}p{margin:8px 0}.lead{font-size:18px}.tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}.tag{font-size:13px;padding:3px 10px;border:1px solid #ffffff55;background:#ffffff18;border-radius:99px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}.panel,.callout{padding:16px;background:var(--paper);border:1px solid var(--line);border-radius:12px}.callout{border-left:5px solid var(--teal);margin:16px 0}.warn{border-left-color:var(--amber)}.fail{border-left-color:var(--red)}table{width:100%;border-collapse:collapse;background:#fff;margin:12px 0 0;font-size:14px}caption{text-align:left;font-weight:700;padding-bottom:5px}th,td{border:1px solid var(--line);padding:9px;vertical-align:top;text-align:left}th{background:#edf3f9;color:#203f65}.num{text-align:right;font-variant-numeric:tabular-nums}.guide{margin:0 0 20px;padding:12px 14px;background:#edf8f6;color:#28524f;border-radius:0 0 10px 10px;font-size:13px}.flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:13px 0}.flow span{padding:8px 11px;border-radius:9px;background:#e9f0f8;border:1px solid #cedceb;font-weight:650}.flow b{color:var(--teal)}.term{font-weight:700;color:var(--navy)}details{margin:12px 0;padding:0 14px 12px;background:#fff;border:1px solid var(--line);border-radius:10px}summary{cursor:pointer;padding:10px 0;font-weight:700;color:var(--navy)}summary:focus-visible{outline:3px solid #f0b429;outline-offset:3px;border-radius:4px}a{color:#075f9c}.small{font-size:13px;color:var(--muted)}code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere}@media(max-width:720px){main{padding:16px 12px 40px}header{padding:25px 20px;border-radius:12px}table{font-size:12px}th,td{padding:7px;word-break:break-word}}@media print{body{background:#fff}main{max-width:none;padding:0}header{border-radius:0}.panel,.callout,table{break-inside:avoid}}
+</style>
+</head>
+<body><main>
+<header>
+  <h1>26번 cross-package holdout v2: 공통 채점표가 성립하지 않아 무효 종료한 비교</h1>
+  <p class="lead">결론: OLD와 STRUCT 중 승자는 없다. 구조가 다른 두 corpus에 동결된 근거 span을 똑같이 대응시키는 전제 자체가 깨져, 성능 지표를 계산하거나 한 쪽을 고를 수 없었다.</p>
+  <div class="tags"><span class="tag">unseen 30</span><span class="tag">label-free ranking freeze</span><span class="tag">fail-closed</span><span class="tag">LLM 답변 평가는 아님</span></div>
+</header>
+
+<section>
+  <h2>왜 이 테스트를 했는가</h2>
+  <div class="grid">
+    <div class="panel"><h3>개발 결과 다음의 공정한 비교</h3><p>OLD-D20-K3와 STRUCT-D20-K3는 청킹·근거 묶음·질의 경로가 함께 다른 검색·근거 패키지다. 개발 질의에서 보인 차이가 보지 않은 30개 질의에도 이어지는지 확인하려 했으며, LLM이 답을 쓰는 품질은 이번 범위에 포함하지 않았다.</p></div>
+    <div class="panel"><h3>v1이 아니라 v2인 이유</h3><p>v2는 기존 v1 실행을 계속하거나 고친 결과가 아니라, 같은 봉인 자료를 참조해 두 패키지를 끝까지 비교하도록 별도로 동결한 연구다. v1 파일·상태는 바꾸지 않았고 실행하지 않았으며, v2의 후보 구성도 질의와 정답표를 열기 전에 seal(봉인)했다.</p></div>
+    <div class="panel"><h3>무엇을 가르려 했나</h3><p>같은 Top3 카드 출력에서 expected card가 들어오는지, 그 카드가 실제 근거 body로 지원되는지, 동결한 evidence span이 출력 근거 안에 있는지를 비교하려 했다. 이 세 질문은 카드 이름만 맞는 경우와 혜택·조건까지 증명되는 경우를 분리한다.</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>무엇을 비교했는가</h2>
+  <table><caption>고정한 패키지와 검색 조건</caption><thead><tr><th>구성</th><th>검색·근거 처리</th><th>공통 고정 조건</th></tr></thead><tbody>
+  <tr><th>OLD-D20-K3</th><td>기존 327개 card/page/section/benefit 청킹, proper/numeric은 RRF 통과·semantic은 BGE 재정렬, source field만 쓰는 안전한 제목 보강.</td><td rowspan="2">Vector:normalized BM25 = <strong>.4:.6</strong>, 각 component Top50, RRF <code>k=60</code>, fused D20, 최종 고유 카드 K3. BGE는 local-only FP16 batch 2, raw logit 내림차순이며 RRF 점수와 섞지 않는다.</td></tr>
+  <tr><th>STRUCT-D20-K3</th><td>147개 구조형 direct-body 청킹, 모든 질의 BGE 재정렬, 같은 카드 1-hop 자동 bundle(최대 5개 unique chunk, root children fanout·재귀·cross-card 금지).</td></tr>
+  </tbody></table>
+  <div class="guide"><strong>비교 데이터:</strong> 봉인된 30개 unseen 질의의 retrieval/evidence package다. <strong>통과 의미:</strong> 같은 D20·K3 조건에서 카드와 근거가 모두 공통 계약으로 채점 가능해야 한다. <strong>한계:</strong> OLD/STRUCT는 청킹만 다른 실험이 아니라 route·bundle까지 포함한 패키지이며 LLM 답변 정확도는 측정하지 않는다. <strong>예:</strong> ‘편의점 10% 할인, 전월실적 30만원’ 질의라면 카드 이름뿐 아니라 할인·조건 근거가 final payload body에 있어야 한다.</div>
+  <p><span class="term">D20/K3</span>는 RRF가 섞은 상위 20개 chunk를 reranker 후보로 쓰고, 최종 고유 카드 3장을 반환한다는 뜻이다. <span class="term">component50</span>은 vector와 BM25가 각각 최대 50개까지 제공하는 입력 범위이며, 답 50개를 반환한다는 뜻이 아니다.</p>
+</section>
+
+<section>
+  <h2>봉인과 누수 방지 순서</h2>
+  <p>holdout의 실제 질문·정답·evidence span 평문은 이 보고서에 싣지 않는다. 아래는 가상 카드로만 보인 schema 예이며, 실제 label은 ranking·bundle을 고정한 뒤에만 projection과 평가에 사용한다.</p>
+  <table><caption>평문을 공개하지 않는 holdout 레코드 형태 예시(가상)</caption><thead><tr><th>필드</th><th>가상 예시</th><th>역할</th></tr></thead><tbody><tr><td><code>query</code></td><td>“가상카드 편의점 혜택은?”</td><td>검색에만 쓰는 질의</td></tr><tr><td><code>category</code></td><td><code>numeric_condition</code></td><td>숫자·조건 유형 집계</td></tr><tr><td><code>expected_card</code></td><td><code>DemoCard</code></td><td>카드 적중 평가</td></tr><tr><td><code>evidence_span</code></td><td>“편의점 10% 할인, 전월 30만원”</td><td>실제 payload body 근거와의 대응 확인</td></tr></tbody></table>
+  <div class="guide"><strong>비교 데이터:</strong> 실제 30개는 봉인 상태로, 이 표는 형식만 설명하는 가상 예다. <strong>통과 의미:</strong> label은 ranking freeze 뒤에 열려야 하며, 모델 입력·후보 선정에 쓰이지 않는다. <strong>한계:</strong> 예시가 실제 질문·카드·조건을 뜻하지 않으며 실제 평문은 공개하지 않는다. <strong>카드 예:</strong> 실제 평가에서는 가상 ‘DemoCard’가 아니라 sealed label의 expected card와 span으로 판정한다.</div>
+  <div class="flow" aria-label="누수 방지 실행 순서"><span>candidate seal</span><b>→</b><span>query-only embedding</span><b>→</b><span>label-free rankings / bundles freeze</span><b>→</b><span>labels projection / evaluation</span></div>
+  <p class="small"><span class="term">candidate seal(후보 봉인)</span>은 질의·정답을 보기 전 후보와 실행 계약을 고정하는 단계다. <span class="term">label-free freeze(라벨 없는 고정)</span>는 정답을 열기 전 rankings와 bundle을 저장해, 낮은 점수를 본 뒤 순위나 근거를 고치지 못하게 한다.</p>
+</section>
+
+<section>
+  <h2>결과: 성능 비교 전에 채점표 유효성에서 종료</h2>
+  <div class="callout fail"><strong>terminal status: <code>INVALID_CROSS_CORPUS_EVIDENCE_PROJECTION</code></strong><br>OLD와 STRUCT 양쪽 full corpus에서 동결 span이 모두 projection되어야 한다는 사전 validity gate를 통과하지 못했다. 따라서 Card Hit@3·Supported-card Hit@3·Evidence Span Coverage@3의 결과 수치는 <strong>미산출</strong>이며 winner는 없다.</div>
+  <table><caption>동결 evidence span의 cross-corpus projection 감사</caption><thead><tr><th>항목</th><th class="num">값</th><th>해석</th></tr></thead><tbody>
+  <tr><td>전체 projection unit</td><td class="num">30</td><td>두 corpus 모두에 정확히 대응해야 하는 단위</td></tr>
+  <tr><td>OLD present / total matches</td><td class="num">30/30 · 71</td><td>OLD body에서 모든 unit이 확인됨</td></tr>
+  <tr><td>STRUCT present / total matches</td><td class="num">11/30 · 11</td><td>19개 unit이 structural actual body에 없음</td></tr>
+  <tr><td>missing group</td><td class="num">card 10 · evidence 9</td><td>카드명/별칭과 혜택·조건 근거가 모두 영향</td></tr>
+  <tr><td>missing category</td><td class="num">alias 10 · numeric 4 · semantic 5</td><td>합계 19; query ID나 평문은 공개하지 않음</td></tr>
+  </tbody></table>
+  <div class="guide"><strong>비교 데이터:</strong> 정규화(NFKC·casefold·공백 collapse)한 frozen span이 각 패키지의 actual final payload body/evidence에 있는지 검사한다. <strong>통과 의미:</strong> 30/30이 양쪽 corpus에서 projection되어야 공통 점수표가 된다. <strong>핵심 한계:</strong> 이것은 검색 순위 성능이 아니라 채점 계약의 유효성 검사다. <strong>예:</strong> 한 연속 근거가 제목·부모·자식으로 나뉘면 실제 정보가 있어도 body-only exact span 하나로는 대응하지 못할 수 있다.</div>
+  <p>특히 카드명 alias 10건은 제목에만 있고 actual body-only 계약에서는 제목 보강을 근거로 인정할 수 없어 모두 실패했다. 이는 STRUCT가 검색에서 졌다는 뜻이 아니라, 이 동결 label을 두 구조에 공정하게 투사할 수 없다는 뜻이다. 결과를 본 뒤 제목·정규화·span 규칙을 완화하면 holdout 맞춤이 되므로 재채점하지 않았다.</p>
+</section>
+
+<section>
+  <h2>지표를 어떻게 읽어야 하나</h2>
+  <table><caption>이번에 계획했으나 invalid 종료로 미산출인 지표</caption><thead><tr><th>지표</th><th>쉬운 뜻</th><th>이 평가에서의 상태</th></tr></thead><tbody>
+  <tr><td>Card Hit@3</td><td>최종 3장 안에 expected card가 하나라도 있는 질의 비율</td><td>공통 evidence projection gate 실패로 미산출</td></tr>
+  <tr><td>Supported-card Hit@3</td><td>Top3에 expected card가 있고, 동결 span 하나 이상이 actual payload body/evidence로 확인되는 evidence 질의 비율</td><td>공통 evidence projection gate 실패로 미산출</td></tr>
+  <tr><td>Evidence Span Coverage@3</td><td>Top3 payload가 회수한 고유 normalized frozen span의 질의별 비율을 평균한 값</td><td>공통 evidence projection gate 실패로 미산출</td></tr>
+  </tbody></table>
+  <div class="guide"><strong>비교 데이터·분모:</strong> Card Hit@3은 30 질의, Supported-card Hit@3은 evidence 20 질의, Coverage는 유효하게 projection된 frozen span의 질의별 비율을 쓸 계획이었다. <strong>높을수록 좋은 의미:</strong> 카드가 상위에 있고 실제 근거가 지원될 가능성이 높다는 신호다. <strong>핵심 한계:</strong> 근거 span 계약이 corpus 구조에 종속되면 지표 자체가 공통 비교가 아니다. <strong>예:</strong> 카드가 Top3에 있어도 ‘10%’와 ‘전월 30만원’이 final body에 함께 대응하지 않으면 supported-card 성공이 아니다.</div>
+</section>
+
+<section>
+  <h2>비용·시간과 실행 범위</h2>
+  <table><caption>실제로 수행한 label-free 단계와 terminal finalization</caption><thead><tr><th>항목</th><th class="num">기록</th><th>해석·한계</th></tr></thead><tbody>
+  <tr><td>query embedding</td><td class="num">1 request · 30 items · 1,202 tokens<br>$0.00002404 · 5.096s · retry 0</td><td>query text만 전송; label·gold·문서·평가 필드는 전송 금지</td></tr>
+  <tr><td>BGE label-free scoring</td><td class="num">567 pairs (OLD 340, STRUCT 227)<br>9.067s · 62.53 pairs/s</td><td>후보·bundle을 라벨 없이 고정한 단계</td></tr>
+  <tr><td>GPU peak</td><td class="num">allocated 1,296,400,896 bytes (1.207 GiB)<br>reserved 1,484,783,616 bytes (1.383 GiB)</td><td>physical GPU0, FP16 batch2; device-wide latency와 같은 의미는 아님</td></tr>
+  <tr><td>안전·종료</td><td class="num">OOM 0 · truncation 0<br>terminal API/network/GPU 0</td><td>invalid 판정 뒤 재실행·튜닝은 하지 않음</td></tr>
+  </tbody></table>
+  <div class="guide"><strong>비교 데이터:</strong> embedding 1회와 labels를 열기 전 BGE pair scoring의 저장 자원 기록이다. <strong>성공 의미:</strong> finite 567 pair를 truncation·OOM 없이 고정했다는 실행 사실이다. <strong>핵심 한계:</strong> 성능 winner가 없으므로 이 비용은 채택 비용 비교가 아니며, 온라인 search/LLM latency도 측정하지 않았다. <strong>카드 예:</strong> 카드명·정답 span은 embedding 요청이 아니라 query text만 embedding에 들어간다.</div>
+</section>
+
+<section>
+  <h2>최종 결과와 다음 단계</h2>
+  <div class="callout fail"><p>이 holdout으로 OLD와 STRUCT 중 승자를 고를 수 없다. 19/30 structural projection 누락은 구조가 다를 때 기존 exact evidence span을 그대로 공통 정답표로 쓰기 어렵다는 계약 실패이며, STRUCT의 성능 패배나 OLD의 승리를 뜻하지 않는다.</p><p>다음 비교는 양쪽 원문 source location에 연결되는 structure-neutral atomic fact/claim ID로 새 holdout을 만들고, 결과를 보기 전에 다시 봉인해야 한다. 이번 30개를 튜닝용으로 재사용하지 않고, OLD·STRUCT 후보 구성도 바꾸지 않은 상태에서 새 평가를 시작해야 한다.</p></div>
+</section>
+
+<section>
+  <h2>근거와 machine-readable 산출물</h2>
+  <details open><summary>26번 봉인·실행·terminal audit 파일</summary><p><a href="../notebooks/26_cross_package_holdout_evaluation.ipynb">26번 notebook</a>, <a href="../notebooks/data/26_cross_package_holdout_evaluation/evaluation_contract.json">evaluation contract</a>, <a href="../notebooks/data/26_cross_package_holdout_evaluation/candidate_execution_seal_v2.json">candidate seal v2</a>, <a href="../notebooks/data/26_cross_package_holdout_evaluation/label_free_execution_seal_v2.json">label-free execution seal</a>, <a href="../notebooks/data/26_cross_package_holdout_evaluation/terminal_projection_audit_summary.json">terminal projection audit summary</a>, <a href="../notebooks/data/26_cross_package_holdout_evaluation/decision.json">decision</a>, <a href="../notebooks/data/26_cross_package_holdout_evaluation/integrity_final.json">integrity final</a>, <a href="../notebooks/data/26_cross_package_holdout_evaluation/run_manifest_final.json">run manifest final</a>, <a href="../notebooks/data/26_cross_package_holdout_evaluation/label_free_resources.json">label-free resources</a>, <a href="../notebooks/data/26_cross_package_holdout_evaluation/query_embedding_usage.json">query embedding usage</a>, <a href="../notebooks/data/26_cross_package_holdout_evaluation/terminal_finalization.json">terminal finalization</a>, <a href="../notebooks/data/26_cross_package_holdout_evaluation/README.md">data README</a>.</p></details>
+  <p class="small">이 보고서는 query ID·hash의 집계 외 실제 holdout 질문·정답·evidence span 평문을 싣지 않는다.</p>
+</section>
+</main></body></html>

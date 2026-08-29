@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>현재 청킹의 Reranker·MMR·질의 분기 종합 평가</title>
+  <style>
+    :root{--ink:#172033;--muted:#5e6a7d;--line:#dfe5ed;--bg:#f5f7fb;--paper:#fff;--navy:#16375f;--teal:#087a7b;--gold:#896000;--red:#a53a40}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.68 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans KR",sans-serif}main{max-width:1160px;margin:auto;padding:30px 20px 64px}header{padding:38px;background:linear-gradient(135deg,#133158,#286b89);color:#fff;border-radius:18px}h1{font-size:clamp(28px,4vw,42px);line-height:1.2;margin:0 0 12px}h2{font-size:25px;margin:44px 0 13px}h3{font-size:18px;margin:27px 0 9px}p{margin:8px 0}.lead{font-size:18px;max-width:900px}.tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}.tag{padding:3px 10px;border:1px solid #ffffff55;background:#ffffff1b;border-radius:999px;font-size:13px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(205px,1fr));gap:12px}.stat,.panel{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:17px}.stat b{display:block;color:var(--navy);font-size:25px}.callout{background:#fff;border:1px solid var(--line);border-left:5px solid var(--teal);border-radius:10px;padding:15px 17px;margin:16px 0}.warn{border-left-color:var(--gold)}.risk{border-left-color:var(--red)}.fact{border-left-color:var(--teal)}.hypothesis{border-left-color:var(--gold)}.flow{display:flex;align-items:center;flex-wrap:wrap;gap:8px}.flow span{background:#e6f0f9;padding:8px 11px;border-radius:8px;font-weight:650}.flow i{font-style:normal;color:var(--muted)}table{width:100%;border-collapse:collapse;background:var(--paper);font-size:14px;margin:10px 0 0}caption{text-align:left;font-weight:700;padding:0 0 5px}th,td{border:1px solid var(--line);padding:9px;vertical-align:top;text-align:left}th{background:#edf3f9;color:#203f65}.num{text-align:right;font-variant-numeric:tabular-nums}.guide{margin:0 0 21px;padding:12px 14px;background:#edf8f6;color:#28524f;border-radius:0 0 10px 10px;font-size:13px}.small{font-size:13px;color:var(--muted)}.delta{color:#08675f;font-weight:650}.down,.bad{color:#a53a40;font-weight:700}code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.9em;word-break:break-all}a{color:#075f9c;text-decoration-thickness:1px}li{margin:5px 0}ol,ul{padding-left:22px}.experiment-map{margin:28px 0;padding:18px 22px;background:#eaf2fa;border:1px solid #cbddec;border-radius:14px}.experiment-map h2{margin:0 0 8px}.experiment{margin:30px 0;padding:22px;border:1px solid #c9d9e8;border-left:6px solid var(--navy);border-radius:14px;background:#fbfdff;box-shadow:0 2px 8px #16375f0c}.experiment>h2{margin:0 0 14px;color:var(--navy)}.experiment>.tag,.experiment h2 .tag{vertical-align:middle;background:#e8f2fa;border-color:#b7cede;color:#244c70}.experiment>.callout{margin-bottom:22px}@media(max-width:760px){main{padding:16px 12px 42px}header{padding:26px 22px;border-radius:12px}table{font-size:12px}th,td{padding:7px;word-break:break-word}.experiment{padding:16px}}@media print{body{background:#fff}main{max-width:none;padding:0}header{border-radius:0}.panel,.stat,.callout,.experiment{break-inside:avoid}}
+    details{margin:16px 0;border:1px solid #b9ccde;border-radius:10px;background:#fff}summary{padding:10px 14px;color:#123d65;font-weight:700;cursor:pointer}summary:hover{background:#eef6fc}summary:focus-visible{outline:3px solid #d98500;outline-offset:3px;border-radius:6px}.detail-body{padding:0 14px 14px}.detail-body .guide:last-child{margin-bottom:0}
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>현재 청킹의 Reranker·MMR·질의 분기 종합 평가</h1><p>초기 17번 섹션은 GTE reranker의 고정 후보 재정렬 계약과 결과를 설명한다.</p><p>이 보고서 전체는 그 뒤 18~21번의 answer-bearing·MMR·실제 질의 분기·BGE 비교까지 현재 청킹에서 이어진 후속 진단을 함께 정리한다.</p>
+    <p class="lead">GTE/BGE reranker, MMR, 실제 질의 분기를 현재 청킹에서 비교하고 다음 청킹 변경 전 후보를 정리한 통합 개발 평가입니다. 초기 17번 GTE 계약은 본문에서 별도로 설명합니다.</p>
+    <div class="tags"><span class="tag">327 chunks</span><span class="tag">30 development queries</span><span class="tag">evidence 20 / category 10</span><span class="tag">4 reranker combinations</span><span class="tag">single run</span></div>
+  </header>
+
+  <section>
+    <h2>한눈에 보는 결론</h2>
+    <div class="grid"><div class="stat"><b>정상 구동</b>local GTE scoring</div><div class="stat"><b>4 / 4 하락</b>no-reranker 대비</div><div class="stat"><b>0.6200</b>raw 전체 최고 MRR<br>no-reranker 0.4:0.6</div><div class="stat"><b>0.5008</b>reranker 최고 MRR<br>0.4:0.6 Top50</div></div>
+    <div class="callout risk"><strong>판정: 현재 미채택.</strong> 네 reranker 조합은 모두 공식 no-reranker 기준보다 evidence MRR@5가 낮고 Strict@3·Recall@5·nDCG@5 guardrail(필수 비회귀 보호지표)도 회귀했다. 자동 판정은 <code>retain_no_reranker</code>다. raw 전체 최고는 no-reranker 0.4:0.6의 evidence MRR@5 0.6200이며, reranker 안에서만 최고인 값은 0.4:0.6 Top50의 0.5008이다.</div>
+    <p>이 결과는 development 30개(근거 질문 Evidence 20개, category별 10개), 327개 청크의 단일 실행 비교다. 독립 평가셋이나 운영 일반화 결론은 포함하지 않는다.</p>
+  </section>
+
+  <section class="experiment-map"><h2>실험 지도</h2><ol><li><a href="#exp-1">실험 1 · 17번 GTE 기본 비교</a> — 네 조합 모두 기준선보다 하락해 채택하지 않음</li><li><a href="#exp-2">실험 2 · 18번 strict 손실 재채점</a> — 계층 중복과 평가 관점을 분리한 진단</li><li><a href="#exp-3">실험 3 · 18번 leaf-only 진단</a> — parent 제거 효과를 확인했지만 승격 근거는 아님</li><li><a href="#exp-4">실험 4 · 18번 gold-type 선택 상한</a> — 유망한 이론상 상한, 운영에는 사용할 수 없음</li><li><a href="#exp-5">실험 5 · 19번 MMR 중복 완화</a> — 중복은 줄었지만 no-MMR 유지</li><li><a href="#exp-6">실험 6 · 20번 선택 MMR·GTE 상한</a> — 지표 간 trade-off로 미승격</li><li><a href="#exp-7">실험 7 · 21번 실제 정규식·BGE 비교</a> — 개발 신호는 있으나 독립 검증 전 보류</li></ol></section>
+
+  <section class="experiment" id="exp-1">
+    <h2>실험 1 · 17번 GTE reranker 기본 비교 <span class="tag">채택 안 함</span></h2>
+    <h3>왜 이 테스트를 했나</h3><p>0.4:0.6 RRF가 만든 후보를 GTE reranker가 더 정확히 정렬할 수 있는지 먼저 확인해야 이후의 재채점과 후보 진단의 출발점을 정할 수 있었다. 그래서 무조건 재정렬의 손익을 기준선과 직접 비교했다.</p>
+    <h3>무엇을 확인하려 했나</h3><p>0.4:0.6·0.5:0.5 RRF와 후보 Top20·Top50의 네 조합에서 GTE를 무조건 적용하고, no-reranker의 Evidence 지표와 비교했다. 후보군에 정답이 없는 경우와 후보 안에서 순서가 잘못된 경우도 함께 구분했다.</p>
+    <h3>결과를 읽을 때 주의</h3><p>모든 값은 개발 질의 20개의 단일 실행 평균이며, reranker는 저장된 후보 밖 strict 근거를 복구하지 못한다. logit은 확률이 아니고 순서 비교 점수다.</p>
+    <div class="callout fact"><strong>이 실험의 결론.</strong> 네 GTE 조합은 no-reranker보다 하락해 현재 채택하지 않는다. strict 손실이 모델 자체인지 계층 중복·평가 계약 영향인지 분리하기 위해 실험 2로 이어졌다.</div>
+    <section>
+    <h2>용어와 실험 계약</h2>
+    <div class="flow"><span>저장된 RRF 후보 Top20 / Top50</span><i>→</i><span>원본 query + chunk.document</span><i>→</i><span>GTE logit</span><i>→</i><span>logit 내림차순 재정렬</span><i>→</i><span>top-5 평가</span></div>
+    <p><strong>reranker</strong>는 후보 문서의 순서만 다시 매기는 모델이다. <strong>logit</strong>은 모델의 비교 점수이며 확률이 아니다. <strong>candidate ceiling</strong>(후보군 상한)은 후보에 이미 들어온 strict 근거만 재정렬로 회수할 수 있다는 범위다. <strong>delta</strong>는 no-reranker와의 차이, <strong>paired win/loss/tie</strong>는 같은 질의의 개선/하락/동률 수를 뜻한다.</p>
+    <div class="panel"><strong>입력·실행 계약.</strong> 입력은 original query와 <code>chunk.document</code>뿐이며 gold·metadata는 scoring에 사용하지 않았다. model revision <code>8215cf04918ba6f7b6a62bb44238ce2953d8831c</code>, custom code <code>40ced75c3017eb27626c9d4ea981bde21a2662f4</code>의 local cache만 사용했다. GPU 0, FP16, batch 2, max length 8192, <code>only_second</code> truncation으로 실행했고 truncation은 1,857 unique pair에서 0건이었다.</div>
+  </section>
+
+  <section>
+    <h2>Evidence 20개: no-reranker와 GTE 비교</h2>
+    <table><caption>Evidence 평균; delta는 각 weight의 no-reranker 대비 MRR@5</caption><thead><tr><th>구성</th><th class="num">Card@3</th><th class="num">Strict@3</th><th class="num">Recall@5</th><th class="num">MRR@5</th><th class="num">delta</th><th class="num">nDCG@5</th></tr></thead><tbody>
+      <tr><td>0.5:0.5 no-reranker</td><td class="num">0.9000</td><td class="num">0.7500</td><td class="num">0.7125</td><td class="num">0.6033</td><td class="num">—</td><td class="num">0.5966</td></tr>
+      <tr><td>0.4:0.6 no-reranker</td><td class="num">0.9000</td><td class="num">0.7500</td><td class="num">0.7125</td><td class="num">0.6200</td><td class="num">—</td><td class="num">0.6129</td></tr>
+      <tr><td>0.5:0.5 GTE Top20</td><td class="num">0.9000</td><td class="num down">0.5500</td><td class="num down">0.6750</td><td class="num down">0.4933</td><td class="num down">−0.1100</td><td class="num down">0.5130</td></tr>
+      <tr><td>0.5:0.5 GTE Top50</td><td class="num delta">0.9500</td><td class="num down">0.5500</td><td class="num down">0.6750</td><td class="num down">0.5008</td><td class="num down">−0.1025</td><td class="num down">0.5117</td></tr>
+      <tr><td>0.4:0.6 GTE Top20</td><td class="num delta">0.9500</td><td class="num down">0.6000</td><td class="num down">0.6750</td><td class="num down">0.5000</td><td class="num down">−0.1200</td><td class="num down">0.5187</td></tr>
+      <tr><th>0.4:0.6 GTE Top50</th><th class="num">0.9500</th><th class="num down">0.5500</th><th class="num down">0.6750</th><th class="num down">0.5008</th><th class="num down">−0.1192</th><th class="num down">0.5117</th></tr>
+    </tbody></table>
+    <div class="guide"><strong>Metric guide — 비교 데이터:</strong> 동일 Evidence 20개 질의에서 strict relevance(expected card·level·required terms)와 top-5 순위를 비교한다. <strong>Pass 의미:</strong> Card@3·Strict@3·Recall@5·MRR@5·nDCG@5는 모두 높을수록 좋으며, 각각 카드 존재·엄격 근거 존재·근거 회수·첫 근거 위치·상위권 근거 배치를 본다. <strong>핵심 한계:</strong> binary relevance이며 답변 생성 품질은 포함하지 않는다. 모든 값은 단일 실행의 질의 평균이며 반복 평균·표준편차가 없다.</div>
+  </section>
+
+  <details><summary>질의별 승·패, 후보 상한, 오류·자원 상세 보기</summary><div class="detail-body">
+  <section>
+    <h2>Candidate ceiling: 후보 누락과 후보 내 오정렬</h2>
+    <table><thead><tr><th>후보 source</th><th class="num">Evidence Top20 strict hit / recall</th><th class="num">Evidence Top50 strict hit / recall</th><th>의미</th></tr></thead><tbody>
+      <tr><td>0.5:0.5 RRF</td><td class="num">0.9500 / 0.9250</td><td class="num">1.0000 / 0.9500</td><td>Top20에서 strict 근거 하나 또는 일부가 빠진 질의가 있다.</td></tr>
+      <tr><td>0.4:0.6 RRF</td><td class="num">0.9000 / 0.8750</td><td class="num">1.0000 / 0.9500</td><td>Top50에서도 strict ID 전체가 항상 후보에 있는 것은 아니다.</td></tr>
+    </tbody></table>
+    <div class="guide"><strong>Metric guide:</strong> candidate ceiling은 reranker 이전 후보 집합 안의 strict relevant ID를 센다. <strong>Pass 의미:</strong> hit 1.0과 recall 1.0이면 후보 단계만 놓고는 모든 strict 근거를 적어도 한 번 포함한다. <strong>핵심 한계:</strong> reranker는 후보 밖 근거를 새로 찾을 수 없다. 반대로 후보 안의 strict 근거가 logit 재정렬 뒤 낮아지는 것은 <strong>후보 내 오정렬</strong>이며 ceiling만으로 설명되지 않는다.</div>
+  </section>
+
+  <section>
+    <h2>Paired 변화와 category 대비</h2>
+    <table><caption>primary: 0.4:0.6 GTE Top50 vs 같은 weight no-reranker, Evidence 20개</caption><thead><tr><th>지표</th><th class="num">win</th><th class="num">loss</th><th class="num">tie</th></tr></thead><tbody><tr><td>Card Hit@3</td><td class="num">1</td><td class="num">0</td><td class="num">19</td></tr><tr><td>Strict@3</td><td class="num">1</td><td class="num">5</td><td class="num">14</td></tr><tr><td>Recall@5</td><td class="num">2</td><td class="num">4</td><td class="num">14</td></tr><tr><td>MRR@5</td><td class="num">3</td><td class="num">7</td><td class="num">10</td></tr><tr><td>nDCG@5</td><td class="num">4</td><td class="num">7</td><td class="num">9</td></tr></tbody></table>
+    <div class="guide"><strong>Metric guide:</strong> paired는 같은 query_id에서 전·후 metric 방향을 센다. <strong>Pass 의미:</strong> win이 많아도 평균 delta와 guardrail이 함께 좋아야 채택 후보가 된다. <strong>핵심 한계:</strong> 변화의 크기·통계적 유의성은 보여 주지 않으며 단일 실행이다.</div>
+    <table><caption>0.4:0.6 no-reranker → GTE Top50, category별 10개 평균</caption><thead><tr><th>category</th><th class="num">Strict@3</th><th class="num">Recall@5</th><th class="num">MRR@5</th><th class="num">nDCG@5</th></tr></thead><tbody><tr><td>numeric condition</td><td class="num down">0.8000 → 0.4000</td><td class="num down">0.7250 → 0.6000</td><td class="num down">0.6367 → 0.2517</td><td class="num down">0.6083 → 0.3313</td></tr><tr><td>semantic</td><td class="num">0.7000 → 0.7000</td><td class="num delta">0.7000 → 0.7500</td><td class="num delta">0.6033 → 0.7500</td><td class="num delta">0.6175 → 0.6921</td></tr></tbody></table>
+    <div class="guide"><strong>Metric guide:</strong> numeric condition과 semantic은 각각 10개 질의의 strict relevance를 같은 방식으로 평가한다. <strong>Pass 의미:</strong> 높은 값이 더 좋은 retrieval 순위다. <strong>핵심 한계:</strong> category별 분모가 작고, numeric 10/10에서 <strong>max nonrelevant logit &gt; max relevant logit</strong>이 관찰됐지만 이것만으로 원인을 확정할 수 없다.</div>
+  </section>
+
+  <section>
+    <h2>오류 감사: 확인 사실과 해석의 경계</h2>
+    <div class="callout fact"><strong>확인된 사실.</strong> primary Top50에서 하락한 Evidence 질의의 union은 7개다. 이 중 6개는 strict gold보다 정답 문장을 포함한 card/page 또는 다른 level 청크가 위로 올라간 사례로, 계층 중복과 strict 평가 계약의 영향을 함께 받는다. 나머지 <code>hyundai_numeric</code>은 카드·금액·혜택 구분 실패가 관찰된 사례다.</div>
+    <div class="callout hypothesis"><strong>해석상 주의.</strong> 위 6개를 모두 “GTE 자체 문제”로 단정할 수 없다. strict gold는 card·level·required terms를 모두 요구하므로, 정답 문장을 포함해도 level이 다른 청크는 strict 실패가 될 수 있다. 계층 중복을 어떻게 group하거나 평가 계약을 보완할지는 아직 인과적으로 분리 검증되지 않았다.</div>
+    <table><caption>대표 질의: 0.4:0.6 GTE Top50의 관찰</caption><thead><tr><th>질의</th><th>관찰된 rank / logit 및 문장·계층 비교</th><th>평가 변화</th></tr></thead><tbody>
+      <tr><td><code>hana_numeric</code></td><td>page logit 3.3535가 상위로, strict section logit 1.7695는 4위였다. 정답 문장을 포함한 page/card와 strict level의 분리가 strict@3를 바꿨다.</td><td>Strict 1→0, MRR 0.5000→0.2500.</td></tr>
+      <tr><td><code>hyundai_numeric</code></td><td>같은 현대카드 page가 logit 0.8799로 1위였지만 내용은 연간 보너스 15만원으로 연회비/200,000원과 불일치했다. 다른 우리카드 연회비 청크는 logit 0.8638로 2위였고, strict 현대카드 연회비 benefit은 logit 0.7173으로 RRF 1위→GTE 7위가 됐다. 카드·금액·혜택 구분 실패가 관찰됐다.</td><td>Strict 1→0, MRR 1.0000→0.0000.</td></tr>
+      <tr><td><code>kb_numeric</code></td><td>card 3.3574, page/section/benefit 3.3555로 거의 같은 높은 logit을 받아 card/page가 strict benefit보다 앞섰다.</td><td>MRR 1.0000→0.5000.</td></tr>
+      <tr><td><code>shinhan_numeric</code></td><td>page 3.3262와 page 2.4199가 상위였고 relevant benefit은 0.8013이었다. 정답 문장 포함 상위 level과 strict benefit의 순위가 갈렸다.</td><td>Strict 1→0, MRR 1.0000→0.2000.</td></tr>
+      <tr><td><code>samsung_semantic</code></td><td>section 3.3359, page 3.3105, benefit 3.2578 순으로 관련 계층이 상단에 배치됐다.</td><td>Strict 0→1, MRR 0.2000→1.0000.</td></tr>
+      <tr><td><code>hyundai_semantic</code></td><td>section 3.3125, benefit 3.3008/3.2910이 top-5에 함께 배치됐다.</td><td>MRR 0.3333→1.0000.</td></tr>
+      <tr><td><code>hana_semantic</code></td><td>strict section logit 0.5361이 4위로 올라 top-5에 진입했다. 상위 section 0.8755와 benefit 0.7017은 strict 계약과 다른 청크다.</td><td>Card 0→1, Recall 0→0.5000, MRR 0→0.2500.</td></tr>
+    </tbody></table>
+    <div class="guide"><strong>Metric guide:</strong> 이 표의 logit은 reranker 점수이고 확률이 아니다. <strong>Pass 의미:</strong> strict metric은 expected card·level·terms를 모두 만족한 청크가 앞에 올 때만 높아진다. <strong>핵심 한계:</strong> 문장 포함·계층·점수의 동시 관찰은 원인을 제안할 뿐 모델 능력 또는 데이터 계약의 단일 원인을 증명하지 않는다.</div>
+  </section>
+
+  <section>
+    <h2>실행 자원과 재현성</h2>
+    <table><thead><tr><th>항목</th><th>기록</th></tr></thead><tbody><tr><td>scoring</td><td>1,857 unique pairs, 9.171초, 202.48 pairs/s; 같은 pair는 한 번만 점수화</td></tr><tr><td>GPU</td><td>physical GPU 0 (RTX 3090), FP16, batch 2</td></tr><tr><td>VRAM</td><td>allocated 약 758 MiB, reserved 약 1.20 GiB</td></tr><tr><td>입력 길이</td><td>max 8,192, only_second truncation, truncated pairs 0</td></tr><tr><td>외부·재생성</td><td>network/API/new embedding/package install 0, HNSW query 0</td></tr><tr><td>baseline 검증</td><td>0.5:0.5·0.4:0.6의 top-5 ID와 metric이 각 30개 질의에서 exact</td></tr></tbody></table>
+    <div class="guide"><strong>Metric guide:</strong> 이는 성능 metric이 아니라 실행·재현 조건이다. <strong>Pass 의미:</strong> local-only 계약, 입력·cache 불변, finite score 및 reranker 순열 검사가 기록대로 통과했다는 뜻이다. <strong>핵심 한계:</strong> 처리량은 이번 단일 실행 수치이며 조합별 latency는 같은 score cache를 썼으므로 별도 재실행값이 아니다.</div>
+  </section>
+
+  <section>
+    <h2>다음 최소 테스트</h2>
+    <ol><li>strict 지표와 level 무관 answer-bearing 지표를 함께 보고한다.</li><li>parent 또는 normalized-content grouped ranking으로 계층 중복 영향을 분리한다.</li><li>leaf-only 진단으로 benefit 수준 근거만 따로 본다.</li><li>RRF-GTE score 혼합을 독립 후보로 비교한다.</li><li><code>hyundai_numeric</code> 카드·금액·혜택 exact guard를 추가한다.</li><li>작은 margin 사례에만 FP32 재점수를 제한 적용한다.</li></ol>
+    <div class="callout warn">위 항목은 다음 최소 검증 제안이며, 이 보고서에서 실행하거나 효과를 확인한 작업이 아니다.</div>
+    <p class="small">제한: development 30개/Evidence 20개/category 10개, 단일 checkpoint·single run, 계층 중복, 원인 인과 미확정이라는 제약이 있다. 운영 일반화 결론을 내리지 않는다.</p>
+  </section>
+  </div></details>
+
+  <details><summary>근거와 상세 산출물: 17번 실행·후보·자원 기록</summary><div class="detail-body"><ul><li><a href="../notebooks/17_gte_reranker_ablation.ipynb">17번 GTE reranker 노트북</a>, <a href="../notebooks/data/17_gte_reranker_ablation/gte_reranker_summary.json">summary JSON</a>, <a href="../notebooks/data/17_gte_reranker_ablation/gte_reranker_summary.csv">summary CSV</a>, <a href="../notebooks/data/17_gte_reranker_ablation/gte_reranker_per_query.csv">per-query CSV</a></li><li><a href="../notebooks/data/17_gte_reranker_ablation/gte_reranker_candidate_ceiling.csv">candidate ceiling CSV</a>, <a href="../notebooks/data/17_gte_reranker_ablation/gte_reranker_resources.json">resource JSON</a>, <a href="../notebooks/data/17_gte_reranker_ablation/gte_reranker_run_manifest.json">run manifest</a></li></ul></div></details>
+  </section>
+
+  <section class="experiment" id="exp-2">
+    <h2>실험 2 · 18번 strict 손실과 answer-bearing 재채점 <span class="tag">진단</span></h2>
+    <h3>왜 이 테스트를 했나</h3><p>실험 1의 strict 손실은 정답 문장을 담은 상위 card/page 청크와 strict gold 청크가 갈라진 계층 구조의 영향일 수 있었다. 이 가능성을 확인하려고 정답을 담은 청크군을 묶는 재채점을 추가했다.</p>
+    <h3>무엇을 확인하려 했나</h3><p>strict 외에 answer-bearing, exact dedup, gold-family 관점에서 0.4 Top50의 GTE 변화를 비교했다. strict 계약의 손실과 실제 답변 문장 정렬 손실을 분리하는 것이 질문이다.</p>
+    <h3>결과를 읽을 때 주의</h3><p>answer-bearing은 기대 카드와 required terms가 있는 lexical proxy이며 완전한 답변 정답과 같지 않다. gold-family 역시 평가용 oracle이다.</p>
+    <div class="callout fact"><strong>이 실험의 결론.</strong> 계층·strict 계약이 손실 일부를 크게 보이게 했지만 numeric 오정렬은 남았다. parent 청크를 제외한 후보 진단이 실험 3으로 이어졌다.</div>
+    <div class="callout warn"><strong>최초 결과와 직접 절대 비교하지 않는다.</strong> 아래는 같은 0.4:0.6 Top50 후보를 다른 relevance 모집단으로 다시 측정한 진단이다. answer-bearing, exact dedup, gold-family의 관련 단위가 최초 strict raw와 다르므로 숫자의 절대 크기를 같은 성능 척도로 나란히 해석하면 안 된다.</div>
+    <p><strong>answer-bearing</strong>(답을 담은 후보 진단)은 expected card와 모든 required term을 만족하되 level을 무시한다. 이는 사실적으로 완전한 정답과 동일하지 않은 lexical proxy다. <strong>exact dedup</strong>은 카드와 정규화 문서가 정확히 같은 청크를 하나로 묶는 방식으로, 327 chunks는 286 groups가 됐고 duplicate groups는 34개, extra chunks는 41개였다. <strong>gold-family oracle</strong>은 모든 answer-bearing 정답을 한 가족으로 보는 평가용 oracle이며 운영 dedup이 아니다.</p>
+    <table><caption>0.4:0.6 Top50 Evidence MRR@5: no-reranker → GTE</caption><thead><tr><th>view</th><th class="num">MRR@5</th><th>delta / 보조 관찰</th></tr></thead><tbody>
+      <tr><td>strict raw</td><td class="num down">0.6200 → 0.5008</td><td class="down">−0.1192</td></tr>
+      <tr><td>answer-bearing raw</td><td class="num down">0.8792 → 0.8517</td><td class="down">−0.0275; Hit@3 0.90 → 0.90, Recall@5 +0.0307, nDCG@5 +0.0139</td></tr>
+      <tr><td>answer-bearing exact dedup</td><td class="num down">0.8892 → 0.8642</td><td class="down">−0.0250</td></tr>
+      <tr><td>gold-family oracle</td><td class="num down">0.8792 → 0.8517</td><td class="down">−0.0275</td></tr>
+    </tbody></table>
+    <div class="guide"><strong>Metric guide — 비교 데이터:</strong> Evidence 20개에서 동일 no-reranker/GTE 순위를 view별 relevance 집합으로 다시 점수화한다. <strong>Pass 의미:</strong> Hit·Recall·MRR·nDCG는 높을수록 좋고, answer-bearing은 level과 무관하게 카드+필수용어를 충족한 후보가 앞에 오는지를 본다. <strong>핵심 한계:</strong> lexical proxy·dedup·oracle은 최초 strict와 다른 분모다. 단일 실행의 질의 평균이며 반복 평균·표준편차가 없다.</div>
+    <details><summary>상세 재채점 결과 보기</summary><div class="detail-body">
+    <table><caption>category별 MRR: no-reranker → GTE (각 10개)</caption><thead><tr><th>category</th><th class="num">strict</th><th class="num">answer-bearing</th><th class="num">answer exact</th><th class="num">family oracle</th></tr></thead><tbody>
+      <tr><td>numeric</td><td class="num down">0.6367 → 0.2517</td><td class="num down">0.9333 → 0.8500 (−0.0833)</td><td class="num down">0.9333 → 0.8750 (−0.0583)</td><td class="num down">0.9333 → 0.8500</td></tr>
+      <tr><td>semantic</td><td class="num delta">0.6033 → 0.7500</td><td class="num delta">0.8250 → 0.8533 (+0.0283)</td><td class="num delta">0.8450 → 0.8533 (+0.0083)</td><td class="num delta">0.8250 → 0.8533</td></tr>
+    </tbody></table>
+    <div class="guide"><strong>Metric guide:</strong> category별 10개 질의의 MRR@5를 view별로 비교한다. <strong>Pass 의미:</strong> 첫 관련 단위가 앞설수록 높다. <strong>핵심 한계:</strong> numeric/semantic의 모집단이 작고 answer-bearing은 완전 사실 정답이 아니다. 단일 실행이며 표준편차는 없다.</div>
+    <div class="callout fact"><strong>해석.</strong> strict level 계약과 계층 중복이 최초 strict 하락을 크게 과장한 부분은 확인되지만, numeric에서 answer-bearing도 −0.0833으로 하락했다. 따라서 단순 level artifact만이 아니라 실제 content confusion이 남은 case B에 가까운 혼합으로 해석한다. 기존 <code>retain_no_reranker</code> 판정은 유지한다.</div>
+    </div></details>
+  <details><summary>근거와 상세 산출물: answer-bearing 재채점</summary><div class="detail-body"><ul><li><a href="../notebooks/18_answer_bearing_grouped_retrieval_reevaluation.ipynb">18번 후속 진단 노트북</a>, <a href="../notebooks/data/18_answer_bearing_grouped_retrieval_reevaluation/summary.csv">answer-bearing summary CSV</a>, <a href="../notebooks/data/18_answer_bearing_grouped_retrieval_reevaluation/summary.json">answer-bearing summary JSON</a>, <a href="../notebooks/data/18_answer_bearing_grouped_retrieval_reevaluation/integrity.json">group integrity JSON</a></li></ul></div></details>
+  </section>
+
+  <section class="experiment" id="exp-3">
+    <h2>실험 3 · 18번 leaf-only 후보 제한 <span class="tag">진단</span></h2>
+    <h3>왜 이 테스트를 했나</h3><p>실험 2에서 상위 card/page 청크가 strict 평가를 흐릴 수 있음을 확인했다. 이들이 빠진 section·benefit 후보에서 GTE의 순서 결정만 따로 살폈다.</p>
+    <h3>무엇을 확인하려 했나</h3><p>저장된 RRF Top50에서 parent를 뺀 fixed20과 available 후보를 GTE 순위와 비교했다. parent 제거가 strict 손실과 answer-bearing 손실을 함께 줄이는지가 핵심 질문이다.</p>
+    <h3>결과를 읽을 때 주의</h3><p>fixed20과 available은 후보 수와 분모가 다르며, parent 제거 때문에 원래 후보 coverage도 달라진다. 저장 logit 재사용 진단으로 새 모델 실행이 아니다.</p>
+    <div class="callout fact"><strong>이 실험의 결론.</strong> strict level artifact는 줄었지만 answer-bearing과 numeric 문제는 회복되지 않았다. gold category를 안다는 상한에서 유형별 처리 가능성을 보는 실험 4로 이어졌다.</div>
+    <h2>후속 2: section/benefit-only 후보 진단</h2>
+    <p><strong>leaf-only</strong>(section/benefit-only)는 저장된 RRF Top50에서 card/page를 제외한 후보만 쓴다. Variant A <strong>fixed20</strong>은 남은 leaf 후보를 fused rank 앞 20개로 고정한다. Variant B <strong>available</strong>은 원래 Top50에서 남은 전체를 사용하므로 K가 34~46으로 변한다. 따라서 available을 “절대 leaf Top50”이라고 부르지 않는다. GPU·model·embedding을 재실행하지 않고 저장된 GTE logit을 재사용했다.</p>
+    <table><caption>Evidence MRR@5: leaf 후보 no-reranker → GTE</caption><thead><tr><th>weight / variant</th><th class="num">strict</th><th class="num">answer</th><th class="num">strict exact</th><th class="num">answer exact</th><th class="num">family</th></tr></thead><tbody>
+      <tr><td>0.4 fixed20</td><td class="num down">0.6458 → 0.6267</td><td class="num down">0.8892 → 0.8533</td><td class="num down">0.7208 → 0.6917</td><td class="num down">0.8917 → 0.8683</td><td class="num down">0.8892 → 0.8533</td></tr>
+      <tr><td>0.4 available</td><td class="num down">0.6458 → 0.6392</td><td class="num down">0.8892 → 0.8533</td><td class="num down">0.7208 → 0.7042</td><td class="num down">0.8917 → 0.8683</td><td class="num down">0.8892 → 0.8533</td></tr>
+      <tr><td>0.5 fixed20</td><td class="num down">0.6458 → 0.6392</td><td class="num down">0.8875 → 0.8533</td><td class="num delta">0.6958 → 0.7042</td><td class="num down">0.8975 → 0.8683</td><td class="num down">0.8875 → 0.8533</td></tr>
+      <tr><td>0.5 available</td><td class="num down">0.6458 → 0.6392</td><td class="num down">0.8875 → 0.8533</td><td class="num delta">0.6958 → 0.7042</td><td class="num down">0.8975 → 0.8683</td><td class="num down">0.8875 → 0.8533</td></tr>
+    </tbody></table>
+    <div class="guide"><strong>Metric guide — 비교 데이터:</strong> Evidence 20개에서 같은 leaf 후보 집합의 fused 순위와 저장 GTE logit 순위를 비교한다. <strong>Pass 의미:</strong> MRR@5는 첫 관련 leaf 단위가 앞에 올수록 높다. <strong>핵심 한계:</strong> parent context를 제거했고 fixed20/available의 후보 정의가 다르다. 단일 실행의 평균이며 반복 평균·표준편차가 없다.</div>
+    <details><summary>후보 방식별 상세와 하락 질의 보기</summary><div class="detail-body">
+    <table><caption>primary 0.4: strict·answer 해석</caption><thead><tr><th>비교</th><th>관찰</th><th>의미</th></tr></thead><tbody>
+      <tr><td>unfiltered → fixed20 / available strict delta</td><td>−0.1192 → −0.0192 / −0.0067</td><td>parent 제거가 strict level artifact를 크게 완화했다.</td></tr>
+      <tr><td>answer delta</td><td>unfiltered −0.0275, fixed20·available 모두 −0.0358</td><td>answer-bearing 하락은 오히려 더 커져 broad recovery를 주장할 수 없다.</td></tr>
+      <tr><td>0.5 strict exact</td><td>+0.0083</td><td>단일 지표 개선만으로 광범위한 회복을 주장하지 않는다.</td></tr>
+      <tr><td>category primary 0.4</td><td>numeric strict 0.6833→0.5033 (−0.18), answer 0.9333→0.8533 (−0.08); semantic strict 0.6083→0.7500, available 0.7750, answer 0.8450→0.8533 (+0.0083)</td><td>numeric content confusion과 semantic 개선이 함께 존재한다.</td></tr>
+      <tr><td><code>hyundai_numeric</code></td><td>strict/answer first rank 1→5 지속</td><td>parent 제거만으로 해당 content confusion은 해결되지 않았다.</td></tr>
+    </tbody></table>
+    <div class="guide"><strong>Metric guide:</strong> delta는 같은 variant의 no-reranker 대비 GTE MRR@5 변화다. <strong>Pass 의미:</strong> 0보다 크면 그 view에서 첫 관련 단위가 평균적으로 앞섰다는 뜻이다. <strong>핵심 한계:</strong> view·후보 pool이 최초 실험과 달라 절대 성능처럼 비교할 수 없고, 단일 실행·표준편차 없음이다.</div>
+    <table><caption>leaf 후보 coverage 요약</caption><thead><tr><th>variant</th><th>strict hit / recall</th><th>answer hit / recall</th><th>해석</th></tr></thead><tbody>
+      <tr><td>available</td><td>유지</td><td>hit 1.0, recall 약 0.59~0.60</td><td>Top50 안의 leaf 전체를 보존하지만 부모 제거로 answer family 일부는 사라진다.</td></tr>
+      <tr><td>0.4 fixed20</td><td>1.00→0.95, 0.95→0.925</td><td>hit 1.0, recall 약 0.59~0.60</td><td>card/page 제거와 fixed20 뒤 leaf tail 제외를 분리한 교정 컬럼이다.</td></tr>
+    </tbody></table>
+    <div class="guide"><strong>Metric guide:</strong> coverage는 reranker 이전 후보 pool에 strict/answer 관련 단위가 있는지 센다. <strong>Pass 의미:</strong> hit·recall이 높을수록 reranker가 재정렬할 수 있는 근거가 많다. <strong>핵심 한계:</strong> fixed20의 제외는 card/page 필터와 leaf tail cutoff이 함께 작용하며, reranker가 후보 밖 근거를 복구할 수 없다. 단일 실행이며 표준편차는 없다.</div>
+    <div class="callout fact"><strong>추가 해석.</strong> parent 제거는 strict level artifact를 거의 제거하지만 numeric content confusion은 고치지 못했다. 새 구조 기반 청킹 전에 유용한 진단이지만 GTE 승격 근거는 아니며 <code>retain_no_reranker</code>를 유지한다.</div>
+    </div></details>
+  <details><summary>근거와 상세 산출물: leaf 후보와 질의별 변화</summary><div class="detail-body"><ul><li><a href="../notebooks/data/18_answer_bearing_grouped_retrieval_reevaluation/leaf_only_summary.csv">leaf-only summary CSV</a>, <a href="../notebooks/data/18_answer_bearing_grouped_retrieval_reevaluation/leaf_only_summary.json">leaf-only summary JSON</a>, <a href="../notebooks/data/18_answer_bearing_grouped_retrieval_reevaluation/leaf_only_integrity.json">leaf integrity JSON</a>, <a href="../notebooks/data/18_answer_bearing_grouped_retrieval_reevaluation/leaf_only_candidate_coverage.csv">leaf coverage CSV</a>, <a href="../notebooks/data/18_answer_bearing_grouped_retrieval_reevaluation/leaf_only_paired_deltas.csv">leaf paired delta CSV</a>, <a href="../notebooks/data/18_answer_bearing_grouped_retrieval_reevaluation/leaf_only_changed_queries.csv">leaf changed-query CSV</a></li></ul></div></details>
+  </section>
+
+  <section class="experiment" id="exp-4">
+    <h2>실험 4 · 18번 gold-type 선택 적용 상한 <span class="tag">운영 불가 상한</span></h2>
+    <h3>왜 이 테스트를 했나</h3><p>실험 3에서 numeric과 semantic의 변화 방향이 달랐다. 질의 유형을 정확히 미리 안다면 RRF와 GTE를 나누어 쓰는 것이 유리한지 상한으로 확인했다.</p>
+    <h3>무엇을 확인하려 했나</h3><p>numeric·proper_noun은 RRF, semantic은 GTE를 고르는 gold-type selective oracle과 각 단일 방식을 비교했다. 개선이 모든 guardrail을 지키는지도 함께 점검했다.</p>
+    <h3>결과를 읽을 때 주의</h3><p>oracle은 정답 질의 유형을 미리 사용한 post-hoc 선택이므로 실제 운영 router가 아니다. 단일 개발셋의 가능성 확인일 뿐 일반화 증거가 아니다.</p>
+    <div class="callout fact"><strong>이 실험의 결론.</strong> 25개 gate는 통과했지만 oracle이므로 승격하지 않는다. 중복 자체를 줄일 수 있는지를 독립적으로 시험한 실험 5가 뒤따랐다.</div>
+    <h2>후속 3: selective oracle route 상한 진단</h2>
+    <div class="callout warn"><strong>이 결과는 운영 성능이나 승격(promotion) 근거가 아니다.</strong> gold category(정답 질의 유형)를 미리 안다고 가정해 사후에 경로를 고른 <strong>oracle</strong>(현실에서는 알 수 없는 정답 정보를 쓰는 상한 진단)이다. 따라서 이 결과만으로 운영 router를 배포하거나 GTE를 채택할 수 없다.</div>
+    <p><strong>route</strong>(질의 유형별 처리 경로)는 numeric → 같은 설정의 no-reranker RRF, semantic → GTE, proper_noun → RRF <strong>passthrough</strong>(기존 순위를 그대로 통과)다. 기존 질의별 Top5 행만 gold category로 선택했으며, 새 점수 계산·혼합·재정렬은 하지 않았다. primary는 0.4:0.6, Top50, Evidence 20개다.</p>
+    <table><caption>primary selective oracle: Evidence 20개 점수</caption><thead><tr><th>view</th><th class="num">Card Hit@3</th><th class="num">Strict/Answer Hit@3</th><th class="num">Recall@5</th><th class="num">MRR@5</th><th class="num">nDCG@5</th></tr></thead><tbody>
+      <tr><td>strict raw</td><td class="num">0.9500</td><td class="num">0.7500</td><td class="num">0.7375</td><td class="num">0.6933</td><td class="num">0.6502</td></tr>
+      <tr><td>answer-bearing raw</td><td class="num">0.9500</td><td class="num">0.9500</td><td class="num">0.6699</td><td class="num">0.8933</td><td class="num">0.7677</td></tr>
+    </tbody></table>
+    <div class="guide"><strong>Metric guide — 비교 데이터:</strong> Evidence 20개에서 gold category에 따라 이미 저장된 no-reranker RRF 또는 GTE Top5를 선택한다. <strong>Pass 의미:</strong> Card/Strict/Answer Hit, Recall, MRR, nDCG는 모두 높을수록 좋다. MRR은 첫 관련 후보의 역순위 평균이다. <strong>핵심 한계:</strong> oracle은 실제 입력만으로 route할 수 없으며, 단일 deterministic run의 질의 평균이라 반복 평균·표준편차가 없다.</div>
+    <details><summary>기준별 변화와 질의별 승·패 보기</summary><div class="detail-body">
+    <table><caption>primary delta 및 MRR W/L/T: selective oracle − 비교 방식</caption><thead><tr><th>view</th><th>비교</th><th class="num">Card / Hit / Recall delta</th><th class="num">MRR delta</th><th class="num">nDCG delta</th><th class="num">MRR W/L/T</th></tr></thead><tbody>
+      <tr><td>strict raw</td><td>same-config no-reranker</td><td class="num">+0.0500 / 0.0000 / +0.0250</td><td class="num delta">+0.0733</td><td class="num delta">+0.0373</td><td class="num">3 / 1 / 16</td></tr>
+      <tr><td>answer-bearing raw</td><td>same-config no-reranker</td><td class="num">+0.0500 / +0.0500 / +0.0282</td><td class="num delta">+0.0142</td><td class="num delta">+0.0193</td><td class="num">1 / 1 / 18</td></tr>
+      <tr><td>strict raw</td><td>all-GTE</td><td class="num">0.0000 / +0.2000 / +0.0625</td><td class="num delta">+0.1925</td><td class="num delta">+0.1385</td><td class="num">6 / 0 / 14</td></tr>
+      <tr><td>answer-bearing raw</td><td>all-GTE</td><td class="num">0.0000 / +0.0500 / −0.0025</td><td class="num delta">+0.0417</td><td class="num delta">+0.0054</td><td class="num">2 / 1 / 17</td></tr>
+    </tbody></table>
+    <div class="guide"><strong>Metric guide:</strong> <strong>delta</strong>는 selective oracle 점수에서 비교 방식 점수를 뺀 값이다. <strong>W/L/T</strong>(win/loss/tie, 질의별 승/패/동률)는 MRR이 비교 방식보다 높음/낮음/같음을 센다. <strong>Pass 의미:</strong> delta가 0 이상이고 손실이 적을수록 유리하다. <strong>핵심 한계:</strong> same-config no-reranker 및 all-GTE 모두 같은 저장 결과와 gold category를 공유하는 사후 비교다. 단일 실행이며 표준편차는 없다.</div>
+    <div class="callout fact"><strong>gate 통과.</strong> primary Evidence 20에서 reference no-reranker 대비 5개 view × 5개 지표의 비회귀 gate 25개를 모두 통과했다. 저장 산출물의 판정은 <code>worth_testing_deployable_router</code>다. 이는 실제 deployable router를 만들고 테스트할 가치가 있다는 뜻일 뿐, oracle 자체가 deployable하다는 뜻은 아니다.</div>
+    <p class="small">독립 무결성 검증은 route 선택, 분모, Top5 원본행, 후보 passthrough, 지표 범위, paired W/L/T 분모, 기존 Follow-up 1·2 산출물 및 입력 source hash의 불변을 모두 true로 기록했다. 실행은 fresh kernel·CPU-only였고 GPU/model/custom code·network/API·새 embedding·Chroma HNSW·install 호출은 0이다.</p>
+    </div></details>
+  <details><summary>근거와 상세 산출물: gold-type oracle 비교</summary><div class="detail-body"><ul><li><a href="../notebooks/data/18_answer_bearing_grouped_retrieval_reevaluation/selective_oracle_summary.csv">Follow-up 3 summary CSV</a>, <a href="../notebooks/data/18_answer_bearing_grouped_retrieval_reevaluation/selective_oracle_summary.json">summary JSON</a>, <a href="../notebooks/data/18_answer_bearing_grouped_retrieval_reevaluation/selective_oracle_wlt.csv">W/L/T CSV</a>, <a href="../notebooks/data/18_answer_bearing_grouped_retrieval_reevaluation/selective_oracle_contract.json">route contract JSON</a>, <a href="../notebooks/data/18_answer_bearing_grouped_retrieval_reevaluation/selective_oracle_integrity.json">independent integrity JSON</a></li></ul></div></details>
+  </section>
+
+  <section class="experiment" id="exp-5">
+    <h2>실험 5 · 19번 MMR 단독 중복 완화 <span class="tag">채택 안 함</span></h2>
+    <h3>왜 이 테스트를 했나</h3><p>현재 계층 청킹에는 exact duplicate와 cross-level containment가 남아 있었다. reranker 없이도 MMR이 상위 Top5의 중복을 줄이면서 검색 품질을 지킬 수 있는지 확인했다.</p>
+    <h3>무엇을 확인하려 했나</h3><p>0.4:0.6 RRF Top20/50에 λ 0.7·0.8·0.9 MMR을 적용해 no-MMR과 strict·answer-bearing·중복성 지표를 비교했다. 후보 ceiling은 바꾸지 않는 조건이다.</p>
+    <h3>결과를 읽을 때 주의</h3><p>λ는 순위 관련성과 다양성의 균형값이며, MMR은 후보 밖 근거를 되찾지 못한다. 327 청크와 단일 deterministic 개발셋에 한정된다.</p>
+    <div class="callout fact"><strong>이 실험의 결론.</strong> 중복은 줄었지만 λ=0.9도 nDCG와 expected-card share guardrail을 지키지 못해 no-MMR을 유지했다. MMR과 GTE를 유형별로 결합한 상한이 실험 6의 대상이다.</div>
+    <h2>후속 4: 현재 청킹의 MMR 단독 ablation</h2>
+    <p><strong>pipeline</strong>은 0.4:0.6 RRF Top20/Top50 후보를 입력으로 받아 MMR(Maximal Marginal Relevance: 관련성을 유지하면서 이미 선택한 청크와 유사한 후보에 벌점을 주는 재선택) λ 0.7/0.8/0.9를 적용한 뒤 Top5를 반환한다. <strong>λ(lambda)</strong>는 원래 RRF 관련성 비중이며 클수록 중복 억제보다 기존 순위를 더 따른다. primary는 Top50이고 Top20은 같은 λ의 효율성 보조 비교다. 후보 집합 자체와 candidate ceiling은 변하지 않으므로 MMR은 후보 밖 recall을 복구할 수 없다.</p>
+    <table><caption>primary Top50 Evidence 20: no-MMR과 λ별 검색 지표</caption><thead><tr><th>system</th><th class="num">Card Hit@3</th><th class="num">Strict Hit@3</th><th class="num">Strict Recall@5</th><th class="num">Strict MRR@5</th><th class="num">Strict nDCG@5</th><th class="num">Answer-bearing MRR@5</th></tr></thead><tbody>
+      <tr><td>no-MMR baseline</td><td class="num">0.9000</td><td class="num">0.7500</td><td class="num">0.7125</td><td class="num">0.6200</td><td class="num">0.6129</td><td class="num">0.8792</td></tr>
+      <tr><td>MMR λ=0.7</td><td class="num">0.9500</td><td class="num down">0.7000</td><td class="num down">0.6750</td><td class="num down">0.6158</td><td class="num down">0.5747</td><td class="num delta">0.9042</td></tr>
+      <tr><td>MMR λ=0.8</td><td class="num">0.9500</td><td class="num down">0.7000</td><td class="num down">0.6875</td><td class="num down">0.6183</td><td class="num down">0.5892</td><td class="num delta">0.9017</td></tr>
+      <tr><td>MMR λ=0.9</td><td class="num">0.9500</td><td class="num">0.7500</td><td class="num">0.7125</td><td class="num delta">0.6283 (+0.0083)</td><td class="num down">0.6115 (−0.0013)</td><td class="num delta">0.8833</td></tr>
+    </tbody></table>
+    <div class="guide"><strong>Metric guide — 비교 데이터:</strong> 동일한 RRF Top50 후보와 Evidence 20개에서 no-MMR 순위와 MMR Top5를 비교한다. <strong>Pass 의미:</strong> Hit·Recall·MRR·nDCG·answer-bearing MRR은 높을수록 좋다. answer-bearing은 기대 카드와 필수 용어를 만족하되 level을 무시하는 lexical proxy다. <strong>핵심 한계:</strong> 현재 327-chunk 구조와 고정 후보의 단일 deterministic 개발셋 결과이며, 반복 평균·표준편차가 없다.</div>
+    <details><summary>질의 유형별 결과와 중복 감소 상세 보기</summary><div class="detail-body">
+    <table><caption>strict MRR category 분리: no-MMR → MMR</caption><thead><tr><th>category</th><th class="num">baseline</th><th class="num">λ=0.7</th><th class="num">λ=0.8</th><th class="num">λ=0.9</th></tr></thead><tbody>
+      <tr><td>numeric (10)</td><td class="num">0.6367</td><td class="num delta">0.6667</td><td class="num delta">0.6583</td><td class="num delta">0.6533</td></tr>
+      <tr><td>semantic (10)</td><td class="num">0.6033</td><td class="num down">0.5650</td><td class="num down">0.5783</td><td class="num">0.6033</td></tr>
+    </tbody></table>
+    <div class="guide"><strong>Metric guide:</strong> MRR@5는 각 category에서 첫 strict 관련 청크의 역순위 평균이다. <strong>Pass 의미:</strong> 숫자·의미 질의 모두에서 baseline보다 낮아지지 않아야 한다. <strong>핵심 한계:</strong> 각 category는 10개로 작고, category별 상승이 Evidence 전체 gate 통과를 뜻하지 않는다. 단일 실행이며 표준편차는 없다.</div>
+    <table><caption>Evidence Top5 중복성 진단: no-MMR → MMR</caption><thead><tr><th>system</th><th class="num">positive cosine mean</th><th class="num">exact duplicate excess</th><th class="num">cross-level containment</th><th class="num">expected-card share@5</th></tr></thead><tbody>
+      <tr><td>no-MMR baseline</td><td class="num">0.7322</td><td class="num">0.6000</td><td class="num">3.50</td><td class="num">0.7500</td></tr>
+      <tr><td>MMR λ=0.7</td><td class="num delta">0.6828</td><td class="num delta">0.2500</td><td class="num delta">2.40</td><td class="num down">0.7300</td></tr>
+      <tr><td>MMR λ=0.8</td><td class="num delta">0.7054</td><td class="num delta">0.4000</td><td class="num delta">2.85</td><td class="num down">0.7400</td></tr>
+      <tr><td>MMR λ=0.9</td><td class="num delta">0.7219</td><td class="num delta">0.5500</td><td class="num delta">3.25</td><td class="num down">0.7400</td></tr>
+    </tbody></table>
+    <div class="guide"><strong>Metric guide:</strong> <strong>cosine</strong>(임베딩 방향 유사도) 평균, exact duplicate excess(Top5 내 정확히 같은 문서 그룹의 초과 수), <strong>containment</strong>(같은 카드의 서로 다른 level 문서가 정확 문자열 포함 관계인 쌍 수)은 낮을수록 중복이 적다. expected-card share는 Top5 중 기대 카드 청크 비중으로 높을수록 좋다. <strong>핵심 한계:</strong> cosine은 의미 중복의 대리값이고 exact containment는 표현이 다른 중복을 놓친다. 단일 실행이며 표준편차는 없다.</div>
+    <div class="callout fact"><strong>판정: <code>retain_no_mmr</code>.</strong> λ=0.9의 strict MRR@5는 +0.0083으로 소폭 올랐지만 strict nDCG@5가 −0.0013이고 expected-card share@5도 0.75→0.74로 회귀했다. <strong>gate</strong>(승격 후보가 지켜야 하는 비회귀·개선 조건)는 relevance, answer-bearing·dedup·family view, card, expected-card share 및 중복성 조건을 함께 검사하며 λ 0.7/0.8/0.9 모두 실패했다. 중복은 감소했지만 현재 청킹에서는 검색 품질의 안전한 개선으로 이어지지 않았다.</div>
+    <p class="small">이 실험은 Codex coder agent가 fresh kernel, CPU/offline에서 저장 RRF 후보와 cached chunk embedding만 재사용한 단일 deterministic 개발셋 진단이다. GPU/model/custom code/network/API/new embedding/Chroma/package install 호출은 0이며, 현재 계층 청킹의 중복 문제와 후보 ceiling이 남아 있다.</p>
+    </div></details>
+  <details><summary>근거와 상세 산출물: MMR 중복성·판정 기록</summary><div class="detail-body"><ul><li><a href="../notebooks/19_mmr_redundancy_ablation.ipynb">19번 MMR redundancy 노트북</a>, <a href="../notebooks/data/19_mmr_redundancy_ablation/mmr_summary.csv">MMR summary CSV</a>, <a href="../notebooks/data/19_mmr_redundancy_ablation/mmr_summary.json">summary JSON</a>, <a href="../notebooks/data/19_mmr_redundancy_ablation/mmr_redundancy_summary.csv">redundancy CSV</a>, <a href="../notebooks/data/19_mmr_redundancy_ablation/mmr_selection_decision.json">selection decision JSON</a>, <a href="../notebooks/data/19_mmr_redundancy_ablation/mmr_contract.json">MMR contract JSON</a>, <a href="../notebooks/data/19_mmr_redundancy_ablation/mmr_integrity.json">independent integrity JSON</a></li></ul></div></details>
+  </section>
+
+  <section class="experiment" id="exp-6">
+    <h2>실험 6 · 20번 선택적 MMR·GTE 결합 상한 <span class="tag">지표 trade-off</span></h2>
+    <h3>왜 이 테스트를 했나</h3><p>실험 4의 유형별 선택 상한과 실험 5의 MMR 진단은 서로 다른 장점을 보였다. 숫자 질의에는 MMR, 의미 질의에는 GTE를 붙이면 이득을 함께 얻을 수 있는지 확인했다.</p>
+    <h3>무엇을 확인하려 했나</h3><p>gold type으로 selective MMR 및 combined MMR+GTE를 고르고 no-MMR·selective-GTE·selective-MMR와 비교했다. MRR 상승뿐 아니라 Recall과 nDCG guardrail도 판단에 넣었다.</p>
+    <h3>결과를 읽을 때 주의</h3><p>Top50 λ=.7은 19번 결과 뒤 택한 adaptive post-hoc 조건이고, gold type도 운영 입력에서 알 수 없는 oracle이다. 실제 분류기의 성능이나 운영 지연을 나타내지 않는다.</p>
+    <div class="callout fact"><strong>이 실험의 결론.</strong> Combined의 MRR은 올랐지만 Recall과 selective-GTE 대비 nDCG가 떨어져 미승격이다. oracle 대신 실제 정규식 분류기로 같은 선택 논리를 점검한 실험 7로 연결된다.</div>
+    <h2>Follow-up 5: selective MMR 및 combined MMR+GTE gold-type oracle</h2>
+    <div class="callout warn"><strong>primary Top50 λ=0.7은 19번 결과를 본 뒤 정한 adaptive post-hoc 조건이다.</strong> adaptive(앞선 결과를 보고 조정한), post-hoc(결과 뒤 사후 선택) 조건이므로 탐색 편향이 있으며, gold type oracle(정답 질의 유형을 미리 안다고 가정한 상한 진단)은 운영 route가 아니다. promotion 및 운영 적용의 근거로 사용하지 않는다.</div>
+    <details><summary>선택 경로 상세 보기</summary><div class="detail-body">
+    <table><caption>gold-type oracle route</caption><thead><tr><th>정책</th><th>numeric</th><th>semantic</th><th>proper_noun</th></tr></thead><tbody><tr><td>Selective MMR</td><td>19번 동일 depth·λ MMR → Top5</td><td>19번 no-MMR RRF → Top5</td><td>19번 no-MMR RRF passthrough → Top5</td></tr><tr><td>Combined MMR+GTE</td><td>19번 동일 depth·λ MMR → Top5</td><td>18번 동일 depth GTE → Top5</td><td>19번 no-MMR RRF passthrough → Top5</td></tr></tbody></table>
+    <p><strong>Selective MMR</strong>은 numeric만 MMR(Maximal Marginal Relevance: 중복을 줄이도록 후보를 재선택)하고 semantic·proper_noun은 RRF 순위를 유지한다. <strong>Combined</strong>는 numeric에 MMR, semantic에 GTE reranker(후보를 점수로 재정렬), proper_noun에 RRF passthrough(기존 순위 그대로)를 쓴다. 두 방식 모두 새 검색·점수 혼합·재평가는 하지 않고 저장된 질의별 행을 gold type으로 선택했다.</p>
+    </div></details>
+    <table><caption>primary Top50 λ=0.7, Evidence 20: gold-type oracle 지표</caption><thead><tr><th>route</th><th class="num">Card Hit@3</th><th class="num">Strict Hit@3</th><th class="num">Strict Recall@5</th><th class="num">Strict MRR@5</th><th class="num">Strict nDCG@5</th><th class="num">Answer MRR@5</th></tr></thead><tbody>
+      <tr><td>Selective MMR</td><td class="num">0.9000</td><td class="num">0.8000</td><td class="num">0.6750</td><td class="num">0.6350</td><td class="num">0.5882</td><td class="num">0.8792</td></tr>
+      <tr><td>Combined MMR+GTE</td><td class="num">0.9500</td><td class="num">0.8000</td><td class="num">0.7000</td><td class="num delta">0.7083</td><td class="num delta">0.6255</td><td class="num delta">0.8933</td></tr>
+    </tbody></table>
+    <div class="guide"><strong>Metric guide — 비교 데이터:</strong> Evidence 20개에서 gold type별로 저장된 Top5를 선택한다. <strong>Pass 의미:</strong> Card/Strict Hit, Recall, MRR, nDCG, answer-bearing MRR은 높을수록 좋다. <strong>핵심 한계:</strong> oracle·adaptive post-hoc 조건이며 단일 deterministic 개발셋의 질의 평균으로 반복 평균·표준편차가 없다.</div>
+    <details><summary>선택 경로·delta·구조 진단 상세 보기</summary><div class="detail-body">
+    <table><caption>Combined − 기준 방식: strict Evidence delta 및 W/L/T</caption><thead><tr><th>기준</th><th class="num">Card / Hit / Recall</th><th class="num">MRR</th><th class="num">nDCG</th><th class="num">MRR W/L/T</th></tr></thead><tbody>
+      <tr><td>no-MMR</td><td class="num">+0.0500 / +0.0500 / −0.0125</td><td class="num delta">+0.0883</td><td class="num delta">+0.0126</td><td class="num">5 / 1 / 14</td></tr>
+      <tr><td>selective-GTE</td><td class="num">0.0000 / +0.0500 / −0.0375</td><td class="num delta">+0.0150</td><td class="num down">−0.0247</td><td class="num">2 / 0 / 18</td></tr>
+      <tr><td>selective-MMR</td><td class="num">+0.0500 / 0.0000 / +0.0250</td><td class="num delta">+0.0733</td><td class="num delta">+0.0373</td><td class="num">3 / 1 / 16</td></tr>
+    </tbody></table>
+    <div class="guide"><strong>Metric guide:</strong> delta는 Combined 점수에서 기준 점수를 뺀 값이다. W/L/T(win/loss/tie)는 같은 질의의 MRR이 기준보다 좋아짐/나빠짐/동일함을 센다. <strong>Pass 의미:</strong> 모든 guardrail이 비회귀이고 MRR 또는 nDCG가 개선돼야 한다. <strong>핵심 한계:</strong> 같은 gold type 정보를 쓴 사후 비교라 실제 router 정확도를 보장하지 않는다. 단일 실행이며 표준편차는 없다.</div>
+    <table><caption>strict category별 MRR@5 / nDCG@5</caption><thead><tr><th>category</th><th class="num">no-MMR</th><th class="num">Selective MMR</th><th class="num">Combined</th></tr></thead><tbody>
+      <tr><td>numeric (10)</td><td class="num">0.6367 / 0.6083</td><td class="num">0.6667 / 0.5589</td><td class="num">0.6667 / 0.5589</td></tr>
+      <tr><td>semantic (10)</td><td class="num">0.6033 / 0.6175</td><td class="num">0.6033 / 0.6175</td><td class="num delta">0.7500 / 0.6921</td></tr>
+    </tbody></table>
+    <div class="guide"><strong>Metric guide:</strong> 각 10개 category에서 첫 strict 관련 청크의 MRR@5와 관련 청크 위치를 할인해 보는 nDCG@5를 병기한다. <strong>Pass 의미:</strong> 둘 다 높을수록 좋다. <strong>핵심 한계:</strong> category별 표본이 작고 numeric MMR의 nDCG 하락과 semantic GTE 개선을 합친 사후 상한이다. 단일 실행이며 표준편차는 없다.</div>
+    <div class="callout fact"><strong>판정: <code>metric_tradeoff_on_dev</code>.</strong> Combined strict MRR@5는 0.7083으로 올랐지만 no-MMR 대비 Recall@5가 0.7125→0.7000으로 하락했고, selective-GTE 대비 nDCG@5도 0.6502→0.6255로 하락했다. 따라서 support gate를 통과하지 못했으며 <strong>exploratory_gold_type_oracle_only / not_eligible_for_promotion / not_an_operational_router</strong> 상태를 유지한다. metric tradeoff는 어떤 지표의 이득과 다른 지표의 손실이 함께 나타난다는 뜻이다.</div>
+    <div class="callout fact"><strong>provenance 검증 메모.</strong> 18번 source 행의 canonical key에는 <code>comparison + weight + depth + system + query_id + view</code>가 모두 필요하다. comparison·weight를 생략한 축약 join은 0.4와 0.5 결과를 덮어쓸 수 있는 provenance(수치의 출처·결합 경로) 위험이 있어 금지했고, 해당 모호 key 충돌 600건을 탐지했다. canonical key로 다시 검증한 최종 payload mismatch failures는 0이다.</div>
+    </div></details>
+  <details><summary>근거와 상세 산출물: 선택 MMR·GTE oracle</summary><div class="detail-body"><ul><li><a href="../notebooks/20_selective_mmr_gte_gold_type_oracle.ipynb">20번 selective MMR·GTE oracle 노트북</a>, <a href="../notebooks/data/20_selective_mmr_gte_gold_type_oracle/oracle_contract.json">oracle contract JSON</a>, <a href="../notebooks/data/20_selective_mmr_gte_gold_type_oracle/oracle_summary.csv">summary CSV</a>, <a href="../notebooks/data/20_selective_mmr_gte_gold_type_oracle/oracle_summary.json">summary JSON</a>, <a href="../notebooks/data/20_selective_mmr_gte_gold_type_oracle/oracle_wlt.csv">W/L/T CSV</a>, <a href="../notebooks/data/20_selective_mmr_gte_gold_type_oracle/oracle_decision.json">decision JSON</a>, <a href="../notebooks/data/20_selective_mmr_gte_gold_type_oracle/oracle_integrity.json">independent integrity JSON</a></li></ul></div></details>
+  </section>
+
+  <section class="experiment" id="exp-7">
+    <h2>실험 7 · 21번 실제 정규식 분류기와 GTE/BGE 비교 <span class="tag">유망하지만 미승격</span></h2>
+    <h3>왜 이 테스트를 했나</h3><p>실험 4·6의 oracle 경로는 질의 유형을 미리 알아야 해서 실제 운영 선택으로 쓸 수 없었다. 현재 청킹을 바꾸기 전에, 실제 질문 문구만으로 분류하는 정규식과 두 reranker·입력 형식의 조합을 비교했다.</p>
+    <h3>무엇을 확인하려 했나</h3><p>고정 0.4:0.6 RRF와 원래 Top50의 leaf_available 후보에서 무조건 rerank와 실제 정규식 선택 경로를 나눠 비교했다. GTE/BGE, 원문(original)/카드명·제목 보강(augmented)이 strict exact·strict raw·answer exact 순서를 어떻게 바꾸는지가 질문이다.</p>
+    <h3>결과를 읽을 때 주의</h3><p>정규식은 같은 development 질의를 보고 만든 규칙이며 30/30 일치는 unseen 일반화 근거가 아니다. leaf_available 후보 수는 질의별 34~42개이고, 후보 정의와 relevance view가 앞 실험과 다르다.</p>
+    <div class="callout fact"><strong>이 실험의 결론.</strong> 실제 정규식+GTE 원문은 strict primary의 개발 후보이고 BGE 보강은 answer-bearing 대안이지만 어느 쪽도 승격하지 않는다. 다음 분기점은 기준선 RRF를 유지한 청킹 변경과 독립 질의 재평가다.</div>
+    <h2>21번 현재 청킹 분기 전 재평가: 핵심 결과 요약</h2>
+    <div class="callout warn"><strong>핵심 결과 요약.</strong> 현재 안전 기준선은 <strong>0.4:0.6 RRF no-reranker</strong>(벡터 0.4·정규화 BM25 0.6을 합쳐 그대로 반환)이다. 현재 청킹에서의 운영 후보는 <strong>실제 정규식 분류+GTE 원문</strong>이고, 모든 질의를 무조건 재정렬했을 때 개발셋 최고는 <strong>BGE+카드명·제목 보강</strong>이다. 세 결론 모두 같은 개발 질의에서 얻은 것이므로 holdout·운영 승격 결론이 아니다.</div>
+    <p><strong>무엇을 확인했나.</strong> 입력은 0.4:0.6 RRF의 원래 Top50에서 card/page를 빼고 남긴 section·benefit 후보(<code>leaf_available_from_original_top50</code>, 질의마다 34~42개)다. 처리 단계는 (A) 질문 문구만 보는 실제 분류, (B) reranker를 전 질의에 적용하거나 분류 결과에 따라 적용하는 비교이며, 출력은 Top5 검색 순위다. Evidence는 카드 안 혜택·조건 내용 검색, Card는 카드 상품 자체 검색이다.</p>
+    <h3>Phase A — 실제 정규식 분류: 질문을 어디로 보낼지</h3>
+    <p><strong>입력→처리→출력:</strong> 질문 문장 → 정규식 분류 → numeric/proper는 RRF 그대로, semantic은 reranker → Top5. 예를 들어 “연회비는 얼마?” 같은 숫자형과 “어느 카드사 상품?” 같은 고유명사형은 RRF, “전월실적 없이 해외 결제 혜택” 같은 의미형은 reranker로 보낸다. 실제 정규식은 개발 30개에서 30/30, sanity 12개에서 12/12였고 gold oracle(정답 유형을 미리 아는 이론상 상한)과 gap 0이었다. 다만 같은 dev 질의를 보고 만든 규칙이므로 unseen 일반화 증거는 아니다.</p>
+    <h3>Phase B — 무조건 재정렬과 실제 선택 경로를 분리</h3>
+    <p><strong>용어:</strong> original(원문 입력), augmented(청크 원문 앞에 카드명·제목을 보강한 입력), strict raw(카드·계층·필수 용어를 모두 맞춘 엄격 평가), strict exact-dedup(완전히 같은 문서 중복을 묶은 엄격 평가), answer exact(답 용어를 담은 문서 중복을 묶은 평가), delta(기준 대비 차이), guardrail(함께 지켜야 하는 비회귀 조건)이다. W/L/T는 기존보다 좋아진/나빠진/같은 질의 수다.</p>
+    <table><caption>무조건 rerank: strict exact / strict raw / answer exact MRR@5</caption><thead><tr><th>방식</th><th class="num">strict exact</th><th class="num">strict raw</th><th class="num">answer exact</th></tr></thead><tbody><tr><td>no-reranker</td><td class="num">.7208</td><td class="num">.6458</td><td class="num">.8917</td></tr><tr><td>GTE 원문</td><td class="num">.7042</td><td class="num">.6392</td><td class="num">.8683</td></tr><tr><td>GTE 보강</td><td class="num">.7450</td><td class="num">.6325</td><td class="num">.9625</td></tr><tr><td>BGE 원문</td><td class="num">.7183</td><td class="num">.6542</td><td class="num">.9375</td></tr><tr><td>BGE 보강</td><td class="num">.7600</td><td class="num">.6500</td><td class="num">.9625</td></tr></tbody></table>
+    <div class="guide"><strong>Metric guide:</strong> 세 MRR은 첫 관련 청크가 앞설수록 높다. BGE 보강의 dev_signal은 평균 gate 통과 신호일 뿐 numeric 무회귀나 운영 채택을 뜻하지 않는다. 카드명·제목 보강은 입력 문맥만 더한 것이며 평가 label·정답을 입력에 넣지 않아 label 누수는 배제했다. exact-dedup에서는 모델 효과보다 heading 보강 효과가 더 컸지만 strict raw에서는 보강이 소폭 하락하는 trade-off가 있었다.</div>
+    <table><caption>실제 regex 선택 경로: strict exact / strict raw / answer exact MRR@5</caption><thead><tr><th>방식</th><th class="num">strict exact</th><th class="num">strict raw</th><th class="num">answer exact</th></tr></thead><tbody><tr><td>no-reranker</td><td class="num">.7208</td><td class="num">.6458</td><td class="num">.8917</td></tr><tr><td>regex+GTE 원문</td><td class="num">.8042</td><td class="num">.7292</td><td class="num">.8933</td></tr><tr><td>regex+GTE 보강</td><td class="num">.7617</td><td class="num">.6517</td><td class="num">.9292</td></tr><tr><td>regex+BGE 원문</td><td class="num">.7683</td><td class="num">.6833</td><td class="num">.9292</td></tr><tr><td>regex+BGE 보강</td><td class="num">.7767</td><td class="num">.6917</td><td class="num">.9292</td></tr></tbody></table>
+    <div class="guide"><strong>Metric guide:</strong> 실제 질문 문구로 선택한 경로의 Evidence 20 평균이다. 운영 목적에서는 GTE 원문이 strict primary 최고이고, BGE 보강은 answer-bearing 대안이다. 네 조합 모두 numeric strict exact는 하락하고 semantic은 상승했다(BGE 보강: numeric .7833→.7500, semantic .6583→.7700). 이는 선택 적용의 근거일 뿐 독립 질의 검증은 아니다.</div>
+    <p><strong>자원과 재현.</strong> GTE 보강은 3.77초·247.6 pair/s·약 .73GB, BGE 보강은 6.34초·147.3 pair/s·약 1.21GB였고 cache는 .63GB 대 2.29GB, OOM·truncation은 모두 0이었다. BGE는 약 1.68배 느리다. 온라인 latency는 이 측정치로부터의 추정일 뿐 실측이 아니다. GTE와 BGE reranker, MMR, 질의 분기 후속 진단까지 포함한 이번 재평가에서 GTE FP16 logit tolerance .002는 padding 차이를 보는 진단용이며, rank/Top5/metric exact 재현이 hard 검증이었다.</p>
+    <p><strong>다음 단계.</strong> 기준선을 동결한 뒤 독립 paraphrase·오탈자·복합의도 질의로 실제 분류기를 검증하고, 청킹 변경은 RRF 기준선으로 효과를 분리한다. 이어 동결한 GTE 원문/BGE 보강 선택후보를 재평가한 뒤 마지막 holdout을 수행한다. 다음 보고서 분기점은 청킹 변경이다.</p>
+    <details><summary>근거와 상세 산출물: 실제 정규식·GTE/BGE 재평가</summary><div class="detail-body"><ul><li><a href="../notebooks/21_current_chunking_prebranch_reranker_evaluation.ipynb">21번 노트북</a>, <a href="../notebooks/data/21_current_chunking_prebranch_reranker_evaluation/leaf_summary.csv">요약 CSV</a>, <a href="../notebooks/data/21_current_chunking_prebranch_reranker_evaluation/summary.json">종합 JSON</a>, <a href="../notebooks/data/21_current_chunking_prebranch_reranker_evaluation/decision.json">판정 JSON</a>, <a href="../notebooks/data/21_current_chunking_prebranch_reranker_evaluation/integrity.json">무결성 JSON</a></li></ul></div></details>
+  </section>
+  <section><h2>공통 비교 보고서</h2><ul><li><a href="11_normalized_rrf_weight_ablation_report.html">11번 RRF weight ablation 보고서</a>, <a href="10_search_normalization_morphology_ablation_report.html">10번 정규화·형태소 보고서</a></li></ul></section>
+</main>
+<section class="report-conclusion"><h2>최종 결과</h2><p>현재 안전 기준선은 0.4:0.6 RRF no-reranker다. 실제 정규식 선택+GTE 원문은 현재 청킹의 개발셋 운영 후보이며, BGE 보강은 무조건 재정렬의 개발 신호다. 17번의 GTE 단독 계약은 그대로 보존하되, 뒤의 BGE·MMR·실제 정규식 분기는 다음 독립 검증 후보를 정하는 후속 진단이다. strict와 answer-bearing의 trade-off, numeric과 semantic의 상반된 변화 때문에 어느 결과도 운영 승격을 뜻하지 않는다. 모두 독립 질의·holdout 전의 기록이므로 다음 단계는 청킹 변경 전후를 RRF 기준선으로 분리하고 선택 규칙을 재평가하는 것이다.</p></section></body>
+</html>

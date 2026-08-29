@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>사용자 익명 A/B 답변 평가</title><style>
+:root{--ink:#172033;--muted:#5e6a7d;--line:#dfe5ed;--bg:#f5f7fb;--paper:#fff;--navy:#16375f;--teal:#087a7b;--gold:#896000;--red:#a53a40}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.7 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans KR",sans-serif}main{max-width:1120px;margin:auto;padding:30px 20px 60px}header{padding:36px;background:linear-gradient(135deg,#133158,#286b89);color:#fff;border-radius:18px}h1{font-size:clamp(28px,4vw,42px);line-height:1.2;margin:0 0 12px}h2{font-size:25px;margin:42px 0 12px}h3{font-size:18px;margin:18px 0 8px}h4{margin:0 0 7px}p{margin:8px 0}.lead{font-size:18px}.tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:17px}.tag{padding:3px 10px;border:1px solid #ffffff55;background:#ffffff1b;border-radius:999px;font-size:13px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:12px}.panel,.answer{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:16px}.answer h4{color:var(--navy)}.callout{background:#fff;border:1px solid var(--line);border-left:5px solid var(--teal);border-radius:10px;padding:14px 16px;margin:16px 0}.risk{border-left-color:var(--red)}.warn{border-left-color:var(--gold)}table{width:100%;border-collapse:collapse;background:var(--paper);font-size:14px;margin:10px 0 0}caption{text-align:left;font-weight:700;padding:0 0 5px}th,td{border:1px solid var(--line);padding:9px;vertical-align:top;text-align:left}th{background:#edf3f9;color:#203f65}.num{text-align:right;font-variant-numeric:tabular-nums}.guide{margin:0 0 20px;padding:12px 14px;background:#edf8f6;color:#28524f;border-radius:0 0 10px 10px;font-size:13px}.small{font-size:13px;color:var(--muted)}code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;word-break:break-all}a{color:#075f9c}.case{margin:18px 0;padding:16px;background:#fbfdff;border:1px solid #cbd9e7;border-left:6px solid var(--navy);border-radius:14px}.case-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.meta{font-size:13px;color:var(--muted)}details{margin:10px 0;padding:0 14px 12px;border:1px solid var(--line);border-radius:10px;background:#fff}summary{cursor:pointer;padding:9px 0;font-weight:700;color:var(--navy)}summary:focus-visible{outline:3px solid #f0b429;outline-offset:3px;border-radius:4px}@media(max-width:760px){main{padding:16px 12px 40px}header{padding:26px 22px;border-radius:12px}.case-grid{grid-template-columns:1fr}table{font-size:12px}th,td{padding:7px;word-break:break-word}}@media print{body{background:#fff}main{max-width:none;padding:0}header{border-radius:0}.case,.panel,.answer,.callout{break-inside:avoid}}
+</style></head>
+<body><main>
+<header><h1>사용자 익명 A/B 답변 평가</h1><p class="lead">결론: 사용자 평가 15건 중 제외 1건을 빼면 STRUCT 5승·OLD 4승·동점 5건이다. 새 구조의 약한 신호는 있지만, 동점이 많고 단일 사용자·개발 질문의 소표본이므로 승자를 확정하지 않는다.</p>
+<div class="tags"><span class="tag">사용자 직접 평가</span><span class="tag">익명 A/B</span><span class="tag">Top3 9건 + Top5 5건</span><span class="tag">저장 응답 재사용</span></div></header>
+
+<section><h2>왜 이 평가를 했는가</h2><div class="grid"><div class="panel"><h3>자동 점수 다음의 확인</h3><p>25번 자동 답변 품질 비교는 구성 차이를 수치화했지만, 실제 사람이 두 답변을 읽을 때 어느 쪽이 더 정확하고 이해하기 쉬운지까지 확정하지는 못했다.</p>
+</div><div class="panel"><h3>A/B가 뜻하는 것</h3><p>A와 B는 OLD·STRUCT의 고정 별명이 아니다. 질문마다 무작위로 배치했으며, 평가 뒤 배정표를 열어 실제 구성을 해제했다. 따라서 A 또는 B 자체의 승수를 합산하지 않는다.</p>
+</div><div class="panel"><h3>비교한 패키지</h3><p>OLD는 기존 card/page/section/benefit 청킹, 선택적 BGE 질의 경로, 안전한 제목 보강을 묶은 패키지다. STRUCT는 구조형 parent/child 청킹, 자동 근거 묶음, 전체 질의 BGE를 묶은 패키지다. 25번 contract·manifest 범위상 청킹 하나만의 인과 비교가 아니다.</p>
+</div></div></section>
+
+<section><h2>무엇을 확인하려 했는가</h2><p>각 질문에서 카드 선택, 필수 혜택·숫자·조건, 실제 인용 근거, 누락·unsupported claim·response failure를 보되, 사용자는 먼저 익명 A/B만 보고 판단했다. 아래는 packet JSON의 <strong>summary, cards, 중요한 조건(claim)</strong>을 사람이 읽는 형태로 배치한 것이며, 원문 JSON 전문과 문장별 전체 근거는 하단 JSONL 링크에서 확인할 수 있다.</p>
+<table><caption>해제 뒤 사용자 평가 집계</caption><thead><tr><th>입력 K</th><th class="num">OLD 승</th><th class="num">STRUCT 승</th><th class="num">동점</th><th>비고</th></tr></thead><tbody><tr><td>Top3</td><td class="num">3</td><td class="num">3</td><td class="num">3</td><td>10번 제외 후 9건</td></tr><tr><td>Top5</td><td class="num">1</td><td class="num">2</td><td class="num">2</td><td>5건</td></tr><tr><th>합계</th><th class="num">4</th><th class="num">5</th><th class="num">5</th><th>평가 15건 중 10번 제외</th></tr></tbody></table><div class="guide"><strong>비교 데이터·분모:</strong> 사용자가 직접 판정한 15개 익명 pair 중 의도 모호로 제외한 10번을 뺀 14개다. <strong>성공 의미:</strong> 같은 K 안에서 더 명확하고 근거에 맞는 답이 승리다. <strong>핵심 한계:</strong> 승·패는 사용자 한 명의 요약형 표시 판단이며 반복·다중 평가자 평균이 아니다. <strong>카드 예:</strong> Top5에서 STRUCT가 여러 카드를 더 정확히 보여도, Top3의 첫 세 카드 선택은 OLD가 더 나을 수 있어 K별로 분리한다.</div></section>
+
+<section><h2>질문별 익명 답변과 해제 결과</h2><p class="small">표시 순서는 사용자가 본 A/B이며, 괄호의 실제 구성과 승자는 평가 후 <code>manual_blind_assignment_key.csv</code>로 해제했다.</p>
+
+
+<article class="case" id="q1"><h3>1. biz Air Money 법인카드는 어느 카드사 상품인가? <span class="meta">K3 · AB-aef77e390bf0</span></h3><div class="case-grid"><div class="answer"><h4>익명 A</h4><p>biz Air Money 법인카드는 BC의 상품입니다.</p>
+<p><strong>카드:</strong> BC / BC_Biz_AirMoney — BC 비즈 에어머니 카드 서비스 안내에 ‘biz Air Money corporate card’로 표기되어 있습니다.</p>
+<p><strong>중요 조건:</strong> biz Air Money 법인카드는 BC의 카드 상품입니다.</p>
+</div><div class="answer"><h4>익명 B</h4><p>biz Air Money 법인카드는 BC의 상품입니다.</p>
+<p><strong>카드:</strong> BC / BC_Biz_AirMoney — ‘biz Air Money corporate card’ 및 ‘BC 비즈 에어머니 카드 서비스 안내’로 표기된 카드입니다.</p>
+<p><strong>중요 조건:</strong> biz Air Money 법인카드는 BC의 카드 상품입니다.</p>
+</div></div><p><strong>사용자 평가:</strong> 둘 다 정상 · <strong>해제:</strong> A=STRUCT-K3, B=OLD-K3 · <strong>승자:</strong> 동점</p>
+</article>
+
+
+<article class="case" id="q2"><h3>2. LOCA LIKIT Eat 음식점 결제일 할인율은? <span class="meta">K3 · AB-0038a356322e</span></h3><div class="case-grid"><div class="answer"><h4>익명 A</h4><p>LOCA LIKIT Eat의 음식점 결제일 할인율은 60%입니다.</p>
+<p><strong>카드:</strong> lotte / Lotte_LOCA_LIKIT_Eat — 음식점 업종 가맹점에서 60% 결제일 할인을 제공합니다.</p>
+<p><strong>중요 조건:</strong> 주점·유흥업소·커피전문점·베이커리·제과점과 백화점·마트 입점 음식점은 제외됩니다.</p>
+</div><div class="answer"><h4>익명 B</h4><p>LOCA LIKIT Eat의 음식점 결제일 할인율은 60%입니다.</p>
+<p><strong>카드:</strong> lotte / Lotte_LOCA_LIKIT_Eat — 음식점 업종 가맹점에서 음식점 60% 결제일 할인을 제공합니다.</p>
+<p><strong>중요 조건:</strong> 주점·유흥업소·커피전문점·베이커리·제과점과 백화점·마트 입점 음식점은 혜택이 없습니다.</p>
+</div></div><p><strong>사용자 평가:</strong> 둘 다 정상 · <strong>해제:</strong> A=OLD-K3, B=STRUCT-K3 · <strong>승자:</strong> 동점</p>
+</article>
+
+
+<article class="case" id="q3"><h3>3. 배달의민족과 쿠팡이츠에서 받을 수 있는 혜택은? <span class="meta">K3 · AB-01eb75a515aa</span></h3><div class="case-grid"><div class="answer"><h4>익명 A</h4><p>배달의민족과 쿠팡이츠를 모두 직접 대상으로 명시한 카드는 Lotte_LOCA_LIKIT_Eat입니다. 공식 홈페이지 또는 앱 결제에 60% 결제일 할인이 제공되며, 배달원 또는 가맹점 직접 결제는 제외됩니다.</p>
+<p><strong>카드:</strong> lotte / Lotte_LOCA_LIKIT_Eat — 배달의민족·쿠팡이츠 60% 결제일 할인.</p>
+<p><strong>중요 조건:</strong> 공식 홈페이지·앱 결제만 대상.</p>
+</div><div class="answer"><h4>익명 B</h4><p>배달의민족과 쿠팡이츠 모두에 명시적 혜택이 확인되는 카드는 롯데 LOCA LIKIT Eat입니다. 배달의민족·쿠팡이츠·요기요를 공식 홈페이지 또는 앱에서 결제하면 60% 결제일 할인이 제공됩니다.</p>
+<p><strong>카드:</strong> lotte / Lotte_LOCA_LIKIT_Eat — 배달앱 60% 결제일 할인.</p>
+<p><strong>중요 조건:</strong> 배달원 또는 가맹점 직접 결제 제외.</p>
+</div></div><p><strong>사용자 평가:</strong> 둘 다 정상 · <strong>해제:</strong> A=STRUCT-K3, B=OLD-K3 · <strong>승자:</strong> 동점</p>
+</article>
+
+
+<article class="case" id="q4"><h3>4. 하나 더 소호 카드는 어떤 상품인가? <span class="meta">K3 · AB-0dbf8ea50c47</span></h3><div class="case-grid"><div class="answer"><h4>익명 A</h4><p>하나 더 소호는 운영경비·필수경비·국내외 가맹점 청구할인과 소호 지원 서비스를 안내하는 카드계열 상품입니다.</p>
+<p><strong>카드:</strong> hana / Hana_One_More_SOHO — 운영 5%, 필수 3%, 해외 2%, 국내 0.5% 청구할인, 국내 2~3개월 무이자할부, 무료 부가세 지원·월 3회 상권 분석.</p>
+<p><strong>중요 조건:</strong> 운영경비 5%는 전월 실적별 월 1만/1.5만/2만원 통합한도입니다.</p>
+</div><div class="answer"><h4>익명 B</h4><p>하나 더 소호는 하나카드의 카드계열 상품으로, 운영·필수경비와 국내외 가맹점 할인, 무이자할부, 부가세·상권 분석 서비스를 안내합니다.</p>
+<p><strong>카드:</strong> hana / Hana_One_More_SOHO — 국내 0.5%는 한도 없음, 하나 더 서비스는 지난달 실적과 관계없이 제공되며 운영 5%는 실적별 통합한도가 있습니다.</p>
+<p><strong>중요 조건:</strong> 대상 가맹점·공식 앱/오프라인 조건·제외 항목을 함께 설명합니다.</p>
+</div></div><p><strong>사용자 평가:</strong> 둘 다 정상·B 약간 우세 · <strong>해제:</strong> A=OLD-K3, B=STRUCT-K3 · <strong>승자:</strong> STRUCT</p>
+</article>
+
+
+<article class="case" id="q5"><h3>5. 쿠팡 또는 G마켓 온라인 쇼핑과 이동통신 요금 결제에 모두 별도 혜택이 있는 카드는? <span class="meta">K3 · AB-1ecf776bbe30</span></h3><div class="case-grid"><div class="answer"><h4>익명 A</h4><p>NH_Namu_NH와 Hyundai_The_Orange_20260330 두 카드가 제시됩니다. NH는 두 영역의 당월 이용금액 순위에 따라 8% 또는 4% 캐시백, 현대는 전월 100만원 이상 시 각 대상 영역 10% M포인트 적립입니다.</p>
+<p><strong>카드:</strong> NH / NH_Namu_NH; hyundai / Hyundai_The_Orange_20260330.</p>
+<p><strong>중요 조건:</strong> NH 6개 영역 1·2위, 현대 전월 100만원·영역별 월 1만 M포인트·쿠팡이츠 제외.</p>
+</div><div class="answer"><h4>익명 B</h4><p>근거가 확인되는 카드는 NH_Namu_NH와 Hyundai_The_Orange_20260330 두 개입니다. 신한은 온라인 쇼핑 혜택은 확인되지만 통신요금의 구체 혜택·조건이 제공 근거에 없어 포함하지 않았습니다.</p>
+<p><strong>카드:</strong> NH / NH_Namu_NH; hyundai / Hyundai_The_Orange_20260330.</p>
+<p><strong>중요 조건:</strong> NH 전월 40만원 이상·영역 순위별 한도, 현대 전월 100만원·월 1만 M포인트.</p>
+</div></div><p><strong>사용자 평가:</strong> 둘 다 정상·B 우세 · <strong>해제:</strong> A=OLD-K3, B=STRUCT-K3 · <strong>승자:</strong> STRUCT</p>
+</article>
+
+
+<article class="case" id="q6"><h3>6. 이동통신 요금과 대형마트 또는 슈퍼마켓 결제에 모두 별도 혜택이 있는 카드는? <span class="meta">K3 · AB-72551d44bac1</span></h3><div class="case-grid"><div class="answer"><h4>익명 A</h4><p>이동통신 요금과 대형마트 또는 슈퍼마켓 각각의 할인 혜택이 확인되는 카드는 삼성 iD ALL입니다.</p>
+<p><strong>카드:</strong> samsung / Samsung_iD_ALL — 이동통신 정기결제 2.5%, 많이 쓰는 할인점·슈퍼마켓 영역 5% 결제일할인.</p>
+<p><strong>중요 조건:</strong> 통신은 전월 40/70만원 실적별 통합 한도, 쇼핑은 백화점·할인점·슈퍼마켓 중 월 이용금액이 가장 큰 1개 영역만 적용.</p>
+</div><div class="answer"><h4>익명 B</h4><p>이동통신 정기결제 할인과 할인점·슈퍼마켓 영역 할인이 각각 확인되는 카드는 삼성 iD ALL입니다.</p>
+<p><strong>카드:</strong> samsung / Samsung_iD_ALL — SKT·KT·LG U+·알뜰폰 2.5%, 대상 쇼핑영역 5% 결제일할인.</p>
+<p><strong>중요 조건:</strong> 할인점·슈퍼마켓은 월 이용금액이 가장 큰 1개 영역에 적용됩니다.</p>
+</div></div><p><strong>사용자 평가:</strong> 둘 다 정상·A 크게 우세 · <strong>해제:</strong> A=OLD-K3, B=STRUCT-K3 · <strong>승자:</strong> OLD</p>
+</article>
+
+
+<article class="case" id="q7"><h3>7. 배민·요기요·쿠팡이츠 중 하나와 커피전문점 결제에 모두 직접 혜택이 있는 카드는? <span class="meta">K3 · AB-72d35b981af2</span></h3><div class="case-grid"><div class="answer"><h4>익명 A</h4><p>배달의민족·쿠팡이츠·요기요와 커피전문점 혜택이 모두 명시된 카드는 롯데 LOCA LIKIT Eat입니다.</p>
+<p><strong>카드:</strong> lotte / Lotte_LOCA_LIKIT_Eat — 배달앱·지정 커피전문점 60% 결제일 할인.</p>
+<p><strong>중요 조건:</strong> 배달앱은 공식 홈페이지·앱 결제만, 커피는 백화점·할인점·쇼핑몰 입점 매장 제외.</p>
+</div><div class="answer"><h4>익명 B</h4><p>롯데 LOCA LIKIT Eat과 NH 나무 NH 두 카드가 제시됩니다.</p>
+<p><strong>카드:</strong> lotte / Lotte_LOCA_LIKIT_Eat — 배달앱·커피 60% 할인; NH / NH_Namu_NH — 배민·요기요와 지정 커피의 1·2위 영역 8%·4% 캐시백.</p>
+<p><strong>중요 조건:</strong> NH 커피는 역사·백화점·할인점 입점 매장과 온라인 결제 제외.</p>
+</div></div><p><strong>사용자 평가:</strong> 문서 확인 결과 B 정답 · <strong>해제:</strong> A=OLD-K3, B=STRUCT-K3 · <strong>승자:</strong> STRUCT <span class="small">(문서 근거 확인 전제)</span></p>
+</article>
+
+
+<article class="case" id="q8"><h3>8. 영상·음악 구독 또는 유료 멤버십과 일반 음식점 결제에 모두 혜택이 있는 카드는? <span class="meta">K3 · AB-997b220c0417</span></h3><div class="case-grid"><div class="answer"><h4>익명 A</h4><p>현대카드 Hyundai_The_Orange_20260330이 제시됩니다. 전월 100만원 이상 시 디지털 콘텐츠와 일반음식점에서 각 10% M포인트 적립이 제공됩니다.</p>
+<p><strong>카드:</strong> hyundai / Hyundai_The_Orange_20260330.</p>
+<p><strong>중요 조건:</strong> 영역별 월 1만 M포인트, 한도 초과 시 기본 적립률, 신규 발급 예외.</p>
+</div><div class="answer"><h4>익명 B</h4><p>현대 The Orange가 제시되며, 다이닝 일반음식점과 테크 디지털 콘텐츠에서 10% M포인트 적립을 설명합니다.</p>
+<p><strong>카드:</strong> hyundai / Hyundai_The_Orange_20260330.</p>
+<p><strong>중요 조건:</strong> 전월 100만원, 영역별 월 1만 M포인트, 신규 발급 예외.</p>
+</div></div><p><strong>사용자 평가:</strong> 둘 다 정상·A 약간 우세 · <strong>해제:</strong> A=OLD-K3, B=STRUCT-K3 · <strong>승자:</strong> OLD</p>
+</article>
+
+
+<article class="case" id="q9"><h3>9. 쿠팡 또는 G마켓 온라인 쇼핑과 일반 음식점 결제에 모두 직접 혜택이 있는 카드는? <span class="meta">K3 · AB-a89d61749c22</span></h3><div class="case-grid"><div class="answer"><h4>익명 A</h4><p>신한 Toss Mr.Life와 현대 The Orange 두 카드가 제시됩니다. 신한은 오후 9시~오전 9시 온라인 쇼핑·일반대중음식점 10% 할인, 현대는 전월 100만원 이상 시 쿠팡·일반음식점 10% M포인트 적립입니다.</p>
+<p><strong>카드:</strong> shinhan / Shinhan_Toss_Mr.Life_20251231; hyundai / Hyundai_The_Orange_20260330.</p>
+<p><strong>중요 조건:</strong> 신한은 시간·횟수·금액 제한, 현대는 월 1만 M포인트·쿠팡이츠 제외.</p>
+</div><div class="answer"><h4>익명 B</h4><p>신한 Toss Mr.Life 한 카드가 제시됩니다. G마켓·쿠팡과 일반대중음식점에서 오후 9시~오전 9시 10% 할인입니다.</p>
+<p><strong>카드:</strong> shinhan / Shinhan_Toss_Mr.Life_20251231.</p>
+<p><strong>중요 조건:</strong> 각 영역 일 1회·월 10회, 1회 승인금액 1만원·최대 1천원 할인.</p>
+</div></div><p><strong>사용자 평가:</strong> 문서 확인 결과 A 정답 · <strong>해제:</strong> A=OLD-K3, B=STRUCT-K3 · <strong>승자:</strong> OLD <span class="small">(문서 근거 확인 전제)</span></p>
+</article>
+
+
+<article class="case" id="q10"><h3>10. 신규 발급 예외를 제외하고 전월 실적 없이 일반 가맹점·통신 혜택이 있는 카드는? <span class="meta">K3 · AB-bbe0bddee9c0</span></h3><div class="case-grid"><div class="answer"><h4>익명 A</h4><p>해당 조건을 모두 제공하는 카드는 제공 근거만으로 확인되지 않는다고 답합니다.</p>
+<p><strong>중요 조건:</strong> 현대의 일반·통신 혜택은 전월 조건, 신한은 통신 실적 구간과 일반 가맹점 근거 부재, NH는 두 혜택 근거 부재를 들었습니다.</p>
+</div><div class="answer"><h4>익명 B</h4><p>Samsung iD ALL을 제시하며, 국내외 가맹점 0.5%는 전월 이용금액·할인한도와 관계없고 이동통신 정기결제에는 2.5% 할인이 있다고 답합니다.</p>
+<p><strong>카드:</strong> samsung / Samsung_iD_ALL.</p>
+<p><strong>중요 조건:</strong> 이동통신 할인에는 전월 40/70만원 구간별 통합 월 한도가 제시됩니다.</p>
+</div></div><p><strong>사용자 평가:</strong> 질문 의도 모호로 제외 · <strong>해제:</strong> A=OLD-K3, B=STRUCT-K3 · <strong>집계:</strong> 제외</p>
+</article>
+
+
+<article class="case" id="q11"><h3>11. 쿠팡·G마켓 쇼핑과 이동통신 요금에 모두 별도 혜택이 있는 카드는? <span class="meta">K5 · AB-33bc686e4aed</span></h3><div class="case-grid"><div class="answer"><h4>익명 A</h4><p>NH 나무 NH, 현대 The Orange, 신한 Toss Mr.Life 3종을 제시합니다.</p>
+<p><strong>카드:</strong> NH는 두 영역 1·2위 8%·4% 캐시백, 현대는 전월 100만원 시 쿠팡·통신 10% M포인트, 신한은 쿠팡·G마켓 10% 할인과 통신 할인 안내를 제시합니다.</p>
+<p><strong>중요 조건:</strong> 신한 통신 할인 세부 조건은 제공 근거에서 확인되지 않는다고 명시합니다.</p>
+</div><div class="answer"><h4>익명 B</h4><p><strong>response_failure:</strong> 저장 응답의 summary·cards·claims가 비어 있습니다.</p>
+<p><strong>중요 조건:</strong> 답변 실패 자체가 end-to-end 비교에서는 불리하지만, retrieval만의 실패라고 단정할 수 없습니다.</p>
+</div></div><p><strong>사용자 평가:</strong> A 우세 · <strong>해제:</strong> A=OLD-K5, B=STRUCT-K5 · <strong>승자:</strong> OLD</p>
+</article>
+
+
+<article class="case" id="q12"><h3>12. 이동통신 요금과 대형마트 또는 슈퍼마켓에 모두 혜택이 있는 카드는? <span class="meta">K5 · AB-1de302525425</span></h3><div class="case-grid"><div class="answer"><h4>익명 A</h4><p>Samsung iD ALL을 제시하며 통신 2.5%와 할인점·슈퍼마켓 5% 자동 맞춤 혜택을 설명합니다.</p>
+<p><strong>카드:</strong> samsung / Samsung_iD_ALL — SKT·KT·LG U+·알뜰폰 정기결제와 이마트·롯데마트·홈플러스 등 대상.</p>
+</div><div class="answer"><h4>익명 B</h4><p>삼성 iD ALL, 신한 Toss Mr.Life, NH 나무 NH 3종을 제시합니다.</p>
+<p><strong>카드:</strong> 삼성 2.5% 통신+5% 쇼핑영역, 신한 통신 공과금 10%+이마트·롯데마트·홈플러스 10%, NH 통신 자동납부+오프라인 대형마트의 1·2위 8%·4% 캐시백.</p>
+<p><strong>중요 조건:</strong> 신한 알뜰폰 제외·마트 제외조건, NH 영역 순위 조건.</p>
+</div></div><p><strong>사용자 평가:</strong> B 우세 · <strong>해제:</strong> A=OLD-K5, B=STRUCT-K5 · <strong>승자:</strong> STRUCT</p>
+</article>
+
+
+<article class="case" id="q13"><h3>13. 배민·요기요·쿠팡이츠 중 하나와 커피전문점 결제에 모두 직접 혜택이 있는 카드는? <span class="meta">K5 · AB-6e0928d3fcd0</span></h3><div class="case-grid"><div class="answer"><h4>익명 A</h4><p>롯데 LOCA LIKIT Eat과 NH 나무 NH 두 카드가 제시됩니다. 롯데는 배달앱·지정 커피 브랜드 60% 할인, NH는 배민·요기요와 지정 커피 브랜드의 1·2위 영역 8%·4% 캐시백입니다.</p>
+<p><strong>카드:</strong> lotte / Lotte_LOCA_LIKIT_Eat; NH / NH_Namu_NH.</p>
+<p><strong>중요 조건:</strong> 롯데 전월 40만원·월 1만3천원 통합 한도, NH 커피 입점 매장·온라인 결제 제외.</p>
+</div><div class="answer"><h4>익명 B</h4><p>배달의민족·쿠팡이츠·요기요와 커피전문점 모두에 직접 할인 혜택이 확인되는 카드는 롯데 LOCA LIKIT Eat입니다.</p>
+<p><strong>카드:</strong> lotte / Lotte_LOCA_LIKIT_Eat — 배달앱·지정 커피전문점 60% 결제일 할인.</p>
+<p><strong>중요 조건:</strong> 배달앱은 공식 홈페이지·앱 결제만, 배달원·가맹점 직접 결제와 커피 입점 매장 제외.</p>
+</div></div><p><strong>사용자 평가:</strong> A 우세 · <strong>해제:</strong> A=STRUCT-K5, B=OLD-K5 · <strong>승자:</strong> STRUCT</p>
+</article>
+
+
+<article class="case" id="q14"><h3>14. 영상·음악 구독 또는 유료 멤버십과 일반 음식점 결제에 모두 혜택이 있는 카드는? <span class="meta">K5 · AB-abef1e2a546e</span></h3><div class="case-grid"><div class="answer"><h4>익명 A</h4><p>Hyundai_The_Orange_20260330이 제시됩니다. 전월 100만원 이상 시 디지털 콘텐츠와 일반음식점 각 대상 영역에서 10% M포인트를 적립합니다.</p>
+<p><strong>카드:</strong> hyundai / Hyundai_The_Orange_20260330.</p>
+<p><strong>중요 조건:</strong> 영역별 월 1만 M포인트, 신규 발급 예외.</p>
+</div><div class="answer"><h4>익명 B</h4><p>현대 The Orange가 제시되며, 디지털 콘텐츠와 일반음식점 각각 10% M포인트 적립을 설명합니다.</p>
+<p><strong>카드:</strong> hyundai / Hyundai_The_Orange_20260330.</p>
+<p><strong>중요 조건:</strong> 전월 100만원, 영역별 월 1만 M포인트, 한도 초과 시 기본 적립률.</p>
+</div></div><p><strong>사용자 평가:</strong> 둘 다 정상 · <strong>해제:</strong> A=STRUCT-K5, B=OLD-K5 · <strong>승자:</strong> 동점</p>
+</article>
+
+
+<article class="case" id="q15"><h3>15. 쿠팡 또는 G마켓 온라인 쇼핑과 일반 음식점 결제에 모두 직접 혜택이 있는 카드는? <span class="meta">K5 · AB-a3e6f65d68d0</span></h3><div class="case-grid"><div class="answer"><h4>익명 A</h4><p>신한 Toss Mr.Life와 현대 The Orange 두 카드가 제시됩니다. 신한은 오후 9시~오전 9시 온라인 쇼핑·일반대중음식점 10% 할인, 현대는 전월 100만원 이상 시 쿠팡·일반음식점 10% M포인트 적립입니다.</p>
+<p><strong>카드:</strong> shinhan / Shinhan_Toss_Mr.Life_20251231; hyundai / Hyundai_The_Orange_20260330.</p>
+<p><strong>중요 조건:</strong> 신한 시간·횟수·금액 제한, 현대 월 1만 M포인트·쿠팡이츠 제외.</p>
+</div><div class="answer"><h4>익명 B</h4><p>신한 Toss Mr.Life와 현대 The Orange 두 카드가 제시됩니다. 신한은 두 영역 모두 오후 9시~오전 9시 할인이고, 현대는 쿠팡 온라인몰·일반음식점 M포인트 적립입니다.</p>
+<p><strong>카드:</strong> shinhan / Shinhan_Toss_Mr.Life_20251231; hyundai / Hyundai_The_Orange_20260330.</p>
+<p><strong>중요 조건:</strong> 신한 각 영역 일 1회·월 10회, 현대 전월 100만원·월 1만 M포인트.</p>
+</div></div><p><strong>사용자 평가:</strong> 둘 다 정상 · <strong>해제:</strong> A=OLD-K5, B=STRUCT-K5 · <strong>승자:</strong> 동점</p>
+</article>
+
+</section>
+
+<section><h2>원문 근거 확인과 해석 주의</h2><p>이번 검증에서 packet 인용 근거와 프로젝트 카드 문서를 대조한 결과, 7번 NH, 9번 현대, 10번 삼성, 11번의 NH·현대·신한, 12번의 삼성·신한·NH, 13번 NH는 실제 문서 근거가 있었다. 이는 현재 발급 가능 여부나 최신 상품 조건을 외부에서 검증한 결과가 아니다.</p>
+<p>10번은 hallucination으로 처리하지 않았다. ‘전월 실적 없이’가 국내 일반 가맹점 혜택만 수식하는지, 이동통신 혜택까지 함께 수식하는지 해석이 모호해 집계에서 제외했다. 11번 STRUCT의 <code>response_failure</code>는 end-to-end 평가에서는 OLD 승으로 세되, 검색·청킹 자체의 실패로 단정하지 않는다.</p>
+</section>
+
+<section><h2>비용·시간</h2><table><caption>이번 사용자 평가의 추가 실행</caption><thead><tr><th>항목</th><th>기록</th><th>한계</th></tr></thead><tbody><tr><td>외부 호출</td><td>0</td><td>새 API·network 호출 없음</td></tr><tr><td>모델·검색 실행</td><td>0</td><td>기존 저장 응답 packet을 읽어 사용자 평가만 기록</td></tr><tr><td>비용·latency</td><td>새 비용 0, 추가 latency 미측정</td><td>25번 원래 API 실행 비용·시간과 합산하지 않음</td></tr></tbody></table><div class="guide"><strong>비교 데이터:</strong> 저장된 익명 packet과 배정표를 재사용한 문서화·사용자 판정 단계다. <strong>성공 의미:</strong> 새 호출 없이 동일 응답을 공정하게 해제·집계한다. <strong>핵심 한계:</strong> 비용 0은 답변 생성 비용이 없었다는 뜻이 아니라, 이미 생성된 응답을 재사용했다는 뜻이다. <strong>카드 예:</strong> 같은 현대카드 답변 A/B를 다시 읽어도 새 LLM 요청은 만들지 않는다.</div></section>
+
+<section class="callout risk"><h2>최종 결론과 다음 단계</h2><p>STRUCT 5:4는 약한 신호일 뿐, 동률 5건과 Top3 동률·Top5 STRUCT 1승 우세 때문에 확정적 승리는 아니다. 단일 사용자·개발 질문·요약형 표시·작은 표본이라는 한계도 남는다. 두 후보, 출력 K, 평가 규칙을 먼저 동결한 뒤 같은 최종 확인용 평가에서 한 번만 비교하고, 결과를 보기 전에는 구성·규칙을 바꾸지 않는다. 그 뒤 승자 하나만 실제 구현 후보로 넘긴다.</p>
+</section>
+
+<section><h2>근거와 machine-readable 산출물</h2><details open><summary>25번 익명 packet·배정·계약</summary><p><a href="../notebooks/data/25_llm_answer_quality_pipeline_comparison/answer_quality_blind_packet.jsonl">익명 A/B packet JSONL</a>, <a href="../notebooks/data/25_llm_answer_quality_pipeline_comparison/manual_blind_assignment_key.csv">배정 해제 CSV</a>, <a href="../notebooks/data/25_llm_answer_quality_pipeline_comparison/manual_blind_pairs.csv">pair 목록 CSV</a>, <a href="../notebooks/data/25_llm_answer_quality_pipeline_comparison/answer_quality_blind_packet_contract.json">packet 계약 JSON</a>, <a href="../notebooks/data/25_llm_answer_quality_pipeline_comparison/answer_quality_blind_packet_integrity.json">packet 무결성 JSON</a>, <a href="../notebooks/data/25_llm_answer_quality_pipeline_comparison/answer_quality_summary.csv">25번 자동 요약 CSV</a>, <a href="14_llm_answer_quality_pipeline_comparison_report.html">14번 자동·custom reviewer 비교 보고서</a></p>
+</details></section>
+</main></body></html>

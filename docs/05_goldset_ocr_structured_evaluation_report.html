@@ -15,7 +15,7 @@
   @media(max-width:720px){main{padding:28px 16px}.summary{grid-template-columns:repeat(2,minmax(0,1fr))}.toc{columns:1}table{font-size:12px}.arrow{display:none}}
 </style>
 </head>
-<body><main>
+<body><section class="report-context"><h2>왜 이 테스트를 했나</h2><p>수기 정답셋으로 OCR 텍스트뿐 아니라 구조화 필드와 핵심 사실의 정확도를 확인하려 했다.</p><h2>이 테스트로 무엇을 확인하려 했나</h2><p>대상·조건·수치가 함께 맞는지, 단순 텍스트 유사도와 다른 위험을 드러내는지 확인했다.</p></section><main>
 <h1>수기 정답셋 기반 OCR·구조화 평가 보고서</h1>
 <p class="lead">5개 카드 PDF에 대해 OpenAI Vision OCR과 Upstage OCR의 전체 텍스트 품질을 수기 정답 TXT로 평가하고, 각 OCR TXT를 동일한 OpenAI 구조화 API로 필드 JSON으로 변환한 뒤 수기 필드 정답셋과 비교한 결과입니다.</p>
 <p class="meta">생성일: 2026-07-25 · 실행 ID: <code>2026-07-25_live_ocr / evaluation_v4</code> · 카드 5개 · 페이지 22개 · 평가 필드 117개</p>
@@ -179,4 +179,4 @@
 </ul>
 
 <p class="meta">근거 산출물: 07 기준선의 <code>notebooks/data/07_goldset_vision_upstage_comparison/2026-07-25_live_ocr/evaluation_v4/</code>, 추가 실험의 <code>notebooks/data/08_ocr_model_runtime_comparison/runs/20260726T000000Z/</code>에 있는 <code>full_page_metrics.csv</code>, <code>field_exact_metrics.csv</code>, 원문·구조화 JSON·실행 manifest. 원본 PDF와 gold 정답셋은 수정하지 않았습니다.</p>
-</main></body></html>
+</main><section class="report-conclusion"><h2>최종 결과</h2><p>수기 정답셋 평가에서 91.95와 39.32처럼 텍스트·구조화 계층의 점수가 크게 갈렸다. 이 결과는 OCR 문자열 점수와 구조화 필드·핵심 사실 판정을 분리해 유지해야 한다는 결론으로 연결됐다. 배열·표 관계는 일부 값이 맞아도 행이나 조건 연결이 틀릴 수 있는 제한이 남았다. 다음 실험은 semantic critical fact를 별도 단위로 재구성해 반복 OCR을 비교했다.</p></section></body></html>

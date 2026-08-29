@@ -11,7 +11,7 @@
     @media (max-width:650px) { .grid { grid-template-columns:1fr; } th,td { padding:9px 7px; font-size:13px; } }
   </style>
 </head>
-<body>
+<body><section class="report-context"><h2>왜 이 테스트를 했나</h2><p>카드 혜택을 대상·조건·수치가 묶인 의미 사실로 평가할 필요를 확인하려 했다.</p><h2>이 테스트로 무엇을 확인하려 했나</h2><p>반복 OCR과 구조화 결과가 critical fact를 얼마나 안정적으로 보존하는지 확인했다.</p></section>
 <main>
   <h1>Semantic Critical Fact OCR Evaluation</h1>
   <p class="meta">생성 시각: 2026-08-07 23:23 KST · 구조화 모델: <code>gpt-5.4-mini</code> · API 오류: 0건</p>
@@ -76,10 +76,11 @@
     <h2>산출물</h2>
     <ul>
       <li><a href="../data/ocr_benchmark/gold/critical_rules/critical_rules_v1.json">의미 기반 정답셋</a></li>
-      <li><a href="../notebooks/data/09_core_numeric_condition_ocr_evaluation/semantic_fact_summary.json">요약 JSON</a></li>
-      <li><a href="../notebooks/data/09_core_numeric_condition_ocr_evaluation/semantic_fact_details.csv">사실별 상세 CSV</a></li>
+      <li>요약 JSON — 현재 워크스페이스에 원본 산출물 미보존</li>
+      <li>사실별 상세 CSV — 현재 워크스페이스에 원본 산출물 미보존</li>
       <li><a href="../notebooks/09_core_numeric_condition_ocr_evaluation.ipynb">실험 노트북</a></li>
     </ul>
+    <p class="note">보고서 수치는 기존 실행 기록이며, 현재 워크스페이스에 원본 산출물이 보존되지 않아 직접 재검증이 제한된다.</p>
   </section>
 
   <section>
@@ -102,5 +103,5 @@
     <p class="note">추가 복구 실행 중 API 크레딧 소진으로 Terra 2차의 한 카드가 완료되지 않았다. 해당 미완료 run은 보존하지만 위 평균·표준편차에는 포함하지 않았다.</p>
   </section>
 </main>
-</body>
+<section class="report-conclusion"><h2>최종 결과</h2><p>이 보고서는 semantic critical fact 기준에서 98.52와 96.30의 반복 비교 결과를 기록한다. 결과는 대상·조건·수치를 함께 보는 사실 단위를 이후 관계형 평가의 입력으로 삼는 역할을 했다. 현재 워크스페이스에는 원본 일부 산출물이 미보존되어 수치를 직접 재검증하는 데 제한이 있다. 그래서 후속 관계형 평가는 저장된 gold와 기존 실행 근거를 분리해 다뤘다.</p></section></body>
 </html>

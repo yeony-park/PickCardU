@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>검색 정규화와 Kiwi 형태소 ablation — 결과 보고서</title>
+  <style>
+    :root{--ink:#172033;--muted:#5e6a7d;--line:#dfe5ed;--bg:#f5f7fb;--paper:#fff;--navy:#16375f;--teal:#087a7b;--gold:#896000;--red:#a53a40}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.68 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans KR",sans-serif}main{max-width:1160px;margin:auto;padding:30px 20px 64px}header{padding:38px;background:linear-gradient(135deg,#133158,#286b89);color:#fff;border-radius:18px}h1{font-size:clamp(28px,4vw,42px);line-height:1.2;margin:0 0 12px}h2{font-size:25px;margin:44px 0 13px}h3{font-size:18px;margin:27px 0 9px}p{margin:8px 0}.lead{font-size:18px;max-width:900px}.tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}.tag{padding:3px 10px;border:1px solid #ffffff55;background:#ffffff1b;border-radius:999px;font-size:13px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(205px,1fr));gap:12px}.stat,.panel{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:17px}.stat b{display:block;color:var(--navy);font-size:25px}.callout{background:#fff;border:1px solid var(--line);border-left:5px solid var(--teal);border-radius:10px;padding:15px 17px;margin:16px 0}.warn{border-left-color:var(--gold)}.risk{border-left-color:var(--red)}.flow{display:flex;align-items:center;flex-wrap:wrap;gap:8px}.flow span{background:#e6f0f9;padding:8px 11px;border-radius:8px;font-weight:650}.flow i{font-style:normal;color:var(--muted)}table{width:100%;border-collapse:collapse;background:var(--paper);font-size:14px;margin:10px 0 0}caption{text-align:left;font-weight:700;padding:0 0 5px}th,td{border:1px solid var(--line);padding:9px;vertical-align:top;text-align:left}th{background:#edf3f9;color:#203f65}.num{text-align:right;font-variant-numeric:tabular-nums}.guide{margin:0 0 21px;padding:12px 14px;background:#edf8f6;color:#28524f;border-radius:0 0 10px 10px;font-size:13px}.small{font-size:13px;color:var(--muted)}.delta{color:#08675f;font-weight:650}.down{color:#9a5c00;font-weight:650}.bad{color:#a53a40;font-weight:700}code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.9em;word-break:break-all}a{color:#075f9c;text-decoration-thickness:1px}li{margin:5px 0}ol,ul{padding-left:22px}@media(max-width:760px){main{padding:16px 12px 42px}header{padding:26px 22px;border-radius:12px}table{font-size:12px}th,td{padding:7px;word-break:break-word}}@media print{body{background:#fff}main{max-width:none;padding:0}header{border-radius:0}.panel,.stat,.callout{break-inside:avoid}}
+  </style>
+</head>
+<body><section class="report-context"><h2>왜 이 테스트를 했나</h2><p>검색 정규화의 이득과 형태소 분석이 추가 이득을 주는지를 같은 질의로 분리해 확인하려 했다.</p><h2>이 테스트로 무엇을 확인하려 했나</h2><p>정규화 BM25·RRF와 형태소 후보가 혜택·조건 검색을 개선하면서 guardrail을 지키는지 확인했다.</p></section>
+<main>
+  <header>
+    <h1>검색 정규화와 Kiwi 형태소 ablation</h1>
+    <p class="lead">13번 검색 정규화 테스트와 15번 Kiwi 형태소 후보 실험을 같은 개발 질의·같은 327개 계층 청크 기준으로 연결해, 유지할 후보와 아직 승격하지 않을 후보를 구분한 오프라인 retrieval 결과 보고서입니다.</p>
+    <div class="tags"><span class="tag">10 cards</span><span class="tag">327 chunks</span><span class="tag">30 development queries</span><span class="tag">evidence 20 / card 10</span><span class="tag">single deterministic run</span></div>
+  </header>
+
+  <section>
+    <h2>결론</h2>
+    <div class="grid">
+      <div class="stat"><b>유지</b>검색 정규화 후보</div>
+      <div class="stat"><b>미승격</b>현재 Kiwi 형태소 설정</div>
+      <div class="stat"><b>20개</b>핵심 evidence 질의</div>
+      <div class="stat"><b>0회</b>새 embedding·network·API 호출</div>
+    </div>
+    <div class="callout"><strong>판정.</strong> 13번의 정규화 후보는 evidence 20개에서 raw BM25 대비 Strict Hit@3, Recall@5, MRR@5, nDCG@5가 모두 상승했고, vector에 정규화 BM25를 RRF로 결합한 경우도 evidence 근거 순위 지표가 상승했다. 따라서 <strong>정규화 후보는 유지</strong>한다.</div>
+    <div class="callout risk"><strong>형태소 미승격.</strong> 15번의 현재 Kiwi 설정은 evidence RRF MRR@5 delta가 <strong>−0.004167</strong>으로 승격 기준 <code>+0.025</code>에 미달했고, Strict Evidence Hit@3와 nDCG@5 guardrail도 회귀했다. 따라서 <strong>현재 설정은 승격하지 않는다</strong>.</div>
+    <p>두 결과는 같은 개발 질의 30개(evidence 20개, card 10개)에서의 후보 비교다. 독립 holdout은 사용하지 않았으며, 운영 확정이나 미관측 질의 일반화를 주장하지 않는다.</p>
+  </section>
+
+  <section>
+    <h2>범위와 비교 설계</h2>
+    <div class="flow"><span>10개 카드 fixture</span><i>→</i><span>327 계층 청크</span><i>→</i><span>30개 개발 질의</span><i>→</i><span>13번 정규화</span><i>→</i><span>15번 Kiwi 추가 ablation</span></div>
+    <p>13번은 검색 정규화 테스트 산출물이다. 원문·질의에 NFKC/lower/공백 정규화, 한글 2·3·4-gram, 수치·금액·퍼센트·기간 canonical token을 더한 BM25와, cache된 vector 순위를 비교했다. 15번은 13번의 <code>normalized_bm25</code> 및 <code>rrf_vector_normalized</code>를 정확히 재현한 뒤, 본문·질의에 Kiwi의 NNG/NNP/VV/VA 분석 token을 append하는 후보만 추가 비교했다. metadata·structured metadata·평가 필드는 형태소 순위 입력에서 제외했다.</p>
+    <div class="panel"><strong>실행·출처.</strong> 생성일은 15번 summary의 <time datetime="2026-08-18T07:07:30.969555+00:00">2026-08-18 UTC</time>이다. 15번은 사용자 테스트 기록이 아니라 <strong>Codex coder agent가 실행해 남긴 산출물</strong>이다. 실행 환경은 <code>skn25</code>, <code>nbclient 0.10.4</code>이며, network/API 호출·새 embedding·패키지 설치는 각각 0회로 기록됐다.</div>
+    <div class="callout warn"><strong>공통 한계.</strong> BC는 selected excerpt, IBK는 incomplete/ambiguous fixture이며 나머지 카드도 기존 canonical fixture 범위를 벗어나지 않는다. 모든 구성은 structured-assisted chunk boundary를 공유하므로, 형태소가 본문만 읽더라도 청크 경계 자체의 영향을 분리하지 못한다.</div>
+  </section>
+
+  <section>
+    <h2>evidence 20개: 핵심 비교</h2>
+    <table>
+      <caption>13번 정규화 후보의 evidence-only 평균</caption>
+      <thead><tr><th>비교</th><th class="num">Card@3</th><th class="num">Strict@3</th><th class="num">Recall@5</th><th class="num">MRR@5</th><th class="num">nDCG@5</th></tr></thead>
+      <tbody>
+        <tr><td>Raw BM25</td><td class="num">0.9000</td><td class="num">0.5500</td><td class="num">0.4750</td><td class="num">0.3500</td><td class="num">0.3656</td></tr>
+        <tr><th>Normalized BM25</th><th class="num">0.9000</th><th class="num">0.7000</th><th class="num">0.6875</th><th class="num">0.4975</th><th class="num">0.5221</th></tr>
+        <tr><td>delta</td><td class="num">0.0000</td><td class="num delta">+0.1500</td><td class="num delta">+0.2125</td><td class="num delta">+0.1475</td><td class="num delta">+0.1566</td></tr>
+        <tr><td>Vector</td><td class="num">0.9500</td><td class="num">0.6500</td><td class="num">0.6875</td><td class="num">0.5792</td><td class="num">0.5648</td></tr>
+        <tr><th>Vector + normalized RRF</th><th class="num">0.9000</th><th class="num">0.7500</th><th class="num">0.7125</th><th class="num">0.6033</th><th class="num">0.5966</th></tr>
+        <tr><td>delta</td><td class="num down">−0.0500</td><td class="num delta">+0.1000</td><td class="num delta">+0.0250</td><td class="num delta">+0.0242</td><td class="num delta">+0.0318</td></tr>
+      </tbody>
+    </table>
+    <div class="guide"><strong>Metric guide — 비교 데이터:</strong> 20개 evidence 질의의 동일 top-5 순위와 relevance 계약(expected card·level·required terms)을 비교한다. <strong>Pass 의미:</strong> Card@3은 카드 라우팅, Strict@3은 상위 3개에 엄격한 근거가 있음, Recall@5는 관련 근거 회수율, MRR@5는 첫 관련 근거의 위치, nDCG@5는 관련 근거의 상위 배치다. <strong>핵심 한계:</strong> binary term 기반 relevance여서 동의어·부분적으로 유용한 근거·5위 이후 결과·답변 품질은 반영하지 않는다. 모든 값은 <strong>단일 deterministic run의 질의 평균</strong>이며 반복 평균이나 표준편차는 없다.</div>
+
+    <table>
+      <caption>15번 Kiwi 형태소 후보의 evidence-only 평균</caption>
+      <thead><tr><th>비교</th><th class="num">Card@3</th><th class="num">Strict@3</th><th class="num">Recall@5</th><th class="num">MRR@5</th><th class="num">nDCG@5</th></tr></thead>
+      <tbody>
+        <tr><td>Normalized BM25</td><td class="num">0.9000</td><td class="num">0.7000</td><td class="num">0.6875</td><td class="num">0.4975</td><td class="num">0.5221</td></tr>
+        <tr><th>Normalized + morph BM25</th><th class="num">0.9000</th><th class="num">0.7000</th><th class="num">0.6875</th><th class="num">0.4808</th><th class="num">0.5141</th></tr>
+        <tr><td>delta</td><td class="num">0.0000</td><td class="num">0.0000</td><td class="num">0.0000</td><td class="num down">−0.0167</td><td class="num down">−0.0080</td></tr>
+        <tr><td>Normalized RRF</td><td class="num">0.9000</td><td class="num">0.7500</td><td class="num">0.7125</td><td class="num">0.6033</td><td class="num">0.5966</td></tr>
+        <tr><th>Normalized + morph RRF</th><th class="num">0.9000</th><th class="num">0.7000</th><th class="num">0.7125</th><th class="num">0.5992</th><th class="num">0.5932</th></tr>
+        <tr><td>delta</td><td class="num">0.0000</td><td class="num down">−0.0500</td><td class="num">0.0000</td><td class="num down">−0.0042</td><td class="num down">−0.0034</td></tr>
+      </tbody>
+    </table>
+    <div class="guide"><strong>Metric guide — 비교 데이터:</strong> 위 표와 같은 evidence 20개와 relevance 계약이며, vector 쪽은 cache된 vector rank와 BM25 rank를 equal-weight RRF(k=60, depth=50)로 결합한다. <strong>Pass 의미:</strong> 각 지표의 delta가 0보다 크면 그 구성에서 같은 질의 평균이 개선됐다는 뜻이다. <strong>핵심 한계:</strong> Kiwi token 추가 외에는 동일 조건이지만, 단발 비교이므로 작은 차이를 통계적 우열로 해석할 수 없다. 모든 값은 <strong>단일 deterministic run의 질의 평균</strong>이며 반복 평균이나 표준편차는 없다.</div>
+  </section>
+
+  <section>
+    <h2>Paired 변화: 개선·하락·동일 질의 수</h2>
+    <table>
+      <caption>정규화 전후 paired 변화 (evidence 20개)</caption>
+      <thead><tr><th>비교 / 지표</th><th class="num">개선</th><th class="num">하락</th><th class="num">동일</th></tr></thead>
+      <tbody>
+        <tr><td>Raw BM25 → Normalized BM25 / Strict@3</td><td class="num">5</td><td class="num">2</td><td class="num">13</td></tr><tr><td>Raw BM25 → Normalized BM25 / Recall@5</td><td class="num">8</td><td class="num">1</td><td class="num">11</td></tr><tr><td>Raw BM25 → Normalized BM25 / MRR@5</td><td class="num">9</td><td class="num">3</td><td class="num">8</td></tr><tr><td>Raw BM25 → Normalized BM25 / nDCG@5</td><td class="num">10</td><td class="num">2</td><td class="num">8</td></tr>
+        <tr><td>Vector → normalized RRF / Strict@3</td><td class="num">3</td><td class="num">1</td><td class="num">16</td></tr><tr><td>Vector → normalized RRF / Recall@5</td><td class="num">3</td><td class="num">2</td><td class="num">15</td></tr><tr><td>Vector → normalized RRF / MRR@5</td><td class="num">6</td><td class="num">5</td><td class="num">9</td></tr><tr><td>Vector → normalized RRF / nDCG@5</td><td class="num">7</td><td class="num">5</td><td class="num">8</td></tr>
+      </tbody>
+    </table>
+    <div class="guide"><strong>Metric guide — 비교 데이터:</strong> 같은 query_id의 전·후 값이다. <strong>Pass 의미:</strong> 개선 수가 많다고 운영 적합성이 자동으로 증명되는 것은 아니며, 평균 delta와 guardrail을 함께 본다. <strong>핵심 한계:</strong> paired 수는 변화의 분포만 보여 주고 변화 크기·질의 난이도·통계적 유의성은 제공하지 않는다. 단일 deterministic run 기준이다.</div>
+
+    <table>
+      <caption>Kiwi 형태소 전후 paired 변화 (evidence 20개)</caption>
+      <thead><tr><th>비교 / 지표</th><th class="num">개선</th><th class="num">하락</th><th class="num">동일</th></tr></thead>
+      <tbody>
+        <tr><td>Normalized BM25 → +morph BM25 / Strict@3</td><td class="num">0</td><td class="num">0</td><td class="num">20</td></tr><tr><td>Normalized BM25 → +morph BM25 / Recall@5</td><td class="num">0</td><td class="num">0</td><td class="num">20</td></tr><tr><td>Normalized BM25 → +morph BM25 / MRR@5</td><td class="num">0</td><td class="num">2</td><td class="num">18</td></tr><tr><td>Normalized BM25 → +morph BM25 / nDCG@5</td><td class="num">0</td><td class="num">2</td><td class="num">18</td></tr>
+        <tr><td>Normalized RRF → morph RRF / Strict@3</td><td class="num">0</td><td class="num">1</td><td class="num">19</td></tr><tr><td>Normalized RRF → morph RRF / Recall@5</td><td class="num">0</td><td class="num">0</td><td class="num">20</td></tr><tr><td>Normalized RRF → morph RRF / MRR@5</td><td class="num">0</td><td class="num">1</td><td class="num">19</td></tr><tr><td>Normalized RRF → morph RRF / nDCG@5</td><td class="num">1</td><td class="num">2</td><td class="num">17</td></tr>
+      </tbody>
+    </table>
+    <div class="guide"><strong>Metric guide — 비교 데이터:</strong> 같은 20개 evidence query_id에서 normalized 기준과 Kiwi token 추가 기준을 직접 비교한다. <strong>Pass 의미:</strong> 형태소 후보는 evidence RRF MRR@5가 +0.025 이상이고 모든 guardrail이 비회귀여야 한다. <strong>핵심 한계:</strong> 같은 개발셋에서 관찰한 변동이라 재사용·튜닝 편향 가능성이 있고, 단일 deterministic run이라 반복 평균·표준편차가 없다.</div>
+  </section>
+
+  <section>
+    <h2>승격 규칙과 card/all 보조 해석</h2>
+    <table><thead><tr><th>형태소 promotion rule</th><th>결과</th></tr></thead><tbody>
+      <tr><td>Primary: evidence RRF MRR@5 delta ≥ +0.025</td><td class="bad">−0.004167 — 실패</td></tr>
+      <tr><td>Guardrail: evidence Strict@3 비회귀</td><td class="bad">0.7500 → 0.7000 — 실패</td></tr>
+      <tr><td>Guardrail: evidence Recall@5 비회귀</td><td>0.7125 → 0.7125 — 통과</td></tr>
+      <tr><td>Guardrail: evidence nDCG@5 비회귀</td><td class="bad">0.5966 → 0.5932 — 실패</td></tr>
+      <tr><td>Guardrail: evidence Card@3 및 card Card@3 비회귀</td><td>각각 0.9000 → 0.9000, 1.0000 → 1.0000 — 통과</td></tr>
+    </tbody></table>
+    <div class="guide"><strong>Metric guide — 비교 데이터:</strong> evidence 20개 primary와 guardrail, card 10개 card-routing guardrail이다. <strong>Pass 의미:</strong> primary의 최소 개선과 guardrail 전체 비회귀를 모두 만족해야 승격한다. <strong>핵심 한계:</strong> 이 규칙은 본 개발셋의 후보 선별 규칙일 뿐, 운영 SLA나 일반화 보장은 아니다. 단일 deterministic run 기준이다.</div>
+    <p><strong>all MRR의 소폭 상승을 evidence 개선으로 해석하지 않는다.</strong> morphology RRF의 all MRR@5는 0.5383에서 0.5606으로 +0.0222였지만, evidence MRR@5는 0.6033에서 0.5992로 하락했다. 이 all 상승은 card 질문의 MRR@5가 0.4083에서 0.4833으로 개선된 영향이며, evidence 근거 검색 개선의 증거가 아니다.</p>
+  </section>
+
+  <section>
+    <h2>형태소 하락 원인: 관찰과 추정의 구분</h2>
+    <table><thead><tr><th>사례 / 신호</th><th>확인된 관찰</th><th>원인 해석</th></tr></thead><tbody>
+      <tr><td>공통 명사 false positive</td><td><code>bc_numeric</code>·<code>bc_semantic</code>·<code>ibk_name</code> 등에서 국내외·가맹점·적립·포인트·카드·상품 같은 공통 형태소가 다른 카드 또는 무관 청크의 top-5 유입·순서 변화를 만들었다.</td><td><strong>확인:</strong> 해당 token과 순위 변화. <strong>추정:</strong> 공통 명사의 추가 lexical 신호가 false positive를 늘렸을 가능성.</td></tr>
+      <tr><td><code>nh_numeric</code> 반복 lexical signal</td><td>스마트·캐시백·업종·적립이 같은 NH 카드의 비정답 section에도 반복됐고, 정답 benefit은 RRF 3위→4위로 이동했다. Strict@3, MRR, nDCG가 하락했다.</td><td><strong>확인:</strong> 동일 카드 내부 재정렬과 지표 하락. <strong>추정:</strong> 반복 형태소가 비정답 section의 점수를 상대적으로 밀어 올렸을 가능성.</td></tr>
+      <tr><td><code>lotte_name</code> 영문 상품명</td><td>선택 POS 형태소에는 영문 상품명이 없고 질의에는 카드사·상품만 남았다. compact card/name chunk가 top-5 밖으로 밀리며 Recall 1.0, MRR 0.25, nDCG 0.431이 하락했다.</td><td><strong>확인:</strong> morph token 부재와 지표 변화. <strong>추정:</strong> 식별력 있는 영문 이름을 보완하지 못한 일반 token이 순위를 약화했을 가능성.</td></tr>
+      <tr><td>발급사·4대 과분석 위험</td><td><code>hyundai_name</code>에서는 발급사 관련 분석, <code>shinhan_semantic</code>에서는 ‘4대’가 ‘대’라는 짧은 일반 명사로 분석된 신호가 기록됐다. 후자는 RRF metric 변화가 없었다.</td><td><strong>확인:</strong> 해당 분석 token과 사례별 순위 기록. <strong>추정:</strong> 짧거나 일반적인 분석 단위가 비관련 lexical match를 만들 위험.</td></tr>
+      <tr><td>OCR 오기 민감성</td><td><code>hyundai_semantic</code>의 정답 계열 본문에는 ‘추가 혜택’이 ‘추가 헤택’으로 있어 <code>morph_nng_혜택</code> 일치를 얻지 못했고 BM25 MRR이 한 단계 하락했다. RRF metric은 유지됐다.</td><td><strong>확인:</strong> OCR 표기와 token 불일치. <strong>추정:</strong> 형태소 분석이 OCR 오기에 취약해질 수 있음.</td></tr>
+      <tr><td>긍정 사례</td><td><code>bc_name</code>과 <code>kb_name</code>에서는 card overview가 RRF 2위→1위로 올라 MRR·nDCG가 개선됐다.</td><td><strong>확인:</strong> 같은 카드의 상위 순위 개선. 이는 후보의 보편적 우월성이나 승격 근거로는 충분하지 않다.</td></tr>
+    </tbody></table>
+    <p>Kiwi token 추가 뒤 BM25 문서 길이 중앙값은 계층별로 원래의 약 <strong>1.133~1.142배</strong>(card 1.1423, page 1.1334, section 1.1327, benefit 1.1418)로 증가한 것은 확인 사실이다. 다만 BM25 길이 정규화 또는 중복 lexical 재가중이 각 하락을 <em>개별적으로</em> 일으켰다는 인과는 별도 ablation이 없으므로 <strong>추정</strong>이다.</p>
+  </section>
+
+  <section>
+    <h2>Chroma integrity와 vector 재현성</h2>
+    <table><thead><tr><th>실험</th><th>확인 과정</th><th>정직한 범위</th></tr></thead><tbody>
+      <tr><td>13번 정규화</td><td>최초 구현이 protected source에 직접 <code>PersistentClient</code>를 연결해 Chroma bookkeeping이 byte tree를 바꾸는 incident가 있었다. 이후 post-incident source의 byte-for-byte 임시 snapshot에서 cached query embedding으로 조회했고 published vector top-5는 30/30 exact였다.</td><td>collection count 327·collection name·published top-5는 확인됐다. 그러나 incident 전 6–50위는 저장되지 않아 pre/post 전체 vector rank와 incident 전 RRF 동등성은 증명되지 않는다. 현재 13번 RRF는 post-incident snapshot 기반이다.</td></tr>
+      <tr><td>15번 형태소</td><td>원본을 read-only로 확인한 뒤 NumPy exact squared L2로 먼저 재현을 시도해 20/30 top-5 exact를 얻었다. 근사 Chroma 순위와 완전히 같지 않아, byte-copied <code>/tmp</code> snapshot으로 fallback했고 30/30 top-5 및 normalized RRF summary exact를 확인했다.</td><td>15번 vector 부분은 snapshot rank를 사용한다. NumPy exact L2가 published top-5 전체를 재현하지 못했다는 차이를 숨기지 않으며, 이 결과는 13번 incident 전 전체 순위의 증명이 아니다.</td></tr>
+    </tbody></table>
+    <div class="guide"><strong>Metric guide:</strong> 이 표는 검색 정확도 결과표가 아니라 vector 입력·rank 재현성의 검증 기록이다. <strong>Pass 의미:</strong> stated snapshot에서 published top-5와 요약이 일치했다는 뜻이다. <strong>핵심 한계:</strong> top-5 일치는 더 깊은 순위·다른 저장소 상태·운영 환경의 동등성을 보장하지 않는다.</div>
+  </section>
+
+  <section>
+    <h2>근거 산출물과 참조</h2>
+    <ul>
+      <li><a href="../notebooks/13_hierarchical_chunking_retrieval.ipynb">13번 정규화 테스트 노트북</a>, <a href="../notebooks/data/13_hierarchical_chunking_retrieval/retrieval_search_normalization_summary.json">summary JSON</a>, <a href="../notebooks/data/13_hierarchical_chunking_retrieval/retrieval_search_normalization_summary.csv">summary CSV</a>, <a href="../notebooks/data/13_hierarchical_chunking_retrieval/retrieval_search_normalization_per_query.csv">per-query CSV</a></li>
+      <li><a href="../notebooks/15_korean_morphology_retrieval_ablation.ipynb">15번 Kiwi ablation 노트북</a>, <a href="../notebooks/data/15_korean_morphology_retrieval_ablation/morphology_ablation_summary.json">summary JSON</a>, <a href="../notebooks/data/15_korean_morphology_retrieval_ablation/morphology_ablation_summary.csv">summary CSV</a>, <a href="../notebooks/data/15_korean_morphology_retrieval_ablation/morphology_ablation_per_query.csv">per-query CSV</a>, <a href="../notebooks/data/15_korean_morphology_retrieval_ablation/morphology_changed_queries.csv">changed-query audit</a></li>
+      <li><a href="09_hierarchical_chunking_retrieval_report.html">13번 계층 청킹·retrieval 기존 보고서</a>, <a href="EVALUATION_METRICS.md">OCR·retrieval 평가 지표 사전</a></li>
+    </ul>
+    <p class="small">이 보고서는 위의 저장된 개발셋 산출물을 해석해 정리한 문서다. 수치의 단위는 질의 평균이며, 링크된 원자료가 재확인 가능한 근거다.</p>
+  </section>
+</main>
+<section class="report-conclusion"><h2>최종 결과</h2><p>정규화 후보는 유지하고 현재 형태소 설정은 미승격이다. 결과는 단일 개발 실행이며 운영 확정이 아니다. 본문 표와 근거 링크에 기록된 수치가 이 결론의 근거이며, 이 보고서 자체는 해당 고정 표본·계약에서의 비교 기록이다. 따라서 이 결과만으로 운영 채택을 확정하지 않고, 실패 사례와 범위 제한을 다음 평가의 입력으로 남긴다. 다음 단계에서는 같은 평가 계약을 유지한 채 필요한 원본 대조·독립 표본·후속 실험으로 결론을 다시 확인해야 한다.</p></section></body>
+</html>

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LLM 답변 품질: 기존·구조 패키지와 Top3·Top5 비교</title>
+  <style>
+    :root{--ink:#172033;--muted:#5e6a7d;--line:#dfe5ed;--bg:#f5f7fb;--paper:#fff;--navy:#16375f;--teal:#087a7b;--gold:#896000;--red:#a53a40}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.7 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans KR",sans-serif}main{max-width:1120px;margin:auto;padding:30px 20px 60px}header{padding:36px;background:linear-gradient(135deg,#133158,#286b89);color:#fff;border-radius:18px}h1{font-size:clamp(28px,4vw,42px);line-height:1.2;margin:0 0 12px}h2{font-size:25px;margin:42px 0 12px}h3{font-size:18px;margin:22px 0 8px}p{margin:8px 0}.lead{font-size:18px;max-width:920px}.tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:17px}.tag{padding:3px 10px;border:1px solid #ffffff55;background:#ffffff1b;border-radius:999px;font-size:13px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(235px,1fr));gap:12px}.panel,.stat{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:16px}.stat b{display:block;color:var(--navy);font-size:24px}.callout{background:#fff;border:1px solid var(--line);border-left:5px solid var(--teal);border-radius:10px;padding:14px 16px;margin:16px 0}.warn{border-left-color:var(--gold)}.risk{border-left-color:var(--red)}.flow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.flow span{background:#e6f0f9;padding:7px 10px;border-radius:8px;font-weight:650}.flow i{font-style:normal;color:var(--muted)}table{width:100%;border-collapse:collapse;background:var(--paper);font-size:14px;margin:10px 0 0}caption{text-align:left;font-weight:700;padding:0 0 5px}th,td{border:1px solid var(--line);padding:9px;vertical-align:top;text-align:left}th{background:#edf3f9;color:#203f65}.num{text-align:right;font-variant-numeric:tabular-nums}.up{color:#08675f;font-weight:700}.down{color:#a53a40;font-weight:700}.guide{margin:0 0 20px;padding:12px 14px;background:#edf8f6;color:#28524f;border-radius:0 0 10px 10px;font-size:13px}.small{font-size:13px;color:var(--muted)}code,pre{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;word-break:break-word}pre{white-space:pre-wrap;background:#f3f6f9;border:1px solid var(--line);padding:12px;border-radius:8px;font-size:12px}a{color:#075f9c;text-decoration-thickness:1px}li{margin:5px 0}details{margin:16px 0;padding:0 14px 12px;border:1px solid var(--line);border-radius:10px;background:#fff}summary{cursor:pointer;padding:10px 0;font-weight:700;color:var(--navy)}summary:focus-visible{outline:3px solid #f0b429;outline-offset:3px;border-radius:4px}@media(max-width:760px){main{padding:16px 12px 40px}header{padding:26px 22px;border-radius:12px}table{font-size:12px}th,td{padding:7px;word-break:break-word}}@media print{body{background:#fff}main{max-width:none;padding:0}header{border-radius:0}.panel,.stat,.callout{break-inside:avoid}}
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>LLM 답변 품질: 기존·구조 패키지와 Top3·Top5 비교</h1>
+    <p class="lead">결론: 자동 점수의 raw best는 STRUCT-K3였지만 gate를 통과하지 못했다. 단일 custom Codex reviewer의 익명 packet 감사까지 합쳐 읽으면, production incumbent가 없는 개발 단계에서 정확성 우선 후보는 OLD 패키지이며 STRUCT는 추천형 질의 강점의 후속 후보로 남는다.</p>
+    <div class="tags"><span class="tag">40 고유 질문 × 4 조합</span><span class="tag">160 단발 응답</span><span class="tag">gpt-5.6-terra</span><span class="tag">strict JSON</span><span class="tag">개발 평가</span></div>
+  </header>
+
+  <section>
+    <h2>왜 이 테스트를 했는가</h2>
+    <div class="grid"><div class="panel"><h3>검색 지표만으로는 부족하다</h3><p>Top3·Top5에서 카드와 근거 청크를 더 잘 찾았다는 검색 결과가, 실제 LLM 답변의 카드 선택·수치·조건·인용 정확도를 보장하는지는 별도 확인이 필요했다.</p></div><div class="panel"><h3>무엇을 같은 기준으로 봤나</h3><p>기존 OLD 패키지와 구조 STRUCT 패키지를 Top3·Top5 입력으로 각각 만들고, 같은 질문·같은 prompt·같은 JSON schema로 답하게 했다. 따라서 두 패키지 비교이며 청킹만의 인과 실험은 아니다.</p></div><div class="panel"><h3>160개 응답이 뜻하는 것</h3><p>고유 질문 40개에 OLD-K3, STRUCT-K3, OLD-K5, STRUCT-K5 네 조합을 각각 한 번씩 실행해 40×4=160 응답을 만들었다. 예를 들어 같은 ‘배달·실적’ 질문을 네 입력 구성으로 답하게 한 비교다.</p></div></div>
+  </section>
+
+  <section>
+    <h2>입력→답변→평가 흐름</h2>
+    <div class="flow"><span>40개 동결 질문</span><i>→</i><span>OLD 또는 STRUCT 카드 근거 그룹</span><i>→</i><span>K=3 또는 5</span><i>→</i><span>LLM strict JSON 답변</span><i>→</i><span>자동 점수 + 익명 packet 감사</span></div>
+    <p>OLD는 기존 검색·재정렬·근거 packaging 패키지, STRUCT는 구조 청킹·구조적 bundle과 그에 연결된 검색·재정렬·packaging 패키지다. K는 LLM에 줄 서로 다른 카드 근거 그룹의 최대 수이며, Top3/Top5 카드 선택과 근거 품질을 같은 질문 gold로 함께 비교했다.</p>
+    <h3>실행 계약과 실제 prompt</h3>
+    <p>모델은 <code>gpt-5.6-terra</code>, reasoning effort <code>medium</code>이며 strict JSON, <code>store=false</code>, tools 0, retries 0, single run으로 고정했다. 시스템 prompt와 user template은 아래 저장 파일의 원문 계약을 그대로 따른다.</p>
+    <details><summary>실제 system prompt와 user template 보기</summary><pre>system_prompt:
+너는 제공된 카드 근거만 사용해 질문에 답하는 도우미다. 근거에 없는 사실은 만들지 말고, 부족하면 insufficient_evidence를 true로 표시한다. 카드명·발급사·혜택·숫자·조건에 관한 모든 주장은 실제로 존재하는 evidence_id를 인용한다. 수치, 단위, 실적, 한도, 횟수, 제외 조건을 확대하거나 축약하지 않는다. 발급 가능성, 시장 전체에서의 최적성, 개인 자격 충족 여부를 주장하지 않는다. 근거가 충돌하면 summary와 claim에 충돌을 명시한다. 여러 카드가 조건을 만족하는 질문에서는 근거 순서를 유지하고, 질문의 모든 필수 조건을 근거로 확인한 카드만 포함한다. 지정된 JSON schema만 반환한다.
+
+user_template:
+질문:
+{query}
+
+근거 카드 그룹(JSON):
+{evidence_json}
+
+근거에 의해 직접 뒷받침되는 내용만 구조화해 답하라.</pre><p><a href="../notebooks/data/25_llm_answer_quality_pipeline_comparison/prompt.json">prompt JSON 원문</a>, <a href="../notebooks/data/25_llm_answer_quality_pipeline_comparison/response_schema.json">strict JSON schema</a></p></details>
+  </section>
+
+  <section>
+    <h2>자동 평가 결과</h2>
+    <table><caption>40개 질문의 자동 답변 품질: OLD와 STRUCT 패키지, K=3/5</caption><thead><tr><th>구성</th><th class="num">quality composite</th><th class="num">Card F1</th><th class="num">citation</th><th class="num">grounding</th><th class="num">fact recall</th><th class="num">numeric exact</th><th class="num">complete</th><th class="num">critical</th></tr></thead><tbody><tr><td>OLD-K3</td><td class="num">.5635</td><td class="num">.7958</td><td class="num">.975</td><td class="num">.8125</td><td class="num">.3978</td><td class="num">.325</td><td class="num">.075</td><td class="num">.175</td></tr><tr><th>STRUCT-K3</th><th class="num up">.5698</th><th class="num">.7917</th><th class="num">.975</th><th class="num up">.8792</th><th class="num">.3978</th><th class="num">.325</th><th class="num down">.05</th><th class="num down">.20</th></tr><tr><td>OLD-K5</td><td class="num">.5546</td><td class="num">.7773</td><td class="num">.975</td><td class="num">.7825</td><td class="num">.3926</td><td class="num">.325</td><td class="num">.075</td><td class="num">.25</td></tr><tr><td>STRUCT-K5</td><td class="num down">.5332</td><td class="num">.7792</td><td class="num down">.95</td><td class="num down">.7417</td><td class="num down">.3784</td><td class="num down">.30</td><td class="num down">.05</td><td class="num">.25</td></tr></tbody></table>
+    <div class="guide"><strong>비교 데이터·분모:</strong> 구성별 40개 응답의 gold quality scorer 결과다. Card F1은 답변 카드 집합, citation은 카드·주장에 인용한 evidence_id, grounding은 주장 중 실제 제공 근거에 연결된 비율, fact recall은 필요한 사실, numeric exact는 값·단위·조건까지 정확한 비율을 각각 본다. complete는 완결 답 비율이고 critical은 심각 오류 비율이라 낮을수록 좋다. <strong>한계:</strong> 모두 단일 deterministic run이며 평균·표준편차가 아니다. <strong>카드 예:</strong> 0.2% 적립을 0.2%로 인용해도 전월 실적 조건을 빼면 numeric exact 또는 complete가 실패할 수 있다.</div>
+    <p>K3의 STRUCT−OLD quality composite delta는 +.00625, W/L(개선/하락)은 13/9였지만 guardrail은 false라 후보 자격이 없다. K5 delta는 −.02136, W/L 11/11로 구조 패키지의 자동 점수가 낮았다. 따라서 자동 decision은 <code>retain_old_end_to_end_package</code>로 보존한다.</p>
+    <table><caption>Top3·Top5 입력에서도 답변 품질을 같은 기준으로 본 사례</caption><thead><tr><th>사례</th><th>무엇을 확인했나</th><th>주의</th></tr></thead><tbody><tr><td>CMB05·CMB06</td><td>카드가 검색 후보에 있어도 답변에서 필수 카드나 두 조건이 누락되는지 확인</td><td>카드 회수와 LLM이 모든 필수 사실을 말하는 것은 다르다.</td></tr><tr><td>CMB02</td><td>응답이 incomplete일 때 자동 완결성·근거 판정이 어떻게 달라지는지 확인</td><td>transport 상태와 사실 정답은 별도 계약이다.</td></tr><tr><td>0.2% 적립</td><td>작은 수치가 카드·단위·조건과 함께 정확한지 확인</td><td>값만 맞고 단위·조건이 틀리면 numeric exact가 아니다.</td></tr></tbody></table>
+    <div class="guide"><strong>비교 데이터:</strong> 위 자동 scorer가 같은 질문·같은 K별 출력에서 카드 선택과 근거·사실 조건을 함께 점검한 대표 상황이다. <strong>성공 의미:</strong> Top3/Top5 모두 카드 목록과 해당 혜택 근거가 빠지지 않아야 한다. <strong>핵심 한계:</strong> 사례는 전체 평균을 대체하지 않으며, retrieval evidence 개선이 LLM factual accuracy 개선을 보장하지 않는다. <strong>카드 예:</strong> 카드명은 맞아도 쇼핑 근거만 있고 통신 근거가 없으면 다조건 추천 답변은 불완전하다.</div>
+  </section>
+
+  <section>
+    <h2>자동 scorer의 한계와 익명 packet 감사</h2>
+    <p>20개 자동 regression을 별도로 점검했을 때 false 또는 tie가 13개, 실제 카드 omission이 2개, transport가 3개, ambiguous가 2개였다. 질문 밖 주변 사실을 강제하거나 alias·evidence projection을 다루는 방식 때문에 자동 점수 하나만으로 패키지 우열을 단정할 수 없다. semantic failure 66은 66개 응답에서 90회 발생한 관찰이며, ‘사실 오류 66개’라는 뜻은 아니다.</p>
+    <table><caption>익명 packet custom Codex reviewer 단일-rater blind audit</caption><thead><tr><th>범위</th><th class="num">OLD 승</th><th class="num">STRUCT 승</th><th class="num">동점</th><th>해석</th></tr></thead><tbody><tr><td>전체 80쌍</td><td class="num up">11</td><td class="num">7</td><td class="num">62</td><td>압도적 지배는 확인되지 않음</td></tr><tr><td>K3 40쌍</td><td class="num">6</td><td class="num">4</td><td class="num">30</td><td>OLD가 소폭 앞섬</td></tr><tr><td>K5 40쌍</td><td class="num">5</td><td class="num">3</td><td class="num">32</td><td>OLD가 소폭 앞섬</td></tr><tr><td>direct 60쌍</td><td class="num up">6</td><td class="num">1</td><td class="num">53</td><td>OLD 우세</td></tr><tr><td>recommendation 20쌍</td><td class="num">5</td><td class="num up">6</td><td class="num">9</td><td>STRUCT 강점 신호</td></tr><tr><td>severity</td><td colspan="3">OLD critical/major/minor = 0/10/3; STRUCT = 1/11/5</td><td>STRUCT에 critical 1건</td></tr></tbody></table>
+    <div class="guide"><strong>비교 데이터·분모:</strong> configuration key를 판정 뒤에만 decode한 anonymous packet 80쌍이다. 승·패·동점의 분모는 각 행의 packet pair 수이며 severity는 관찰된 오류 건수다. <strong>성공 의미:</strong> 같은 packet에서 더 많은 승과 더 적은 심각 오류가 있으면 보조 신호가 된다. <strong>핵심 한계:</strong> 사람 감사가 아닌 single custom Codex reviewer의 packet-only 판단이며 원 raw 밖 증거를 읽지 않았다. pair별 판정 원문은 세션 메시지 기반으로만 남았고 저장 산출물에는 집계 summary만 있어 개별 판단을 사후 재감사할 수 없다. <strong>카드 예:</strong> 추천 답이 더 많은 카드를 말해도 문서 근거가 packet에 충분하지 않으면 reviewer가 우세로 보지 않을 수 있다.</div>
+  </section>
+
+  <section>
+    <h2>외부 전송·비용·실행 이력</h2>
+    <table><caption>승인된 단발 API 실행 기록</caption><thead><tr><th>항목</th><th>기록</th><th>한계</th></tr></thead><tbody><tr><td>전송·보안</td><td>approval core SHA <code>96cd9ca0…a6d66007</code> 계약 뒤 질문과 evidence card group만 전송; tools 0, store=false</td><td>gold·내부 평가 필드는 payload에서 제외</td></tr><tr><td>usage·비용</td><td>input 759,735 + output 71,419 = 831,154 tokens; USD $2.376498</td><td>가격 계약은 저장된 사용자 제공 기록이며 이번 실행에서 URL을 새로 조회하지 않음</td></tr><tr><td>응답 상태</td><td>160 requests, completed 159 / incomplete 1, refusal 0, request error 0</td><td>완료 transport가 사실 정답을 뜻하지 않음</td></tr><tr><td>시간</td><td>latency 미측정</td><td>응답 시간을 성능·비용 지표처럼 비교할 수 없음</td></tr><tr><td>복원 이력</td><td>초기 태그 skip과 임시 셀 덮어쓰기 실패는 API 0 상태에서 복원</td><td>재시도 평균이 아니라 저장 산출물의 단발 실행 기록</td></tr></tbody></table>
+    <div class="guide"><strong>비교 데이터:</strong> 승인·payload manifest·provider usage·실행 이력이다. <strong>성공 의미:</strong> 승인된 입력만 전송하고 요청·token·비용·불완전 응답을 남겨야 한다. <strong>핵심 한계:</strong> latency는 측정하지 않았고, 비용은 응답 품질이나 운영 SLA를 뜻하지 않는다. <strong>카드 예:</strong> 카드 PDF 전체나 gold label이 아니라 질문과 선택된 카드 근거 그룹만 LLM 입력으로 전달한다.</div>
+    <p class="small">가격 출처는 저장 계약의 <a href="https://openai.com/api/pricing/">OpenAI API pricing</a> URL이다. 이는 정보 출처 링크이며 외부 CSS·JS asset을 추가하지 않는다.</p>
+  </section>
+
+  <section class="callout risk">
+    <h2>최종 해석과 다음 단계</h2>
+    <p>production incumbent는 없으므로 switching cost를 적용할 수 없다. 자동 decision은 OLD 유지이고, blind audit에서도 OLD 11·STRUCT 7·동점 62/80이라 압도적 지배는 확인되지 않았다. 따라서 정확성 우선 개발 후보는 OLD 패키지, STRUCT는 recommendation에서 6 대 5 승 신호가 있는 후속 후보로 둔다. 이는 운영 승격 근거나 최종 확인셋 근거가 아니다.</p>
+    <p>다음에는 질문 최소 gold 보정은 결과 후 수정과 구분해 기록하고, 실제 사람 2인의 감사와 출력 정책 K를 먼저 고정해야 한다. 이후에는 (a) 개발에서 하나를 선택한 뒤 untouched 최종 확인셋으로 확인하거나, (b) 선택용·확인용을 분리한 평가 설계를 새로 고정하는 선택지가 있다. 어느 경우든 이번 결과를 본 뒤 조건을 바꿔 우승 구성을 만드는 방식은 피한다.</p>
+  </section>
+
+  <section>
+    <h2>근거와 machine-readable 산출물</h2>
+    <details open><summary>25번 계약·응답·점수·감사 산출물</summary><p><a href="../notebooks/25_llm_answer_quality_pipeline_comparison.ipynb">25번 노트북</a>, <a href="../notebooks/data/25_llm_answer_quality_pipeline_comparison/README.md">결과 README</a>, <a href="../notebooks/data/25_llm_answer_quality_pipeline_comparison/evaluation_contract.json">평가 계약</a>, <a href="../notebooks/data/25_llm_answer_quality_pipeline_comparison/approval_core.json">승인 core</a>, <a href="../notebooks/data/25_llm_answer_quality_pipeline_comparison/payload_manifest.json">payload manifest</a>, <a href="../notebooks/data/25_llm_answer_quality_pipeline_comparison/external_run_status.json">응답 상태</a>, <a href="../notebooks/data/25_llm_answer_quality_pipeline_comparison/external_responses.jsonl">응답 JSONL</a>, <a href="../notebooks/data/25_llm_answer_quality_pipeline_comparison/answer_quality_summary.csv">자동 요약 CSV</a>, <a href="../notebooks/data/25_llm_answer_quality_pipeline_comparison/answer_quality_summary.json">자동 요약 JSON</a>, <a href="../notebooks/data/25_llm_answer_quality_pipeline_comparison/answer_quality_paired.csv">paired CSV</a>, <a href="../notebooks/data/25_llm_answer_quality_pipeline_comparison/answer_quality_wlt.csv">W/L/T CSV</a>, <a href="../notebooks/data/25_llm_answer_quality_pipeline_comparison/answer_quality_regressions.csv">regression CSV</a>, <a href="../notebooks/data/25_llm_answer_quality_pipeline_comparison/answer_quality_blind_review_summary.json">blind review summary</a>, <a href="../notebooks/data/25_llm_answer_quality_pipeline_comparison/answer_quality_blind_packet.jsonl">anonymous blind packet JSONL</a>, <a href="../notebooks/data/25_llm_answer_quality_pipeline_comparison/answer_quality_blind_audit.csv">빈 수기 입력 템플릿(완료 판정 아님)</a>, <a href="../notebooks/data/25_llm_answer_quality_pipeline_comparison/answer_quality_resources.json">자원 JSON</a>, <a href="../notebooks/data/25_llm_answer_quality_pipeline_comparison/answer_quality_decision.json">판정 JSON</a>, <a href="../notebooks/data/25_llm_answer_quality_pipeline_comparison/answer_quality_integrity.json">무결성 JSON</a></p></details>
+  </section>
+</main>
+</body>
+</html>

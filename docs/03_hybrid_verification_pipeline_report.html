@@ -25,7 +25,7 @@ code{background:#f1f5f9;padding:1px 5px;border-radius:4px;font-size:0.92em}
 .small{font-size:12.5px;color:#475569}
 .tag{display:inline-block;background:#e2e8f0;border-radius:4px;padding:1px 8px;font-size:11.5px;margin-left:6px}
 </style></head>
-<body>
+<body><section class="report-context"><h2>왜 이 테스트를 했나</h2><p>단일 OCR 결과를 바로 쓰지 않고 엔진 대조와 검토 경로를 결합할 필요를 확인하려 했다.</p><h2>이 테스트로 무엇을 확인하려 했나</h2><p>자동 통과·재시도·검토로 나누는 초기 검증 흐름이 위험한 수치 오류를 줄일 수 있는지 살폈다.</p></section>
 <h1>혼합형 OCR 검증 파이프라인 결과 보고서</h1>
 <p class="small">confidence 임계값 라우팅 + 위험도 계층화 + 멀티엔진 교차검증을 결합한 파이프라인을 실제로 구현·실행한 결과. 신용카드 상품설명서 OCR 파이프라인에서 "잘못된 정보가 검증 없이 사용자에게 전달되는" 리스크를 어떻게 줄일지에 대한 논의를 코드로 검증했다. <b>이 보고서는 v2(교차검증 상시 적용) 기준으로 갱신됐고, v1(confidence 지름길 포함) 시점의 발견 사항은 3절에 요약으로 남겨뒀다.</b></p>
 
@@ -620,4 +620,4 @@ code{background:#f1f5f9;padding:1px 5px;border-radius:4px;font-size:0.92em}
 <li>사용 모델: GPT <code>gpt-5.4-mini-2026-03-17</code> (Vision 추출 + Upstage 어댑터 구조화 모두 동일 모델 사용). Claude Vision은 사용하지 않음(사용자 지정).</li>
 </ul>
 
-</body></html>
+<section class="report-conclusion"><h2>최종 결과</h2><p>초기 하이브리드 실행은 12.5 단위 표본과 0.92 기준값을 기록했다. 이 결과는 자동 통과를 최종 승인 대신 검토 우선순위를 정하는 라우팅 후보로만 두었다. 엔진 합의는 정답이 아니고 경계 사례에서는 재시도·사람 검토가 필요한 trade-off가 관찰됐다. 그 한계 때문에 Vision과 Upstage를 원본 페이지로 다시 대조하는 04번 검증이 진행됐다.</p></section></body></html>

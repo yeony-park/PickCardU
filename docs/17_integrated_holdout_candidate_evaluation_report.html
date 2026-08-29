@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>28번 통합 holdout 후보 검색·LLM 평가 보고서</title>
+<style>
+:root{--ink:#172033;--muted:#5d697b;--line:#dce4ed;--paper:#fff;--bg:#f5f7fb;--navy:#16375f;--teal:#087a7b;--red:#a43b42;--amber:#795c09}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.7 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans KR",sans-serif}main{max-width:1120px;margin:auto;padding:28px 20px 60px}header{padding:34px;background:linear-gradient(135deg,#133158,#286b89);color:#fff;border-radius:18px}h1{font-size:clamp(27px,4vw,41px);line-height:1.2;margin:0 0 12px}h2{font-size:25px;margin:42px 0 12px}h3{font-size:18px;margin:0 0 7px}p{margin:8px 0}.lead{font-size:18px}.tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}.tag{font-size:13px;padding:3px 10px;border:1px solid #ffffff55;background:#ffffff18;border-radius:99px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}.panel,.callout{padding:16px;background:var(--paper);border:1px solid var(--line);border-radius:12px}.callout{border-left:5px solid var(--teal);margin:16px 0}.warn{border-left-color:var(--amber)}.fail{border-left-color:var(--red)}table{width:100%;border-collapse:collapse;background:#fff;margin:12px 0 0;font-size:14px}caption{text-align:left;font-weight:700;padding-bottom:5px}th,td{border:1px solid var(--line);padding:9px;vertical-align:top;text-align:left}th{background:#edf3f9;color:#203f65}.num{text-align:right;font-variant-numeric:tabular-nums}.guide{margin:0 0 20px;padding:12px 14px;background:#edf8f6;color:#28524f;border-radius:0 0 10px 10px;font-size:13px}.flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:13px 0}.flow span{padding:8px 11px;border-radius:9px;background:#e9f0f8;border:1px solid #cedceb;font-weight:650}.flow b{color:var(--teal)}.term{font-weight:700;color:var(--navy)}details{margin:12px 0;padding:0 14px 12px;background:#fff;border:1px solid var(--line);border-radius:10px}summary{cursor:pointer;padding:10px 0;font-weight:700;color:var(--navy)}summary:focus-visible{outline:3px solid #f0b429;outline-offset:3px;border-radius:4px}a{color:#075f9c}.small{font-size:13px;color:var(--muted)}code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere}.good{color:#076f63;font-weight:700}.bad{color:#a43b42;font-weight:700}@media(max-width:720px){main{padding:16px 12px 40px}header{padding:25px 20px;border-radius:12px}table{font-size:12px}th,td{padding:7px;word-break:break-word}}@media print{body{background:#fff}main{max-width:none;padding:0}header{border-radius:0}.panel,.callout,table{break-inside:avoid}}
+</style>
+</head>
+<body><main>
+<header>
+  <h1>28번 통합 holdout: 검색과 LLM 답변을 같은 30문항으로 평가</h1>
+  <p class="lead">결론: STRUCT의 raw E2E exact는 13/30으로 OLD의 11/30보다 높았지만, 두 후보 모두 사전 absolute/hard gate를 통과하지 못했다. 따라서 어느 쪽도 채택하거나 운영 승격할 근거가 없다.</p>
+  <div class="tags"><span class="tag">sealed holdout 30</span><span class="tag">OLD vs STRUCT</span><span class="tag">D20 / Top3 / BGE</span><span class="tag">LLM 60 responses</span><span class="tag">holdout_failed</span></div>
+</header>
+
+<section>
+  <h2>1. 테스트 목적과 통합 holdout 구조</h2>
+  <div class="grid">
+    <div class="panel"><h3>무엇을 검증했나</h3><p>보지 않은 질문에서 검색이 정답 카드를 찾고 필요한 혜택·조건 근거를 가져오는지, 이어서 그 근거만 받은 LLM 답변이 카드·주장·인용을 정확히 내는지를 함께 확인했다.</p></div>
+    <div class="panel"><h3>같은 질문·정답 구조</h3><p>각 레코드는 질문과 정답 카드·필수 claim·negative 여부를 가진다. 검색 평가는 카드와 근거 package를, LLM 평가는 그 package로 만든 답변을 같은 holdout label로 채점한다. 즉 두 평가가 서로 다른 질문 세트는 아니다.</p></div>
+    <div class="panel"><h3>분포</h3><p>총 30문항은 단일 카드 사실 10, 여러 카드 중 하나(OR) 추천 10, 여러 조건을 모두 만족해야 하는(AND) 추천 10으로 균등하다. 이 중 positive 26, negative 4문항이다.</p></div>
+  </div>
+  <div class="callout warn"><strong>해석 범위:</strong> 단일 실행의 sealed holdout 결과다. 개발 중 선택한 조건을 이 30문항 결과로 다시 조정하지 않았지만, 표본 30개만으로 전체 사용자 질의에 일반화할 수는 없다.</div>
+</section>
+
+<section>
+  <h2>2. 비교 후보와 고정 조건</h2>
+  <table><caption>후보별 실제 검색·근거 흐름</caption><thead><tr><th>후보</th><th>corpus와 Top20(D20) 구성</th><th>재정렬·최종 근거</th></tr></thead><tbody>
+  <tr><th>OLD</th><td>기존 card/page/section/benefit 327개 chunk. 공통 fused Top50에서 section/benefit만 순서를 유지해 골라 첫 20개를 쓴다.</td><td>proper·numeric 질의는 RRF 순서를 유지하고 semantic만 BGE raw logit으로 재정렬한다. 카드별 대표 근거부터 같은 카드 section/benefit 최대 5개를 package로 만든다.</td></tr>
+  <tr><th>STRUCT</th><td>direct-body structural 147개 chunk. 공통 fused Top50의 첫 20개를 쓴다.</td><td>모든 질의에서 카드 bundle 하나당 BGE raw logit을 매기고 Top3 카드로 collapse한다. 허용된 1-hop 관계로 카드당 최대 5개·4,096 tokens bundle을 만든다.</td></tr>
+  </tbody></table>
+  <div class="guide"><strong>고정 조건:</strong> vector:BM25 = .4:.6, 각 component Top50, RRF <code>k=60</code>, fused D20, 최종 고유 카드 Top3이다. embedding은 <code>text-embedding-3-small</code>, BGE는 local FP16 batch 2이며 RRF 점수와 raw BGE logit을 섞지 않는다. <strong>한계:</strong> OLD와 STRUCT는 청킹만 다른 실험이 아니라 rerank route와 evidence bundle 규칙도 함께 다른 후보 package다.</div>
+  <div class="flow" aria-label="통합 평가 흐름"><span>sealed 질문 30</span><b>→</b><span>검색·근거 package freeze</span><b>→</b><span>검색 채점</span><b>→</b><span>LLM 60개 답변</span><b>→</b><span>offline 답변 채점</span></div>
+</section>
+
+<section>
+  <h2>3. 검색 평가 결과</h2>
+  <table><caption>retrieval/evidence package 점수 (positive 26, negative 4)</caption><thead><tr><th>지표</th><th class="num">OLD</th><th class="num">STRUCT</th><th>읽는 법</th></tr></thead><tbody>
+  <tr><td>Card Precision@3</td><td class="num">.4167</td><td class="num">.4038</td><td>Top3 카드 슬롯 중 gold positive 카드의 비율</td></tr>
+  <tr><td>Card Recall@3</td><td class="num">.9423</td><td class="num">.9487</td><td>gold positive 카드 중 Top3에 든 비율</td></tr>
+  <tr><td>Supported-card Recall@3</td><td class="num">.8462</td><td class="num">.8526</td><td>정답 카드와 필요한 근거가 함께 Top3 package에 있는 비율</td></tr>
+  <tr><td>Required Claim Coverage</td><td class="num">.8750</td><td class="num">.8622</td><td>질문이 요구한 혜택·수치·조건 claim 회수 비율</td></tr>
+  <tr><td>negative correctness</td><td class="num">4/4</td><td class="num">4/4</td><td>정답 카드가 없는 질문에서 추천하지 않은 수</td></tr>
+  </tbody></table>
+  <div class="guide"><strong>분모와 방향:</strong> Precision은 반환 카드 슬롯, Recall·Supported-card·Claim은 positive 26문항의 해당 gold 카드·claim, negative correctness는 negative 4문항이 분모다. 모두 높을수록 좋다. <strong>통과 예:</strong> “편의점 10% 할인, 전월 30만 원” 질문에서 정답 카드가 Top3에 있고 두 사실 근거가 package에 있어야 supported-card와 claim에 기여한다. <strong>한계:</strong> 이 표는 검색·근거 회수까지이며 LLM이 문장을 정확히 만들었는지는 말하지 않는다.</div>
+  <table><caption>동일 문항 pair 비교와 판정</caption><thead><tr><th>비교</th><th class="num">STRUCT win / loss / tie</th><th>해석</th></tr></thead><tbody>
+  <tr><td>검색 end-to-end pair</td><td class="num">2 / 3 / 25</td><td>STRUCT가 앞선 문항보다 뒤진 문항이 하나 더 많다.</td></tr>
+  <tr><td>중요 회귀</td><td class="num">O07</td><td>STRUCT의 critical retrieval regression으로 기록됐다.</td></tr>
+  <tr><td>검색만의 결정</td><td class="num">없음</td><td>사전 계약상 retrieval-only 결과로 winner를 정하지 않는다.</td></tr>
+  </tbody></table>
+  <div class="guide"><strong>W/L/T:</strong> 같은 질문에서 STRUCT가 OLD보다 검색 end-to-end로 나음/나쁨/동일한 횟수다. <strong>높을수록 좋은 값:</strong> win이 loss보다 많고 중요 회귀가 없어야 후보 우위를 뒷받침한다. <strong>한계:</strong> 25개 동점과 O07 회귀가 있어 이 비교만으로 후보를 고르지 않았다.</div>
+</section>
+
+<section>
+  <h2>4. LLM 답변 평가 결과</h2>
+  <p>각 holdout 질문에 OLD와 STRUCT package를 각각 입력해 총 60개 strict JSON 응답을 생성했다. transport 검사는 모양·전송한 카드 identity·citation ownership·답변 상태만 확인하며, 사실 정확도는 이어지는 sealed gold 기반 CPU scorer가 채점했다.</p>
+  <table><caption>LLM 답변 품질 (positive 26, negative 4; 30문항 E2E)</caption><thead><tr><th>지표</th><th class="num">OLD</th><th class="num">STRUCT</th><th>읽는 법</th></tr></thead><tbody>
+  <tr><td>Card Precision@3</td><td class="num">.961538</td><td class="num">1.000000</td><td>답변이 낸 카드 중 gold positive 카드 비율</td></tr>
+  <tr><td>Card Recall@3</td><td class="num">.923077</td><td class="num">.929487</td><td>gold positive 카드 중 답변이 낸 비율</td></tr>
+  <tr><td>Supported-card Recall@3</td><td class="num">.641026</td><td class="num">.538462</td><td>답변의 카드와 claim이 근거로 함께 지원된 비율</td></tr>
+  <tr><td>Required Claim Coverage</td><td class="num">.698718</td><td class="num">.615385</td><td>필수 혜택·수치·조건 claim 회수 비율</td></tr>
+  <tr><td>E2E exact</td><td class="num">11/30</td><td class="num">13/30</td><td>카드·필수 claim·오류·negative 처리를 모두 만족한 문항 수</td></tr>
+  <tr><td>negative correctness</td><td class="num">3/4</td><td class="num">4/4</td><td>정답 없음 문항에서 카드 추천을 하지 않은 수</td></tr>
+  </tbody></table>
+  <div class="guide"><strong>분모와 방향:</strong> Card/Supported-card/Claim은 positive 26문항의 gold card 또는 required claim, negative correctness는 4문항, E2E exact는 전체 30문항이 분모다. 모두 높을수록 좋다. <strong>통과 예:</strong> 카드 이름만 맞혀도 “할인율”이나 “전월 실적”을 빠뜨리거나 근거 없는 수치를 쓰면 supported-card·claim·E2E exact를 통과하지 못한다. <strong>핵심 한계:</strong> scorer는 deterministic citation-to-sealed-component 및 lexical/numeric claim matching이라 자연스러운 바꿔말하기를 false negative로 셀 수 있으며, 외부 LLM judge는 쓰지 않았다.</div>
+  <table><caption>답변 실행·pair 요약</caption><thead><tr><th>항목</th><th class="num">기록</th><th>해석</th></tr></thead><tbody>
+  <tr><td>STRUCT 대 OLD E2E paired</td><td class="num">4 / 2 / 24</td><td>raw E2E에서는 STRUCT가 2문항 더 앞섰다.</td></tr>
+  <tr><td>transport semantic pass / failure</td><td class="num">53 / 7</td><td>형식·전송 검사는 53건 통과, semantic transport 검사는 7건 실패했다.</td></tr>
+  <tr><td>format failure</td><td class="num">0</td><td>strict JSON 형식 실패는 없었다.</td></tr>
+  </tbody></table>
+  <div class="guide"><strong>분모:</strong> pair와 transport는 60개 응답이 분모다. <strong>주의:</strong> transport pass는 사실 정답이 아니다. 예를 들어 인용 ID가 전달된 카드에 속해도, 그 인용이 사용자가 묻는 할인 조건을 충분히 증명하지 못할 수 있다.</div>
+</section>
+
+<section>
+  <h2>5. 13/30이 11/30보다 커도 둘 다 실패인 이유</h2>
+  <div class="callout fail"><strong>결정은 상대 순위가 아니라 absolute/hard gate를 먼저 본다.</strong> 사전 LLM gate는 E2E exact 최소 21/30, positive citation ownership 1.0, 모든 derived error total 0을 요구했다. OLD는 E2E 11/30·citation ownership .961538·derived error 48, STRUCT는 E2E 13/30·citation ownership 1.0·derived error 40으로, 두 후보 모두 모든 hard 조건을 만족하지 못했다.</div>
+  <p>쉬운 예로 “A카드는 편의점 10% 할인, 전월 30만 원 이상”이 정답이라고 하자. STRUCT가 13문항을 완전히 맞히고 OLD가 11문항을 맞혔더라도, 나머지 상당수에서 할인율·조건을 빠뜨리거나 근거 없는 혜택을 단정하면 카드 추천 서비스에는 위험하다. 카드명이 맞는 것보다 혜택과 조건을 근거 있게 말하는 정확성을 우선한 이유다.</p>
+  <p>따라서 <span class="bad">raw best(STRUCT 13/30)</span>와 <span class="bad">selected/adopted 후보</span>를 같은 말로 쓰면 안 된다. 이 holdout의 최종 상태는 두 후보 모두 <code>holdout_failed</code>이며, 생산 채택·일반화 근거가 아니다.</p>
+</section>
+
+<section>
+  <h2>6. 자원·비용·실행 이력</h2>
+  <table><caption>실측 자원과 비용 추정</caption><thead><tr><th>항목</th><th class="num">기록</th><th>해석·한계</th></tr></thead><tbody>
+  <tr><td>query embedding</td><td class="num">API 1회 · 30 items · 1,726 tokens</td><td>승인된 query text만 전송했다.</td></tr>
+  <tr><td>local BGE</td><td class="num">834 pairs · 10.552s · 79.03 pairs/s<br>peak allocated 1.208 GiB</td><td>GPU 0, FP16 batch 2. network·new embedding 0.</td></tr>
+  <tr><td>LLM 실제 usage</td><td class="num">input 312,974 · output 19,833<br>reasoning 2,585 · total 332,807 tokens<br>latency 합 217.864s</td><td>60 terminal response records의 저장 usage다.</td></tr>
+  <tr><td>Terra 단가 기반 추정</td><td class="num">$0.863944</td><td><code>312,974 × $2/M + 19,833 × $12/M</code>. 실제 청구액이 아니다.</td></tr>
+  </tbody></table>
+  <div class="guide"><strong>가격 근거:</strong> 현재 공식 <a href="https://developers.openai.com/api/docs/models/gpt-5.6-terra">GPT-5.6 Terra 모델 문서</a>의 input $2/M, output $12/M을 적용했다. reasoning tokens 2,585는 실행 산출물에 별도 기록했지만 위 요청 산식에는 별도로 더하지 않았다. 할인·세금·계정별 청구와 캐시 정책을 확인한 실제 invoice가 아니므로 이 값은 비용 추정일 뿐이다.</div>
+  <p>실행 이력은 (1) API-key 확인 실패로 요청 0건, (2) 60건 terminal response 저장 성공, (3) CPU scoring recovery의 API 0건 순서다. recovery 중 canonical-card/projection schema의 <code>card_id</code> 결합 오류와 source component의 <code>excerpt_text</code> 부재를 발견했다. atomic claim 96행만 조인하고, byte/codepoint interval·SHA-256 검증으로 원문 excerpt를 재구성하도록 고쳐 60 score를 독립 CPU 경로에서 통과시켰다. 외부 response record는 수정하지 않았다.</p>
+</section>
+
+<section>
+  <h2>7. 최종 결론과 다음 단계</h2>
+  <div class="callout fail"><p><strong>채택:</strong> 없음. OLD와 STRUCT 모두 즉시 채택하지 않는다.</p><p><strong>개선 범위:</strong> 실패한 질의와 error taxonomy를 development set에서 분석·개선한다. sealed holdout 30문항을 그 튜닝에 재사용하지 않는다.</p><p><strong>다음 검증:</strong> 개선 후에는 새 sealed confirmatory set으로 검색·LLM 답변을 다시 확인한다. 그 결과가 별도 absolute/hard gate를 통과하기 전에는 production-adopted configuration으로 부르지 않는다.</p></div>
+</section>
+
+<section>
+  <h2>근거와 machine-readable 산출물</h2>
+  <details open><summary>노트북·핵심 결과·실행 감사</summary><p><a href="../notebooks/28_integrated_holdout_candidate_evaluation.ipynb">28번 notebook</a>, <a href="../notebooks/data/28_integrated_holdout_candidate_evaluation/README.md">data README</a>, <a href="../notebooks/data/28_integrated_holdout_candidate_evaluation/retrieval_summary.json">retrieval summary</a>, <a href="../notebooks/data/28_integrated_holdout_candidate_evaluation/retrieval_paired.csv">retrieval paired</a>, <a href="../notebooks/data/28_integrated_holdout_candidate_evaluation/retrieval_decision.json">retrieval decision</a>, <a href="../notebooks/data/28_integrated_holdout_candidate_evaluation/llm_answer_summary.json">LLM answer summary</a>, <a href="../notebooks/data/28_integrated_holdout_candidate_evaluation/llm_answer_paired.jsonl">LLM paired records</a>, <a href="../notebooks/data/28_integrated_holdout_candidate_evaluation/llm_answer_scores.jsonl">LLM score records</a>, <a href="../notebooks/data/28_integrated_holdout_candidate_evaluation/llm_usage_cost.json">LLM usage</a>, <a href="../notebooks/data/28_integrated_holdout_candidate_evaluation/local_bge_resources.json">BGE resources</a>, <a href="../notebooks/data/28_integrated_holdout_candidate_evaluation/execution_final_status.json">final status</a>, <a href="../notebooks/data/28_integrated_holdout_candidate_evaluation/llm_scoring_recovery_audit.json">CPU recovery audit</a>.</p></details>
+  <p class="small">이 보고서는 sealed holdout의 질문·정답 평문을 재게시하지 않는다. 수치·상태·계약 해석은 위 저장 산출물과 노트북을 우선한다.</p>
+</section>
+</main></body></html>

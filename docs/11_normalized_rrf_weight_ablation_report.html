@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>정규화 RRF 가중치 ablation — 결과 보고서</title>
+  <style>
+    :root{--ink:#172033;--muted:#5e6a7d;--line:#dfe5ed;--bg:#f5f7fb;--paper:#fff;--navy:#16375f;--teal:#087a7b;--gold:#896000;--red:#a53a40}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.68 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans KR",sans-serif}main{max-width:1160px;margin:auto;padding:30px 20px 64px}header{padding:38px;background:linear-gradient(135deg,#133158,#286b89);color:#fff;border-radius:18px}h1{font-size:clamp(28px,4vw,42px);line-height:1.2;margin:0 0 12px}h2{font-size:25px;margin:44px 0 13px}h3{font-size:18px;margin:27px 0 9px}p{margin:8px 0}.lead{font-size:18px;max-width:900px}.tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}.tag{padding:3px 10px;border:1px solid #ffffff55;background:#ffffff1b;border-radius:999px;font-size:13px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(205px,1fr));gap:12px}.stat,.panel{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:17px}.stat b{display:block;color:var(--navy);font-size:25px}.callout{background:#fff;border:1px solid var(--line);border-left:5px solid var(--teal);border-radius:10px;padding:15px 17px;margin:16px 0}.warn{border-left-color:var(--gold)}.risk{border-left-color:var(--red)}.flow{display:flex;align-items:center;flex-wrap:wrap;gap:8px}.flow span{background:#e6f0f9;padding:8px 11px;border-radius:8px;font-weight:650}.flow i{font-style:normal;color:var(--muted)}table{width:100%;border-collapse:collapse;background:var(--paper);font-size:14px;margin:10px 0 0}caption{text-align:left;font-weight:700;padding:0 0 5px}th,td{border:1px solid var(--line);padding:9px;vertical-align:top;text-align:left}th{background:#edf3f9;color:#203f65}.num{text-align:right;font-variant-numeric:tabular-nums}.guide{margin:0 0 21px;padding:12px 14px;background:#edf8f6;color:#28524f;border-radius:0 0 10px 10px;font-size:13px}.small{font-size:13px;color:var(--muted)}.delta{color:#08675f;font-weight:650}.down{color:#9a5c00;font-weight:650}.bad{color:#a53a40;font-weight:700}code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.9em;word-break:break-all}a{color:#075f9c;text-decoration-thickness:1px}li{margin:5px 0}ol,ul{padding-left:22px}@media(max-width:760px){main{padding:16px 12px 42px}header{padding:26px 22px;border-radius:12px}table{font-size:12px}th,td{padding:7px;word-break:break-word}}@media print{body{background:#fff}main{max-width:none;padding:0}header{border-radius:0}.panel,.stat,.callout{break-inside:avoid}}
+  </style>
+</head>
+<body><section class="report-context"><h2>왜 이 테스트를 했나</h2><p>vector와 정규화 BM25의 RRF 비중이 검색 순위와 reranker 후보 coverage에 미치는 영향을 확인하려 했다.</p><h2>이 테스트로 무엇을 확인하려 했나</h2><p>서로 다른 가중치가 Evidence Top5와 Top20/50 후보 상한을 함께 지키는지 확인했다.</p></section>
+<main>
+  <header>
+    <h1>정규화 RRF 가중치 ablation</h1>
+    <p class="lead">Vector와 정규화 BM25의 RRF 가중치 7개를 같은 개발 질의에서 비교하고, reranker에 넘길 후보군 coverage와 재현성 한계를 함께 기록한 오프라인 결과 보고서입니다.</p>
+    <div class="tags"><span class="tag">327 chunks</span><span class="tag">30 development queries</span><span class="tag">evidence 20 / card 10</span><span class="tag">7 weights</span><span class="tag">single deterministic accepted run</span></div>
+  </header>
+
+  <section>
+    <h2>결론</h2>
+    <div class="grid"><div class="stat"><b>0.3:0.7</b>최고 evidence MRR@5<br>0.6242</div><div class="stat"><b>0.4:0.6</b>최고 evidence nDCG@5<br>0.6129</div><div class="stat"><b>0개</b>사전 gate 통과 후보</div><div class="stat"><b>0.5:0.5</b>최초 자동 판정 유지</div></div>
+    <div class="callout"><strong>자동 판정.</strong> 사전에 고정한 5개 가중치의 gate를 적용한 최종 자동 판정은 <code>retain_baseline_0.5_0.5</code>다. 0.4:0.6은 evidence nDCG@5 최고이면서 모든 guardrail을 보존했으나, primary MRR delta가 +0.0167로 +0.025 기준에 못 미쳤다. 따라서 gate 통과 후보는 없다.</div>
+    <div class="callout warn"><strong>관측상 최고와 선택은 다르다.</strong> 0.3:0.7은 7개 전체에서 evidence MRR@5 최고(0.6242)지만, 0.4:0.6 결과를 본 뒤 요청된 adaptive exploratory 가중치다. MRR delta도 +0.0208로 기준 미달이고 Strict Hit@3가 0.75→0.70으로 하락했다. 이 사후 탐색은 최초 자동 판정을 소급 변경하지 않는다.</div>
+    <p>평가는 development 30개(evidence 20개, card 10개), 계층 청크 327개에서 수행했다. 운영 일반화나 미관측 질의 성능을 주장하지 않는다. network/API/new embedding은 모두 0회다.</p>
+  </section>
+
+  <section>
+    <h2>설계: 사전 고정과 adaptive 후속 탐색</h2>
+    <div class="flow"><span>Normalized BM25 Top50</span><i>+</i><span>Vector Top50</span><i>→</i><span>RRF k=60 · depth=50</span><i>→</i><span>fused ranking</span><i>→</i><span>Top N reranker candidates</span></div>
+    <p><strong>RRF depth 50</strong>은 각 retriever의 상위 50개를 융합 점수 계산에 넣는 범위다. 답변에 50개를 반환한다는 뜻이 아니다. fused top N(10·20·50)은 그 융합 순위에서 reranker에 넘기는 후보 수이며, 두 값은 서로 다른 제어값이다.</p>
+    <table><thead><tr><th>단계</th><th>가중치 (Vector:Normalized BM25)</th><th>해석</th></tr></thead><tbody>
+      <tr><td>사전 고정 initial 5개</td><td>0.4:0.6, 0.5:0.5, 0.6:0.4, 0.7:0.3, 0.8:0.2</td><td>자동 선택 gate의 원래 비교 집합이다.</td></tr>
+      <tr><td>adaptive exploratory 2개</td><td>0.3:0.7, 0.2:0.8</td><td>0.4:0.6의 development 결과를 확인한 뒤 추가했다. 같은 retrieval 계약이지만 사후 탐색이므로 confirmatory 재검증 없이는 선택 근거로 격상하지 않는다.</td></tr>
+    </tbody></table>
+    <div class="guide"><strong>Metric guide:</strong> 이 표는 성능표가 아니라 비교 집합과 선택의 시간적 범위를 구분한다. <strong>Pass 의미:</strong> 사전 gate 통과만이 최초 자동 선택을 바꿀 수 있다. <strong>핵심 한계:</strong> adaptive 2개는 관측 뒤 추가되어 과적합 위험이 있으며, 같은 개발셋의 더 높은 관측값만으로 운영 후보를 확정할 수 없다.</div>
+  </section>
+
+  <section>
+    <h2>evidence 20개: 7개 가중치 핵심 결과</h2>
+    <table>
+      <caption>Vector:Normalized BM25 RRF — evidence-only 평균</caption>
+      <thead><tr><th>가중치</th><th class="num">Card Hit@3</th><th class="num">Strict Hit@3</th><th class="num">Recall@5</th><th class="num">MRR@5</th><th class="num">baseline ΔMRR</th><th class="num">nDCG@5</th><th>gate / 구분</th></tr></thead>
+      <tbody>
+        <tr><td>0.2:0.8</td><td class="num">0.9000</td><td class="num">0.7000</td><td class="num">0.7125</td><td class="num">0.5683</td><td class="num down">−0.0350</td><td class="num">0.5765</td><td>adaptive · 미통과</td></tr>
+        <tr><td>0.3:0.7</td><td class="num">0.9000</td><td class="num down">0.7000</td><td class="num">0.7125</td><td class="num delta">0.6242</td><td class="num delta">+0.0208</td><td class="num">0.6081</td><td>adaptive · 미통과</td></tr>
+        <tr><th>0.4:0.6</th><th class="num">0.9000</th><th class="num">0.7500</th><th class="num">0.7125</th><th class="num">0.6200</th><th class="num delta">+0.0167</th><th class="num delta">0.6129</th><th>initial · guardrail 보존, primary 미달</th></tr>
+        <tr><td>0.5:0.5 (baseline)</td><td class="num">0.9000</td><td class="num">0.7500</td><td class="num">0.7125</td><td class="num">0.6033</td><td class="num">0.0000</td><td class="num">0.5966</td><td>initial · 자동 판정 유지</td></tr>
+        <tr><td>0.6:0.4</td><td class="num">0.9000</td><td class="num down">0.7000</td><td class="num down">0.6625</td><td class="num">0.6167</td><td class="num delta">+0.0133</td><td class="num down">0.5936</td><td>initial · 미통과</td></tr>
+        <tr><td>0.7:0.3</td><td class="num">0.9000</td><td class="num down">0.6500</td><td class="num down">0.6625</td><td class="num">0.5825</td><td class="num down">−0.0208</td><td class="num down">0.5690</td><td>initial · 미통과</td></tr>
+        <tr><td>0.8:0.2</td><td class="num">0.9000</td><td class="num down">0.6500</td><td class="num down">0.6875</td><td class="num">0.6100</td><td class="num delta">+0.0067</td><td class="num down">0.5884</td><td>initial · 미통과</td></tr>
+      </tbody>
+    </table>
+    <div class="guide"><strong>Metric guide — 비교 데이터:</strong> 동일 evidence 20개 질의의 fused top-5와 strict relevance 계약(expected card·level·required terms)을 비교한다. <strong>Pass 의미:</strong> Card Hit@3은 카드 라우팅, Strict Hit@3은 상위 3개 strict 근거 존재, Recall@5는 relevant 회수, MRR@5는 첫 strict 근거의 위치, nDCG@5는 상위권 strict 배치다. baseline ΔMRR은 0.5:0.5 대비다. <strong>핵심 한계:</strong> binary term relevance이며 동의어·부분 유용성·5위 밖·생성 답변 품질은 측정하지 않는다. 모든 값은 <strong>단일 deterministic accepted run의 질의 평균</strong>이며 반복 평균과 표준편차가 없다.</div>
+
+    <h3>사전 gate</h3>
+    <table><thead><tr><th>조건</th><th>정의</th><th>결과</th></tr></thead><tbody>
+      <tr><td>Primary</td><td>evidence MRR@5 delta ≥ +0.025 (vs 0.5:0.5)</td><td>7개 모두 미달; 최대 +0.0208 (0.3:0.7)</td></tr>
+      <tr><td>Guardrail</td><td>evidence Strict Hit@3·Recall@5·nDCG@5·Card Hit@3 및 card-group Card Hit@3 비회귀</td><td>0.4:0.6과 baseline은 보존, 그러나 primary 미달. 나머지는 하나 이상 회귀.</td></tr>
+      <tr><td>자동 판정</td><td>primary와 모든 guardrail 충족 시 후보를 통과시키고, 없으면 fallback 0.5:0.5</td><td><code>retain_baseline_0.5_0.5</code></td></tr>
+    </tbody></table>
+    <div class="guide"><strong>Metric guide:</strong> gate는 20개 evidence primary와 evidence/card guardrail을 함께 적용한다. <strong>Pass 의미:</strong> 0.025 이상 primary 개선과 모든 guardrail 비회귀를 동시에 만족해야 한다. <strong>핵심 한계:</strong> 개발셋 내 후보 선별 규칙이며 운영 SLA나 일반화 검정이 아니다. 반복 평균·표준편차는 없다.</div>
+  </section>
+
+  <section>
+    <h2>Paired 변화 요약</h2>
+    <table><caption>baseline 0.5:0.5 대비 evidence 20개 query-level 변화</caption><thead><tr><th>가중치</th><th class="num">MRR win / loss / tie</th><th class="num">nDCG win / loss / tie</th><th class="num">guardrail 손실 질의 수</th></tr></thead><tbody>
+      <tr><td>0.2:0.8</td><td class="num">4 / 3 / 13</td><td class="num">4 / 5 / 11</td><td class="num">6</td></tr><tr><td>0.3:0.7</td><td class="num">3 / 1 / 16</td><td class="num">3 / 3 / 14</td><td class="num">4</td></tr><tr><td>0.4:0.6</td><td class="num">2 / 1 / 17</td><td class="num">2 / 2 / 16</td><td class="num">2</td></tr><tr><td>0.5:0.5</td><td class="num">0 / 0 / 20</td><td class="num">0 / 0 / 20</td><td class="num">0</td></tr><tr><td>0.6:0.4</td><td class="num">2 / 2 / 16</td><td class="num">3 / 3 / 14</td><td class="num">3</td></tr><tr><td>0.7:0.3</td><td class="num">2 / 4 / 14</td><td class="num">3 / 5 / 12</td><td class="num">5</td></tr><tr><td>0.8:0.2</td><td class="num">4 / 4 / 12</td><td class="num">4 / 5 / 11</td><td class="num">5</td></tr>
+    </tbody></table>
+    <div class="guide"><strong>Metric guide — 비교 데이터:</strong> 같은 evidence query_id의 baseline 대비 MRR@5·nDCG@5 변화다. <strong>Pass 의미:</strong> win/loss/tie는 질의별 방향을 보여 주지만 gate는 평균 primary와 모든 guardrail을 함께 판정한다. <strong>핵심 한계:</strong> 변화 크기와 통계적 유의성을 보이지 않으며, 단일 deterministic run이다.</div>
+  </section>
+
+  <section>
+    <h2>Reranker 후보군 coverage</h2>
+    <table>
+      <caption>각 weight의 fused Top N 후보군 (evidence 20개 질의 평균)</caption>
+      <thead><tr><th>가중치</th><th class="num">Top10<br>strict hit / recall</th><th class="num">Top20<br>strict hit / recall</th><th class="num">Top50<br>strict hit / recall</th><th class="num">expected-card Hit@20</th></tr></thead>
+      <tbody>
+        <tr><td>0.2:0.8</td><td class="num">0.9000 / 0.8750</td><td class="num">0.9000 / 0.8750</td><td class="num">0.9500 / 0.9250</td><td class="num">1.0000</td></tr>
+        <tr><td>0.3:0.7</td><td class="num">0.9000 / 0.8500</td><td class="num">0.9000 / 0.8750</td><td class="num">0.9500 / 0.9250</td><td class="num">1.0000</td></tr>
+        <tr><td>0.4:0.6</td><td class="num">0.9000 / 0.8500</td><td class="num">0.9000 / 0.8750</td><td class="num">1.0000 / 0.9500</td><td class="num">1.0000</td></tr>
+        <tr><th>0.5:0.5 baseline</th><th class="num">0.8500 / 0.8000</th><th class="num">0.9500 / 0.9250</th><th class="num">1.0000 / 0.9500</th><th class="num">1.0000</th></tr>
+        <tr><td>0.6:0.4</td><td class="num">0.9000 / 0.8500</td><td class="num">0.9500 / 0.9250</td><td class="num">1.0000 / 0.9500</td><td class="num">1.0000</td></tr>
+        <tr><td>0.7:0.3</td><td class="num">0.9000 / 0.8250</td><td class="num">0.9500 / 0.9000</td><td class="num">1.0000 / 0.9500</td><td class="num">1.0000</td></tr>
+        <tr><td>0.8:0.2</td><td class="num">0.9000 / 0.8250</td><td class="num">0.9500 / 0.8750</td><td class="num">1.0000 / 0.9500</td><td class="num">1.0000</td></tr>
+      </tbody>
+    </table>
+    <div class="guide"><strong>Metric guide — 비교 데이터:</strong> evidence 20개에서 fused ranking 상위 N을 reranker 입력 후보로 가정하고 strict relevant ID 및 expected card metadata를 비교한다. <strong>Pass 의미:</strong> strict hit은 하나 이상의 strict ID가 후보군에 있음, strict recall은 모든 strict ID 중 후보군에 든 비율, expected-card Hit@20은 같은 카드 청크가 하나 이상 있음이다. <strong>핵심 한계:</strong> 후보군 coverage는 reranker 품질이 아니며, strict relevance 계약과 source coverage에 의존한다. 단일 deterministic accepted run의 평균이며 반복 평균·표준편차가 없다.</div>
+    <p><strong>RRF-only Top5와 reranker Top20은 같은 질문이 아니다.</strong> 0.4:0.6은 0.5:0.5보다 Top5 MRR@5/nDCG@5가 높다(0.6200/0.6129 vs 0.6033/0.5966). 반면 reranker 후보 Top20의 strict hit/recall은 0.5:0.5가 0.9500/0.9250으로 0.4:0.6의 0.9000/0.8750보다 높다. Top50에서는 둘 다 1.0000/0.9500으로 같다. accepted run에서 <code>bc_numeric</code> strict chunk는 vector 4위·BM25 44위였고 fused 순위가 0.4:0.6에서 21위, 0.5:0.5에서 13위여서 후자만 Top20에 포함됐다. 반대로 <code>ibk_semantic</code> strict chunk는 vector 44위·BM25 6위였고 0.4:0.6에서 10위, 0.5:0.5에서 12위여서 전자가 Top10에 포함됐다. 가중치는 동일한 depth-50 소스 후보의 융합 순서를 바꾸므로, 0.4:0.6의 BM25 비중이 일부 정답을 Top5에 더 올리는 동시에 다른 일부 정답을 20위 밖으로 밀었을 <em>가능성</em>이 있다. 반대로 0.5:0.5는 Top20에서 더 넓은 정답 후보를 보존한 관측값이다. 이는 기록된 순위와 RRF 구조에 근거한 해석이며, 별도 인과 실험으로 확정된 원인은 아니다.</p>
+    <p><strong>운영 함의.</strong> RRF 단독 Top5를 사용할 때는 0.4:0.6이 합리적인 후보이고, Top20을 reranker 입력으로 쓸 때는 0.5:0.5가 더 안전한 후보이다. Top50 입력에서는 두 가중치의 후보 recall이 같으므로, 성능 상한·비용 비교를 분리해 판단한다.</p>
+    <table><caption>두 retriever Top50 union coverage (30개 질의)</caption><thead><tr><th class="num">평균 unique 후보 수</th><th class="num">strict hit</th><th class="num">strict recall</th><th class="num">expected-card hit</th><th>누락 strict ID</th></tr></thead><tbody><tr><td class="num">79.1667</td><td class="num">1.0000</td><td class="num">0.9667</td><td class="num">1.0000</td><td><code>hana_semantic</code> 1개, <code>hyundai_numeric</code> 1개</td></tr></tbody></table>
+    <div class="guide"><strong>Metric guide:</strong> union은 정규화 BM25 Top50과 vector Top50의 합집합이며 weight별 fused Top50과 다르다. <strong>Pass 의미:</strong> union strict hit 1.0은 각 질의에 strict ID가 하나 이상 있다는 뜻이다. <strong>핵심 한계:</strong> union에 없는 strict ID는 reranker가 복구할 수 없다. 평균 strict recall 0.9667도 모든 strict ID가 항상 후보에 있는 것은 아님을 뜻한다.</div>
+    <p><strong>다음 판단.</strong> 현재 후보군 coverage에서는 baseline 0.5:0.5의 Top20을 reranker 실험 입력으로 쓰는 것이 합리적이다(Strict Hit 0.9500, Recall 0.9250, expected-card Hit 1.0000; evidence 20개). Top50은 성능 상한과 비용 비교용으로 분리한다. reranker는 주어진 후보만 재정렬하므로 union 누락을 복구할 수 없다. reranker가 개선하지 못하거나 후보 누락이 핵심 원인으로 확인될 때 BM25 <code>k1</code>/<code>b</code>를 후속 검토한다.</p>
+  </section>
+
+  <section>
+    <h2>Chroma 무결성과 재현성</h2>
+    <table><thead><tr><th>검사</th><th>기록된 결과</th><th>해석 / 한계</th></tr></thead><tbody>
+      <tr><td>tree hash 정의</td><td>초기 tree-hash 집계 순서 문제는 root-file-first deterministic directory preorder(정렬된 파일·하위 디렉터리)로 통일했다.</td><td>summary·manifest·현재 값이 모두 <code>255dd5…efc15c5</code>로 일치하고, file-hash map에서 digest를 재구성한 값도 exact다.</td></tr>
+      <tr><td>source 불변성</td><td>Chroma 5개 파일과 count 327을 snapshot 전후·저장 후 비교해 unchanged로 기록했다.</td><td>실행 중 source write가 없었다는 기록이다.</td></tr>
+      <tr><td>vector top-5</td><td>NumPy exact squared L2는 20/30, byte-copied temporary snapshot은 30/30 exact였다. baseline 0.5:0.5 RRF top-5도 30/30 exact인 첫 snapshot attempt를 accepted run으로 채택했다.</td><td>snapshot이 depth-50 vector rank의 근거다.</td></tr>
+      <tr><td>HNSW tail</td><td>top-5 metric 산출물은 byte-exact였으나 fresh process에서 depth-50-derived candidate artifact는 바뀔 수 있었다.</td><td>6~50위 tail의 프로세스 간 안정성은 정량화되지 않았다. candidate coverage는 <strong>accepted fresh-run</strong> 기준 결과라는 minor 한계가 있다.</td></tr>
+    </tbody></table>
+    <div class="guide"><strong>Metric guide:</strong> 이 표는 retrieval 정확도 표가 아니라 저장소·vector rank 재현성 기록이다. <strong>Pass 의미:</strong> stated snapshot에서 top-5와 baseline RRF top-5가 원자료와 일치했다는 뜻이다. <strong>핵심 한계:</strong> top-5 일치가 6~50위 순서 또는 다른 프로세스·운영 환경의 동일성을 보장하지 않는다.</div>
+  </section>
+
+  <section>
+    <h2>근거 산출물과 참조</h2>
+    <p class="small">생성일: <time datetime="2026-08-18T14:26:25.925528+00:00">2026-08-18 UTC</time>. 이 보고서는 저장된 단일 accepted run 산출물을 정리한 것이며, 반복 평균이나 표준편차는 없다.</p>
+    <ul>
+      <li><a href="../notebooks/16_normalized_rrf_weight_ablation.ipynb">16번 RRF weight ablation 노트북</a>, <a href="../notebooks/data/16_normalized_rrf_weight_ablation/rrf_weight_ablation_summary.json">summary JSON</a>, <a href="../notebooks/data/16_normalized_rrf_weight_ablation/rrf_weight_ablation_summary.csv">summary CSV</a>, <a href="../notebooks/data/16_normalized_rrf_weight_ablation/rrf_weight_ablation_per_query.csv">per-query CSV</a></li>
+      <li><a href="../notebooks/data/16_normalized_rrf_weight_ablation/rrf_weight_candidate_recall.csv">candidate recall CSV</a>, <a href="../notebooks/data/16_normalized_rrf_weight_ablation/rrf_weight_union_coverage.csv">union coverage CSV</a>, <a href="../notebooks/data/16_normalized_rrf_weight_ablation/rrf_weight_candidates.csv">candidate ranking CSV</a>, <a href="../notebooks/data/16_normalized_rrf_weight_ablation/rrf_weight_run_manifest.json">run manifest</a></li>
+      <li><a href="10_search_normalization_morphology_ablation_report.html">10번 정규화·형태소 비교 보고서</a>, <a href="EVALUATION_METRICS.md">OCR·retrieval 평가 지표 사전</a></li>
+    </ul>
+  </section>
+</main>
+<section class="report-conclusion"><h2>최종 결과</h2><p>0.3:0.7이 MRR 0.6242로 높았지만, 최종 자동 판정은 0.5:0.5 유지였다. 이 결과는 Top5 순위와 reranker 후보 coverage를 함께 지키는 가중치를 보수적으로 선택한 기록이다. adaptive 0.3·0.2 추가 탐색과 단일 개발 실행은 과적합 위험을 남긴다. 다음 reranker 실험은 고정한 후보군에서 GTE가 실제로 순위를 개선하는지 검증했다.</p></section></body>
+</html>
