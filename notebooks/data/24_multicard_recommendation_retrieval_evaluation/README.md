@@ -24,4 +24,3 @@
 2. 승인된 query embedding 1회/525 tokens로 10×1536 cache를 만든 뒤, old duplicate content hash를 잘못 하나로 합치는 loader assertion에서 실패(BGE 0).
 3. historical batch/item 위치를 authoritative source로 고친 최종 실행은 API 0/cache 재사용, BGE 400쌍 성공(batch2, OOM 없음).
 4. 이 finalization은 CPU/offline이며 API·GPU·모델 재실행 0입니다.
-
