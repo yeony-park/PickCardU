@@ -1,0 +1,62 @@
+{
+  "diagnostic_label": "metric_tradeoff_on_dev",
+  "support_gate_passed": false,
+  "metric_tradeoff_triggered": true,
+  "fails_to_exceed_best_selective_on_both_mrr_ndcg": false,
+  "checks": {
+    "strict_nonregression": {
+      "card_hit_at_3": true,
+      "hit_at_3": true,
+      "recall_at_5": false,
+      "mrr_at_5": true,
+      "ndcg_at_5": true
+    },
+    "strict_mrr_or_ndcg_improvement": true,
+    "selective_noninferiority": {
+      "same_lambda_selective_mmr_mrr_at_5": true,
+      "same_lambda_selective_mmr_ndcg_at_5": true,
+      "selective_gte_gold_type_oracle_mrr_at_5": true,
+      "selective_gte_gold_type_oracle_ndcg_at_5": false
+    },
+    "answer_exact_family_core_nonregression": {
+      "answer_bearing_raw_hit_at_3": true,
+      "answer_bearing_raw_mrr_at_5": true,
+      "strict_exact_doc_dedup_hit_at_3": true,
+      "strict_exact_doc_dedup_mrr_at_5": true,
+      "strict_exact_doc_dedup_ndcg_at_5": false,
+      "answer_bearing_exact_doc_dedup_hit_at_3": true,
+      "answer_bearing_exact_doc_dedup_mrr_at_5": true,
+      "answer_bearing_exact_doc_dedup_ndcg_at_5": false,
+      "answer_bearing_gold_family_oracle_hit_at_3": true,
+      "answer_bearing_gold_family_oracle_mrr_at_5": true,
+      "answer_bearing_gold_family_oracle_ndcg_at_5": true
+    }
+  },
+  "primary": {
+    "depth": 50,
+    "lambda": 0.7,
+    "combined_strict_evidence": {
+      "card_hit_at_3": 0.95,
+      "hit_at_3": 0.8,
+      "recall_at_5": 0.7,
+      "mrr_at_5": 0.7083333333333333,
+      "ndcg_at_5": 0.6254906244967336
+    },
+    "baseline_strict_evidence": {
+      "card_hit_at_3": 0.9,
+      "hit_at_3": 0.75,
+      "recall_at_5": 0.7125,
+      "mrr_at_5": 0.62,
+      "ndcg_at_5": 0.6128787801395787
+    },
+    "best_selective_strict": {
+      "mrr_at_5": 0.6933333333333334,
+      "ndcg_at_5": 0.6501956803122497
+    }
+  },
+  "final_status": [
+    "exploratory_gold_type_oracle_only",
+    "not_eligible_for_promotion",
+    "not_an_operational_router"
+  ]
+}

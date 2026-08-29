@@ -1,0 +1,74 @@
+{
+  "api_network_new_embedding_chroma_package_install": 0,
+  "batch_size": 2,
+  "build": {
+    "cpu_seconds": 0.007787567999999467,
+    "incremental_ru_maxrss_mib": 0.0,
+    "peak_rss_mib": 2236.18359375,
+    "wall_seconds": 0.007784418994560838
+  },
+  "bundle_characters": {
+    "max": 4562,
+    "p50": 1906,
+    "p95": 3918.2
+  },
+  "bundle_chunk_count": {
+    "max": 5,
+    "p50": 3,
+    "p95": 5.0
+  },
+  "bundle_token_cap": 4096,
+  "bundle_tokens": {
+    "max": 2375,
+    "p50": 1034,
+    "p95": 1998.9999999999995
+  },
+  "dtype": "float16",
+  "gpu_after": {
+    "captured_at_unix": 1787736090.4057267,
+    "gpu_line": "0, GPU-7ba60a9d-7e53-b0e1-1b30-a1a0e6480ce5, NVIDIA GeForce RTX 3090, 2043, 24576, 93",
+    "processes": [
+      {
+        "gpu_uuid": "GPU-7ba60a9d-7e53-b0e1-1b30-a1a0e6480ce5",
+        "pid": 347458,
+        "process_name": "/usr/bin/ollama",
+        "used_memory_mib": 256.0
+      },
+      {
+        "gpu_uuid": "GPU-7ba60a9d-7e53-b0e1-1b30-a1a0e6480ce5",
+        "pid": 110536,
+        "process_name": "/home/sms/anaconda3/envs/skn25/bin/python",
+        "used_memory_mib": 1758.0
+      }
+    ]
+  },
+  "gpu_before": {
+    "captured_at_unix": 1787736082.5692756,
+    "gpu_line": "0, GPU-7ba60a9d-7e53-b0e1-1b30-a1a0e6480ce5, NVIDIA GeForce RTX 3090, 279, 24576, 0",
+    "processes": [
+      {
+        "gpu_uuid": "GPU-7ba60a9d-7e53-b0e1-1b30-a1a0e6480ce5",
+        "pid": 347458,
+        "process_name": "/usr/bin/ollama",
+        "used_memory_mib": 256.0
+      }
+    ]
+  },
+  "load_seconds": 1.2884975329507142,
+  "local_files_only": true,
+  "max_length": 8192,
+  "model": "bge-reranker-v2-m3",
+  "oom": false,
+  "pairs_per_second": 38.8146275542694,
+  "peak_allocated_gib": 1.189836025238037,
+  "peak_reserved_gib": 1.41015625,
+  "physical_gpu": 0,
+  "quality_pairs": 69,
+  "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+  "scoring_seconds": 1.7776803320739418,
+  "shared_gpu_measurement": true,
+  "truncated_pairs": 0,
+  "truncation": "only_second",
+  "trust_remote_code": false,
+  "warmup_seconds": 0.17378584714606404
+}

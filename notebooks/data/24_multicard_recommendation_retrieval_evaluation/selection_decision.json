@@ -1,0 +1,39 @@
+{
+  "depth20_improves": true,
+  "depth20_requires_strict_depth_improvement": true,
+  "depth_gates": [
+    {
+      "candidate_depth": 10,
+      "catastrophic_loss_count": 1,
+      "checks": {
+        "catastrophic_loss_zero": false,
+        "evidence_accuracy5_nonreg": true,
+        "precision5_nonreg": false,
+        "recall3_nonreg": false,
+        "supported_recall5_strict": true,
+        "wins_gt_losses": false,
+        "zero_hit_nonreg": true
+      },
+      "gate_pass": false
+    },
+    {
+      "candidate_depth": 20,
+      "catastrophic_loss_count": 1,
+      "checks": {
+        "catastrophic_loss_zero": false,
+        "evidence_accuracy5_nonreg": true,
+        "precision5_nonreg": true,
+        "recall3_nonreg": false,
+        "supported_recall5_strict": true,
+        "wins_gt_losses": true,
+        "zero_hit_nonreg": true
+      },
+      "gate_pass": false
+    }
+  ],
+  "disposition": "retain_old_selective_bge_development_baseline",
+  "predeclared_gate_unchanged": true,
+  "promotion_eligible": false,
+  "scope": "fixed_10_document_development_signal_only",
+  "selected_depth": null
+}

@@ -1,0 +1,97 @@
+{
+  "batch_size": 2,
+  "dtype": "float16",
+  "execution_history": [
+    {
+      "api_requests": 0,
+      "bge_pairs_scored": 0,
+      "embedding_items_created": 0,
+      "sequence": 1,
+      "stage": "cpu_offline_preflight",
+      "status": "success"
+    },
+    {
+      "api_input_tokens": 525,
+      "api_requests": 1,
+      "api_wall_seconds": "not preserved because the failed notebook was not saved",
+      "bge_pairs_scored": 0,
+      "embedding_items_created": 10,
+      "failure": "incorrect np.array_equal assertion collapsed duplicate content hashes whose historical positional vectors differ slightly",
+      "query_cache_sha256": "64102d65421966710dd47b06ebeb64c5279c220175c68b782070a20a8255bfb1",
+      "sequence": 2,
+      "stage": "approved_query_embedding_then_old_cache_loader",
+      "status": "failed_after_cache_creation"
+    },
+    {
+      "api_input_tokens_historical": 525,
+      "api_requests": 0,
+      "batch_size": 2,
+      "bge_pairs_scored": 400,
+      "embedding_items_reused": 10,
+      "oom": false,
+      "sequence": 3,
+      "stage": "authoritative_positional_cache_search_bge_evaluation",
+      "status": "success"
+    },
+    {
+      "api_requests": 0,
+      "bge_pairs_scored": 0,
+      "gpu_used": false,
+      "sequence": 4,
+      "stage": "offline_finalization_validation",
+      "status": "success"
+    }
+  ],
+  "finalization_model_or_gpu_rerun": false,
+  "gpu_after": {
+    "captured_at_unix": 1787639009.7397115,
+    "gpu_line": "0, GPU-7ba60a9d-7e53-b0e1-1b30-a1a0e6480ce5, NVIDIA GeForce RTX 3090, 621, 24576, 52",
+    "processes": [
+      {
+        "gpu_uuid": "GPU-7ba60a9d-7e53-b0e1-1b30-a1a0e6480ce5",
+        "pid": 347458,
+        "process_name": "/usr/bin/ollama",
+        "used_memory_mib": 256.0
+      },
+      {
+        "gpu_uuid": "GPU-7ba60a9d-7e53-b0e1-1b30-a1a0e6480ce5",
+        "pid": 4139082,
+        "process_name": "/home/sms/anaconda3/envs/skn25/bin/python",
+        "used_memory_mib": 336.0
+      }
+    ]
+  },
+  "gpu_before": {
+    "captured_at_unix": 1787638998.6882465,
+    "gpu_line": "0, GPU-7ba60a9d-7e53-b0e1-1b30-a1a0e6480ce5, NVIDIA GeForce RTX 3090, 279, 24576, 0",
+    "processes": [
+      {
+        "gpu_uuid": "GPU-7ba60a9d-7e53-b0e1-1b30-a1a0e6480ce5",
+        "pid": 347458,
+        "process_name": "/usr/bin/ollama",
+        "used_memory_mib": 256.0
+      }
+    ]
+  },
+  "load_seconds": 1.2933941869996488,
+  "local_files_only": true,
+  "max_length": 8192,
+  "model": "bge-reranker-v2-m3",
+  "network_api_download_new_embedding_chroma_during_scoring": 0,
+  "oom_batch2": false,
+  "pairs_per_second": 78.50512249027346,
+  "peak_allocated_gib": 1.122520923614502,
+  "peak_reserved_gib": 1.16796875,
+  "physical_gpu": 0,
+  "quality_pairs": 400,
+  "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+  "scoring_seconds": 5.095208915183321,
+  "shared_gpu_measurement": true,
+  "token_max": 1204,
+  "token_p50": 356.5,
+  "token_p95": 758.3499999999997,
+  "truncated_pairs": 0,
+  "truncation": "only_second",
+  "trust_remote_code": false,
+  "warmup_seconds": 0.15301180398091674
+}

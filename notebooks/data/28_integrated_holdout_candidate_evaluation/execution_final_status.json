@@ -1,0 +1,49 @@
+{
+  "api_requests_embedding": 1,
+  "current_final_status": "LLM_60_TERMINAL_AND_CPU_SCORING_COMPLETE_HOLDOUT_FAILED",
+  "decision": "holdout_failed",
+  "historical_pre_llm_status": {
+    "llm_requests": 0,
+    "status": "retrieval_scored_llm_payload_awaiting_approval"
+  },
+  "label_free_freeze_sha256": "fe313863db33d73e016ce4abf28df8d208250e7f210756732141d0f4e89e892e",
+  "llm_attempt_history": [
+    {
+      "api_requests": 0,
+      "outcome": "api_key_failure_before_request",
+      "sequence": 1
+    },
+    {
+      "api_requests": 60,
+      "outcome": "60_terminal_response_records_saved",
+      "sequence": 2
+    },
+    {
+      "api_requests": 0,
+      "outcome": "cpu_scoring_recovery_complete",
+      "sequence": 3
+    }
+  ],
+  "llm_payload_approval_sha256": "ef74af3eefd2195d6e4b9d5bd33b0f60f0f6629253a3c336bd9929d15ddd0c57",
+  "llm_requests_historical_total": 60,
+  "llm_response_execution_guard_sha256": "8ff81172ca130a5ae388ec180d14eb82f6cfd6ae4b53fdef9511168e5d3233a0",
+  "llm_scoring_guard_sha256": "dd40c96b0bcc0b7c4be561238436a2fe5037338909568e1992cd74c5bf0a09d8",
+  "llm_terminal_records": 60,
+  "network_other": 0,
+  "provider_cost_usd": null,
+  "provider_cost_status": "unconfirmed_current_official_price_not_checked_in_offline_scoring",
+  "query_embedding_approval_sha256": "7ccf0f901b1ec4cd875e64978397a7b4529225c6c1ff9de84ba50b1cec58dfd3",
+  "response_latency_seconds_total": 217.86419688770548,
+  "scoring_recovery_api_requests": 0,
+  "transport_status_counts": {
+    "semantic_validation_failure": 7,
+    "transport_semantic_validation_pass": 53
+  },
+  "usage": {
+    "cached_input_tokens": 0,
+    "input_tokens": 312974,
+    "output_tokens": 19833,
+    "reasoning_tokens": 2585,
+    "total_tokens": 332807
+  }
+}

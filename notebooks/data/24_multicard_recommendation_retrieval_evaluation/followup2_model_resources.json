@@ -1,0 +1,61 @@
+{
+  "batch_size": 2,
+  "bundle_document_token_max": 2856,
+  "bundle_document_token_p50": 970,
+  "bundle_document_token_p95": 2244.2000000000003,
+  "bundle_truncated_pairs": 0,
+  "dtype": "float16",
+  "gpu_after": {
+    "captured_at_unix": 1787743634.0244617,
+    "gpu_line": "0, GPU-7ba60a9d-7e53-b0e1-1b30-a1a0e6480ce5, NVIDIA GeForce RTX 3090, 621, 24576, 81",
+    "processes": [
+      {
+        "gpu_uuid": "GPU-7ba60a9d-7e53-b0e1-1b30-a1a0e6480ce5",
+        "pid": 347458,
+        "process_name": "/usr/bin/ollama",
+        "used_memory_mib": 256.0
+      },
+      {
+        "gpu_uuid": "GPU-7ba60a9d-7e53-b0e1-1b30-a1a0e6480ce5",
+        "pid": 142133,
+        "process_name": "/home/sms/anaconda3/envs/skn25/bin/python",
+        "used_memory_mib": 336.0
+      }
+    ]
+  },
+  "gpu_before": {
+    "captured_at_unix": 1787743618.9103863,
+    "gpu_line": "0, GPU-7ba60a9d-7e53-b0e1-1b30-a1a0e6480ce5, NVIDIA GeForce RTX 3090, 279, 24576, 0",
+    "processes": [
+      {
+        "gpu_uuid": "GPU-7ba60a9d-7e53-b0e1-1b30-a1a0e6480ce5",
+        "pid": 347458,
+        "process_name": "/usr/bin/ollama",
+        "used_memory_mib": 256.0
+      }
+    ]
+  },
+  "load_seconds": 1.2248249140102416,
+  "local_files_only": true,
+  "max_length": 8192,
+  "model": "bge-reranker-v2-m3",
+  "network_api_download_new_embedding_chroma_package_install_during_scoring": 0,
+  "old_chunk_pairs": 400,
+  "oom_batch2": false,
+  "pairs_per_second": 64.67410024106678,
+  "peak_allocated_gib": 1.2212090492248535,
+  "peak_reserved_gib": 1.412109375,
+  "physical_gpu": 0,
+  "quality_pairs": 553,
+  "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+  "scoring_seconds": 8.550563485827297,
+  "shared_gpu_measurement_with_ollama_allowed": true,
+  "structural_bundle_pairs": 153,
+  "token_max": 2906,
+  "token_p50": 452,
+  "token_p95": 1871.4,
+  "truncated_pairs": 0,
+  "truncation": "only_second",
+  "trust_remote_code": false,
+  "warmup_seconds": 0.15285915601998568
+}

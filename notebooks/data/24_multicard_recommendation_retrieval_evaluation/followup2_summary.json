@@ -1,0 +1,121 @@
+{
+  "decision": {
+    "always": [
+      "dev_signal_only",
+      "not_eligible_for_promotion",
+      "not_causal_or_operational_evidence"
+    ],
+    "baseline": "old_selective_bge_d20",
+    "candidate": "structural_bundle_all_bge_d20",
+    "catastrophic_loss_count_all_queries": 2,
+    "catastrophic_loss_count_each_cohort": {
+      "and_combination": 2,
+      "paraphrase": 0
+    },
+    "disposition": "generalization_not_supported",
+    "gate_checks": {
+      "and_combination": {
+        "bundle_reachable_evidence_recall_at_20_nonreg_and_min_0_90": false,
+        "candidate_card_recall_at_20_nonreg_and_min_0_90": false,
+        "card_precision_at_5_nonreg": false,
+        "card_recall_at_3_nonreg": false,
+        "card_recall_at_5_nonreg": false,
+        "catastrophic_loss_count_zero": false,
+        "evidence_accuracy_at_5_nonreg": true,
+        "supported_recall_strict_and_wins_gt_losses": true,
+        "zero_hit_increase_zero": true
+      },
+      "paraphrase": {
+        "bundle_reachable_evidence_recall_at_20_nonreg_and_min_0_90": false,
+        "candidate_card_recall_at_20_nonreg_and_min_0_90": true,
+        "card_precision_at_5_nonreg": true,
+        "card_recall_at_3_nonreg": true,
+        "card_recall_at_5_nonreg": true,
+        "catastrophic_loss_count_zero": true,
+        "evidence_accuracy_at_5_nonreg": true,
+        "supported_recall_nonreg_and_wins_ge_losses": true,
+        "zero_hit_increase_zero": true
+      }
+    },
+    "gate_pass": false
+  },
+  "metric_notes": {
+    "bundle_reachable_evidence_recall_at_20": "baseline: union of same-card old D20 chunks; candidate: frozen same-card 1-hop structural bundle",
+    "evidence_supported_card_recall_at_5": "old: first-ranked representative chunk; candidate: scored frozen bundle",
+    "zero_hit": "card_zero_hit_at_5"
+  },
+  "summary": [
+    {
+      "bundle_reachable_evidence_recall_at_20": 0.66,
+      "candidate_card_recall_at_20": 0.9400000000000001,
+      "card_precision_at_3": 0.6666666666666667,
+      "card_precision_at_5": 0.5399999999999999,
+      "card_recall_at_3": 0.64,
+      "card_recall_at_5": 0.8366666666666667,
+      "card_zero_hit_at_5": 0.0,
+      "cohort": "paraphrase",
+      "denominator": 10,
+      "evidence_accuracy_at_3": 0.3666666666666667,
+      "evidence_accuracy_at_5": 0.27999999999999997,
+      "evidence_supported_card_recall_at_5": 0.45,
+      "raw_top20_duplicate_count": 13.9,
+      "raw_top20_unique_cards": 6.1,
+      "supported_zero_hit_at_5": 0.0,
+      "system": "old_selective_bge_d20"
+    },
+    {
+      "bundle_reachable_evidence_recall_at_20": 0.7066666666666667,
+      "candidate_card_recall_at_20": 0.9800000000000001,
+      "card_precision_at_3": 0.7666666666666667,
+      "card_precision_at_5": 0.5599999999999999,
+      "card_recall_at_3": 0.7433333333333334,
+      "card_recall_at_5": 0.8699999999999999,
+      "card_zero_hit_at_5": 0.0,
+      "cohort": "paraphrase",
+      "denominator": 10,
+      "evidence_accuracy_at_3": 0.6,
+      "evidence_accuracy_at_5": 0.44000000000000006,
+      "evidence_supported_card_recall_at_5": 0.6666666666666667,
+      "raw_top20_duplicate_count": 11.5,
+      "raw_top20_unique_cards": 8.5,
+      "supported_zero_hit_at_5": 0.0,
+      "system": "structural_bundle_all_bge_d20"
+    },
+    {
+      "bundle_reachable_evidence_recall_at_20": 0.7666666666666667,
+      "candidate_card_recall_at_20": 0.95,
+      "card_precision_at_3": 0.6333333333333334,
+      "card_precision_at_5": 0.42000000000000004,
+      "card_recall_at_3": 0.8416666666666668,
+      "card_recall_at_5": 0.925,
+      "card_zero_hit_at_5": 0.0,
+      "cohort": "and_combination",
+      "denominator": 10,
+      "evidence_accuracy_at_3": 0.3,
+      "evidence_accuracy_at_5": 0.18,
+      "evidence_supported_card_recall_at_5": 0.38333333333333336,
+      "raw_top20_duplicate_count": 14.6,
+      "raw_top20_unique_cards": 5.4,
+      "supported_zero_hit_at_5": 0.3,
+      "system": "old_selective_bge_d20"
+    },
+    {
+      "bundle_reachable_evidence_recall_at_20": 0.6333333333333333,
+      "candidate_card_recall_at_20": 0.8833333333333332,
+      "card_precision_at_3": 0.5666666666666667,
+      "card_precision_at_5": 0.38,
+      "card_recall_at_3": 0.7583333333333333,
+      "card_recall_at_5": 0.8333333333333333,
+      "card_zero_hit_at_5": 0.0,
+      "cohort": "and_combination",
+      "denominator": 10,
+      "evidence_accuracy_at_3": 0.4333333333333333,
+      "evidence_accuracy_at_5": 0.2800000000000001,
+      "evidence_supported_card_recall_at_5": 0.6333333333333333,
+      "raw_top20_duplicate_count": 13.2,
+      "raw_top20_unique_cards": 6.8,
+      "supported_zero_hit_at_5": 0.0,
+      "system": "structural_bundle_all_bge_d20"
+    }
+  ]
+}

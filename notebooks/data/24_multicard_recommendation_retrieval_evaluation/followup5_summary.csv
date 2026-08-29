@@ -1,0 +1,5 @@
+system,depth,denominator,card_precision_at_3,card_recall_at_3,card_precision_at_5,card_recall_at_5,evidence_supported_card_recall_at_5,evidence_accuracy_at_3,evidence_accuracy_at_5,candidate_card_recall_at_n,bundle_reachable_evidence_recall_at_n,card_zero_hit_at_5,supported_zero_hit_at_5,mean_unique_candidate_cards,mean_duplicate_chunk_count,total_candidate_card_pairs
+old_selective_bge_d20_fixed,20,10,0.6333333333333334,0.8416666666666668,0.42000000000000004,0.925,0.38333333333333336,0.3,0.18,0.95,0.7666666666666667,0.0,0.3,5.4,14.6,54
+structural_bundle_bge_d20,20,10,0.5666666666666667,0.7583333333333333,0.38,0.8333333333333333,0.6333333333333333,0.4333333333333333,0.2800000000000001,0.8833333333333332,0.6333333333333333,0.0,0.0,6.8,13.2,68
+structural_bundle_bge_d30,30,10,0.5666666666666668,0.7416666666666667,0.43999999999999995,0.95,0.775,0.4666666666666666,0.36,1.0,0.775,0.0,0.0,8.5,21.5,85
+structural_bundle_bge_d50,50,10,0.5,0.6666666666666667,0.42000000000000004,0.9,0.725,0.4,0.34,1.0,0.775,0.0,0.0,9.8,40.2,98

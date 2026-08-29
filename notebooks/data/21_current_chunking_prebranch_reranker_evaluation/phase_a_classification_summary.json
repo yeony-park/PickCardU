@@ -1,0 +1,71 @@
+{
+  "rule_text": "normalization=NFKC/lower/whitespace/terminal punctuation; precedence=proper>numeric>semantic; proper=identity intent for issuer/company/bank/card product; numeric_direct=얼마|몇 unit|얼마나 discount/accrual; numeric_target=end targets discount/accrual rate, annual fee, fee, amount/limit, monthly/annual limit, per-liter discount, mileage/point accrual criterion, spend amount/criterion, use count/period; standalone 이용료 excluded; 연회비 면제 조건 semantic; raw-digit-only disabled",
+  "rule_sha256": "e4e2c0b33dc228382e269a3edb399b1b5b4d0c4f8d41149e96d4d06d64d55909",
+  "confusion": {
+    "proper_noun": {
+      "proper_noun": 10,
+      "numeric_condition": 0,
+      "semantic": 0
+    },
+    "numeric_condition": {
+      "proper_noun": 0,
+      "numeric_condition": 10,
+      "semantic": 0
+    },
+    "semantic": {
+      "proper_noun": 0,
+      "numeric_condition": 0,
+      "semantic": 10
+    }
+  },
+  "accuracy": 1.0,
+  "class_metrics": {
+    "proper_noun": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 10
+    },
+    "numeric_condition": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 10
+    },
+    "semantic": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 10
+    }
+  },
+  "macro": {
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0
+  },
+  "weighted": {
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0
+  },
+  "balanced_accuracy": 1.0,
+  "semantic_rerank_binary": {
+    "tp": 10,
+    "tn": 20,
+    "fp": 0,
+    "fn": 0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "specificity": 1.0,
+    "false_reranker": 0,
+    "missed_reranker": 0
+  },
+  "decision": "dev_rule_exactly_reproduces_gold_route",
+  "final_status": [
+    "development_rule_only",
+    "not_validated_for_unseen_queries",
+    "not_eligible_for_promotion"
+  ]
+}

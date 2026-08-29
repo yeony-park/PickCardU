@@ -1,0 +1,17 @@
+{
+  "decision": "candidate_for_reranker_reevaluation_on_dev",
+  "gate_pass": true,
+  "integrity_required": "PASS",
+  "evidence_hit_at_3_non_regression": true,
+  "all_card_hit_at_3_non_regression": true,
+  "evidence_hit_improved_query_count": 1,
+  "evidence_hit_tied": true,
+  "evidence_mrr_delta": -0.004166666666666652,
+  "evidence_mrr_wins": 2,
+  "evidence_mrr_losses": 1,
+  "improvement_condition": true,
+  "exact_duplicate_nonworse": true,
+  "containment_nonworse": true,
+  "redundancy_one_strictly_improved": true,
+  "scope": "development_candidate_only_not_operations_or_holdout"
+}

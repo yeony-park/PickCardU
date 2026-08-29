@@ -1,0 +1,42 @@
+{
+  "decision": "holdout_failed",
+  "eligible": {
+    "OLD": false,
+    "STRUCT": false
+  },
+  "paired_wlt": {
+    "losses": 2,
+    "ties": 24,
+    "wins": 4
+  },
+  "scorer_limitation": "Deterministic citation-to-sealed-component plus lexical/numeric claim matching; no external LLM judge. Paraphrases can be false negatives.",
+  "single_run_no_population_generalization": true,
+  "systems": [
+    {
+      "card_precision_at_3": 0.9615384615384616,
+      "card_recall_at_3": 0.9230769230769231,
+      "citation_ownership": 0.9615384615384616,
+      "derived_error_total": 48,
+      "end_to_end_exact_success_count": 11,
+      "negative_correctness_count": 3,
+      "negative_records": 4,
+      "positive_records": 26,
+      "required_claim_coverage": 0.6987179487179487,
+      "supported_card_recall_at_3": 0.641025641025641,
+      "system": "OLD"
+    },
+    {
+      "card_precision_at_3": 1.0,
+      "card_recall_at_3": 0.9294871794871795,
+      "citation_ownership": 1.0,
+      "derived_error_total": 40,
+      "end_to_end_exact_success_count": 13,
+      "negative_correctness_count": 4,
+      "negative_records": 4,
+      "positive_records": 26,
+      "required_claim_coverage": 0.6153846153846154,
+      "supported_card_recall_at_3": 0.5384615384615384,
+      "system": "STRUCT"
+    }
+  ]
+}

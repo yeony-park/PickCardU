@@ -1,0 +1,613 @@
+{
+  "schema_version": "retrieval_search_normalization_v1",
+  "created_at": "2026-08-13T13:17:56.013233+00:00",
+  "execution": {
+    "network_calls": 0,
+    "openai_calls": 0,
+    "state_before": {
+      "api_requests": 6,
+      "api_input_tokens": 180066,
+      "embedding_cache_hash": "3a42f5ae5ec3c64048918c0bb252d797d188e8647e2dc252ad1fb5a290630446",
+      "chroma_hash": "f2d71eb41cfaa770516d39e670eb9ba0ef8ea489ddfb38fe869e7f3a08a1ac8b",
+      "chroma_count": 327,
+      "protected_file_hashes": {
+        "retrieval_ablation_per_query.csv": "098c034ca142eb740a38af7b358a03a9c9c22b327aae03594174ce51519c2d40",
+        "retrieval_ablation_summary.csv": "8bffd541a6a60831facd387db855977c20b07cf2442078741a13874ef10c786c",
+        "retrieval_ablation_summary.json": "8e28d0e9507e55463a5bbd45585f1eacd3f54d513e70f774e91e55aff9f5d5f3",
+        "retrieval_per_query.csv": "ed1991f0b032d9a45ffdcbac8916176606cb5fe8612c7ed71014cbb5a770a209",
+        "retrieval_summary.csv": "d3da35a86d41d6acb7229c90859fcfa936cf068668c578394ca72df5f08e5f82",
+        "retrieval_summary.json": "f9a98983433a67c2767aad87533d9a1b74693bbb30eaf28f1e03682a846e57a2",
+        "retrieval_true_two_stage_per_query.csv": "023a926061cd817c084f936ebf42ce320f3fe626be3e583366fca1e871abc565",
+        "retrieval_true_two_stage_summary.csv": "3dc2a88440305cb21699a1e8e8145ccba0025e1ff053a3a66b19ccf56dfd97b2",
+        "retrieval_true_two_stage_summary.json": "28ba519d2d15ee88170be20be6cfa6509a95959dad30eb88f0f8ccd0bc69d4f3"
+      }
+    },
+    "state_after": {
+      "api_requests": 6,
+      "api_input_tokens": 180066,
+      "embedding_cache_hash": "3a42f5ae5ec3c64048918c0bb252d797d188e8647e2dc252ad1fb5a290630446",
+      "chroma_hash": "f2d71eb41cfaa770516d39e670eb9ba0ef8ea489ddfb38fe869e7f3a08a1ac8b",
+      "chroma_count": 327,
+      "protected_file_hashes": {
+        "retrieval_ablation_per_query.csv": "098c034ca142eb740a38af7b358a03a9c9c22b327aae03594174ce51519c2d40",
+        "retrieval_ablation_summary.csv": "8bffd541a6a60831facd387db855977c20b07cf2442078741a13874ef10c786c",
+        "retrieval_ablation_summary.json": "8e28d0e9507e55463a5bbd45585f1eacd3f54d513e70f774e91e55aff9f5d5f3",
+        "retrieval_per_query.csv": "ed1991f0b032d9a45ffdcbac8916176606cb5fe8612c7ed71014cbb5a770a209",
+        "retrieval_summary.csv": "d3da35a86d41d6acb7229c90859fcfa936cf068668c578394ca72df5f08e5f82",
+        "retrieval_summary.json": "f9a98983433a67c2767aad87533d9a1b74693bbb30eaf28f1e03682a846e57a2",
+        "retrieval_true_two_stage_per_query.csv": "023a926061cd817c084f936ebf42ce320f3fe626be3e583366fca1e871abc565",
+        "retrieval_true_two_stage_summary.csv": "3dc2a88440305cb21699a1e8e8145ccba0025e1ff053a3a66b19ccf56dfd97b2",
+        "retrieval_true_two_stage_summary.json": "28ba519d2d15ee88170be20be6cfa6509a95959dad30eb88f0f8ccd0bc69d4f3"
+      }
+    },
+    "protected_assets_unchanged": true,
+    "raw_baseline_exact_reproduction": true,
+    "prior_regression_snapshot_loaded": true,
+    "raw_previous_output_exact": true,
+    "standalone_without_prior_supported": true,
+    "persisted_chroma_vector_top5_exact_queries": 30
+  },
+  "normalization_rules": [
+    "NFKC + lower + whitespace normalization while preserving raw regex tokens",
+    "Hangul character 2/3/4-grams over runs with spaces removed",
+    "canonical Decimal tokens collapse representation-only trailing zeros but preserve distinct numeric values",
+    "KRW canonical tokens for comma/plain and 만/천 notation including decimal and 만+천 sums",
+    "percent canonical tokens",
+    "월/연/년/일 prefix + 회/개월/년/일 period tokens"
+  ],
+  "field_weights": {
+    "metadata_field_bm25": {
+      "body": 1.0,
+      "issuer": 1.25,
+      "card_name": 2.0,
+      "page_num": 0.25
+    },
+    "oracle_structured_field_bm25": {
+      "body": 1.0,
+      "issuer": 1.25,
+      "card_name": 2.0,
+      "page_num": 0.25,
+      "oracle_structured": 1.5
+    }
+  },
+  "vector_source": "Post-incident byte-for-byte temporary snapshot of current persisted local Chroma (tree hash f2d71e...) queried through collection.query with cached query embeddings, include=[distances], n_results=min(50, len(chunks)); published top-5 asserted 30/30 exact. Pre-incident ranks 6-50 were not saved, so full-ranking identity is not claimed.",
+  "integrity_incident": {
+    "source_tree_hash_before": "a25c1d99940f74f35a220ed46c697ef49b2eb2a7e02cb66441d92e34b57e6174",
+    "source_tree_hash_after": "f2d71eb41cfaa770516d39e670eb9ba0ef8ea489ddfb38fe869e7f3a08a1ac8b",
+    "cause": "The first implementation connected PersistentClient directly to the protected source, allowing Chroma bookkeeping to change its byte tree.",
+    "verified_unchanged_semantics": {
+      "collection_count": 327,
+      "collection_name": "gold_hier_536aa7fd898a_text_embedding_3_small",
+      "published_vector_top5_exact_queries": 30
+    },
+    "unproven": "Pre-change ranks 6-50 were not persisted, so pre/post full-vector ranking and pre-incident RRF equivalence cannot be proven.",
+    "current_rrf_basis": "Post-incident f2d71e... byte snapshot."
+  },
+  "oracle_contract": "oracle_structured reads the existing per-benefit user-verified structured_metadata search field only. It does not modify chunk text, cache, or Chroma and is not an operational result.",
+  "leakage_audit": {
+    "status": "passed_with_common_chunking_limitation",
+    "ranking_inputs_non_oracle": [
+      "query string",
+      "raw chunk text",
+      "issuer",
+      "card_name",
+      "page_num",
+      "cached vectors"
+    ],
+    "metadata_fields_non_oracle": [
+      "issuer",
+      "card_name",
+      "page_num"
+    ],
+    "forbidden_non_oracle_metadata_asserted_absent": [
+      "structured_metadata",
+      "label_ids",
+      "label_kinds",
+      "section",
+      "level"
+    ],
+    "oracle_only_input": [
+      "user-verified structured_metadata values/context"
+    ],
+    "evaluation_only_excluded_from_ranking": [
+      "expected_card",
+      "expected_level",
+      "required_terms",
+      "category"
+    ],
+    "semantic_synonyms": "none",
+    "implementation": "search_queries is separated before ranking; evaluation_by_id enters only relevant_ids/metrics/grouping.",
+    "common_chunking_limitation": "All configurations reuse structured-assisted chunks, so benefit boundaries and document bodies can still reflect structured boundary construction even though non-oracle metadata ranking reads only issuer/card_name/page_num."
+  },
+  "development_set_warning": "These 30 queries are the development set used to compare configurations, not an independent holdout.",
+  "summaries": [
+    {
+      "configuration": "raw_text_bm25",
+      "question_group": "all",
+      "card_hit_at_3": 0.9333333333333333,
+      "strict_evidence_hit_at_3": 0.5333333333333333,
+      "recall_at_5": 0.6166666666666667,
+      "mrr_at_5": 0.3816666666666667,
+      "ndcg_at_5": 0.42944653268762767,
+      "denominator": 30
+    },
+    {
+      "configuration": "raw_text_bm25",
+      "question_group": "card",
+      "card_hit_at_3": 1.0,
+      "strict_evidence_hit_at_3": 0.5,
+      "recall_at_5": 0.9,
+      "mrr_at_5": 0.445,
+      "ndcg_at_5": 0.5571671742169093,
+      "denominator": 10
+    },
+    {
+      "configuration": "raw_text_bm25",
+      "question_group": "evidence",
+      "card_hit_at_3": 0.9,
+      "strict_evidence_hit_at_3": 0.55,
+      "recall_at_5": 0.475,
+      "mrr_at_5": 0.35,
+      "ndcg_at_5": 0.36558621192298674,
+      "denominator": 20
+    },
+    {
+      "configuration": "raw_text_bm25",
+      "question_group": "category_proper_noun",
+      "card_hit_at_3": 1.0,
+      "strict_evidence_hit_at_3": 0.5,
+      "recall_at_5": 0.9,
+      "mrr_at_5": 0.445,
+      "ndcg_at_5": 0.5571671742169093,
+      "denominator": 10
+    },
+    {
+      "configuration": "raw_text_bm25",
+      "question_group": "category_numeric_condition",
+      "card_hit_at_3": 1.0,
+      "strict_evidence_hit_at_3": 0.7,
+      "recall_at_5": 0.55,
+      "mrr_at_5": 0.41666666666666663,
+      "ndcg_at_5": 0.41807944848882767,
+      "denominator": 10
+    },
+    {
+      "configuration": "raw_text_bm25",
+      "question_group": "category_semantic",
+      "card_hit_at_3": 0.8,
+      "strict_evidence_hit_at_3": 0.4,
+      "recall_at_5": 0.4,
+      "mrr_at_5": 0.2833333333333333,
+      "ndcg_at_5": 0.31309297535714575,
+      "denominator": 10
+    },
+    {
+      "configuration": "normalized_bm25",
+      "question_group": "all",
+      "card_hit_at_3": 0.9,
+      "strict_evidence_hit_at_3": 0.6666666666666666,
+      "recall_at_5": 0.725,
+      "mrr_at_5": 0.43166666666666664,
+      "ndcg_at_5": 0.4899043430230987,
+      "denominator": 30
+    },
+    {
+      "configuration": "normalized_bm25",
+      "question_group": "card",
+      "card_hit_at_3": 0.9,
+      "strict_evidence_hit_at_3": 0.6,
+      "recall_at_5": 0.8,
+      "mrr_at_5": 0.3,
+      "ndcg_at_5": 0.4254142376861158,
+      "denominator": 10
+    },
+    {
+      "configuration": "normalized_bm25",
+      "question_group": "evidence",
+      "card_hit_at_3": 0.9,
+      "strict_evidence_hit_at_3": 0.7,
+      "recall_at_5": 0.6875,
+      "mrr_at_5": 0.49749999999999994,
+      "ndcg_at_5": 0.52214939569159,
+      "denominator": 20
+    },
+    {
+      "configuration": "normalized_bm25",
+      "question_group": "category_proper_noun",
+      "card_hit_at_3": 0.9,
+      "strict_evidence_hit_at_3": 0.6,
+      "recall_at_5": 0.8,
+      "mrr_at_5": 0.3,
+      "ndcg_at_5": 0.4254142376861158,
+      "denominator": 10
+    },
+    {
+      "configuration": "normalized_bm25",
+      "question_group": "category_numeric_condition",
+      "card_hit_at_3": 0.9,
+      "strict_evidence_hit_at_3": 0.7,
+      "recall_at_5": 0.675,
+      "mrr_at_5": 0.4916666666666667,
+      "ndcg_at_5": 0.5057077886685047,
+      "denominator": 10
+    },
+    {
+      "configuration": "normalized_bm25",
+      "question_group": "category_semantic",
+      "card_hit_at_3": 0.9,
+      "strict_evidence_hit_at_3": 0.7,
+      "recall_at_5": 0.7,
+      "mrr_at_5": 0.5033333333333333,
+      "ndcg_at_5": 0.5385910027146753,
+      "denominator": 10
+    },
+    {
+      "configuration": "metadata_field_bm25",
+      "question_group": "all",
+      "card_hit_at_3": 0.9333333333333333,
+      "strict_evidence_hit_at_3": 0.6666666666666666,
+      "recall_at_5": 0.725,
+      "mrr_at_5": 0.43166666666666664,
+      "ndcg_at_5": 0.4899043430230987,
+      "denominator": 30
+    },
+    {
+      "configuration": "metadata_field_bm25",
+      "question_group": "card",
+      "card_hit_at_3": 1.0,
+      "strict_evidence_hit_at_3": 0.6,
+      "recall_at_5": 0.8,
+      "mrr_at_5": 0.3,
+      "ndcg_at_5": 0.4254142376861158,
+      "denominator": 10
+    },
+    {
+      "configuration": "metadata_field_bm25",
+      "question_group": "evidence",
+      "card_hit_at_3": 0.9,
+      "strict_evidence_hit_at_3": 0.7,
+      "recall_at_5": 0.6875,
+      "mrr_at_5": 0.49749999999999994,
+      "ndcg_at_5": 0.52214939569159,
+      "denominator": 20
+    },
+    {
+      "configuration": "metadata_field_bm25",
+      "question_group": "category_proper_noun",
+      "card_hit_at_3": 1.0,
+      "strict_evidence_hit_at_3": 0.6,
+      "recall_at_5": 0.8,
+      "mrr_at_5": 0.3,
+      "ndcg_at_5": 0.4254142376861158,
+      "denominator": 10
+    },
+    {
+      "configuration": "metadata_field_bm25",
+      "question_group": "category_numeric_condition",
+      "card_hit_at_3": 0.9,
+      "strict_evidence_hit_at_3": 0.7,
+      "recall_at_5": 0.675,
+      "mrr_at_5": 0.4916666666666667,
+      "ndcg_at_5": 0.5057077886685047,
+      "denominator": 10
+    },
+    {
+      "configuration": "metadata_field_bm25",
+      "question_group": "category_semantic",
+      "card_hit_at_3": 0.9,
+      "strict_evidence_hit_at_3": 0.7,
+      "recall_at_5": 0.7,
+      "mrr_at_5": 0.5033333333333333,
+      "ndcg_at_5": 0.5385910027146753,
+      "denominator": 10
+    },
+    {
+      "configuration": "oracle_structured_field_bm25",
+      "question_group": "all",
+      "card_hit_at_3": 0.9333333333333333,
+      "strict_evidence_hit_at_3": 0.5333333333333333,
+      "recall_at_5": 0.6916666666666667,
+      "mrr_at_5": 0.4227777777777778,
+      "ndcg_at_5": 0.47072058267190886,
+      "denominator": 30
+    },
+    {
+      "configuration": "oracle_structured_field_bm25",
+      "question_group": "card",
+      "card_hit_at_3": 1.0,
+      "strict_evidence_hit_at_3": 0.3,
+      "recall_at_5": 0.7,
+      "mrr_at_5": 0.195,
+      "ndcg_at_5": 0.31788824814547206,
+      "denominator": 10
+    },
+    {
+      "configuration": "oracle_structured_field_bm25",
+      "question_group": "evidence",
+      "card_hit_at_3": 0.9,
+      "strict_evidence_hit_at_3": 0.65,
+      "recall_at_5": 0.6875,
+      "mrr_at_5": 0.5366666666666667,
+      "ndcg_at_5": 0.5471367499351272,
+      "denominator": 20
+    },
+    {
+      "configuration": "oracle_structured_field_bm25",
+      "question_group": "category_proper_noun",
+      "card_hit_at_3": 1.0,
+      "strict_evidence_hit_at_3": 0.3,
+      "recall_at_5": 0.7,
+      "mrr_at_5": 0.195,
+      "ndcg_at_5": 0.31788824814547206,
+      "denominator": 10
+    },
+    {
+      "configuration": "oracle_structured_field_bm25",
+      "question_group": "category_numeric_condition",
+      "card_hit_at_3": 0.9,
+      "strict_evidence_hit_at_3": 0.9,
+      "recall_at_5": 0.825,
+      "mrr_at_5": 0.8333333333333334,
+      "ndcg_at_5": 0.7794965464412875,
+      "denominator": 10
+    },
+    {
+      "configuration": "oracle_structured_field_bm25",
+      "question_group": "category_semantic",
+      "card_hit_at_3": 0.9,
+      "strict_evidence_hit_at_3": 0.4,
+      "recall_at_5": 0.55,
+      "mrr_at_5": 0.24,
+      "ndcg_at_5": 0.3147769534289668,
+      "denominator": 10
+    },
+    {
+      "configuration": "full_vector_published",
+      "question_group": "all",
+      "card_hit_at_3": 0.9666666666666667,
+      "strict_evidence_hit_at_3": 0.6,
+      "recall_at_5": 0.725,
+      "mrr_at_5": 0.5111111111111112,
+      "ndcg_at_5": 0.5370432222851463,
+      "denominator": 30
+    },
+    {
+      "configuration": "full_vector_published",
+      "question_group": "card",
+      "card_hit_at_3": 1.0,
+      "strict_evidence_hit_at_3": 0.5,
+      "recall_at_5": 0.8,
+      "mrr_at_5": 0.375,
+      "ndcg_at_5": 0.48157486885060097,
+      "denominator": 10
+    },
+    {
+      "configuration": "full_vector_published",
+      "question_group": "evidence",
+      "card_hit_at_3": 0.95,
+      "strict_evidence_hit_at_3": 0.65,
+      "recall_at_5": 0.6875,
+      "mrr_at_5": 0.5791666666666667,
+      "ndcg_at_5": 0.5647773990024192,
+      "denominator": 20
+    },
+    {
+      "configuration": "full_vector_published",
+      "question_group": "category_proper_noun",
+      "card_hit_at_3": 1.0,
+      "strict_evidence_hit_at_3": 0.5,
+      "recall_at_5": 0.8,
+      "mrr_at_5": 0.375,
+      "ndcg_at_5": 0.48157486885060097,
+      "denominator": 10
+    },
+    {
+      "configuration": "full_vector_published",
+      "question_group": "category_numeric_condition",
+      "card_hit_at_3": 1.0,
+      "strict_evidence_hit_at_3": 0.6,
+      "recall_at_5": 0.675,
+      "mrr_at_5": 0.55,
+      "ndcg_at_5": 0.5287402911138874,
+      "denominator": 10
+    },
+    {
+      "configuration": "full_vector_published",
+      "question_group": "category_semantic",
+      "card_hit_at_3": 0.9,
+      "strict_evidence_hit_at_3": 0.7,
+      "recall_at_5": 0.7,
+      "mrr_at_5": 0.6083333333333333,
+      "ndcg_at_5": 0.6008145068909507,
+      "denominator": 10
+    },
+    {
+      "configuration": "rrf_vector_normalized",
+      "question_group": "all",
+      "card_hit_at_3": 0.9333333333333333,
+      "strict_evidence_hit_at_3": 0.7,
+      "recall_at_5": 0.775,
+      "mrr_at_5": 0.5383333333333333,
+      "ndcg_at_5": 0.5748919839559729,
+      "denominator": 30
+    },
+    {
+      "configuration": "rrf_vector_normalized",
+      "question_group": "card",
+      "card_hit_at_3": 1.0,
+      "strict_evidence_hit_at_3": 0.6,
+      "recall_at_5": 0.9,
+      "mrr_at_5": 0.4083333333333333,
+      "ndcg_at_5": 0.5315748688506009,
+      "denominator": 10
+    },
+    {
+      "configuration": "rrf_vector_normalized",
+      "question_group": "evidence",
+      "card_hit_at_3": 0.9,
+      "strict_evidence_hit_at_3": 0.75,
+      "recall_at_5": 0.7125,
+      "mrr_at_5": 0.6033333333333333,
+      "ndcg_at_5": 0.5965505415086586,
+      "denominator": 20
+    },
+    {
+      "configuration": "rrf_vector_normalized",
+      "question_group": "category_proper_noun",
+      "card_hit_at_3": 1.0,
+      "strict_evidence_hit_at_3": 0.6,
+      "recall_at_5": 0.9,
+      "mrr_at_5": 0.4083333333333333,
+      "ndcg_at_5": 0.5315748688506009,
+      "denominator": 10
+    },
+    {
+      "configuration": "rrf_vector_normalized",
+      "question_group": "category_numeric_condition",
+      "card_hit_at_3": 1.0,
+      "strict_evidence_hit_at_3": 0.8,
+      "recall_at_5": 0.725,
+      "mrr_at_5": 0.6533333333333333,
+      "ndcg_at_5": 0.6125380013878232,
+      "denominator": 10
+    },
+    {
+      "configuration": "rrf_vector_normalized",
+      "question_group": "category_semantic",
+      "card_hit_at_3": 0.8,
+      "strict_evidence_hit_at_3": 0.7,
+      "recall_at_5": 0.7,
+      "mrr_at_5": 0.5533333333333333,
+      "ndcg_at_5": 0.580563081629494,
+      "denominator": 10
+    },
+    {
+      "configuration": "rrf_vector_metadata",
+      "question_group": "all",
+      "card_hit_at_3": 0.9333333333333333,
+      "strict_evidence_hit_at_3": 0.7,
+      "recall_at_5": 0.775,
+      "mrr_at_5": 0.5383333333333333,
+      "ndcg_at_5": 0.5748919839559729,
+      "denominator": 30
+    },
+    {
+      "configuration": "rrf_vector_metadata",
+      "question_group": "card",
+      "card_hit_at_3": 1.0,
+      "strict_evidence_hit_at_3": 0.6,
+      "recall_at_5": 0.9,
+      "mrr_at_5": 0.4083333333333333,
+      "ndcg_at_5": 0.5315748688506009,
+      "denominator": 10
+    },
+    {
+      "configuration": "rrf_vector_metadata",
+      "question_group": "evidence",
+      "card_hit_at_3": 0.9,
+      "strict_evidence_hit_at_3": 0.75,
+      "recall_at_5": 0.7125,
+      "mrr_at_5": 0.6033333333333333,
+      "ndcg_at_5": 0.5965505415086586,
+      "denominator": 20
+    },
+    {
+      "configuration": "rrf_vector_metadata",
+      "question_group": "category_proper_noun",
+      "card_hit_at_3": 1.0,
+      "strict_evidence_hit_at_3": 0.6,
+      "recall_at_5": 0.9,
+      "mrr_at_5": 0.4083333333333333,
+      "ndcg_at_5": 0.5315748688506009,
+      "denominator": 10
+    },
+    {
+      "configuration": "rrf_vector_metadata",
+      "question_group": "category_numeric_condition",
+      "card_hit_at_3": 1.0,
+      "strict_evidence_hit_at_3": 0.8,
+      "recall_at_5": 0.725,
+      "mrr_at_5": 0.6533333333333333,
+      "ndcg_at_5": 0.6125380013878232,
+      "denominator": 10
+    },
+    {
+      "configuration": "rrf_vector_metadata",
+      "question_group": "category_semantic",
+      "card_hit_at_3": 0.8,
+      "strict_evidence_hit_at_3": 0.7,
+      "recall_at_5": 0.7,
+      "mrr_at_5": 0.5533333333333333,
+      "ndcg_at_5": 0.580563081629494,
+      "denominator": 10
+    },
+    {
+      "configuration": "rrf_vector_oracle_structured",
+      "question_group": "all",
+      "card_hit_at_3": 0.9333333333333333,
+      "strict_evidence_hit_at_3": 0.6666666666666666,
+      "recall_at_5": 0.7833333333333333,
+      "mrr_at_5": 0.5227777777777778,
+      "ndcg_at_5": 0.5575249281733357,
+      "denominator": 30
+    },
+    {
+      "configuration": "rrf_vector_oracle_structured",
+      "question_group": "card",
+      "card_hit_at_3": 1.0,
+      "strict_evidence_hit_at_3": 0.6,
+      "recall_at_5": 0.8,
+      "mrr_at_5": 0.295,
+      "ndcg_at_5": 0.4210318626022308,
+      "denominator": 10
+    },
+    {
+      "configuration": "rrf_vector_oracle_structured",
+      "question_group": "evidence",
+      "card_hit_at_3": 0.9,
+      "strict_evidence_hit_at_3": 0.7,
+      "recall_at_5": 0.775,
+      "mrr_at_5": 0.6366666666666667,
+      "ndcg_at_5": 0.6257714609588879,
+      "denominator": 20
+    },
+    {
+      "configuration": "rrf_vector_oracle_structured",
+      "question_group": "category_proper_noun",
+      "card_hit_at_3": 1.0,
+      "strict_evidence_hit_at_3": 0.6,
+      "recall_at_5": 0.8,
+      "mrr_at_5": 0.295,
+      "ndcg_at_5": 0.4210318626022308,
+      "denominator": 10
+    },
+    {
+      "configuration": "rrf_vector_oracle_structured",
+      "question_group": "category_numeric_condition",
+      "card_hit_at_3": 1.0,
+      "strict_evidence_hit_at_3": 0.8,
+      "recall_at_5": 0.85,
+      "mrr_at_5": 0.79,
+      "ndcg_at_5": 0.7225433466889662,
+      "denominator": 10
+    },
+    {
+      "configuration": "rrf_vector_oracle_structured",
+      "question_group": "category_semantic",
+      "card_hit_at_3": 0.8,
+      "strict_evidence_hit_at_3": 0.6,
+      "recall_at_5": 0.7,
+      "mrr_at_5": 0.4833333333333333,
+      "ndcg_at_5": 0.5289995752288096,
+      "denominator": 10
+    }
+  ],
+  "limitations": [
+    "Oracle structured fields contain hand-verified answers and context, so their score is an upper-bound with direct retrieval leakage.",
+    "All configurations share structured-assisted chunk boundaries even though non-oracle metadata fields are restricted to issuer/card_name/page_num.",
+    "The Chroma integrity incident left pre-change ranks 6-50 unavailable; current RRF uses the post-incident snapshot and pre-change full-ranking equality is unproven.",
+    "Hangul character n-grams improve spacing robustness but can increase accidental lexical matches.",
+    "No meaning synonym expansion or evaluation-label query expansion is used.",
+    "BC selected excerpt and IBK incomplete/ambiguous coverage remain."
+  ]
+}

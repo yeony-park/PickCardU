@@ -1,0 +1,6202 @@
+{
+  "schema_version": "answer_bearing_grouped_reevaluation_v1",
+  "scope": {
+    "single_run": true,
+    "development_only": true,
+    "queries": 30,
+    "chunks": 327,
+    "holdout_used": false
+  },
+  "contract": {
+    "normalization": "\" \".join(unicodedata.normalize(\"NFKC\", str(value)).lower().split())",
+    "numeric_canonicalization": false,
+    "punctuation_removal": false,
+    "morphology": false,
+    "synonyms": false,
+    "fuzzy_match": false,
+    "strict": "expected card + expected level + all normalized required terms contained in document",
+    "answer_bearing": "expected card + all normalized required terms contained in document; level ignored",
+    "answer_bearing_alias": "level_relaxed_term_bearing",
+    "answer_bearing_is_not_factual_completeness": true,
+    "views": [
+      "strict_raw",
+      "answer_bearing_raw",
+      "strict_exact_doc_dedup",
+      "answer_bearing_exact_doc_dedup",
+      "answer_bearing_gold_family_oracle"
+    ],
+    "exact_dedup_key": [
+      "card_key",
+      "SHA256(normalized(document))"
+    ],
+    "exact_dedup_uses_query_gold_or_level": false,
+    "gold_family_oracle": "one query-specific family for all ANSWER_BEARING chunks; first gain only; evaluation oracle, not operational dedup",
+    "excluded_grouping": [
+      "content containment",
+      "fuzzy grouping"
+    ],
+    "groups": {
+      "all": 30,
+      "card": 10,
+      "evidence": 20,
+      "numeric": 10,
+      "semantic": 10
+    },
+    "primary_comparison": "vector_0.4_bm25_0.6_top50",
+    "ranking": {
+      "no_reranker": "16 fused_rank",
+      "gte": "17 logit descending, tie original RRF rank, then chunk ID"
+    },
+    "interpretation_priority": [
+      "Hit/MRR for raw answer-bearing",
+      "gold-family Recall/nDCG",
+      "exact-document dedup",
+      "raw answer-bearing Recall/nDCG is parent-duplicate sensitive"
+    ],
+    "interpretation_rules": {
+      "level_or_duplicate_effect_strong": "strict declines while answer-bearing and family do not regress",
+      "oracle_only_recovery": "family recovers while exact dedup does not",
+      "query_independent_dedup_candidate": "exact dedup recovers",
+      "answer_chunk_misranking_strengthened": "answer-bearing also declines",
+      "decision_invariance": "diagnostic results do not automatically change the existing retain_no_reranker decision"
+    },
+    "existing_decision_automatically_changed": false
+  },
+  "results": {
+    "summary_rows": [
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "strict_raw",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9333333333333333,
+        "hit_at_3": 0.7333333333333333,
+        "recall_at_5": 0.775,
+        "mrr_at_5": 0.5355555555555556,
+        "ndcg_at_5": 0.5757859162265218
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "strict_raw",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.7,
+        "recall_at_5": 0.9,
+        "mrr_at_5": 0.36666666666666664,
+        "ndcg_at_5": 0.5016001884004073
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "strict_raw",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.75,
+        "recall_at_5": 0.7125,
+        "mrr_at_5": 0.6199999999999999,
+        "ndcg_at_5": 0.6128787801395787
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "strict_raw",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.8,
+        "recall_at_5": 0.725,
+        "mrr_at_5": 0.6366666666666666,
+        "ndcg_at_5": 0.6082874540068094
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "strict_raw",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.8,
+        "hit_at_3": 0.7,
+        "recall_at_5": 0.7,
+        "mrr_at_5": 0.6033333333333333,
+        "ndcg_at_5": 0.6174701062723483
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "answer_bearing_raw",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9333333333333333,
+        "hit_at_3": 0.9333333333333333,
+        "recall_at_5": 0.6444677440585369,
+        "mrr_at_5": 0.8972222222222221,
+        "ndcg_at_5": 0.7989469021033717
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "answer_bearing_raw",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 1.0,
+        "recall_at_5": 0.6500915438639223,
+        "mrr_at_5": 0.9333333333333333,
+        "ndcg_at_5": 0.9
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "answer_bearing_raw",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.6416558441558441,
+        "mrr_at_5": 0.8791666666666667,
+        "ndcg_at_5": 0.7484203531550575
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "answer_bearing_raw",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 1.0,
+        "recall_at_5": 0.7045238095238096,
+        "mrr_at_5": 0.9333333333333332,
+        "ndcg_at_5": 0.792000921150885
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "answer_bearing_raw",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.8,
+        "hit_at_3": 0.8,
+        "recall_at_5": 0.5787878787878789,
+        "mrr_at_5": 0.825,
+        "ndcg_at_5": 0.7048397851592301
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "strict_exact_doc_dedup",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9333333333333333,
+        "hit_at_3": 0.8,
+        "recall_at_5": 0.8,
+        "mrr_at_5": 0.6205555555555555,
+        "ndcg_at_5": 0.6441767378744906
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "strict_exact_doc_dedup",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.9,
+        "mrr_at_5": 0.45,
+        "ndcg_at_5": 0.5678367782143119
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "strict_exact_doc_dedup",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.75,
+        "recall_at_5": 0.75,
+        "mrr_at_5": 0.7058333333333333,
+        "ndcg_at_5": 0.6823467177045799
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "strict_exact_doc_dedup",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.8,
+        "recall_at_5": 0.8,
+        "mrr_at_5": 0.7583333333333333,
+        "ndcg_at_5": 0.7103163044939572
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "strict_exact_doc_dedup",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.8,
+        "hit_at_3": 0.7,
+        "recall_at_5": 0.7,
+        "mrr_at_5": 0.6533333333333334,
+        "ndcg_at_5": 0.6543771309152026
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9333333333333333,
+        "hit_at_3": 0.9333333333333333,
+        "recall_at_5": 0.6902513227513227,
+        "mrr_at_5": 0.9038888888888889,
+        "ndcg_at_5": 0.8018386500100548
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 1.0,
+        "recall_at_5": 0.6838888888888889,
+        "mrr_at_5": 0.9333333333333333,
+        "ndcg_at_5": 0.8868794922487659
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.6934325396825396,
+        "mrr_at_5": 0.8891666666666665,
+        "ndcg_at_5": 0.7593182288906993
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 1.0,
+        "recall_at_5": 0.7816666666666666,
+        "mrr_at_5": 0.9333333333333332,
+        "ndcg_at_5": 0.8051214289021191
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.8,
+        "hit_at_3": 0.8,
+        "recall_at_5": 0.6051984126984127,
+        "mrr_at_5": 0.845,
+        "ndcg_at_5": 0.7135150288792794
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9333333333333333,
+        "hit_at_3": 0.9333333333333333,
+        "recall_at_5": 0.9666666666666667,
+        "mrr_at_5": 0.8972222222222221,
+        "ndcg_at_5": 0.9143558852691132
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 1.0,
+        "recall_at_5": 1.0,
+        "mrr_at_5": 0.9333333333333333,
+        "ndcg_at_5": 0.95
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.95,
+        "mrr_at_5": 0.8791666666666667,
+        "ndcg_at_5": 0.8965338279036696
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 1.0,
+        "recall_at_5": 1.0,
+        "mrr_at_5": 0.9333333333333332,
+        "ndcg_at_5": 0.95
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.8,
+        "hit_at_3": 0.8,
+        "recall_at_5": 0.9,
+        "mrr_at_5": 0.825,
+        "ndcg_at_5": 0.8430676558073393
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "gte",
+        "view": "strict_raw",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9666666666666667,
+        "hit_at_3": 0.6,
+        "recall_at_5": 0.7166666666666667,
+        "mrr_at_5": 0.4388888888888889,
+        "ndcg_at_5": 0.49195732584545576
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "gte",
+        "view": "strict_raw",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.6,
+        "recall_at_5": 0.8,
+        "mrr_at_5": 0.31666666666666665,
+        "ndcg_at_5": 0.43850721304326157
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "gte",
+        "view": "strict_raw",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.95,
+        "hit_at_3": 0.6,
+        "recall_at_5": 0.675,
+        "mrr_at_5": 0.5,
+        "ndcg_at_5": 0.5186823822465527
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "gte",
+        "view": "strict_raw",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.5,
+        "recall_at_5": 0.65,
+        "mrr_at_5": 0.275,
+        "ndcg_at_5": 0.3716676701326745
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "gte",
+        "view": "strict_raw",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.7,
+        "recall_at_5": 0.7,
+        "mrr_at_5": 0.725,
+        "ndcg_at_5": 0.665697094360431
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "gte",
+        "view": "answer_bearing_raw",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9666666666666667,
+        "hit_at_3": 0.9333333333333333,
+        "recall_at_5": 0.6902366651535449,
+        "mrr_at_5": 0.9177777777777777,
+        "ndcg_at_5": 0.8539177767348765
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "gte",
+        "view": "answer_bearing_raw",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 1.0,
+        "recall_at_5": 0.6787871960378353,
+        "mrr_at_5": 1.0,
+        "ndcg_at_5": 0.9737589844975316
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "gte",
+        "view": "answer_bearing_raw",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.95,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.6959613997113997,
+        "mrr_at_5": 0.8766666666666666,
+        "ndcg_at_5": 0.7939971728535491
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "gte",
+        "view": "answer_bearing_raw",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.7678571428571429,
+        "mrr_at_5": 0.9,
+        "ndcg_at_5": 0.8508892287181012
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "gte",
+        "view": "answer_bearing_raw",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.6240656565656566,
+        "mrr_at_5": 0.8533333333333333,
+        "ndcg_at_5": 0.737105116988997
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "gte",
+        "view": "strict_exact_doc_dedup",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9666666666666667,
+        "hit_at_3": 0.7333333333333333,
+        "recall_at_5": 0.7916666666666666,
+        "mrr_at_5": 0.48166666666666663,
+        "ndcg_at_5": 0.5473002632171332
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "gte",
+        "view": "strict_exact_doc_dedup",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.8,
+        "recall_at_5": 0.9,
+        "mrr_at_5": 0.38666666666666666,
+        "ndcg_at_5": 0.5172431328663287
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "gte",
+        "view": "strict_exact_doc_dedup",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.95,
+        "hit_at_3": 0.7,
+        "recall_at_5": 0.7375,
+        "mrr_at_5": 0.5291666666666666,
+        "ndcg_at_5": 0.5623288283925353
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "gte",
+        "view": "strict_exact_doc_dedup",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.6,
+        "recall_at_5": 0.775,
+        "mrr_at_5": 0.325,
+        "ndcg_at_5": 0.45202821823197914
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "gte",
+        "view": "strict_exact_doc_dedup",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.8,
+        "recall_at_5": 0.7,
+        "mrr_at_5": 0.7333333333333334,
+        "ndcg_at_5": 0.6726294385530917
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "gte",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9666666666666667,
+        "hit_at_3": 0.9333333333333333,
+        "recall_at_5": 0.7375132275132275,
+        "mrr_at_5": 0.926111111111111,
+        "ndcg_at_5": 0.8572301455288068
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "gte",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 1.0,
+        "recall_at_5": 0.7263888888888889,
+        "mrr_at_5": 1.0,
+        "ndcg_at_5": 0.9737589844975316
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "gte",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.95,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.7430753968253968,
+        "mrr_at_5": 0.8891666666666665,
+        "ndcg_at_5": 0.7989657260444445
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "gte",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.845,
+        "mrr_at_5": 0.925,
+        "ndcg_at_5": 0.865496063702372
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "gte",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.6411507936507936,
+        "mrr_at_5": 0.8533333333333333,
+        "ndcg_at_5": 0.7324353883865171
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "gte",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9666666666666667,
+        "hit_at_3": 0.9333333333333333,
+        "recall_at_5": 0.9666666666666667,
+        "mrr_at_5": 0.9177777777777777,
+        "ndcg_at_5": 0.9295617602411513
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "gte",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 1.0,
+        "recall_at_5": 1.0,
+        "mrr_at_5": 1.0,
+        "ndcg_at_5": 1.0
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "gte",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.95,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.95,
+        "mrr_at_5": 0.8766666666666666,
+        "ndcg_at_5": 0.894342640361727
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "gte",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.9,
+        "mrr_at_5": 0.9,
+        "ndcg_at_5": 0.9
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top20",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 20,
+        "system": "gte",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.9,
+        "recall_at_5": 1.0,
+        "mrr_at_5": 0.8533333333333333,
+        "ndcg_at_5": 0.8886852807234542
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "strict_raw",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9333333333333333,
+        "hit_at_3": 0.7333333333333333,
+        "recall_at_5": 0.775,
+        "mrr_at_5": 0.5355555555555556,
+        "ndcg_at_5": 0.5757859162265218
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "strict_raw",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.7,
+        "recall_at_5": 0.9,
+        "mrr_at_5": 0.36666666666666664,
+        "ndcg_at_5": 0.5016001884004073
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "strict_raw",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.75,
+        "recall_at_5": 0.7125,
+        "mrr_at_5": 0.6199999999999999,
+        "ndcg_at_5": 0.6128787801395787
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "strict_raw",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.8,
+        "recall_at_5": 0.725,
+        "mrr_at_5": 0.6366666666666666,
+        "ndcg_at_5": 0.6082874540068094
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "strict_raw",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.8,
+        "hit_at_3": 0.7,
+        "recall_at_5": 0.7,
+        "mrr_at_5": 0.6033333333333333,
+        "ndcg_at_5": 0.6174701062723483
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "answer_bearing_raw",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9333333333333333,
+        "hit_at_3": 0.9333333333333333,
+        "recall_at_5": 0.6444677440585369,
+        "mrr_at_5": 0.8972222222222221,
+        "ndcg_at_5": 0.7989469021033717
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "answer_bearing_raw",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 1.0,
+        "recall_at_5": 0.6500915438639223,
+        "mrr_at_5": 0.9333333333333333,
+        "ndcg_at_5": 0.9
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "answer_bearing_raw",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.6416558441558441,
+        "mrr_at_5": 0.8791666666666667,
+        "ndcg_at_5": 0.7484203531550575
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "answer_bearing_raw",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 1.0,
+        "recall_at_5": 0.7045238095238096,
+        "mrr_at_5": 0.9333333333333332,
+        "ndcg_at_5": 0.792000921150885
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "answer_bearing_raw",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.8,
+        "hit_at_3": 0.8,
+        "recall_at_5": 0.5787878787878789,
+        "mrr_at_5": 0.825,
+        "ndcg_at_5": 0.7048397851592301
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "strict_exact_doc_dedup",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9333333333333333,
+        "hit_at_3": 0.8,
+        "recall_at_5": 0.8,
+        "mrr_at_5": 0.6205555555555555,
+        "ndcg_at_5": 0.6441767378744906
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "strict_exact_doc_dedup",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.9,
+        "mrr_at_5": 0.45,
+        "ndcg_at_5": 0.5678367782143119
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "strict_exact_doc_dedup",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.75,
+        "recall_at_5": 0.75,
+        "mrr_at_5": 0.7058333333333333,
+        "ndcg_at_5": 0.6823467177045799
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "strict_exact_doc_dedup",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.8,
+        "recall_at_5": 0.8,
+        "mrr_at_5": 0.7583333333333333,
+        "ndcg_at_5": 0.7103163044939572
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "strict_exact_doc_dedup",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.8,
+        "hit_at_3": 0.7,
+        "recall_at_5": 0.7,
+        "mrr_at_5": 0.6533333333333334,
+        "ndcg_at_5": 0.6543771309152026
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9333333333333333,
+        "hit_at_3": 0.9333333333333333,
+        "recall_at_5": 0.6902513227513227,
+        "mrr_at_5": 0.9038888888888889,
+        "ndcg_at_5": 0.8018386500100548
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 1.0,
+        "recall_at_5": 0.6838888888888889,
+        "mrr_at_5": 0.9333333333333333,
+        "ndcg_at_5": 0.8868794922487659
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.6934325396825396,
+        "mrr_at_5": 0.8891666666666665,
+        "ndcg_at_5": 0.7593182288906993
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 1.0,
+        "recall_at_5": 0.7816666666666666,
+        "mrr_at_5": 0.9333333333333332,
+        "ndcg_at_5": 0.8051214289021191
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.8,
+        "hit_at_3": 0.8,
+        "recall_at_5": 0.6051984126984127,
+        "mrr_at_5": 0.845,
+        "ndcg_at_5": 0.7135150288792794
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9333333333333333,
+        "hit_at_3": 0.9333333333333333,
+        "recall_at_5": 0.9666666666666667,
+        "mrr_at_5": 0.8972222222222221,
+        "ndcg_at_5": 0.9143558852691132
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 1.0,
+        "recall_at_5": 1.0,
+        "mrr_at_5": 0.9333333333333333,
+        "ndcg_at_5": 0.95
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.95,
+        "mrr_at_5": 0.8791666666666667,
+        "ndcg_at_5": 0.8965338279036696
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 1.0,
+        "recall_at_5": 1.0,
+        "mrr_at_5": 0.9333333333333332,
+        "ndcg_at_5": 0.95
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.8,
+        "hit_at_3": 0.8,
+        "recall_at_5": 0.9,
+        "mrr_at_5": 0.825,
+        "ndcg_at_5": 0.8430676558073393
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "gte",
+        "view": "strict_raw",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9666666666666667,
+        "hit_at_3": 0.5666666666666667,
+        "recall_at_5": 0.7166666666666667,
+        "mrr_at_5": 0.4394444444444444,
+        "ndcg_at_5": 0.48729007242649736
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "gte",
+        "view": "strict_raw",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.6,
+        "recall_at_5": 0.8,
+        "mrr_at_5": 0.31666666666666665,
+        "ndcg_at_5": 0.43850721304326157
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "gte",
+        "view": "strict_raw",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.95,
+        "hit_at_3": 0.55,
+        "recall_at_5": 0.675,
+        "mrr_at_5": 0.5008333333333332,
+        "ndcg_at_5": 0.5116815021181151
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "gte",
+        "view": "strict_raw",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.4,
+        "recall_at_5": 0.6,
+        "mrr_at_5": 0.2516666666666667,
+        "ndcg_at_5": 0.3312590976185401
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "gte",
+        "view": "strict_raw",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.7,
+        "recall_at_5": 0.75,
+        "mrr_at_5": 0.75,
+        "ndcg_at_5": 0.6921039066176901
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "gte",
+        "view": "answer_bearing_raw",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9666666666666667,
+        "hit_at_3": 0.9333333333333333,
+        "recall_at_5": 0.6711832950132183,
+        "mrr_at_5": 0.9011111111111111,
+        "ndcg_at_5": 0.8323006689171044
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "gte",
+        "view": "answer_bearing_raw",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 1.0,
+        "recall_at_5": 0.6688493078390776,
+        "mrr_at_5": 1.0,
+        "ndcg_at_5": 0.9722726572644952
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "gte",
+        "view": "answer_bearing_raw",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.95,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.6723502886002886,
+        "mrr_at_5": 0.8516666666666666,
+        "ndcg_at_5": 0.7623146747434093
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "gte",
+        "view": "answer_bearing_raw",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.7095238095238096,
+        "mrr_at_5": 0.85,
+        "ndcg_at_5": 0.7812818355391018
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "gte",
+        "view": "answer_bearing_raw",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.6351767676767677,
+        "mrr_at_5": 0.8533333333333333,
+        "ndcg_at_5": 0.7433475139477166
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "gte",
+        "view": "strict_exact_doc_dedup",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9666666666666667,
+        "hit_at_3": 0.7,
+        "recall_at_5": 0.7916666666666666,
+        "mrr_at_5": 0.48388888888888887,
+        "ndcg_at_5": 0.5440938014928032
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "gte",
+        "view": "strict_exact_doc_dedup",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.8,
+        "recall_at_5": 0.9,
+        "mrr_at_5": 0.38666666666666666,
+        "ndcg_at_5": 0.5172431328663287
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "gte",
+        "view": "strict_exact_doc_dedup",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.95,
+        "hit_at_3": 0.65,
+        "recall_at_5": 0.7375,
+        "mrr_at_5": 0.5325,
+        "ndcg_at_5": 0.5575191358060403
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "gte",
+        "view": "strict_exact_doc_dedup",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.5,
+        "recall_at_5": 0.725,
+        "mrr_at_5": 0.3066666666666667,
+        "ndcg_at_5": 0.41600202080172977
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "gte",
+        "view": "strict_exact_doc_dedup",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.8,
+        "recall_at_5": 0.75,
+        "mrr_at_5": 0.7583333333333334,
+        "ndcg_at_5": 0.6990362508103507
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "gte",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9666666666666667,
+        "hit_at_3": 0.9333333333333333,
+        "recall_at_5": 0.7294576719576719,
+        "mrr_at_5": 0.9094444444444444,
+        "ndcg_at_5": 0.8446623059014103
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "gte",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 1.0,
+        "recall_at_5": 0.7147222222222223,
+        "mrr_at_5": 1.0,
+        "ndcg_at_5": 0.9722726572644952
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "gte",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.95,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.7368253968253968,
+        "mrr_at_5": 0.8641666666666665,
+        "ndcg_at_5": 0.7808571302198681
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "gte",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.82,
+        "mrr_at_5": 0.875,
+        "ndcg_at_5": 0.8230364750944993
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "gte",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.6536507936507936,
+        "mrr_at_5": 0.8533333333333333,
+        "ndcg_at_5": 0.7386777853452366
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "gte",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9666666666666667,
+        "hit_at_3": 0.9333333333333333,
+        "recall_at_5": 0.9666666666666667,
+        "mrr_at_5": 0.9011111111111111,
+        "ndcg_at_5": 0.9172594186935332
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "gte",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 1.0,
+        "recall_at_5": 1.0,
+        "mrr_at_5": 1.0,
+        "ndcg_at_5": 1.0
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "gte",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.95,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.95,
+        "mrr_at_5": 0.8516666666666666,
+        "ndcg_at_5": 0.8758891280402998
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "gte",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.9,
+        "mrr_at_5": 0.85,
+        "ndcg_at_5": 0.8630929753571458
+      },
+      {
+        "comparison": "vector_0.4_bm25_0.6_top50",
+        "weight": "vector_0.4_bm25_0.6",
+        "depth": 50,
+        "system": "gte",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.9,
+        "recall_at_5": 1.0,
+        "mrr_at_5": 0.8533333333333333,
+        "ndcg_at_5": 0.8886852807234542
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "strict_raw",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9333333333333333,
+        "hit_at_3": 0.7,
+        "recall_at_5": 0.775,
+        "mrr_at_5": 0.5383333333333333,
+        "ndcg_at_5": 0.5748919839559729
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "strict_raw",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.6,
+        "recall_at_5": 0.9,
+        "mrr_at_5": 0.4083333333333333,
+        "ndcg_at_5": 0.5315748688506009
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "strict_raw",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.75,
+        "recall_at_5": 0.7125,
+        "mrr_at_5": 0.6033333333333333,
+        "ndcg_at_5": 0.5965505415086586
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "strict_raw",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.8,
+        "recall_at_5": 0.725,
+        "mrr_at_5": 0.6533333333333333,
+        "ndcg_at_5": 0.6125380013878232
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "strict_raw",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.8,
+        "hit_at_3": 0.7,
+        "recall_at_5": 0.7,
+        "mrr_at_5": 0.5533333333333333,
+        "ndcg_at_5": 0.580563081629494
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "answer_bearing_raw",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9333333333333333,
+        "hit_at_3": 0.9333333333333333,
+        "recall_at_5": 0.6540329614498414,
+        "mrr_at_5": 0.9083333333333333,
+        "ndcg_at_5": 0.8196699184308482
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "answer_bearing_raw",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 1.0,
+        "recall_at_5": 0.6587871960378353,
+        "mrr_at_5": 0.95,
+        "ndcg_at_5": 0.9360054614577233
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "answer_bearing_raw",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.6516558441558441,
+        "mrr_at_5": 0.8875,
+        "ndcg_at_5": 0.7615021469174105
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "answer_bearing_raw",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 1.0,
+        "recall_at_5": 0.7245238095238096,
+        "mrr_at_5": 0.95,
+        "ndcg_at_5": 0.8181645086755911
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "answer_bearing_raw",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.8,
+        "hit_at_3": 0.8,
+        "recall_at_5": 0.5787878787878789,
+        "mrr_at_5": 0.825,
+        "ndcg_at_5": 0.7048397851592301
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "strict_exact_doc_dedup",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9333333333333333,
+        "hit_at_3": 0.8,
+        "recall_at_5": 0.8,
+        "mrr_at_5": 0.6038888888888889,
+        "ndcg_at_5": 0.6380504408171312
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "strict_exact_doc_dedup",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.9,
+        "mrr_at_5": 0.5,
+        "ndcg_at_5": 0.6047438028571661
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "strict_exact_doc_dedup",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.75,
+        "recall_at_5": 0.75,
+        "mrr_at_5": 0.6558333333333333,
+        "ndcg_at_5": 0.6547037597971139
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "strict_exact_doc_dedup",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.8,
+        "recall_at_5": 0.8,
+        "mrr_at_5": 0.7083333333333333,
+        "ndcg_at_5": 0.6919374133218793
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "strict_exact_doc_dedup",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.8,
+        "hit_at_3": 0.7,
+        "recall_at_5": 0.7,
+        "mrr_at_5": 0.6033333333333333,
+        "ndcg_at_5": 0.6174701062723483
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9333333333333333,
+        "hit_at_3": 0.9333333333333333,
+        "recall_at_5": 0.6860846560846561,
+        "mrr_at_5": 0.9083333333333333,
+        "ndcg_at_5": 0.8045722135915402
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 1.0,
+        "recall_at_5": 0.6838888888888889,
+        "mrr_at_5": 0.95,
+        "ndcg_at_5": 0.8951576109709845
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.6871825396825396,
+        "mrr_at_5": 0.8875,
+        "ndcg_at_5": 0.759279514901818
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 1.0,
+        "recall_at_5": 0.7816666666666666,
+        "mrr_at_5": 0.95,
+        "ndcg_at_5": 0.8181645086755911
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.8,
+        "hit_at_3": 0.8,
+        "recall_at_5": 0.5926984126984127,
+        "mrr_at_5": 0.825,
+        "ndcg_at_5": 0.7003945211280451
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9333333333333333,
+        "hit_at_3": 0.9333333333333333,
+        "recall_at_5": 0.9666666666666667,
+        "mrr_at_5": 0.9083333333333333,
+        "ndcg_at_5": 0.9230845355072103
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 1.0,
+        "recall_at_5": 1.0,
+        "mrr_at_5": 0.95,
+        "ndcg_at_5": 0.9630929753571458
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.95,
+        "mrr_at_5": 0.8875,
+        "ndcg_at_5": 0.9030803155822426
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 1.0,
+        "recall_at_5": 1.0,
+        "mrr_at_5": 0.95,
+        "ndcg_at_5": 0.9630929753571458
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "no_reranker",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.8,
+        "hit_at_3": 0.8,
+        "recall_at_5": 0.9,
+        "mrr_at_5": 0.825,
+        "ndcg_at_5": 0.8430676558073393
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "gte",
+        "view": "strict_raw",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9333333333333333,
+        "hit_at_3": 0.5666666666666667,
+        "recall_at_5": 0.7166666666666667,
+        "mrr_at_5": 0.43444444444444447,
+        "ndcg_at_5": 0.48818575275327375
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "gte",
+        "view": "strict_raw",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.6,
+        "recall_at_5": 0.8,
+        "mrr_at_5": 0.31666666666666665,
+        "ndcg_at_5": 0.43850721304326157
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "gte",
+        "view": "strict_raw",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.55,
+        "recall_at_5": 0.675,
+        "mrr_at_5": 0.49333333333333335,
+        "ndcg_at_5": 0.5130250226082798
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "gte",
+        "view": "strict_raw",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.4,
+        "recall_at_5": 0.65,
+        "mrr_at_5": 0.26166666666666666,
+        "ndcg_at_5": 0.3603529508561286
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "gte",
+        "view": "strict_raw",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.7,
+        "recall_at_5": 0.7,
+        "mrr_at_5": 0.725,
+        "ndcg_at_5": 0.665697094360431
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "gte",
+        "view": "answer_bearing_raw",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9333333333333333,
+        "hit_at_3": 0.9333333333333333,
+        "recall_at_5": 0.6791255540424338,
+        "mrr_at_5": 0.9177777777777777,
+        "ndcg_at_5": 0.8429007192412139
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "gte",
+        "view": "answer_bearing_raw",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 1.0,
+        "recall_at_5": 0.6787871960378353,
+        "mrr_at_5": 1.0,
+        "ndcg_at_5": 0.9722726572644952
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "gte",
+        "view": "answer_bearing_raw",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.679294733044733,
+        "mrr_at_5": 0.8766666666666666,
+        "ndcg_at_5": 0.7782147502295733
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "gte",
+        "view": "answer_bearing_raw",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.7345238095238096,
+        "mrr_at_5": 0.9,
+        "ndcg_at_5": 0.8193243834701498
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "gte",
+        "view": "answer_bearing_raw",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.6240656565656566,
+        "mrr_at_5": 0.8533333333333333,
+        "ndcg_at_5": 0.737105116988997
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "gte",
+        "view": "strict_exact_doc_dedup",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9333333333333333,
+        "hit_at_3": 0.7333333333333333,
+        "recall_at_5": 0.7916666666666666,
+        "mrr_at_5": 0.48166666666666663,
+        "ndcg_at_5": 0.5464063309465843
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "gte",
+        "view": "strict_exact_doc_dedup",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.8,
+        "recall_at_5": 0.9,
+        "mrr_at_5": 0.38666666666666666,
+        "ndcg_at_5": 0.5172431328663287
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "gte",
+        "view": "strict_exact_doc_dedup",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.7,
+        "recall_at_5": 0.7375,
+        "mrr_at_5": 0.5291666666666666,
+        "ndcg_at_5": 0.5609879299867119
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "gte",
+        "view": "strict_exact_doc_dedup",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.6,
+        "recall_at_5": 0.775,
+        "mrr_at_5": 0.325,
+        "ndcg_at_5": 0.4493464214203322
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "gte",
+        "view": "strict_exact_doc_dedup",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.8,
+        "recall_at_5": 0.7,
+        "mrr_at_5": 0.7333333333333334,
+        "ndcg_at_5": 0.6726294385530917
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "gte",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9333333333333333,
+        "hit_at_3": 0.9666666666666667,
+        "recall_at_5": 0.7375132275132275,
+        "mrr_at_5": 0.9288888888888889,
+        "ndcg_at_5": 0.8560460813186564
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "gte",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 1.0,
+        "recall_at_5": 0.7263888888888889,
+        "mrr_at_5": 1.0,
+        "ndcg_at_5": 0.9722726572644952
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "gte",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.95,
+        "recall_at_5": 0.7430753968253968,
+        "mrr_at_5": 0.8933333333333333,
+        "ndcg_at_5": 0.7979327933457374
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "gte",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 1.0,
+        "recall_at_5": 0.845,
+        "mrr_at_5": 0.9333333333333333,
+        "ndcg_at_5": 0.8634301983049575
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "gte",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.6411507936507936,
+        "mrr_at_5": 0.8533333333333333,
+        "ndcg_at_5": 0.7324353883865171
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "gte",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9333333333333333,
+        "hit_at_3": 0.9333333333333333,
+        "recall_at_5": 0.9666666666666667,
+        "mrr_at_5": 0.9177777777777777,
+        "ndcg_at_5": 0.9295617602411513
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "gte",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 1.0,
+        "recall_at_5": 1.0,
+        "mrr_at_5": 1.0,
+        "ndcg_at_5": 1.0
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "gte",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.95,
+        "mrr_at_5": 0.8766666666666666,
+        "ndcg_at_5": 0.894342640361727
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "gte",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.9,
+        "mrr_at_5": 0.9,
+        "ndcg_at_5": 0.9
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top20",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 20,
+        "system": "gte",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.9,
+        "recall_at_5": 1.0,
+        "mrr_at_5": 0.8533333333333333,
+        "ndcg_at_5": 0.8886852807234542
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "strict_raw",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9333333333333333,
+        "hit_at_3": 0.7,
+        "recall_at_5": 0.775,
+        "mrr_at_5": 0.5383333333333333,
+        "ndcg_at_5": 0.5748919839559729
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "strict_raw",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.6,
+        "recall_at_5": 0.9,
+        "mrr_at_5": 0.4083333333333333,
+        "ndcg_at_5": 0.5315748688506009
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "strict_raw",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.75,
+        "recall_at_5": 0.7125,
+        "mrr_at_5": 0.6033333333333333,
+        "ndcg_at_5": 0.5965505415086586
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "strict_raw",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.8,
+        "recall_at_5": 0.725,
+        "mrr_at_5": 0.6533333333333333,
+        "ndcg_at_5": 0.6125380013878232
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "strict_raw",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.8,
+        "hit_at_3": 0.7,
+        "recall_at_5": 0.7,
+        "mrr_at_5": 0.5533333333333333,
+        "ndcg_at_5": 0.580563081629494
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "answer_bearing_raw",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9333333333333333,
+        "hit_at_3": 0.9333333333333333,
+        "recall_at_5": 0.6540329614498414,
+        "mrr_at_5": 0.9083333333333333,
+        "ndcg_at_5": 0.8196699184308482
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "answer_bearing_raw",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 1.0,
+        "recall_at_5": 0.6587871960378353,
+        "mrr_at_5": 0.95,
+        "ndcg_at_5": 0.9360054614577233
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "answer_bearing_raw",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.6516558441558441,
+        "mrr_at_5": 0.8875,
+        "ndcg_at_5": 0.7615021469174105
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "answer_bearing_raw",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 1.0,
+        "recall_at_5": 0.7245238095238096,
+        "mrr_at_5": 0.95,
+        "ndcg_at_5": 0.8181645086755911
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "answer_bearing_raw",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.8,
+        "hit_at_3": 0.8,
+        "recall_at_5": 0.5787878787878789,
+        "mrr_at_5": 0.825,
+        "ndcg_at_5": 0.7048397851592301
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "strict_exact_doc_dedup",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9333333333333333,
+        "hit_at_3": 0.8,
+        "recall_at_5": 0.8,
+        "mrr_at_5": 0.6038888888888889,
+        "ndcg_at_5": 0.6380504408171312
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "strict_exact_doc_dedup",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.9,
+        "mrr_at_5": 0.5,
+        "ndcg_at_5": 0.6047438028571661
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "strict_exact_doc_dedup",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.75,
+        "recall_at_5": 0.75,
+        "mrr_at_5": 0.6558333333333333,
+        "ndcg_at_5": 0.6547037597971139
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "strict_exact_doc_dedup",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.8,
+        "recall_at_5": 0.8,
+        "mrr_at_5": 0.7083333333333333,
+        "ndcg_at_5": 0.6919374133218793
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "strict_exact_doc_dedup",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.8,
+        "hit_at_3": 0.7,
+        "recall_at_5": 0.7,
+        "mrr_at_5": 0.6033333333333333,
+        "ndcg_at_5": 0.6174701062723483
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9333333333333333,
+        "hit_at_3": 0.9333333333333333,
+        "recall_at_5": 0.6860846560846561,
+        "mrr_at_5": 0.9083333333333333,
+        "ndcg_at_5": 0.8045722135915402
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 1.0,
+        "recall_at_5": 0.6838888888888889,
+        "mrr_at_5": 0.95,
+        "ndcg_at_5": 0.8951576109709845
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.6871825396825396,
+        "mrr_at_5": 0.8875,
+        "ndcg_at_5": 0.759279514901818
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 1.0,
+        "recall_at_5": 0.7816666666666666,
+        "mrr_at_5": 0.95,
+        "ndcg_at_5": 0.8181645086755911
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.8,
+        "hit_at_3": 0.8,
+        "recall_at_5": 0.5926984126984127,
+        "mrr_at_5": 0.825,
+        "ndcg_at_5": 0.7003945211280451
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9333333333333333,
+        "hit_at_3": 0.9333333333333333,
+        "recall_at_5": 0.9666666666666667,
+        "mrr_at_5": 0.9083333333333333,
+        "ndcg_at_5": 0.9230845355072103
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 1.0,
+        "recall_at_5": 1.0,
+        "mrr_at_5": 0.95,
+        "ndcg_at_5": 0.9630929753571458
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.95,
+        "mrr_at_5": 0.8875,
+        "ndcg_at_5": 0.9030803155822426
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 1.0,
+        "recall_at_5": 1.0,
+        "mrr_at_5": 0.95,
+        "ndcg_at_5": 0.9630929753571458
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "no_reranker",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.8,
+        "hit_at_3": 0.8,
+        "recall_at_5": 0.9,
+        "mrr_at_5": 0.825,
+        "ndcg_at_5": 0.8430676558073393
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "gte",
+        "view": "strict_raw",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9666666666666667,
+        "hit_at_3": 0.5666666666666667,
+        "recall_at_5": 0.7166666666666667,
+        "mrr_at_5": 0.4394444444444444,
+        "ndcg_at_5": 0.48729007242649736
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "gte",
+        "view": "strict_raw",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.6,
+        "recall_at_5": 0.8,
+        "mrr_at_5": 0.31666666666666665,
+        "ndcg_at_5": 0.43850721304326157
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "gte",
+        "view": "strict_raw",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.95,
+        "hit_at_3": 0.55,
+        "recall_at_5": 0.675,
+        "mrr_at_5": 0.5008333333333332,
+        "ndcg_at_5": 0.5116815021181151
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "gte",
+        "view": "strict_raw",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.4,
+        "recall_at_5": 0.6,
+        "mrr_at_5": 0.2516666666666667,
+        "ndcg_at_5": 0.3312590976185401
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "gte",
+        "view": "strict_raw",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.7,
+        "recall_at_5": 0.75,
+        "mrr_at_5": 0.75,
+        "ndcg_at_5": 0.6921039066176901
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "gte",
+        "view": "answer_bearing_raw",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9666666666666667,
+        "hit_at_3": 0.9333333333333333,
+        "recall_at_5": 0.6697340196508995,
+        "mrr_at_5": 0.9011111111111111,
+        "ndcg_at_5": 0.8251677934259535
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "gte",
+        "view": "answer_bearing_raw",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 1.0,
+        "recall_at_5": 0.6645014817521211,
+        "mrr_at_5": 1.0,
+        "ndcg_at_5": 0.9508740307910424
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "gte",
+        "view": "answer_bearing_raw",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.95,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.6723502886002886,
+        "mrr_at_5": 0.8516666666666666,
+        "ndcg_at_5": 0.7623146747434093
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "gte",
+        "view": "answer_bearing_raw",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.7095238095238096,
+        "mrr_at_5": 0.85,
+        "ndcg_at_5": 0.7812818355391018
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "gte",
+        "view": "answer_bearing_raw",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.6351767676767677,
+        "mrr_at_5": 0.8533333333333333,
+        "ndcg_at_5": 0.7433475139477166
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "gte",
+        "view": "strict_exact_doc_dedup",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9666666666666667,
+        "hit_at_3": 0.7,
+        "recall_at_5": 0.7916666666666666,
+        "mrr_at_5": 0.48388888888888887,
+        "ndcg_at_5": 0.5440938014928032
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "gte",
+        "view": "strict_exact_doc_dedup",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.8,
+        "recall_at_5": 0.9,
+        "mrr_at_5": 0.38666666666666666,
+        "ndcg_at_5": 0.5172431328663287
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "gte",
+        "view": "strict_exact_doc_dedup",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.95,
+        "hit_at_3": 0.65,
+        "recall_at_5": 0.7375,
+        "mrr_at_5": 0.5325,
+        "ndcg_at_5": 0.5575191358060403
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "gte",
+        "view": "strict_exact_doc_dedup",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.5,
+        "recall_at_5": 0.725,
+        "mrr_at_5": 0.3066666666666667,
+        "ndcg_at_5": 0.41600202080172977
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "gte",
+        "view": "strict_exact_doc_dedup",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.8,
+        "recall_at_5": 0.75,
+        "mrr_at_5": 0.7583333333333334,
+        "ndcg_at_5": 0.6990362508103507
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "gte",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9666666666666667,
+        "hit_at_3": 0.9333333333333333,
+        "recall_at_5": 0.7277910052910053,
+        "mrr_at_5": 0.9094444444444444,
+        "ndcg_at_5": 0.8375294304102595
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "gte",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 1.0,
+        "recall_at_5": 0.7097222222222223,
+        "mrr_at_5": 1.0,
+        "ndcg_at_5": 0.9508740307910424
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "gte",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.95,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.7368253968253968,
+        "mrr_at_5": 0.8641666666666665,
+        "ndcg_at_5": 0.7808571302198681
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "gte",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.82,
+        "mrr_at_5": 0.875,
+        "ndcg_at_5": 0.8230364750944993
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "gte",
+        "view": "answer_bearing_exact_doc_dedup",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.6536507936507936,
+        "mrr_at_5": 0.8533333333333333,
+        "ndcg_at_5": 0.7386777853452366
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "gte",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "all",
+        "denominator": 30,
+        "card_hit_at_3": 0.9666666666666667,
+        "hit_at_3": 0.9333333333333333,
+        "recall_at_5": 0.9666666666666667,
+        "mrr_at_5": 0.9011111111111111,
+        "ndcg_at_5": 0.9172594186935332
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "gte",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "card",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 1.0,
+        "recall_at_5": 1.0,
+        "mrr_at_5": 1.0,
+        "ndcg_at_5": 1.0
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "gte",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "evidence",
+        "denominator": 20,
+        "card_hit_at_3": 0.95,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.95,
+        "mrr_at_5": 0.8516666666666666,
+        "ndcg_at_5": 0.8758891280402998
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "gte",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "numeric",
+        "denominator": 10,
+        "card_hit_at_3": 1.0,
+        "hit_at_3": 0.9,
+        "recall_at_5": 0.9,
+        "mrr_at_5": 0.85,
+        "ndcg_at_5": 0.8630929753571458
+      },
+      {
+        "comparison": "vector_0.5_bm25_0.5_top50",
+        "weight": "vector_0.5_bm25_0.5",
+        "depth": 50,
+        "system": "gte",
+        "view": "answer_bearing_gold_family_oracle",
+        "group": "semantic",
+        "denominator": 10,
+        "card_hit_at_3": 0.9,
+        "hit_at_3": 0.9,
+        "recall_at_5": 1.0,
+        "mrr_at_5": 0.8533333333333333,
+        "ndcg_at_5": 0.8886852807234542
+      }
+    ],
+    "paired": {
+      "vector_0.4_bm25_0.6_top20": {
+        "strict_raw": {
+          "all": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 29,
+              "mean_delta": 0.03333333333333333
+            },
+            "hit_at_3": {
+              "wins": 2,
+              "losses": 6,
+              "ties": 22,
+              "mean_delta": -0.13333333333333333
+            },
+            "recall_at_5": {
+              "wins": 1,
+              "losses": 4,
+              "ties": 25,
+              "mean_delta": -0.058333333333333334
+            },
+            "mrr_at_5": {
+              "wins": 4,
+              "losses": 10,
+              "ties": 16,
+              "mean_delta": -0.09666666666666668
+            },
+            "ndcg_at_5": {
+              "wins": 5,
+              "losses": 10,
+              "ties": 15,
+              "mean_delta": -0.08382859038106598
+            }
+          },
+          "card": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 0,
+              "losses": 1,
+              "ties": 9,
+              "mean_delta": -0.1
+            },
+            "recall_at_5": {
+              "wins": 0,
+              "losses": 1,
+              "ties": 9,
+              "mean_delta": -0.1
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 3,
+              "ties": 6,
+              "mean_delta": -0.05
+            },
+            "ndcg_at_5": {
+              "wins": 1,
+              "losses": 3,
+              "ties": 6,
+              "mean_delta": -0.06309297535714575
+            }
+          },
+          "evidence": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 19,
+              "mean_delta": 0.05
+            },
+            "hit_at_3": {
+              "wins": 2,
+              "losses": 5,
+              "ties": 13,
+              "mean_delta": -0.15
+            },
+            "recall_at_5": {
+              "wins": 1,
+              "losses": 3,
+              "ties": 16,
+              "mean_delta": -0.0375
+            },
+            "mrr_at_5": {
+              "wins": 3,
+              "losses": 7,
+              "ties": 10,
+              "mean_delta": -0.12
+            },
+            "ndcg_at_5": {
+              "wins": 4,
+              "losses": 7,
+              "ties": 9,
+              "mean_delta": -0.09419639789302607
+            }
+          },
+          "numeric": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 4,
+              "ties": 5,
+              "mean_delta": -0.3
+            },
+            "recall_at_5": {
+              "wins": 1,
+              "losses": 3,
+              "ties": 6,
+              "mean_delta": -0.075
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 6,
+              "ties": 3,
+              "mean_delta": -0.3616666666666667
+            },
+            "ndcg_at_5": {
+              "wins": 2,
+              "losses": 6,
+              "ties": 2,
+              "mean_delta": -0.2366197838741348
+            }
+          },
+          "semantic": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 8,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "mrr_at_5": {
+              "wins": 2,
+              "losses": 1,
+              "ties": 7,
+              "mean_delta": 0.12166666666666667
+            },
+            "ndcg_at_5": {
+              "wins": 2,
+              "losses": 1,
+              "ties": 7,
+              "mean_delta": 0.048226988088082685
+            }
+          }
+        },
+        "answer_bearing_raw": {
+          "all": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 29,
+              "mean_delta": 0.03333333333333333
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 28,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 9,
+              "losses": 4,
+              "ties": 17,
+              "mean_delta": 0.04576892109500805
+            },
+            "mrr_at_5": {
+              "wins": 3,
+              "losses": 2,
+              "ties": 25,
+              "mean_delta": 0.020555555555555556
+            },
+            "ndcg_at_5": {
+              "wins": 9,
+              "losses": 5,
+              "ties": 16,
+              "mean_delta": 0.054970874631504886
+            }
+          },
+          "card": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 2,
+              "losses": 0,
+              "ties": 8,
+              "mean_delta": 0.02869565217391305
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.06666666666666668
+            },
+            "ndcg_at_5": {
+              "wins": 2,
+              "losses": 0,
+              "ties": 8,
+              "mean_delta": 0.07375898449753165
+            }
+          },
+          "evidence": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 19,
+              "mean_delta": 0.05
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 18,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 7,
+              "losses": 4,
+              "ties": 9,
+              "mean_delta": 0.054305555555555565
+            },
+            "mrr_at_5": {
+              "wins": 2,
+              "losses": 2,
+              "ties": 16,
+              "mean_delta": -0.0024999999999999996
+            },
+            "ndcg_at_5": {
+              "wins": 7,
+              "losses": 5,
+              "ties": 8,
+              "mean_delta": 0.04557681969849149
+            }
+          },
+          "numeric": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 0,
+              "losses": 1,
+              "ties": 9,
+              "mean_delta": -0.1
+            },
+            "recall_at_5": {
+              "wins": 3,
+              "losses": 2,
+              "ties": 5,
+              "mean_delta": 0.06333333333333332
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 8,
+              "mean_delta": -0.033333333333333326
+            },
+            "ndcg_at_5": {
+              "wins": 3,
+              "losses": 2,
+              "ties": 5,
+              "mean_delta": 0.05888830756721627
+            }
+          },
+          "semantic": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "recall_at_5": {
+              "wins": 4,
+              "losses": 2,
+              "ties": 4,
+              "mean_delta": 0.04527777777777777
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 8,
+              "mean_delta": 0.028333333333333332
+            },
+            "ndcg_at_5": {
+              "wins": 4,
+              "losses": 3,
+              "ties": 3,
+              "mean_delta": 0.03226533182976671
+            }
+          }
+        },
+        "strict_exact_doc_dedup": {
+          "all": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 29,
+              "mean_delta": 0.03333333333333333
+            },
+            "hit_at_3": {
+              "wins": 2,
+              "losses": 4,
+              "ties": 24,
+              "mean_delta": -0.06666666666666667
+            },
+            "recall_at_5": {
+              "wins": 1,
+              "losses": 2,
+              "ties": 27,
+              "mean_delta": -0.008333333333333333
+            },
+            "mrr_at_5": {
+              "wins": 3,
+              "losses": 11,
+              "ties": 16,
+              "mean_delta": -0.13888888888888887
+            },
+            "ndcg_at_5": {
+              "wins": 4,
+              "losses": 11,
+              "ties": 15,
+              "mean_delta": -0.09687647465735735
+            }
+          },
+          "card": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 0,
+              "losses": 1,
+              "ties": 9,
+              "mean_delta": -0.1
+            },
+            "recall_at_5": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "mrr_at_5": {
+              "wins": 0,
+              "losses": 3,
+              "ties": 7,
+              "mean_delta": -0.06333333333333332
+            },
+            "ndcg_at_5": {
+              "wins": 0,
+              "losses": 3,
+              "ties": 7,
+              "mean_delta": -0.05059364534798309
+            }
+          },
+          "evidence": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 19,
+              "mean_delta": 0.05
+            },
+            "hit_at_3": {
+              "wins": 2,
+              "losses": 3,
+              "ties": 15,
+              "mean_delta": -0.05
+            },
+            "recall_at_5": {
+              "wins": 1,
+              "losses": 2,
+              "ties": 17,
+              "mean_delta": -0.0125
+            },
+            "mrr_at_5": {
+              "wins": 3,
+              "losses": 8,
+              "ties": 9,
+              "mean_delta": -0.17666666666666667
+            },
+            "ndcg_at_5": {
+              "wins": 4,
+              "losses": 8,
+              "ties": 8,
+              "mean_delta": -0.12001788931204449
+            }
+          },
+          "numeric": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 3,
+              "ties": 6,
+              "mean_delta": -0.2
+            },
+            "recall_at_5": {
+              "wins": 1,
+              "losses": 2,
+              "ties": 7,
+              "mean_delta": -0.025
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 7,
+              "ties": 2,
+              "mean_delta": -0.4333333333333334
+            },
+            "ndcg_at_5": {
+              "wins": 2,
+              "losses": 7,
+              "ties": 1,
+              "mean_delta": -0.25828808626197813
+            }
+          },
+          "semantic": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "recall_at_5": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "mrr_at_5": {
+              "wins": 2,
+              "losses": 1,
+              "ties": 7,
+              "mean_delta": 0.08
+            },
+            "ndcg_at_5": {
+              "wins": 2,
+              "losses": 1,
+              "ties": 7,
+              "mean_delta": 0.018252307637889133
+            }
+          }
+        },
+        "answer_bearing_exact_doc_dedup": {
+          "all": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 29,
+              "mean_delta": 0.03333333333333333
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 28,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 9,
+              "losses": 4,
+              "ties": 17,
+              "mean_delta": 0.04726190476190477
+            },
+            "mrr_at_5": {
+              "wins": 3,
+              "losses": 2,
+              "ties": 25,
+              "mean_delta": 0.022222222222222223
+            },
+            "ndcg_at_5": {
+              "wins": 10,
+              "losses": 5,
+              "ties": 15,
+              "mean_delta": 0.05539149551875213
+            }
+          },
+          "card": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 3,
+              "losses": 0,
+              "ties": 7,
+              "mean_delta": 0.0425
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.06666666666666668
+            },
+            "ndcg_at_5": {
+              "wins": 3,
+              "losses": 0,
+              "ties": 7,
+              "mean_delta": 0.08687949224876583
+            }
+          },
+          "evidence": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 19,
+              "mean_delta": 0.05
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 18,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 6,
+              "losses": 4,
+              "ties": 10,
+              "mean_delta": 0.04964285714285714
+            },
+            "mrr_at_5": {
+              "wins": 2,
+              "losses": 2,
+              "ties": 16,
+              "mean_delta": 2.7755575615628915e-18
+            },
+            "ndcg_at_5": {
+              "wins": 7,
+              "losses": 5,
+              "ties": 8,
+              "mean_delta": 0.03964749715374525
+            }
+          },
+          "numeric": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 0,
+              "losses": 1,
+              "ties": 9,
+              "mean_delta": -0.1
+            },
+            "recall_at_5": {
+              "wins": 3,
+              "losses": 2,
+              "ties": 5,
+              "mean_delta": 0.06333333333333332
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 8,
+              "mean_delta": -0.008333333333333326
+            },
+            "ndcg_at_5": {
+              "wins": 3,
+              "losses": 2,
+              "ties": 5,
+              "mean_delta": 0.060374634800252736
+            }
+          },
+          "semantic": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "recall_at_5": {
+              "wins": 3,
+              "losses": 2,
+              "ties": 5,
+              "mean_delta": 0.03595238095238096
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 8,
+              "mean_delta": 0.008333333333333331
+            },
+            "ndcg_at_5": {
+              "wins": 4,
+              "losses": 3,
+              "ties": 3,
+              "mean_delta": 0.01892035950723777
+            }
+          }
+        },
+        "answer_bearing_gold_family_oracle": {
+          "all": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 29,
+              "mean_delta": 0.03333333333333333
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 28,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 28,
+              "mean_delta": 0.0
+            },
+            "mrr_at_5": {
+              "wins": 3,
+              "losses": 2,
+              "ties": 25,
+              "mean_delta": 0.020555555555555556
+            },
+            "ndcg_at_5": {
+              "wins": 3,
+              "losses": 2,
+              "ties": 25,
+              "mean_delta": 0.015205874972038286
+            }
+          },
+          "card": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.06666666666666668
+            },
+            "ndcg_at_5": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.05
+            }
+          },
+          "evidence": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 19,
+              "mean_delta": 0.05
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 18,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 18,
+              "mean_delta": 0.0
+            },
+            "mrr_at_5": {
+              "wins": 2,
+              "losses": 2,
+              "ties": 16,
+              "mean_delta": -0.0024999999999999996
+            },
+            "ndcg_at_5": {
+              "wins": 2,
+              "losses": 2,
+              "ties": 16,
+              "mean_delta": -0.0021911875419425714
+            }
+          },
+          "numeric": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 0,
+              "losses": 1,
+              "ties": 9,
+              "mean_delta": -0.1
+            },
+            "recall_at_5": {
+              "wins": 0,
+              "losses": 1,
+              "ties": 9,
+              "mean_delta": -0.1
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 8,
+              "mean_delta": -0.033333333333333326
+            },
+            "ndcg_at_5": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 8,
+              "mean_delta": -0.05
+            }
+          },
+          "semantic": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "recall_at_5": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 8,
+              "mean_delta": 0.028333333333333332
+            },
+            "ndcg_at_5": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 8,
+              "mean_delta": 0.04561762491611486
+            }
+          }
+        }
+      },
+      "vector_0.4_bm25_0.6_top50": {
+        "strict_raw": {
+          "all": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 29,
+              "mean_delta": 0.03333333333333333
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 6,
+              "ties": 23,
+              "mean_delta": -0.16666666666666666
+            },
+            "recall_at_5": {
+              "wins": 2,
+              "losses": 5,
+              "ties": 23,
+              "mean_delta": -0.058333333333333334
+            },
+            "mrr_at_5": {
+              "wins": 4,
+              "losses": 10,
+              "ties": 16,
+              "mean_delta": -0.09611111111111112
+            },
+            "ndcg_at_5": {
+              "wins": 5,
+              "losses": 10,
+              "ties": 15,
+              "mean_delta": -0.08849584380002438
+            }
+          },
+          "card": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 0,
+              "losses": 1,
+              "ties": 9,
+              "mean_delta": -0.1
+            },
+            "recall_at_5": {
+              "wins": 0,
+              "losses": 1,
+              "ties": 9,
+              "mean_delta": -0.1
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 3,
+              "ties": 6,
+              "mean_delta": -0.05
+            },
+            "ndcg_at_5": {
+              "wins": 1,
+              "losses": 3,
+              "ties": 6,
+              "mean_delta": -0.06309297535714575
+            }
+          },
+          "evidence": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 19,
+              "mean_delta": 0.05
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 5,
+              "ties": 14,
+              "mean_delta": -0.2
+            },
+            "recall_at_5": {
+              "wins": 2,
+              "losses": 4,
+              "ties": 14,
+              "mean_delta": -0.0375
+            },
+            "mrr_at_5": {
+              "wins": 3,
+              "losses": 7,
+              "ties": 10,
+              "mean_delta": -0.11916666666666667
+            },
+            "ndcg_at_5": {
+              "wins": 4,
+              "losses": 7,
+              "ties": 9,
+              "mean_delta": -0.10119727802146372
+            }
+          },
+          "numeric": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 0,
+              "losses": 4,
+              "ties": 6,
+              "mean_delta": -0.4
+            },
+            "recall_at_5": {
+              "wins": 1,
+              "losses": 4,
+              "ties": 5,
+              "mean_delta": -0.125
+            },
+            "mrr_at_5": {
+              "wins": 0,
+              "losses": 6,
+              "ties": 4,
+              "mean_delta": -0.38499999999999995
+            },
+            "ndcg_at_5": {
+              "wins": 1,
+              "losses": 6,
+              "ties": 3,
+              "mean_delta": -0.2770283563882692
+            }
+          },
+          "semantic": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 8,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.05
+            },
+            "mrr_at_5": {
+              "wins": 3,
+              "losses": 1,
+              "ties": 6,
+              "mean_delta": 0.14666666666666667
+            },
+            "ndcg_at_5": {
+              "wins": 3,
+              "losses": 1,
+              "ties": 6,
+              "mean_delta": 0.07463380034534177
+            }
+          }
+        },
+        "answer_bearing_raw": {
+          "all": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 29,
+              "mean_delta": 0.03333333333333333
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 28,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 8,
+              "losses": 6,
+              "ties": 16,
+              "mean_delta": 0.026715550954681387
+            },
+            "mrr_at_5": {
+              "wins": 3,
+              "losses": 3,
+              "ties": 24,
+              "mean_delta": 0.00388888888888889
+            },
+            "ndcg_at_5": {
+              "wins": 8,
+              "losses": 8,
+              "ties": 14,
+              "mean_delta": 0.03335376681373278
+            }
+          },
+          "card": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 2,
+              "losses": 1,
+              "ties": 7,
+              "mean_delta": 0.018757763975155283
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.06666666666666668
+            },
+            "ndcg_at_5": {
+              "wins": 2,
+              "losses": 1,
+              "ties": 7,
+              "mean_delta": 0.0722726572644952
+            }
+          },
+          "evidence": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 19,
+              "mean_delta": 0.05
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 18,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 6,
+              "losses": 5,
+              "ties": 9,
+              "mean_delta": 0.030694444444444448
+            },
+            "mrr_at_5": {
+              "wins": 2,
+              "losses": 3,
+              "ties": 15,
+              "mean_delta": -0.027500000000000004
+            },
+            "ndcg_at_5": {
+              "wins": 6,
+              "losses": 7,
+              "ties": 7,
+              "mean_delta": 0.013894321588351572
+            }
+          },
+          "numeric": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 0,
+              "losses": 1,
+              "ties": 9,
+              "mean_delta": -0.1
+            },
+            "recall_at_5": {
+              "wins": 2,
+              "losses": 3,
+              "ties": 5,
+              "mean_delta": 0.004999999999999993
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 2,
+              "ties": 7,
+              "mean_delta": -0.08333333333333333
+            },
+            "ndcg_at_5": {
+              "wins": 2,
+              "losses": 4,
+              "ties": 4,
+              "mean_delta": -0.01071908561178323
+            }
+          },
+          "semantic": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "recall_at_5": {
+              "wins": 4,
+              "losses": 2,
+              "ties": 4,
+              "mean_delta": 0.05638888888888889
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 8,
+              "mean_delta": 0.028333333333333332
+            },
+            "ndcg_at_5": {
+              "wins": 4,
+              "losses": 3,
+              "ties": 3,
+              "mean_delta": 0.038507728788486364
+            }
+          }
+        },
+        "strict_exact_doc_dedup": {
+          "all": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 29,
+              "mean_delta": 0.03333333333333333
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 4,
+              "ties": 25,
+              "mean_delta": -0.1
+            },
+            "recall_at_5": {
+              "wins": 2,
+              "losses": 3,
+              "ties": 25,
+              "mean_delta": -0.008333333333333333
+            },
+            "mrr_at_5": {
+              "wins": 3,
+              "losses": 11,
+              "ties": 16,
+              "mean_delta": -0.13666666666666666
+            },
+            "ndcg_at_5": {
+              "wins": 4,
+              "losses": 11,
+              "ties": 15,
+              "mean_delta": -0.10008293638168743
+            }
+          },
+          "card": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 0,
+              "losses": 1,
+              "ties": 9,
+              "mean_delta": -0.1
+            },
+            "recall_at_5": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "mrr_at_5": {
+              "wins": 0,
+              "losses": 3,
+              "ties": 7,
+              "mean_delta": -0.06333333333333332
+            },
+            "ndcg_at_5": {
+              "wins": 0,
+              "losses": 3,
+              "ties": 7,
+              "mean_delta": -0.05059364534798309
+            }
+          },
+          "evidence": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 19,
+              "mean_delta": 0.05
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 3,
+              "ties": 16,
+              "mean_delta": -0.1
+            },
+            "recall_at_5": {
+              "wins": 2,
+              "losses": 3,
+              "ties": 15,
+              "mean_delta": -0.0125
+            },
+            "mrr_at_5": {
+              "wins": 3,
+              "losses": 8,
+              "ties": 9,
+              "mean_delta": -0.17333333333333334
+            },
+            "ndcg_at_5": {
+              "wins": 4,
+              "losses": 8,
+              "ties": 8,
+              "mean_delta": -0.12482758189853957
+            }
+          },
+          "numeric": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 0,
+              "losses": 3,
+              "ties": 7,
+              "mean_delta": -0.3
+            },
+            "recall_at_5": {
+              "wins": 1,
+              "losses": 3,
+              "ties": 6,
+              "mean_delta": -0.075
+            },
+            "mrr_at_5": {
+              "wins": 0,
+              "losses": 7,
+              "ties": 3,
+              "mean_delta": -0.45166666666666666
+            },
+            "ndcg_at_5": {
+              "wins": 1,
+              "losses": 7,
+              "ties": 2,
+              "mean_delta": -0.29431428369222734
+            }
+          },
+          "semantic": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "recall_at_5": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.05
+            },
+            "mrr_at_5": {
+              "wins": 3,
+              "losses": 1,
+              "ties": 6,
+              "mean_delta": 0.10500000000000001
+            },
+            "ndcg_at_5": {
+              "wins": 3,
+              "losses": 1,
+              "ties": 6,
+              "mean_delta": 0.044659119895148224
+            }
+          }
+        },
+        "answer_bearing_exact_doc_dedup": {
+          "all": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 29,
+              "mean_delta": 0.03333333333333333
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 28,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 9,
+              "losses": 5,
+              "ties": 16,
+              "mean_delta": 0.0392063492063492
+            },
+            "mrr_at_5": {
+              "wins": 3,
+              "losses": 3,
+              "ties": 24,
+              "mean_delta": 0.005555555555555558
+            },
+            "ndcg_at_5": {
+              "wins": 9,
+              "losses": 8,
+              "ties": 13,
+              "mean_delta": 0.04282365589135563
+            }
+          },
+          "card": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 3,
+              "losses": 1,
+              "ties": 6,
+              "mean_delta": 0.030833333333333334
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.06666666666666668
+            },
+            "ndcg_at_5": {
+              "wins": 3,
+              "losses": 1,
+              "ties": 6,
+              "mean_delta": 0.08539316501572937
+            }
+          },
+          "evidence": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 19,
+              "mean_delta": 0.05
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 18,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 6,
+              "losses": 4,
+              "ties": 10,
+              "mean_delta": 0.043392857142857164
+            },
+            "mrr_at_5": {
+              "wins": 2,
+              "losses": 3,
+              "ties": 15,
+              "mean_delta": -0.024999999999999998
+            },
+            "ndcg_at_5": {
+              "wins": 6,
+              "losses": 7,
+              "ties": 7,
+              "mean_delta": 0.021538901329168768
+            }
+          },
+          "numeric": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 0,
+              "losses": 1,
+              "ties": 9,
+              "mean_delta": -0.1
+            },
+            "recall_at_5": {
+              "wins": 2,
+              "losses": 2,
+              "ties": 6,
+              "mean_delta": 0.03833333333333333
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 2,
+              "ties": 7,
+              "mean_delta": -0.05833333333333333
+            },
+            "ndcg_at_5": {
+              "wins": 2,
+              "losses": 4,
+              "ties": 4,
+              "mean_delta": 0.017915046192380123
+            }
+          },
+          "semantic": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "recall_at_5": {
+              "wins": 4,
+              "losses": 2,
+              "ties": 4,
+              "mean_delta": 0.048452380952380955
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 8,
+              "mean_delta": 0.008333333333333331
+            },
+            "ndcg_at_5": {
+              "wins": 4,
+              "losses": 3,
+              "ties": 3,
+              "mean_delta": 0.025162756465957427
+            }
+          }
+        },
+        "answer_bearing_gold_family_oracle": {
+          "all": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 29,
+              "mean_delta": 0.03333333333333333
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 28,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 28,
+              "mean_delta": 0.0
+            },
+            "mrr_at_5": {
+              "wins": 3,
+              "losses": 3,
+              "ties": 24,
+              "mean_delta": 0.00388888888888889
+            },
+            "ndcg_at_5": {
+              "wins": 3,
+              "losses": 3,
+              "ties": 24,
+              "mean_delta": 0.0029035334244202032
+            }
+          },
+          "card": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.06666666666666668
+            },
+            "ndcg_at_5": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.05
+            }
+          },
+          "evidence": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 19,
+              "mean_delta": 0.05
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 18,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 18,
+              "mean_delta": 0.0
+            },
+            "mrr_at_5": {
+              "wins": 2,
+              "losses": 3,
+              "ties": 15,
+              "mean_delta": -0.027500000000000004
+            },
+            "ndcg_at_5": {
+              "wins": 2,
+              "losses": 3,
+              "ties": 15,
+              "mean_delta": -0.020644699863369694
+            }
+          },
+          "numeric": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 0,
+              "losses": 1,
+              "ties": 9,
+              "mean_delta": -0.1
+            },
+            "recall_at_5": {
+              "wins": 0,
+              "losses": 1,
+              "ties": 9,
+              "mean_delta": -0.1
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 2,
+              "ties": 7,
+              "mean_delta": -0.08333333333333333
+            },
+            "ndcg_at_5": {
+              "wins": 1,
+              "losses": 2,
+              "ties": 7,
+              "mean_delta": -0.08690702464285424
+            }
+          },
+          "semantic": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "recall_at_5": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 8,
+              "mean_delta": 0.028333333333333332
+            },
+            "ndcg_at_5": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 8,
+              "mean_delta": 0.04561762491611486
+            }
+          }
+        }
+      },
+      "vector_0.5_bm25_0.5_top20": {
+        "strict_raw": {
+          "all": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 28,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 5,
+              "ties": 24,
+              "mean_delta": -0.13333333333333333
+            },
+            "recall_at_5": {
+              "wins": 1,
+              "losses": 4,
+              "ties": 25,
+              "mean_delta": -0.058333333333333334
+            },
+            "mrr_at_5": {
+              "wins": 4,
+              "losses": 11,
+              "ties": 15,
+              "mean_delta": -0.10388888888888889
+            },
+            "ndcg_at_5": {
+              "wins": 5,
+              "losses": 12,
+              "ties": 13,
+              "mean_delta": -0.08670623120269895
+            }
+          },
+          "card": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 0,
+              "losses": 1,
+              "ties": 9,
+              "mean_delta": -0.1
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 4,
+              "ties": 5,
+              "mean_delta": -0.09166666666666667
+            },
+            "ndcg_at_5": {
+              "wins": 1,
+              "losses": 4,
+              "ties": 5,
+              "mean_delta": -0.0930676558073393
+            }
+          },
+          "evidence": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 18,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 5,
+              "ties": 14,
+              "mean_delta": -0.2
+            },
+            "recall_at_5": {
+              "wins": 1,
+              "losses": 3,
+              "ties": 16,
+              "mean_delta": -0.0375
+            },
+            "mrr_at_5": {
+              "wins": 3,
+              "losses": 7,
+              "ties": 10,
+              "mean_delta": -0.11000000000000001
+            },
+            "ndcg_at_5": {
+              "wins": 4,
+              "losses": 8,
+              "ties": 8,
+              "mean_delta": -0.08352551890037876
+            }
+          },
+          "numeric": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 1,
+              "ties": 9,
+              "mean_delta": -0.1
+            },
+            "hit_at_3": {
+              "wins": 0,
+              "losses": 4,
+              "ties": 6,
+              "mean_delta": -0.4
+            },
+            "recall_at_5": {
+              "wins": 1,
+              "losses": 3,
+              "ties": 6,
+              "mean_delta": -0.075
+            },
+            "mrr_at_5": {
+              "wins": 0,
+              "losses": 6,
+              "ties": 4,
+              "mean_delta": -0.3916666666666667
+            },
+            "ndcg_at_5": {
+              "wins": 1,
+              "losses": 7,
+              "ties": 2,
+              "mean_delta": -0.25218505053169443
+            }
+          },
+          "semantic": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 8,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "mrr_at_5": {
+              "wins": 3,
+              "losses": 1,
+              "ties": 6,
+              "mean_delta": 0.1716666666666667
+            },
+            "ndcg_at_5": {
+              "wins": 3,
+              "losses": 1,
+              "ties": 6,
+              "mean_delta": 0.08513401273093693
+            }
+          }
+        },
+        "answer_bearing_raw": {
+          "all": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 28,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 28,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 8,
+              "losses": 5,
+              "ties": 17,
+              "mean_delta": 0.025092592592592593
+            },
+            "mrr_at_5": {
+              "wins": 3,
+              "losses": 2,
+              "ties": 25,
+              "mean_delta": 0.009444444444444443
+            },
+            "ndcg_at_5": {
+              "wins": 9,
+              "losses": 6,
+              "ties": 15,
+              "mean_delta": 0.02323080081036576
+            }
+          },
+          "card": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.020000000000000007
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.05
+            },
+            "ndcg_at_5": {
+              "wins": 2,
+              "losses": 0,
+              "ties": 8,
+              "mean_delta": 0.03626719580677179
+            }
+          },
+          "evidence": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 18,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 18,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 7,
+              "losses": 5,
+              "ties": 8,
+              "mean_delta": 0.027638888888888886
+            },
+            "mrr_at_5": {
+              "wins": 2,
+              "losses": 2,
+              "ties": 16,
+              "mean_delta": -0.010833333333333337
+            },
+            "ndcg_at_5": {
+              "wins": 7,
+              "losses": 6,
+              "ties": 7,
+              "mean_delta": 0.016712603312162743
+            }
+          },
+          "numeric": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 1,
+              "ties": 9,
+              "mean_delta": -0.1
+            },
+            "hit_at_3": {
+              "wins": 0,
+              "losses": 1,
+              "ties": 9,
+              "mean_delta": -0.1
+            },
+            "recall_at_5": {
+              "wins": 3,
+              "losses": 3,
+              "ties": 4,
+              "mean_delta": 0.009999999999999986
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 8,
+              "mean_delta": -0.05
+            },
+            "ndcg_at_5": {
+              "wins": 3,
+              "losses": 3,
+              "ties": 4,
+              "mean_delta": 0.0011598747945587907
+            }
+          },
+          "semantic": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "recall_at_5": {
+              "wins": 4,
+              "losses": 2,
+              "ties": 4,
+              "mean_delta": 0.04527777777777777
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 8,
+              "mean_delta": 0.028333333333333332
+            },
+            "ndcg_at_5": {
+              "wins": 4,
+              "losses": 3,
+              "ties": 3,
+              "mean_delta": 0.03226533182976671
+            }
+          }
+        },
+        "strict_exact_doc_dedup": {
+          "all": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 28,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 3,
+              "ties": 26,
+              "mean_delta": -0.06666666666666667
+            },
+            "recall_at_5": {
+              "wins": 1,
+              "losses": 2,
+              "ties": 27,
+              "mean_delta": -0.008333333333333333
+            },
+            "mrr_at_5": {
+              "wins": 3,
+              "losses": 11,
+              "ties": 16,
+              "mean_delta": -0.12222222222222223
+            },
+            "ndcg_at_5": {
+              "wins": 4,
+              "losses": 12,
+              "ties": 14,
+              "mean_delta": -0.09164410987054702
+            }
+          },
+          "card": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 0,
+              "losses": 1,
+              "ties": 9,
+              "mean_delta": -0.1
+            },
+            "recall_at_5": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "mrr_at_5": {
+              "wins": 0,
+              "losses": 4,
+              "ties": 6,
+              "mean_delta": -0.11333333333333333
+            },
+            "ndcg_at_5": {
+              "wins": 0,
+              "losses": 4,
+              "ties": 6,
+              "mean_delta": -0.08750066999083735
+            }
+          },
+          "evidence": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 18,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 2,
+              "ties": 17,
+              "mean_delta": -0.05
+            },
+            "recall_at_5": {
+              "wins": 1,
+              "losses": 2,
+              "ties": 17,
+              "mean_delta": -0.0125
+            },
+            "mrr_at_5": {
+              "wins": 3,
+              "losses": 7,
+              "ties": 10,
+              "mean_delta": -0.12666666666666665
+            },
+            "ndcg_at_5": {
+              "wins": 4,
+              "losses": 8,
+              "ties": 8,
+              "mean_delta": -0.09371582981040188
+            }
+          },
+          "numeric": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 1,
+              "ties": 9,
+              "mean_delta": -0.1
+            },
+            "hit_at_3": {
+              "wins": 0,
+              "losses": 2,
+              "ties": 8,
+              "mean_delta": -0.2
+            },
+            "recall_at_5": {
+              "wins": 1,
+              "losses": 2,
+              "ties": 7,
+              "mean_delta": -0.025
+            },
+            "mrr_at_5": {
+              "wins": 0,
+              "losses": 6,
+              "ties": 4,
+              "mean_delta": -0.38333333333333336
+            },
+            "ndcg_at_5": {
+              "wins": 1,
+              "losses": 7,
+              "ties": 2,
+              "mean_delta": -0.24259099190154715
+            }
+          },
+          "semantic": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "recall_at_5": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "mrr_at_5": {
+              "wins": 3,
+              "losses": 1,
+              "ties": 6,
+              "mean_delta": 0.13
+            },
+            "ndcg_at_5": {
+              "wins": 3,
+              "losses": 1,
+              "ties": 6,
+              "mean_delta": 0.05515933228074338
+            }
+          }
+        },
+        "answer_bearing_exact_doc_dedup": {
+          "all": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 28,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 29,
+              "mean_delta": 0.03333333333333333
+            },
+            "recall_at_5": {
+              "wins": 10,
+              "losses": 4,
+              "ties": 16,
+              "mean_delta": 0.05142857142857144
+            },
+            "mrr_at_5": {
+              "wins": 3,
+              "losses": 2,
+              "ties": 25,
+              "mean_delta": 0.02055555555555555
+            },
+            "ndcg_at_5": {
+              "wins": 10,
+              "losses": 6,
+              "ties": 14,
+              "mean_delta": 0.05147386772711641
+            }
+          },
+          "card": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 3,
+              "losses": 0,
+              "ties": 7,
+              "mean_delta": 0.0425
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.05
+            },
+            "ndcg_at_5": {
+              "wins": 3,
+              "losses": 0,
+              "ties": 7,
+              "mean_delta": 0.07711504629351079
+            }
+          },
+          "evidence": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 18,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 19,
+              "mean_delta": 0.05
+            },
+            "recall_at_5": {
+              "wins": 7,
+              "losses": 4,
+              "ties": 9,
+              "mean_delta": 0.05589285714285717
+            },
+            "mrr_at_5": {
+              "wins": 2,
+              "losses": 2,
+              "ties": 16,
+              "mean_delta": 0.005833333333333327
+            },
+            "ndcg_at_5": {
+              "wins": 7,
+              "losses": 6,
+              "ties": 7,
+              "mean_delta": 0.03865327844391921
+            }
+          },
+          "numeric": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 1,
+              "ties": 9,
+              "mean_delta": -0.1
+            },
+            "hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 3,
+              "losses": 2,
+              "ties": 5,
+              "mean_delta": 0.06333333333333332
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 8,
+              "mean_delta": -0.016666666666666673
+            },
+            "ndcg_at_5": {
+              "wins": 3,
+              "losses": 3,
+              "ties": 4,
+              "mean_delta": 0.04526568962936648
+            }
+          },
+          "semantic": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "recall_at_5": {
+              "wins": 4,
+              "losses": 2,
+              "ties": 4,
+              "mean_delta": 0.048452380952380955
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 8,
+              "mean_delta": 0.028333333333333332
+            },
+            "ndcg_at_5": {
+              "wins": 4,
+              "losses": 3,
+              "ties": 3,
+              "mean_delta": 0.03204086725847195
+            }
+          }
+        },
+        "answer_bearing_gold_family_oracle": {
+          "all": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 28,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 28,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 28,
+              "mean_delta": 0.0
+            },
+            "mrr_at_5": {
+              "wins": 3,
+              "losses": 2,
+              "ties": 25,
+              "mean_delta": 0.009444444444444443
+            },
+            "ndcg_at_5": {
+              "wins": 3,
+              "losses": 2,
+              "ties": 25,
+              "mean_delta": 0.006477224733941117
+            }
+          },
+          "card": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.05
+            },
+            "ndcg_at_5": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.036907024642854246
+            }
+          },
+          "evidence": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 18,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 18,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 18,
+              "mean_delta": 0.0
+            },
+            "mrr_at_5": {
+              "wins": 2,
+              "losses": 2,
+              "ties": 16,
+              "mean_delta": -0.010833333333333337
+            },
+            "ndcg_at_5": {
+              "wins": 2,
+              "losses": 2,
+              "ties": 16,
+              "mean_delta": -0.008737675220515448
+            }
+          },
+          "numeric": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 1,
+              "ties": 9,
+              "mean_delta": -0.1
+            },
+            "hit_at_3": {
+              "wins": 0,
+              "losses": 1,
+              "ties": 9,
+              "mean_delta": -0.1
+            },
+            "recall_at_5": {
+              "wins": 0,
+              "losses": 1,
+              "ties": 9,
+              "mean_delta": -0.1
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 8,
+              "mean_delta": -0.05
+            },
+            "ndcg_at_5": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 8,
+              "mean_delta": -0.06309297535714575
+            }
+          },
+          "semantic": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "recall_at_5": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 8,
+              "mean_delta": 0.028333333333333332
+            },
+            "ndcg_at_5": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 8,
+              "mean_delta": 0.04561762491611486
+            }
+          }
+        }
+      },
+      "vector_0.5_bm25_0.5_top50": {
+        "strict_raw": {
+          "all": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 29,
+              "mean_delta": 0.03333333333333333
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 5,
+              "ties": 24,
+              "mean_delta": -0.13333333333333333
+            },
+            "recall_at_5": {
+              "wins": 2,
+              "losses": 5,
+              "ties": 23,
+              "mean_delta": -0.058333333333333334
+            },
+            "mrr_at_5": {
+              "wins": 5,
+              "losses": 11,
+              "ties": 14,
+              "mean_delta": -0.09888888888888889
+            },
+            "ndcg_at_5": {
+              "wins": 6,
+              "losses": 12,
+              "ties": 12,
+              "mean_delta": -0.08760191152947544
+            }
+          },
+          "card": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 0,
+              "losses": 1,
+              "ties": 9,
+              "mean_delta": -0.1
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 4,
+              "ties": 5,
+              "mean_delta": -0.09166666666666667
+            },
+            "ndcg_at_5": {
+              "wins": 1,
+              "losses": 4,
+              "ties": 5,
+              "mean_delta": -0.0930676558073393
+            }
+          },
+          "evidence": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 19,
+              "mean_delta": 0.05
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 5,
+              "ties": 14,
+              "mean_delta": -0.2
+            },
+            "recall_at_5": {
+              "wins": 2,
+              "losses": 4,
+              "ties": 14,
+              "mean_delta": -0.0375
+            },
+            "mrr_at_5": {
+              "wins": 4,
+              "losses": 7,
+              "ties": 9,
+              "mean_delta": -0.1025
+            },
+            "ndcg_at_5": {
+              "wins": 5,
+              "losses": 8,
+              "ties": 7,
+              "mean_delta": -0.08486903939054351
+            }
+          },
+          "numeric": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 0,
+              "losses": 4,
+              "ties": 6,
+              "mean_delta": -0.4
+            },
+            "recall_at_5": {
+              "wins": 1,
+              "losses": 4,
+              "ties": 5,
+              "mean_delta": -0.125
+            },
+            "mrr_at_5": {
+              "wins": 0,
+              "losses": 6,
+              "ties": 4,
+              "mean_delta": -0.40166666666666667
+            },
+            "ndcg_at_5": {
+              "wins": 1,
+              "losses": 7,
+              "ties": 2,
+              "mean_delta": -0.28127890376928305
+            }
+          },
+          "semantic": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 8,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.05
+            },
+            "mrr_at_5": {
+              "wins": 4,
+              "losses": 1,
+              "ties": 5,
+              "mean_delta": 0.19666666666666668
+            },
+            "ndcg_at_5": {
+              "wins": 4,
+              "losses": 1,
+              "ties": 5,
+              "mean_delta": 0.11154082498819604
+            }
+          }
+        },
+        "answer_bearing_raw": {
+          "all": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 29,
+              "mean_delta": 0.03333333333333333
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 28,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 7,
+              "losses": 6,
+              "ties": 17,
+              "mean_delta": 0.0157010582010582
+            },
+            "mrr_at_5": {
+              "wins": 3,
+              "losses": 3,
+              "ties": 24,
+              "mean_delta": -0.0072222222222222245
+            },
+            "ndcg_at_5": {
+              "wins": 8,
+              "losses": 8,
+              "ties": 14,
+              "mean_delta": 0.005497874995105368
+            }
+          },
+          "card": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 8,
+              "mean_delta": 0.005714285714285716
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.05
+            },
+            "ndcg_at_5": {
+              "wins": 2,
+              "losses": 1,
+              "ties": 7,
+              "mean_delta": 0.014868569333319027
+            }
+          },
+          "evidence": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 19,
+              "mean_delta": 0.05
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 18,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 6,
+              "losses": 5,
+              "ties": 9,
+              "mean_delta": 0.020694444444444442
+            },
+            "mrr_at_5": {
+              "wins": 2,
+              "losses": 3,
+              "ties": 15,
+              "mean_delta": -0.03583333333333334
+            },
+            "ndcg_at_5": {
+              "wins": 6,
+              "losses": 7,
+              "ties": 7,
+              "mean_delta": 0.0008125278259985436
+            }
+          },
+          "numeric": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 0,
+              "losses": 1,
+              "ties": 9,
+              "mean_delta": -0.1
+            },
+            "recall_at_5": {
+              "wins": 2,
+              "losses": 3,
+              "ties": 5,
+              "mean_delta": -0.015000000000000013
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 2,
+              "ties": 7,
+              "mean_delta": -0.1
+            },
+            "ndcg_at_5": {
+              "wins": 2,
+              "losses": 4,
+              "ties": 4,
+              "mean_delta": -0.03688267313648926
+            }
+          },
+          "semantic": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "recall_at_5": {
+              "wins": 4,
+              "losses": 2,
+              "ties": 4,
+              "mean_delta": 0.05638888888888889
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 8,
+              "mean_delta": 0.028333333333333332
+            },
+            "ndcg_at_5": {
+              "wins": 4,
+              "losses": 3,
+              "ties": 3,
+              "mean_delta": 0.038507728788486364
+            }
+          }
+        },
+        "strict_exact_doc_dedup": {
+          "all": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 29,
+              "mean_delta": 0.03333333333333333
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 4,
+              "ties": 25,
+              "mean_delta": -0.1
+            },
+            "recall_at_5": {
+              "wins": 2,
+              "losses": 3,
+              "ties": 25,
+              "mean_delta": -0.008333333333333333
+            },
+            "mrr_at_5": {
+              "wins": 4,
+              "losses": 11,
+              "ties": 15,
+              "mean_delta": -0.12000000000000002
+            },
+            "ndcg_at_5": {
+              "wins": 5,
+              "losses": 12,
+              "ties": 13,
+              "mean_delta": -0.09395663932432813
+            }
+          },
+          "card": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 0,
+              "losses": 1,
+              "ties": 9,
+              "mean_delta": -0.1
+            },
+            "recall_at_5": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "mrr_at_5": {
+              "wins": 0,
+              "losses": 4,
+              "ties": 6,
+              "mean_delta": -0.11333333333333333
+            },
+            "ndcg_at_5": {
+              "wins": 0,
+              "losses": 4,
+              "ties": 6,
+              "mean_delta": -0.08750066999083735
+            }
+          },
+          "evidence": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 19,
+              "mean_delta": 0.05
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 3,
+              "ties": 16,
+              "mean_delta": -0.1
+            },
+            "recall_at_5": {
+              "wins": 2,
+              "losses": 3,
+              "ties": 15,
+              "mean_delta": -0.0125
+            },
+            "mrr_at_5": {
+              "wins": 4,
+              "losses": 7,
+              "ties": 9,
+              "mean_delta": -0.12333333333333334
+            },
+            "ndcg_at_5": {
+              "wins": 5,
+              "losses": 8,
+              "ties": 7,
+              "mean_delta": -0.09718462399107353
+            }
+          },
+          "numeric": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 0,
+              "losses": 3,
+              "ties": 7,
+              "mean_delta": -0.3
+            },
+            "recall_at_5": {
+              "wins": 1,
+              "losses": 3,
+              "ties": 6,
+              "mean_delta": -0.075
+            },
+            "mrr_at_5": {
+              "wins": 0,
+              "losses": 6,
+              "ties": 4,
+              "mean_delta": -0.40166666666666667
+            },
+            "ndcg_at_5": {
+              "wins": 1,
+              "losses": 7,
+              "ties": 2,
+              "mean_delta": -0.27593539252014954
+            }
+          },
+          "semantic": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "recall_at_5": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.05
+            },
+            "mrr_at_5": {
+              "wins": 4,
+              "losses": 1,
+              "ties": 5,
+              "mean_delta": 0.155
+            },
+            "ndcg_at_5": {
+              "wins": 4,
+              "losses": 1,
+              "ties": 5,
+              "mean_delta": 0.08156614453800247
+            }
+          }
+        },
+        "answer_bearing_exact_doc_dedup": {
+          "all": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 29,
+              "mean_delta": 0.03333333333333333
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 28,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 9,
+              "losses": 5,
+              "ties": 16,
+              "mean_delta": 0.041706349206349205
+            },
+            "mrr_at_5": {
+              "wins": 3,
+              "losses": 3,
+              "ties": 24,
+              "mean_delta": 0.0011111111111111072
+            },
+            "ndcg_at_5": {
+              "wins": 9,
+              "losses": 8,
+              "ties": 13,
+              "mean_delta": 0.032957216818719305
+            }
+          },
+          "card": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 3,
+              "losses": 1,
+              "ties": 6,
+              "mean_delta": 0.02583333333333333
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.05
+            },
+            "ndcg_at_5": {
+              "wins": 3,
+              "losses": 1,
+              "ties": 6,
+              "mean_delta": 0.055716419820058025
+            }
+          },
+          "evidence": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 19,
+              "mean_delta": 0.05
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 18,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 6,
+              "losses": 4,
+              "ties": 10,
+              "mean_delta": 0.04964285714285717
+            },
+            "mrr_at_5": {
+              "wins": 2,
+              "losses": 3,
+              "ties": 15,
+              "mean_delta": -0.023333333333333338
+            },
+            "ndcg_at_5": {
+              "wins": 6,
+              "losses": 7,
+              "ties": 7,
+              "mean_delta": 0.02157761531804993
+            }
+          },
+          "numeric": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 0,
+              "losses": 1,
+              "ties": 9,
+              "mean_delta": -0.1
+            },
+            "recall_at_5": {
+              "wins": 2,
+              "losses": 2,
+              "ties": 6,
+              "mean_delta": 0.03833333333333333
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 2,
+              "ties": 7,
+              "mean_delta": -0.075
+            },
+            "ndcg_at_5": {
+              "wins": 2,
+              "losses": 4,
+              "ties": 4,
+              "mean_delta": 0.004871966418908269
+            }
+          },
+          "semantic": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "recall_at_5": {
+              "wins": 4,
+              "losses": 2,
+              "ties": 4,
+              "mean_delta": 0.06095238095238096
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 8,
+              "mean_delta": 0.028333333333333332
+            },
+            "ndcg_at_5": {
+              "wins": 4,
+              "losses": 3,
+              "ties": 3,
+              "mean_delta": 0.0382832642171916
+            }
+          }
+        },
+        "answer_bearing_gold_family_oracle": {
+          "all": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 29,
+              "mean_delta": 0.03333333333333333
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 28,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 28,
+              "mean_delta": 0.0
+            },
+            "mrr_at_5": {
+              "wins": 3,
+              "losses": 3,
+              "ties": 24,
+              "mean_delta": -0.0072222222222222245
+            },
+            "ndcg_at_5": {
+              "wins": 3,
+              "losses": 3,
+              "ties": 24,
+              "mean_delta": -0.005825116813676965
+            }
+          },
+          "card": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.05
+            },
+            "ndcg_at_5": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.036907024642854246
+            }
+          },
+          "evidence": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 19,
+              "mean_delta": 0.05
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 18,
+              "mean_delta": 0.0
+            },
+            "recall_at_5": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 18,
+              "mean_delta": 0.0
+            },
+            "mrr_at_5": {
+              "wins": 2,
+              "losses": 3,
+              "ties": 15,
+              "mean_delta": -0.03583333333333334
+            },
+            "ndcg_at_5": {
+              "wins": 2,
+              "losses": 3,
+              "ties": 15,
+              "mean_delta": -0.027191187541942573
+            }
+          },
+          "numeric": {
+            "card_hit_at_3": {
+              "wins": 0,
+              "losses": 0,
+              "ties": 10,
+              "mean_delta": 0.0
+            },
+            "hit_at_3": {
+              "wins": 0,
+              "losses": 1,
+              "ties": 9,
+              "mean_delta": -0.1
+            },
+            "recall_at_5": {
+              "wins": 0,
+              "losses": 1,
+              "ties": 9,
+              "mean_delta": -0.1
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 2,
+              "ties": 7,
+              "mean_delta": -0.1
+            },
+            "ndcg_at_5": {
+              "wins": 1,
+              "losses": 2,
+              "ties": 7,
+              "mean_delta": -0.1
+            }
+          },
+          "semantic": {
+            "card_hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "hit_at_3": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "recall_at_5": {
+              "wins": 1,
+              "losses": 0,
+              "ties": 9,
+              "mean_delta": 0.1
+            },
+            "mrr_at_5": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 8,
+              "mean_delta": 0.028333333333333332
+            },
+            "ndcg_at_5": {
+              "wins": 1,
+              "losses": 1,
+              "ties": 8,
+              "mean_delta": 0.04561762491611486
+            }
+          }
+        }
+      }
+    },
+    "primary_evidence_delta": {
+      "strict_raw": {
+        "card_hit_at_3": 0.04999999999999993,
+        "hit_at_3": -0.19999999999999996,
+        "recall_at_5": -0.03749999999999998,
+        "mrr_at_5": -0.11916666666666664,
+        "ndcg_at_5": -0.10119727802146361
+      },
+      "answer_bearing_raw": {
+        "card_hit_at_3": 0.04999999999999993,
+        "hit_at_3": 0.0,
+        "recall_at_5": 0.03069444444444447,
+        "mrr_at_5": -0.02750000000000008,
+        "ndcg_at_5": 0.013894321588351799
+      },
+      "strict_exact_doc_dedup": {
+        "card_hit_at_3": 0.04999999999999993,
+        "hit_at_3": -0.09999999999999998,
+        "recall_at_5": -0.012499999999999956,
+        "mrr_at_5": -0.17333333333333334,
+        "ndcg_at_5": -0.1248275818985396
+      },
+      "answer_bearing_exact_doc_dedup": {
+        "card_hit_at_3": 0.04999999999999993,
+        "hit_at_3": 0.0,
+        "recall_at_5": 0.04339285714285723,
+        "mrr_at_5": -0.025000000000000022,
+        "ndcg_at_5": 0.021538901329168803
+      },
+      "answer_bearing_gold_family_oracle": {
+        "card_hit_at_3": 0.04999999999999993,
+        "hit_at_3": 0.0,
+        "recall_at_5": 0.0,
+        "mrr_at_5": -0.02750000000000008,
+        "ndcg_at_5": -0.02064469986336981
+      }
+    },
+    "changed_query_rows": 115,
+    "primary_changed_queries": 29,
+    "exact_groups": 286,
+    "duplicate_groups": 34,
+    "duplicate_chunks_beyond_first": 41
+  },
+  "diagnosis": {
+    "rule": "answer_chunk_misranking_strengthened",
+    "explanation": "answer-bearing also declines",
+    "existing_gte_decision": "retain_no_reranker",
+    "existing_decision_changed": false
+  },
+  "korean_glossary": {
+    "strict_raw": "기대 카드·기대 level·필수 용어를 모두 만족하는 청크 기준 원순위",
+    "answer_bearing_raw / level_relaxed_term_bearing": "기대 카드와 필수 용어를 만족하되 level은 무시한 진단 기준; 사실적 완전 정답과 동일하지 않음",
+    "exact_doc_dedup": "카드와 정규화 문서가 정확히 같은 청크만 하나로 묶는 방식",
+    "gold_family_oracle": "질의별 정답 포함 청크를 한 가족으로 보는 평가용 상한이며 운영 중복 제거가 아님",
+    "Card Hit@3": "원순위 상위 3개에 기대 카드가 있는 비율",
+    "Hit@3": "해당 view의 관련 단위가 상위 3개에 있는 비율",
+    "Recall@5": "관련 단위 중 상위 5개가 회수한 비율",
+    "MRR@5": "첫 관련 단위 순위의 역수 평균",
+    "nDCG@5": "관련 단위를 상위에 배치한 정도",
+    "win/loss/tie": "질의별 no-reranker 대비 개선/하락/동률"
+  },
+  "interpretation": [
+    "raw answer-bearing Recall/nDCG는 parent 중복 분모에 민감하므로 Hit/MRR을 우선 본다.",
+    "그다음 gold-family Recall/nDCG와 exact-document dedup을 본다."
+  ],
+  "limitations": [
+    "개발 질의 30개의 single run 진단이며 holdout·운영 일반화 결론이 아니다.",
+    "answer-bearing은 level을 완화한 용어 포함 기준일 뿐 사실적으로 완전한 정답 판정이 아니다.",
+    "gold-family는 gold를 사용하는 평가 oracle이며 운영 grouping이 아니다.",
+    "content-containment와 fuzzy grouping은 평가하지 않았다.",
+    "이번 결과는 기존 GTE retain_no_reranker 판정을 자동 변경하지 않는다."
+  ],
+  "execution": {
+    "environment": "skn25",
+    "fresh_kernel": true,
+    "gpu_calls": 0,
+    "model_calls": 0,
+    "custom_code_calls": 0,
+    "network_calls": 0,
+    "api_calls": 0,
+    "new_embeddings": 0,
+    "package_installs": 0,
+    "chroma_hnsw_queries": 0
+  }
+}

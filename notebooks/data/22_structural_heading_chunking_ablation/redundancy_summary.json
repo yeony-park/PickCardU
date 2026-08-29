@@ -1,0 +1,27 @@
+{
+  "contract": {
+    "scope": "same_card_only",
+    "body_normalization": "NFKC + lower + collapse whitespace",
+    "exact_duplicate": "normalized body equality; report excess count",
+    "containment_token_representation": "RAW_TOKEN unique set",
+    "minimum_shorter_body_unique_tokens": 5,
+    "containment_threshold": 0.8,
+    "exact_duplicates_excluded_from_containment": true
+  },
+  "summaries": [
+    {
+      "configuration": "existing_exact_v1",
+      "chunk_count": 327,
+      "exact_duplicate_group_count": 34,
+      "exact_duplicate_excess": 41,
+      "containment_pair_count": 459
+    },
+    {
+      "configuration": "structural_heading_path",
+      "chunk_count": 147,
+      "exact_duplicate_group_count": 0,
+      "exact_duplicate_excess": 0,
+      "containment_pair_count": 11
+    }
+  ]
+}

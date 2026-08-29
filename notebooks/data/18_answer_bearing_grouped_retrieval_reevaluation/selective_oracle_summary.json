@@ -1,0 +1,399 @@
+{
+  "contract": {
+    "schema_version": "gold_query_type_selective_oracle_v1",
+    "post_hoc_gold_label_oracle": true,
+    "deployable_router": false,
+    "configs": [
+      "vector_0.4_bm25_0.6_top20",
+      "vector_0.4_bm25_0.6_top50",
+      "vector_0.5_bm25_0.5_top20",
+      "vector_0.5_bm25_0.5_top50"
+    ],
+    "primary_comparison": "vector_0.4_bm25_0.6_top50",
+    "primary_groups": [
+      "evidence",
+      "numeric",
+      "semantic"
+    ],
+    "supplemental_groups": [
+      "card",
+      "all"
+    ],
+    "route": {
+      "numeric_condition": "no_reranker",
+      "semantic": "gte",
+      "proper_noun": "no_reranker"
+    },
+    "views": [
+      "strict_raw",
+      "answer_bearing_raw",
+      "strict_exact_doc_dedup",
+      "answer_bearing_exact_doc_dedup",
+      "answer_bearing_gold_family_oracle"
+    ],
+    "metrics": [
+      "card_hit_at_3",
+      "hit_at_3",
+      "recall_at_5",
+      "mrr_at_5",
+      "ndcg_at_5"
+    ],
+    "tie_tolerance": 1e-12,
+    "selection": "exact existing per-query system row and top5 selected by gold category; no scoring, mixing, or reranking",
+    "gate": {
+      "reference": "same_config_no_reranker",
+      "scope": "primary evidence20",
+      "rule": "all five metrics in all five views non-regressing within tolerance",
+      "pass": "worth_testing_deployable_router",
+      "fail": "insufficient_oracle_signal",
+      "promotion": false
+    },
+    "execution": {
+      "environment": "skn25",
+      "fresh_kernel": true,
+      "cpu_only": true,
+      "gpu_calls": 0,
+      "model_or_custom_code_calls": 0,
+      "network_api_calls": 0,
+      "new_embedding_calls": 0,
+      "chroma_hnsw_queries": 0,
+      "package_installs": 0
+    },
+    "korean_glossary": {
+      "gold query-type oracle": "정답 질의 유형을 미리 안다고 가정한 사후 상한 진단",
+      "passthrough": "기존 순위를 그대로 통과",
+      "paired delta": "같은 질의에서 두 방식 지표의 차이",
+      "WLT": "질의별 승/패/동률 수"
+    }
+  },
+  "decision": "worth_testing_deployable_router",
+  "gate_passed": true,
+  "gate_checks": {
+    "strict_raw:card_hit_at_3": true,
+    "strict_raw:hit_at_3": true,
+    "strict_raw:recall_at_5": true,
+    "strict_raw:mrr_at_5": true,
+    "strict_raw:ndcg_at_5": true,
+    "answer_bearing_raw:card_hit_at_3": true,
+    "answer_bearing_raw:hit_at_3": true,
+    "answer_bearing_raw:recall_at_5": true,
+    "answer_bearing_raw:mrr_at_5": true,
+    "answer_bearing_raw:ndcg_at_5": true,
+    "strict_exact_doc_dedup:card_hit_at_3": true,
+    "strict_exact_doc_dedup:hit_at_3": true,
+    "strict_exact_doc_dedup:recall_at_5": true,
+    "strict_exact_doc_dedup:mrr_at_5": true,
+    "strict_exact_doc_dedup:ndcg_at_5": true,
+    "answer_bearing_exact_doc_dedup:card_hit_at_3": true,
+    "answer_bearing_exact_doc_dedup:hit_at_3": true,
+    "answer_bearing_exact_doc_dedup:recall_at_5": true,
+    "answer_bearing_exact_doc_dedup:mrr_at_5": true,
+    "answer_bearing_exact_doc_dedup:ndcg_at_5": true,
+    "answer_bearing_gold_family_oracle:card_hit_at_3": true,
+    "answer_bearing_gold_family_oracle:hit_at_3": true,
+    "answer_bearing_gold_family_oracle:recall_at_5": true,
+    "answer_bearing_gold_family_oracle:mrr_at_5": true,
+    "answer_bearing_gold_family_oracle:ndcg_at_5": true
+  },
+  "primary_summary": [
+    {
+      "comparison": "vector_0.4_bm25_0.6_top50",
+      "weight": "vector_0.4_bm25_0.6",
+      "depth": 50,
+      "system": "gold_query_type_selective_oracle",
+      "view": "strict_raw",
+      "group": "evidence",
+      "denominator": 20,
+      "card_hit_at_3": 0.95,
+      "hit_at_3": 0.75,
+      "recall_at_5": 0.7375,
+      "mrr_at_5": 0.6933333333333334,
+      "ndcg_at_5": 0.6501956803122497
+    },
+    {
+      "comparison": "vector_0.4_bm25_0.6_top50",
+      "weight": "vector_0.4_bm25_0.6",
+      "depth": 50,
+      "system": "gold_query_type_selective_oracle",
+      "view": "strict_raw",
+      "group": "numeric",
+      "denominator": 10,
+      "card_hit_at_3": 1.0,
+      "hit_at_3": 0.8,
+      "recall_at_5": 0.725,
+      "mrr_at_5": 0.6366666666666666,
+      "ndcg_at_5": 0.6082874540068094
+    },
+    {
+      "comparison": "vector_0.4_bm25_0.6_top50",
+      "weight": "vector_0.4_bm25_0.6",
+      "depth": 50,
+      "system": "gold_query_type_selective_oracle",
+      "view": "strict_raw",
+      "group": "semantic",
+      "denominator": 10,
+      "card_hit_at_3": 0.9,
+      "hit_at_3": 0.7,
+      "recall_at_5": 0.75,
+      "mrr_at_5": 0.75,
+      "ndcg_at_5": 0.6921039066176901
+    },
+    {
+      "comparison": "vector_0.4_bm25_0.6_top50",
+      "weight": "vector_0.4_bm25_0.6",
+      "depth": 50,
+      "system": "gold_query_type_selective_oracle",
+      "view": "answer_bearing_raw",
+      "group": "evidence",
+      "denominator": 20,
+      "card_hit_at_3": 0.95,
+      "hit_at_3": 0.95,
+      "recall_at_5": 0.6698502886002886,
+      "mrr_at_5": 0.8933333333333333,
+      "ndcg_at_5": 0.7676742175493009
+    },
+    {
+      "comparison": "vector_0.4_bm25_0.6_top50",
+      "weight": "vector_0.4_bm25_0.6",
+      "depth": 50,
+      "system": "gold_query_type_selective_oracle",
+      "view": "answer_bearing_raw",
+      "group": "numeric",
+      "denominator": 10,
+      "card_hit_at_3": 1.0,
+      "hit_at_3": 1.0,
+      "recall_at_5": 0.7045238095238096,
+      "mrr_at_5": 0.9333333333333332,
+      "ndcg_at_5": 0.792000921150885
+    },
+    {
+      "comparison": "vector_0.4_bm25_0.6_top50",
+      "weight": "vector_0.4_bm25_0.6",
+      "depth": 50,
+      "system": "gold_query_type_selective_oracle",
+      "view": "answer_bearing_raw",
+      "group": "semantic",
+      "denominator": 10,
+      "card_hit_at_3": 0.9,
+      "hit_at_3": 0.9,
+      "recall_at_5": 0.6351767676767677,
+      "mrr_at_5": 0.8533333333333333,
+      "ndcg_at_5": 0.7433475139477166
+    },
+    {
+      "comparison": "vector_0.4_bm25_0.6_top50",
+      "weight": "vector_0.4_bm25_0.6",
+      "depth": 50,
+      "system": "gold_query_type_selective_oracle",
+      "view": "strict_exact_doc_dedup",
+      "group": "evidence",
+      "denominator": 20,
+      "card_hit_at_3": 0.95,
+      "hit_at_3": 0.8,
+      "recall_at_5": 0.775,
+      "mrr_at_5": 0.7583333333333333,
+      "ndcg_at_5": 0.7046762776521539
+    },
+    {
+      "comparison": "vector_0.4_bm25_0.6_top50",
+      "weight": "vector_0.4_bm25_0.6",
+      "depth": 50,
+      "system": "gold_query_type_selective_oracle",
+      "view": "strict_exact_doc_dedup",
+      "group": "numeric",
+      "denominator": 10,
+      "card_hit_at_3": 1.0,
+      "hit_at_3": 0.8,
+      "recall_at_5": 0.8,
+      "mrr_at_5": 0.7583333333333333,
+      "ndcg_at_5": 0.7103163044939572
+    },
+    {
+      "comparison": "vector_0.4_bm25_0.6_top50",
+      "weight": "vector_0.4_bm25_0.6",
+      "depth": 50,
+      "system": "gold_query_type_selective_oracle",
+      "view": "strict_exact_doc_dedup",
+      "group": "semantic",
+      "denominator": 10,
+      "card_hit_at_3": 0.9,
+      "hit_at_3": 0.8,
+      "recall_at_5": 0.75,
+      "mrr_at_5": 0.7583333333333334,
+      "ndcg_at_5": 0.6990362508103507
+    },
+    {
+      "comparison": "vector_0.4_bm25_0.6_top50",
+      "weight": "vector_0.4_bm25_0.6",
+      "depth": 50,
+      "system": "gold_query_type_selective_oracle",
+      "view": "answer_bearing_exact_doc_dedup",
+      "group": "evidence",
+      "denominator": 20,
+      "card_hit_at_3": 0.95,
+      "hit_at_3": 0.95,
+      "recall_at_5": 0.71765873015873,
+      "mrr_at_5": 0.8933333333333333,
+      "ndcg_at_5": 0.771899607123678
+    },
+    {
+      "comparison": "vector_0.4_bm25_0.6_top50",
+      "weight": "vector_0.4_bm25_0.6",
+      "depth": 50,
+      "system": "gold_query_type_selective_oracle",
+      "view": "answer_bearing_exact_doc_dedup",
+      "group": "numeric",
+      "denominator": 10,
+      "card_hit_at_3": 1.0,
+      "hit_at_3": 1.0,
+      "recall_at_5": 0.7816666666666666,
+      "mrr_at_5": 0.9333333333333332,
+      "ndcg_at_5": 0.8051214289021191
+    },
+    {
+      "comparison": "vector_0.4_bm25_0.6_top50",
+      "weight": "vector_0.4_bm25_0.6",
+      "depth": 50,
+      "system": "gold_query_type_selective_oracle",
+      "view": "answer_bearing_exact_doc_dedup",
+      "group": "semantic",
+      "denominator": 10,
+      "card_hit_at_3": 0.9,
+      "hit_at_3": 0.9,
+      "recall_at_5": 0.6536507936507936,
+      "mrr_at_5": 0.8533333333333333,
+      "ndcg_at_5": 0.7386777853452366
+    },
+    {
+      "comparison": "vector_0.4_bm25_0.6_top50",
+      "weight": "vector_0.4_bm25_0.6",
+      "depth": 50,
+      "system": "gold_query_type_selective_oracle",
+      "view": "answer_bearing_gold_family_oracle",
+      "group": "evidence",
+      "denominator": 20,
+      "card_hit_at_3": 0.95,
+      "hit_at_3": 0.95,
+      "recall_at_5": 1.0,
+      "mrr_at_5": 0.8933333333333333,
+      "ndcg_at_5": 0.919342640361727
+    },
+    {
+      "comparison": "vector_0.4_bm25_0.6_top50",
+      "weight": "vector_0.4_bm25_0.6",
+      "depth": 50,
+      "system": "gold_query_type_selective_oracle",
+      "view": "answer_bearing_gold_family_oracle",
+      "group": "numeric",
+      "denominator": 10,
+      "card_hit_at_3": 1.0,
+      "hit_at_3": 1.0,
+      "recall_at_5": 1.0,
+      "mrr_at_5": 0.9333333333333332,
+      "ndcg_at_5": 0.95
+    },
+    {
+      "comparison": "vector_0.4_bm25_0.6_top50",
+      "weight": "vector_0.4_bm25_0.6",
+      "depth": 50,
+      "system": "gold_query_type_selective_oracle",
+      "view": "answer_bearing_gold_family_oracle",
+      "group": "semantic",
+      "denominator": 10,
+      "card_hit_at_3": 0.9,
+      "hit_at_3": 0.9,
+      "recall_at_5": 1.0,
+      "mrr_at_5": 0.8533333333333333,
+      "ndcg_at_5": 0.8886852807234542
+    }
+  ],
+  "primary_evidence_paired_deltas": {
+    "same_config_no_reranker": {
+      "strict_raw": {
+        "card_hit_at_3": 0.05,
+        "hit_at_3": 0.0,
+        "recall_at_5": 0.025,
+        "mrr_at_5": 0.07333333333333333,
+        "ndcg_at_5": 0.037316900172670885
+      },
+      "answer_bearing_raw": {
+        "card_hit_at_3": 0.05,
+        "hit_at_3": 0.05,
+        "recall_at_5": 0.028194444444444446,
+        "mrr_at_5": 0.014166666666666666,
+        "ndcg_at_5": 0.019253864394243182
+      },
+      "strict_exact_doc_dedup": {
+        "card_hit_at_3": 0.05,
+        "hit_at_3": 0.05,
+        "recall_at_5": 0.025,
+        "mrr_at_5": 0.052500000000000005,
+        "ndcg_at_5": 0.022329559947574112
+      },
+      "answer_bearing_exact_doc_dedup": {
+        "card_hit_at_3": 0.05,
+        "hit_at_3": 0.05,
+        "recall_at_5": 0.024226190476190478,
+        "mrr_at_5": 0.004166666666666666,
+        "ndcg_at_5": 0.012581378232978713
+      },
+      "answer_bearing_gold_family_oracle": {
+        "card_hit_at_3": 0.05,
+        "hit_at_3": 0.05,
+        "recall_at_5": 0.05,
+        "mrr_at_5": 0.014166666666666666,
+        "ndcg_at_5": 0.02280881245805743
+      }
+    },
+    "all_gte": {
+      "strict_raw": {
+        "card_hit_at_3": 0.0,
+        "hit_at_3": 0.2,
+        "recall_at_5": 0.0625,
+        "mrr_at_5": 0.19249999999999998,
+        "ndcg_at_5": 0.1385141781941346
+      },
+      "answer_bearing_raw": {
+        "card_hit_at_3": 0.0,
+        "hit_at_3": 0.05,
+        "recall_at_5": -0.0024999999999999966,
+        "mrr_at_5": 0.041666666666666664,
+        "ndcg_at_5": 0.005359542805891615
+      },
+      "strict_exact_doc_dedup": {
+        "card_hit_at_3": 0.0,
+        "hit_at_3": 0.15,
+        "recall_at_5": 0.0375,
+        "mrr_at_5": 0.22583333333333333,
+        "ndcg_at_5": 0.14715714184611367
+      },
+      "answer_bearing_exact_doc_dedup": {
+        "card_hit_at_3": 0.0,
+        "hit_at_3": 0.05,
+        "recall_at_5": -0.019166666666666665,
+        "mrr_at_5": 0.029166666666666664,
+        "ndcg_at_5": -0.008957523096190061
+      },
+      "answer_bearing_gold_family_oracle": {
+        "card_hit_at_3": 0.0,
+        "hit_at_3": 0.05,
+        "recall_at_5": 0.05,
+        "mrr_at_5": 0.041666666666666664,
+        "ndcg_at_5": 0.04345351232142712
+      }
+    }
+  },
+  "row_counts": {
+    "per_query": 600,
+    "summary": 100,
+    "paired_deltas": 1200,
+    "wlt": 1000
+  },
+  "limitations": [
+    "post-hoc gold query-type labels are unavailable to a deployable router",
+    "single development set run only",
+    "stored Top20/Top50 candidates and logits bound the diagnostic",
+    "no holdout or production generalization claim",
+    "no leaf-only result is included"
+  ]
+}

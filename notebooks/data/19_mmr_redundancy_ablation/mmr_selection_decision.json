@@ -1,0 +1,185 @@
+{
+  "decision": "retain_no_mmr",
+  "selected_system": "no_mmr",
+  "selected_lambda": null,
+  "primary_depth": 50,
+  "eligible_lambdas": [],
+  "gate_results": {
+    "mmr_0.7": {
+      "lambda": 0.7,
+      "eligible": false,
+      "checks": {
+        "strict_raw_evidence_card_hit_at_3_nonregression": true,
+        "strict_raw_evidence_hit_at_3_nonregression": false,
+        "strict_raw_evidence_recall_at_5_nonregression": false,
+        "strict_raw_evidence_mrr_at_5_nonregression": false,
+        "strict_raw_evidence_ndcg_at_5_nonregression": false,
+        "strict_raw_evidence_mrr_or_ndcg_strict_improvement": false,
+        "answer_bearing_raw_evidence_hit_at_3_nonregression": true,
+        "answer_bearing_raw_evidence_mrr_at_5_nonregression": true,
+        "strict_exact_doc_dedup_evidence_hit_at_3_nonregression": true,
+        "strict_exact_doc_dedup_evidence_mrr_at_5_nonregression": false,
+        "strict_exact_doc_dedup_evidence_ndcg_at_5_nonregression": false,
+        "answer_bearing_exact_doc_dedup_evidence_hit_at_3_nonregression": true,
+        "answer_bearing_exact_doc_dedup_evidence_mrr_at_5_nonregression": true,
+        "answer_bearing_exact_doc_dedup_evidence_ndcg_at_5_nonregression": false,
+        "answer_bearing_gold_family_oracle_evidence_hit_at_3_nonregression": true,
+        "answer_bearing_gold_family_oracle_evidence_mrr_at_5_nonregression": true,
+        "answer_bearing_gold_family_oracle_evidence_ndcg_at_5_nonregression": true,
+        "card10_card_hit_at_3_nonregression": true,
+        "evidence_expected_card_share_nonregression": false,
+        "exact_duplicate_excess_nonincrease": true,
+        "cross_level_containment_nonincrease": true,
+        "cosine_or_containment_strict_decrease": true,
+        "redundancy_wlt_improved_gt_worsened": true
+      },
+      "strict_raw_evidence": {
+        "card_hit_at_3": 0.95,
+        "hit_at_3": 0.7,
+        "recall_at_5": 0.675,
+        "mrr_at_5": 0.6158333333333333,
+        "ndcg_at_5": 0.5746922703684879
+      },
+      "strict_raw_evidence_deltas": {
+        "card_hit_at_3": 0.04999999999999993,
+        "hit_at_3": -0.050000000000000044,
+        "recall_at_5": -0.03749999999999998,
+        "mrr_at_5": -0.004166666666666541,
+        "ndcg_at_5": -0.03818650977109084
+      },
+      "evidence_diversity": {
+        "expected_card_share_at_5": 0.73,
+        "exact_duplicate_excess": 0.25,
+        "cross_level_containment_pair_count": 2.4,
+        "positive_pairwise_cosine_mean": 0.6828389456225279,
+        "redundancy_improved": 13,
+        "redundancy_worsened": 0,
+        "redundancy_tied": 7
+      },
+      "evidence_diversity_deltas": {
+        "expected_card_share_at_5": -0.020000000000000018,
+        "exact_duplicate_excess": -0.35,
+        "cross_level_containment_pair_count": -1.1,
+        "positive_pairwise_cosine_mean": -0.04936098414739476
+      }
+    },
+    "mmr_0.8": {
+      "lambda": 0.8,
+      "eligible": false,
+      "checks": {
+        "strict_raw_evidence_card_hit_at_3_nonregression": true,
+        "strict_raw_evidence_hit_at_3_nonregression": false,
+        "strict_raw_evidence_recall_at_5_nonregression": false,
+        "strict_raw_evidence_mrr_at_5_nonregression": false,
+        "strict_raw_evidence_ndcg_at_5_nonregression": false,
+        "strict_raw_evidence_mrr_or_ndcg_strict_improvement": false,
+        "answer_bearing_raw_evidence_hit_at_3_nonregression": true,
+        "answer_bearing_raw_evidence_mrr_at_5_nonregression": true,
+        "strict_exact_doc_dedup_evidence_hit_at_3_nonregression": false,
+        "strict_exact_doc_dedup_evidence_mrr_at_5_nonregression": false,
+        "strict_exact_doc_dedup_evidence_ndcg_at_5_nonregression": false,
+        "answer_bearing_exact_doc_dedup_evidence_hit_at_3_nonregression": true,
+        "answer_bearing_exact_doc_dedup_evidence_mrr_at_5_nonregression": true,
+        "answer_bearing_exact_doc_dedup_evidence_ndcg_at_5_nonregression": false,
+        "answer_bearing_gold_family_oracle_evidence_hit_at_3_nonregression": true,
+        "answer_bearing_gold_family_oracle_evidence_mrr_at_5_nonregression": true,
+        "answer_bearing_gold_family_oracle_evidence_ndcg_at_5_nonregression": true,
+        "card10_card_hit_at_3_nonregression": true,
+        "evidence_expected_card_share_nonregression": false,
+        "exact_duplicate_excess_nonincrease": true,
+        "cross_level_containment_nonincrease": true,
+        "cosine_or_containment_strict_decrease": true,
+        "redundancy_wlt_improved_gt_worsened": true
+      },
+      "strict_raw_evidence": {
+        "card_hit_at_3": 0.95,
+        "hit_at_3": 0.7,
+        "recall_at_5": 0.6875,
+        "mrr_at_5": 0.6183333333333333,
+        "ndcg_at_5": 0.5891808396412215
+      },
+      "strict_raw_evidence_deltas": {
+        "card_hit_at_3": 0.04999999999999993,
+        "hit_at_3": -0.050000000000000044,
+        "recall_at_5": -0.025000000000000022,
+        "mrr_at_5": -0.0016666666666665941,
+        "ndcg_at_5": -0.023697940498357273
+      },
+      "evidence_diversity": {
+        "expected_card_share_at_5": 0.74,
+        "exact_duplicate_excess": 0.4,
+        "cross_level_containment_pair_count": 2.85,
+        "positive_pairwise_cosine_mean": 0.7053960811838514,
+        "redundancy_improved": 10,
+        "redundancy_worsened": 0,
+        "redundancy_tied": 10
+      },
+      "evidence_diversity_deltas": {
+        "expected_card_share_at_5": -0.010000000000000009,
+        "exact_duplicate_excess": -0.19999999999999996,
+        "cross_level_containment_pair_count": -0.6499999999999999,
+        "positive_pairwise_cosine_mean": -0.02680384858607121
+      }
+    },
+    "mmr_0.9": {
+      "lambda": 0.9,
+      "eligible": false,
+      "checks": {
+        "strict_raw_evidence_card_hit_at_3_nonregression": true,
+        "strict_raw_evidence_hit_at_3_nonregression": true,
+        "strict_raw_evidence_recall_at_5_nonregression": true,
+        "strict_raw_evidence_mrr_at_5_nonregression": true,
+        "strict_raw_evidence_ndcg_at_5_nonregression": false,
+        "strict_raw_evidence_mrr_or_ndcg_strict_improvement": true,
+        "answer_bearing_raw_evidence_hit_at_3_nonregression": true,
+        "answer_bearing_raw_evidence_mrr_at_5_nonregression": true,
+        "strict_exact_doc_dedup_evidence_hit_at_3_nonregression": true,
+        "strict_exact_doc_dedup_evidence_mrr_at_5_nonregression": true,
+        "strict_exact_doc_dedup_evidence_ndcg_at_5_nonregression": false,
+        "answer_bearing_exact_doc_dedup_evidence_hit_at_3_nonregression": true,
+        "answer_bearing_exact_doc_dedup_evidence_mrr_at_5_nonregression": true,
+        "answer_bearing_exact_doc_dedup_evidence_ndcg_at_5_nonregression": false,
+        "answer_bearing_gold_family_oracle_evidence_hit_at_3_nonregression": true,
+        "answer_bearing_gold_family_oracle_evidence_mrr_at_5_nonregression": true,
+        "answer_bearing_gold_family_oracle_evidence_ndcg_at_5_nonregression": true,
+        "card10_card_hit_at_3_nonregression": true,
+        "evidence_expected_card_share_nonregression": false,
+        "exact_duplicate_excess_nonincrease": true,
+        "cross_level_containment_nonincrease": true,
+        "cosine_or_containment_strict_decrease": true,
+        "redundancy_wlt_improved_gt_worsened": true
+      },
+      "strict_raw_evidence": {
+        "card_hit_at_3": 0.95,
+        "hit_at_3": 0.75,
+        "recall_at_5": 0.7125,
+        "mrr_at_5": 0.6283333333333333,
+        "ndcg_at_5": 0.6115352596494141
+      },
+      "strict_raw_evidence_deltas": {
+        "card_hit_at_3": 0.04999999999999993,
+        "hit_at_3": 0.0,
+        "recall_at_5": 0.0,
+        "mrr_at_5": 0.008333333333333415,
+        "ndcg_at_5": -0.001343520490164618
+      },
+      "evidence_diversity": {
+        "expected_card_share_at_5": 0.74,
+        "exact_duplicate_excess": 0.55,
+        "cross_level_containment_pair_count": 3.25,
+        "positive_pairwise_cosine_mean": 0.7218583171895119,
+        "redundancy_improved": 4,
+        "redundancy_worsened": 0,
+        "redundancy_tied": 16
+      },
+      "evidence_diversity_deltas": {
+        "expected_card_share_at_5": -0.010000000000000009,
+        "exact_duplicate_excess": -0.04999999999999993,
+        "cross_level_containment_pair_count": -0.25,
+        "positive_pairwise_cosine_mean": -0.010341612580410775
+      }
+    }
+  },
+  "top20_interpretation": "efficiency supplement for the primary-selected lambda only; not separately selected",
+  "promotion_scope": "development candidate only"
+}

@@ -1,0 +1,31 @@
+{
+  "note": "retrieval evidence projection only; not LLM answer scoring",
+  "schema_version": "retrieval_scoring_v6_projection_v1",
+  "scoring_contract_sha256": "795617c731b5ac086e3acfe1e77f848a403636147a08456a738dd7b01e87072e",
+  "systems": [
+    {
+      "candidate_card_recall_d20": 1.0,
+      "card_precision_at_3": 0.41666666666666685,
+      "card_recall_at_3": 0.9423076923076923,
+      "negative_correctness_count": 4,
+      "negative_records": 4,
+      "positive_records": 26,
+      "required_claim_coverage": 0.875,
+      "retrieval_e2e_count": 5,
+      "supported_card_recall_at_3": 0.8461538461538461,
+      "system": "OLD"
+    },
+    {
+      "candidate_card_recall_d20": 1.0,
+      "card_precision_at_3": 0.40384615384615397,
+      "card_recall_at_3": 0.9487179487179488,
+      "negative_correctness_count": 4,
+      "negative_records": 4,
+      "positive_records": 26,
+      "required_claim_coverage": 0.8621794871794871,
+      "retrieval_e2e_count": 4,
+      "supported_card_recall_at_3": 0.8525641025641024,
+      "system": "STRUCT"
+    }
+  ]
+}

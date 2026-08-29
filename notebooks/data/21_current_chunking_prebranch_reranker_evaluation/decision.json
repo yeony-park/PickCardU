@@ -1,0 +1,193 @@
+{
+  "phase_a": {
+    "rule_text": "normalization=NFKC/lower/whitespace/terminal punctuation; precedence=proper>numeric>semantic; proper=identity intent for issuer/company/bank/card product; numeric_direct=얼마|몇 unit|얼마나 discount/accrual; numeric_target=end targets discount/accrual rate, annual fee, fee, amount/limit, monthly/annual limit, per-liter discount, mileage/point accrual criterion, spend amount/criterion, use count/period; standalone 이용료 excluded; 연회비 면제 조건 semantic; raw-digit-only disabled",
+    "rule_sha256": "e4e2c0b33dc228382e269a3edb399b1b5b4d0c4f8d41149e96d4d06d64d55909",
+    "confusion": {
+      "proper_noun": {
+        "proper_noun": 10,
+        "numeric_condition": 0,
+        "semantic": 0
+      },
+      "numeric_condition": {
+        "proper_noun": 0,
+        "numeric_condition": 10,
+        "semantic": 0
+      },
+      "semantic": {
+        "proper_noun": 0,
+        "numeric_condition": 0,
+        "semantic": 10
+      }
+    },
+    "accuracy": 1.0,
+    "class_metrics": {
+      "proper_noun": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 10
+      },
+      "numeric_condition": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 10
+      },
+      "semantic": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 10
+      }
+    },
+    "macro": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "weighted": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "balanced_accuracy": 1.0,
+    "semantic_rerank_binary": {
+      "tp": 10,
+      "tn": 20,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "specificity": 1.0,
+      "false_reranker": 0,
+      "missed_reranker": 0
+    },
+    "decision": "dev_rule_exactly_reproduces_gold_route",
+    "final_status": [
+      "development_rule_only",
+      "not_validated_for_unseen_queries",
+      "not_eligible_for_promotion"
+    ]
+  },
+  "phase_b": {
+    "primary": {
+      "weight": "vector_0.4_bm25_0.6",
+      "variant": "leaf_available_from_original_top50",
+      "view": "strict_exact_doc_dedup",
+      "metric": "mrr_at_5"
+    },
+    "qualifications": {
+      "gte_original": {
+        "primary_delta": -0.016666666666666607,
+        "primary_improved": false,
+        "guardrails": {
+          "strict_exact_doc_dedup:hit_at_3": true,
+          "strict_exact_doc_dedup:recall_at_5": true,
+          "strict_exact_doc_dedup:ndcg_at_5": true,
+          "strict_raw:hit_at_3": true,
+          "strict_raw:mrr_at_5": false,
+          "strict_raw:recall_at_5": true,
+          "strict_raw:ndcg_at_5": false,
+          "strict_raw:card_hit_at_3": true,
+          "answer_bearing_exact_doc_dedup:hit_at_3": true,
+          "answer_bearing_exact_doc_dedup:mrr_at_5": false
+        },
+        "dev_signal": false
+      },
+      "gte_augmented": {
+        "primary_delta": 0.02416666666666667,
+        "primary_improved": true,
+        "guardrails": {
+          "strict_exact_doc_dedup:hit_at_3": true,
+          "strict_exact_doc_dedup:recall_at_5": true,
+          "strict_exact_doc_dedup:ndcg_at_5": true,
+          "strict_raw:hit_at_3": true,
+          "strict_raw:mrr_at_5": false,
+          "strict_raw:recall_at_5": true,
+          "strict_raw:ndcg_at_5": true,
+          "strict_raw:card_hit_at_3": true,
+          "answer_bearing_exact_doc_dedup:hit_at_3": true,
+          "answer_bearing_exact_doc_dedup:mrr_at_5": true
+        },
+        "dev_signal": false
+      },
+      "bge_original": {
+        "primary_delta": -0.0024999999999999467,
+        "primary_improved": false,
+        "guardrails": {
+          "strict_exact_doc_dedup:hit_at_3": true,
+          "strict_exact_doc_dedup:recall_at_5": true,
+          "strict_exact_doc_dedup:ndcg_at_5": false,
+          "strict_raw:hit_at_3": true,
+          "strict_raw:mrr_at_5": true,
+          "strict_raw:recall_at_5": true,
+          "strict_raw:ndcg_at_5": false,
+          "strict_raw:card_hit_at_3": true,
+          "answer_bearing_exact_doc_dedup:hit_at_3": true,
+          "answer_bearing_exact_doc_dedup:mrr_at_5": true
+        },
+        "dev_signal": false
+      },
+      "bge_augmented": {
+        "primary_delta": 0.03916666666666668,
+        "primary_improved": true,
+        "guardrails": {
+          "strict_exact_doc_dedup:hit_at_3": true,
+          "strict_exact_doc_dedup:recall_at_5": true,
+          "strict_exact_doc_dedup:ndcg_at_5": true,
+          "strict_raw:hit_at_3": true,
+          "strict_raw:mrr_at_5": true,
+          "strict_raw:recall_at_5": true,
+          "strict_raw:ndcg_at_5": true,
+          "strict_raw:card_hit_at_3": true,
+          "answer_bearing_exact_doc_dedup:hit_at_3": true,
+          "answer_bearing_exact_doc_dedup:mrr_at_5": true
+        },
+        "dev_signal": true
+      }
+    },
+    "raw_best": "bge_augmented",
+    "factorial_effects": [
+      {
+        "view": "strict_exact_doc_dedup",
+        "metric": "mrr_at_5",
+        "gte_augmentation_effect": 0.04083333333333328,
+        "bge_augmentation_effect": 0.04166666666666663,
+        "bge_vs_gte_original": 0.01416666666666666,
+        "bge_vs_gte_augmented": 0.015000000000000013,
+        "model_input_interaction": 0.0008333333333333526
+      },
+      {
+        "view": "strict_exact_doc_dedup",
+        "metric": "ndcg_at_5",
+        "gte_augmentation_effect": 0.0600941544117366,
+        "bge_augmentation_effect": 0.08158021981670727,
+        "bge_vs_gte_original": -0.0018316450781639126,
+        "bge_vs_gte_augmented": 0.019654420326806754,
+        "model_input_interaction": 0.021486065404970667
+      },
+      {
+        "view": "strict_raw",
+        "metric": "mrr_at_5",
+        "gte_augmentation_effect": -0.006666666666666599,
+        "bge_augmentation_effect": -0.004166666666666652,
+        "bge_vs_gte_original": 0.015000000000000013,
+        "bge_vs_gte_augmented": 0.01749999999999996,
+        "model_input_interaction": 0.0024999999999999467
+      },
+      {
+        "view": "answer_bearing_exact_doc_dedup",
+        "metric": "mrr_at_5",
+        "gte_augmentation_effect": 0.09416666666666662,
+        "bge_augmentation_effect": 0.025000000000000022,
+        "bge_vs_gte_original": 0.0691666666666666,
+        "bge_vs_gte_augmented": 0.0,
+        "model_input_interaction": -0.0691666666666666
+      }
+    ],
+    "promotion": "not_eligible_for_promotion",
+    "selective_regex_gold_gap_rows_nonzero": 0
+  },
+  "final": "current_chunking_prebranch_diagnostic_only"
+}

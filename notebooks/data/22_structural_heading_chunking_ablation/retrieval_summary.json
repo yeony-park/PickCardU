@@ -1,0 +1,615 @@
+{
+  "experiment_name": "구조 기반 청킹 + 제목 경로 검색문",
+  "scope": "development_30_queries_single_run",
+  "configurations": [
+    "existing_exact_v1",
+    "structural_heading_path"
+  ],
+  "settings": {
+    "vector": "numpy_squared_l2",
+    "vector_tie": "chunk_id_lexical",
+    "bm25": {
+      "k1": 1.5,
+      "b": 0.75,
+      "normalization": "notebook13 exact"
+    },
+    "rrf": {
+      "vector_weight": 0.4,
+      "bm25_weight": 0.6,
+      "k": 60,
+      "depth": 50
+    },
+    "excluded": [
+      "reranker",
+      "MMR",
+      "morphology",
+      "router",
+      "Chroma query"
+    ]
+  },
+  "ranking_freeze": {
+    "gold_loaded_before_freeze": false,
+    "row_count": 60,
+    "query_count": 30,
+    "configurations": [
+      "existing_exact_v1",
+      "structural_heading_path"
+    ],
+    "depth": 50,
+    "ranking_freeze_raw_sha256": "e7d6b5db7fe9852f131e597d2b2aa198a9125f34fdac2674e3fa0f3358192734",
+    "input_manifest_raw_sha256": "7c6756b14e6395566b93240b3003aeac1125fabcec43a1cfd987102bb8e7d564",
+    "embedding_target_manifest_raw_sha256": "72e45029ffb1907da0e4b4a7bb3b7fbc54de947474c556386100b56ceac59b75"
+  },
+  "baseline_reproduction": {
+    "normalized_bm25_top5_exact_queries": 30,
+    "numpy_vector_top5_exact_queries": 20,
+    "notebook16_rrf_0.4_top5_exact_queries": 28,
+    "notebook16_rrf_0.4_top50_exact_queries": 19,
+    "baseline_name": "existing_exact_v1",
+    "all_public_top5_exact": false
+  },
+  "summaries": [
+    {
+      "configuration": "existing_exact_v1",
+      "group": "all",
+      "denominator": 30,
+      "card_hit_at_3": 0.9333333333333333,
+      "card_hit_at_3_denominator": 30,
+      "card_mrr_at_5": 0.8972222222222221,
+      "card_mrr_at_5_denominator": 30,
+      "answer_hit_at_3": 0.9,
+      "answer_hit_at_3_denominator": 20,
+      "answer_recall_at_5": 0.6416558441558441,
+      "answer_recall_at_5_denominator": 20,
+      "answer_mrr_at_5": 0.8791666666666667,
+      "answer_mrr_at_5_denominator": 20,
+      "answer_ndcg_at_5": 0.7484203531550575,
+      "answer_ndcg_at_5_denominator": 20
+    },
+    {
+      "configuration": "existing_exact_v1",
+      "group": "card",
+      "denominator": 10,
+      "card_hit_at_3": 1.0,
+      "card_hit_at_3_denominator": 10,
+      "card_mrr_at_5": 0.9333333333333333,
+      "card_mrr_at_5_denominator": 10,
+      "answer_hit_at_3": null,
+      "answer_hit_at_3_denominator": 0,
+      "answer_recall_at_5": null,
+      "answer_recall_at_5_denominator": 0,
+      "answer_mrr_at_5": null,
+      "answer_mrr_at_5_denominator": 0,
+      "answer_ndcg_at_5": null,
+      "answer_ndcg_at_5_denominator": 0
+    },
+    {
+      "configuration": "existing_exact_v1",
+      "group": "evidence",
+      "denominator": 20,
+      "card_hit_at_3": 0.9,
+      "card_hit_at_3_denominator": 20,
+      "card_mrr_at_5": 0.8791666666666667,
+      "card_mrr_at_5_denominator": 20,
+      "answer_hit_at_3": 0.9,
+      "answer_hit_at_3_denominator": 20,
+      "answer_recall_at_5": 0.6416558441558441,
+      "answer_recall_at_5_denominator": 20,
+      "answer_mrr_at_5": 0.8791666666666667,
+      "answer_mrr_at_5_denominator": 20,
+      "answer_ndcg_at_5": 0.7484203531550575,
+      "answer_ndcg_at_5_denominator": 20
+    },
+    {
+      "configuration": "existing_exact_v1",
+      "group": "numeric",
+      "denominator": 10,
+      "card_hit_at_3": 1.0,
+      "card_hit_at_3_denominator": 10,
+      "card_mrr_at_5": 0.9333333333333332,
+      "card_mrr_at_5_denominator": 10,
+      "answer_hit_at_3": 1.0,
+      "answer_hit_at_3_denominator": 10,
+      "answer_recall_at_5": 0.7045238095238096,
+      "answer_recall_at_5_denominator": 10,
+      "answer_mrr_at_5": 0.9333333333333332,
+      "answer_mrr_at_5_denominator": 10,
+      "answer_ndcg_at_5": 0.792000921150885,
+      "answer_ndcg_at_5_denominator": 10
+    },
+    {
+      "configuration": "existing_exact_v1",
+      "group": "semantic",
+      "denominator": 10,
+      "card_hit_at_3": 0.8,
+      "card_hit_at_3_denominator": 10,
+      "card_mrr_at_5": 0.825,
+      "card_mrr_at_5_denominator": 10,
+      "answer_hit_at_3": 0.8,
+      "answer_hit_at_3_denominator": 10,
+      "answer_recall_at_5": 0.5787878787878789,
+      "answer_recall_at_5_denominator": 10,
+      "answer_mrr_at_5": 0.825,
+      "answer_mrr_at_5_denominator": 10,
+      "answer_ndcg_at_5": 0.7048397851592301,
+      "answer_ndcg_at_5_denominator": 10
+    },
+    {
+      "configuration": "existing_exact_v1",
+      "group": "proper_noun",
+      "denominator": 10,
+      "card_hit_at_3": 1.0,
+      "card_hit_at_3_denominator": 10,
+      "card_mrr_at_5": 0.9333333333333333,
+      "card_mrr_at_5_denominator": 10,
+      "answer_hit_at_3": null,
+      "answer_hit_at_3_denominator": 0,
+      "answer_recall_at_5": null,
+      "answer_recall_at_5_denominator": 0,
+      "answer_mrr_at_5": null,
+      "answer_mrr_at_5_denominator": 0,
+      "answer_ndcg_at_5": null,
+      "answer_ndcg_at_5_denominator": 0
+    },
+    {
+      "configuration": "structural_heading_path",
+      "group": "all",
+      "denominator": 30,
+      "card_hit_at_3": 0.9666666666666667,
+      "card_hit_at_3_denominator": 30,
+      "card_mrr_at_5": 0.95,
+      "card_mrr_at_5_denominator": 30,
+      "answer_hit_at_3": 0.9,
+      "answer_hit_at_3_denominator": 20,
+      "answer_recall_at_5": 0.8583333333333334,
+      "answer_recall_at_5_denominator": 20,
+      "answer_mrr_at_5": 0.875,
+      "answer_mrr_at_5_denominator": 20,
+      "answer_ndcg_at_5": 0.8464579186236862,
+      "answer_ndcg_at_5_denominator": 20
+    },
+    {
+      "configuration": "structural_heading_path",
+      "group": "card",
+      "denominator": 10,
+      "card_hit_at_3": 1.0,
+      "card_hit_at_3_denominator": 10,
+      "card_mrr_at_5": 1.0,
+      "card_mrr_at_5_denominator": 10,
+      "answer_hit_at_3": null,
+      "answer_hit_at_3_denominator": 0,
+      "answer_recall_at_5": null,
+      "answer_recall_at_5_denominator": 0,
+      "answer_mrr_at_5": null,
+      "answer_mrr_at_5_denominator": 0,
+      "answer_ndcg_at_5": null,
+      "answer_ndcg_at_5_denominator": 0
+    },
+    {
+      "configuration": "structural_heading_path",
+      "group": "evidence",
+      "denominator": 20,
+      "card_hit_at_3": 0.95,
+      "card_hit_at_3_denominator": 20,
+      "card_mrr_at_5": 0.925,
+      "card_mrr_at_5_denominator": 20,
+      "answer_hit_at_3": 0.9,
+      "answer_hit_at_3_denominator": 20,
+      "answer_recall_at_5": 0.8583333333333334,
+      "answer_recall_at_5_denominator": 20,
+      "answer_mrr_at_5": 0.875,
+      "answer_mrr_at_5_denominator": 20,
+      "answer_ndcg_at_5": 0.8464579186236862,
+      "answer_ndcg_at_5_denominator": 20
+    },
+    {
+      "configuration": "structural_heading_path",
+      "group": "numeric",
+      "denominator": 10,
+      "card_hit_at_3": 1.0,
+      "card_hit_at_3_denominator": 10,
+      "card_mrr_at_5": 1.0,
+      "card_mrr_at_5_denominator": 10,
+      "answer_hit_at_3": 0.9,
+      "answer_hit_at_3_denominator": 10,
+      "answer_recall_at_5": 0.8666666666666666,
+      "answer_recall_at_5_denominator": 10,
+      "answer_mrr_at_5": 0.9,
+      "answer_mrr_at_5_denominator": 10,
+      "answer_ndcg_at_5": 0.8765360636988622,
+      "answer_ndcg_at_5_denominator": 10
+    },
+    {
+      "configuration": "structural_heading_path",
+      "group": "semantic",
+      "denominator": 10,
+      "card_hit_at_3": 0.9,
+      "card_hit_at_3_denominator": 10,
+      "card_mrr_at_5": 0.85,
+      "card_mrr_at_5_denominator": 10,
+      "answer_hit_at_3": 0.9,
+      "answer_hit_at_3_denominator": 10,
+      "answer_recall_at_5": 0.85,
+      "answer_recall_at_5_denominator": 10,
+      "answer_mrr_at_5": 0.85,
+      "answer_mrr_at_5_denominator": 10,
+      "answer_ndcg_at_5": 0.8163797735485104,
+      "answer_ndcg_at_5_denominator": 10
+    },
+    {
+      "configuration": "structural_heading_path",
+      "group": "proper_noun",
+      "denominator": 10,
+      "card_hit_at_3": 1.0,
+      "card_hit_at_3_denominator": 10,
+      "card_mrr_at_5": 1.0,
+      "card_mrr_at_5_denominator": 10,
+      "answer_hit_at_3": null,
+      "answer_hit_at_3_denominator": 0,
+      "answer_recall_at_5": null,
+      "answer_recall_at_5_denominator": 0,
+      "answer_mrr_at_5": null,
+      "answer_mrr_at_5_denominator": 0,
+      "answer_ndcg_at_5": null,
+      "answer_ndcg_at_5_denominator": 0
+    }
+  ],
+  "paired_wlt": [
+    {
+      "group": "all",
+      "metric": "card_hit_at_3",
+      "denominator": 30,
+      "wins": 1,
+      "losses": 0,
+      "ties": 29,
+      "mean_delta": 0.03333333333333333
+    },
+    {
+      "group": "all",
+      "metric": "card_mrr_at_5",
+      "denominator": 30,
+      "wins": 3,
+      "losses": 0,
+      "ties": 27,
+      "mean_delta": 0.052777777777777785
+    },
+    {
+      "group": "all",
+      "metric": "answer_hit_at_3",
+      "denominator": 20,
+      "wins": 1,
+      "losses": 1,
+      "ties": 18,
+      "mean_delta": 0.0
+    },
+    {
+      "group": "all",
+      "metric": "answer_recall_at_5",
+      "denominator": 20,
+      "wins": 12,
+      "losses": 2,
+      "ties": 6,
+      "mean_delta": 0.21667748917748914
+    },
+    {
+      "group": "all",
+      "metric": "answer_mrr_at_5",
+      "denominator": 20,
+      "wins": 2,
+      "losses": 1,
+      "ties": 17,
+      "mean_delta": -0.004166666666666663
+    },
+    {
+      "group": "all",
+      "metric": "answer_ndcg_at_5",
+      "denominator": 20,
+      "wins": 10,
+      "losses": 4,
+      "ties": 6,
+      "mean_delta": 0.0980375654686286
+    },
+    {
+      "group": "card",
+      "metric": "card_hit_at_3",
+      "denominator": 10,
+      "wins": 0,
+      "losses": 0,
+      "ties": 10,
+      "mean_delta": 0.0
+    },
+    {
+      "group": "card",
+      "metric": "card_mrr_at_5",
+      "denominator": 10,
+      "wins": 1,
+      "losses": 0,
+      "ties": 9,
+      "mean_delta": 0.06666666666666668
+    },
+    {
+      "group": "evidence",
+      "metric": "card_hit_at_3",
+      "denominator": 20,
+      "wins": 1,
+      "losses": 0,
+      "ties": 19,
+      "mean_delta": 0.05
+    },
+    {
+      "group": "evidence",
+      "metric": "card_mrr_at_5",
+      "denominator": 20,
+      "wins": 2,
+      "losses": 0,
+      "ties": 18,
+      "mean_delta": 0.04583333333333334
+    },
+    {
+      "group": "evidence",
+      "metric": "answer_hit_at_3",
+      "denominator": 20,
+      "wins": 1,
+      "losses": 1,
+      "ties": 18,
+      "mean_delta": 0.0
+    },
+    {
+      "group": "evidence",
+      "metric": "answer_recall_at_5",
+      "denominator": 20,
+      "wins": 12,
+      "losses": 2,
+      "ties": 6,
+      "mean_delta": 0.21667748917748914
+    },
+    {
+      "group": "evidence",
+      "metric": "answer_mrr_at_5",
+      "denominator": 20,
+      "wins": 2,
+      "losses": 1,
+      "ties": 17,
+      "mean_delta": -0.004166666666666663
+    },
+    {
+      "group": "evidence",
+      "metric": "answer_ndcg_at_5",
+      "denominator": 20,
+      "wins": 10,
+      "losses": 4,
+      "ties": 6,
+      "mean_delta": 0.0980375654686286
+    },
+    {
+      "group": "numeric",
+      "metric": "card_hit_at_3",
+      "denominator": 10,
+      "wins": 0,
+      "losses": 0,
+      "ties": 10,
+      "mean_delta": 0.0
+    },
+    {
+      "group": "numeric",
+      "metric": "card_mrr_at_5",
+      "denominator": 10,
+      "wins": 1,
+      "losses": 0,
+      "ties": 9,
+      "mean_delta": 0.06666666666666668
+    },
+    {
+      "group": "numeric",
+      "metric": "answer_hit_at_3",
+      "denominator": 10,
+      "wins": 0,
+      "losses": 1,
+      "ties": 9,
+      "mean_delta": -0.1
+    },
+    {
+      "group": "numeric",
+      "metric": "answer_recall_at_5",
+      "denominator": 10,
+      "wins": 5,
+      "losses": 2,
+      "ties": 3,
+      "mean_delta": 0.16214285714285714
+    },
+    {
+      "group": "numeric",
+      "metric": "answer_mrr_at_5",
+      "denominator": 10,
+      "wins": 1,
+      "losses": 1,
+      "ties": 8,
+      "mean_delta": -0.033333333333333326
+    },
+    {
+      "group": "numeric",
+      "metric": "answer_ndcg_at_5",
+      "denominator": 10,
+      "wins": 4,
+      "losses": 2,
+      "ties": 4,
+      "mean_delta": 0.08453514254797714
+    },
+    {
+      "group": "semantic",
+      "metric": "card_hit_at_3",
+      "denominator": 10,
+      "wins": 1,
+      "losses": 0,
+      "ties": 9,
+      "mean_delta": 0.1
+    },
+    {
+      "group": "semantic",
+      "metric": "card_mrr_at_5",
+      "denominator": 10,
+      "wins": 1,
+      "losses": 0,
+      "ties": 9,
+      "mean_delta": 0.025
+    },
+    {
+      "group": "semantic",
+      "metric": "answer_hit_at_3",
+      "denominator": 10,
+      "wins": 1,
+      "losses": 0,
+      "ties": 9,
+      "mean_delta": 0.1
+    },
+    {
+      "group": "semantic",
+      "metric": "answer_recall_at_5",
+      "denominator": 10,
+      "wins": 7,
+      "losses": 0,
+      "ties": 3,
+      "mean_delta": 0.27121212121212124
+    },
+    {
+      "group": "semantic",
+      "metric": "answer_mrr_at_5",
+      "denominator": 10,
+      "wins": 1,
+      "losses": 0,
+      "ties": 9,
+      "mean_delta": 0.025
+    },
+    {
+      "group": "semantic",
+      "metric": "answer_ndcg_at_5",
+      "denominator": 10,
+      "wins": 6,
+      "losses": 2,
+      "ties": 2,
+      "mean_delta": 0.11153998838928011
+    }
+  ],
+  "heading_inflation": {
+    "relevant_rows_reviewed": 27,
+    "heading_only_contribution_rows": 6
+  },
+  "redundancy": {
+    "contract": {
+      "scope": "same_card_only",
+      "body_normalization": "NFKC + lower + collapse whitespace",
+      "exact_duplicate": "normalized body equality; report excess count",
+      "containment_token_representation": "RAW_TOKEN unique set",
+      "minimum_shorter_body_unique_tokens": 5,
+      "containment_threshold": 0.8,
+      "exact_duplicates_excluded_from_containment": true
+    },
+    "summaries": [
+      {
+        "configuration": "existing_exact_v1",
+        "chunk_count": 327,
+        "exact_duplicate_group_count": 34,
+        "exact_duplicate_excess": 41,
+        "containment_pair_count": 459
+      },
+      {
+        "configuration": "structural_heading_path",
+        "chunk_count": 147,
+        "exact_duplicate_group_count": 0,
+        "exact_duplicate_excess": 0,
+        "containment_pair_count": 11
+      }
+    ]
+  },
+  "selection": {
+    "decision": "candidate_for_reranker_reevaluation_on_dev",
+    "gate_pass": true,
+    "integrity_required": "PASS",
+    "evidence_hit_at_3_non_regression": true,
+    "all_card_hit_at_3_non_regression": true,
+    "evidence_hit_improved_query_count": 1,
+    "evidence_hit_tied": true,
+    "evidence_mrr_delta": -0.004166666666666652,
+    "evidence_mrr_wins": 2,
+    "evidence_mrr_losses": 1,
+    "improvement_condition": true,
+    "exact_duplicate_nonworse": true,
+    "containment_nonworse": true,
+    "redundancy_one_strictly_improved": true,
+    "scope": "development_candidate_only_not_operations_or_holdout"
+  },
+  "embedding": {
+    "model": "text-embedding-3-small",
+    "target_manifest_raw_sha256": "72e45029ffb1907da0e4b4a7bb3b7fbc54de947474c556386100b56ceac59b75",
+    "items": 147,
+    "dimension": 1536,
+    "dtype": "float32",
+    "finite": true,
+    "batch_size": 64,
+    "batch_count": 3,
+    "batches": [
+      {
+        "batch": 1,
+        "items": 64,
+        "cached_this_run": true,
+        "batch_fingerprint": "cae935c970ad91dd9f60f6ee9c8b60c8693fea7e3c075198a176093abc159582",
+        "cache_path": "notebooks/data/22_structural_heading_chunking_ablation/embedding_cache/text-embedding-3-small/cae935c970ad91dd9f60f6ee9c8b60c8693fea7e3c075198a176093abc159582.npz",
+        "cache_raw_sha256": "b93390ea140c2f2224ff513e65d6c50ae597709f16b839ba804999f42839f40e",
+        "creation_api_requests": 1,
+        "creation_input_tokens": 25983,
+        "dimension": 1536,
+        "dtype": "float32",
+        "finite": true
+      },
+      {
+        "batch": 2,
+        "items": 64,
+        "cached_this_run": true,
+        "batch_fingerprint": "2a156daf369c8d96be05ac2b0861cb38cd3ac92193a3114ff83d6449d8f0049e",
+        "cache_path": "notebooks/data/22_structural_heading_chunking_ablation/embedding_cache/text-embedding-3-small/2a156daf369c8d96be05ac2b0861cb38cd3ac92193a3114ff83d6449d8f0049e.npz",
+        "cache_raw_sha256": "8d0b8f52d7a720f11f12bb7ecab30598e1d712923a5171c2e4bbf70007bd4006",
+        "creation_api_requests": 1,
+        "creation_input_tokens": 30558,
+        "dimension": 1536,
+        "dtype": "float32",
+        "finite": true
+      },
+      {
+        "batch": 3,
+        "items": 19,
+        "cached_this_run": true,
+        "batch_fingerprint": "40f6ee0b1c85ee2fa3dca1ac5e927c92decb6ed86c5ff26c7bf8845c6fbaf970",
+        "cache_path": "notebooks/data/22_structural_heading_chunking_ablation/embedding_cache/text-embedding-3-small/40f6ee0b1c85ee2fa3dca1ac5e927c92decb6ed86c5ff26c7bf8845c6fbaf970.npz",
+        "cache_raw_sha256": "75433cbd896edb4d69ed1456669aaa815f3b0e70762c97ede05d714422dea655",
+        "creation_api_requests": 1,
+        "creation_input_tokens": 9315,
+        "dimension": 1536,
+        "dtype": "float32",
+        "finite": true
+      }
+    ],
+    "creation_api_requests_total": 3,
+    "creation_api_input_tokens_total": 65856,
+    "creation_cost_usd": 0.0013171200000000002,
+    "pricing_usd_per_million_input_tokens": 0.02,
+    "pricing_source_url": "https://openai.com/api/pricing/",
+    "current_run_api_requests": 0,
+    "current_run_api_input_tokens": 0,
+    "current_run_cache_hit_batches": 3,
+    "other_network_requests": 0,
+    "secret_persisted": false
+  },
+  "metric_guide_ko": {
+    "Card Hit@3": "상위 3개 중 기대 카드 청크가 하나라도 있는 질의 비율",
+    "Card MRR@5": "상위 5개에서 기대 카드가 처음 나온 순위의 역수 평균",
+    "Evidence Hit@3": "상위 3개 중 카드와 필수 용어를 포함한 근거 청크가 있는 질의 비율",
+    "Evidence MRR@5": "상위 5개에서 level을 무시한 term-bearing 근거가 처음 나온 순위의 역수 평균",
+    "Recall/nDCG": "청크 분모 변화에 민감하여 gate에는 쓰지 않는 진단값"
+  },
+  "limitations": [
+    "Same 30 development queries are used for comparison.",
+    "Heading-path terms can supply terms absent from direct body; audited separately.",
+    "Recall and nDCG denominators change with chunk count.",
+    "Gate pass only nominates later reranker reevaluation."
+  ]
+}

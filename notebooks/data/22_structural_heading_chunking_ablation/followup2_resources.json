@@ -1,0 +1,22 @@
+{
+  "measurement_scope": "append_only_followup2_cells_fresh_kernel",
+  "existing_notebook_cells_reexecuted": false,
+  "wall_seconds": 2.209449542919174,
+  "cpu_seconds": 2.210450736,
+  "process_peak_rss_mib": 104.8671875,
+  "process_peak_rss_start_mib": 82.86328125,
+  "phase_incremental_peak_rss_mib": 22.00390625,
+  "peak_rss_limitation": "ru_maxrss is process-wide, not isolated phase allocation",
+  "environment": "skn25",
+  "new_api_requests": 0,
+  "new_embeddings": 0,
+  "external_network_requests": 0,
+  "gpu": 0,
+  "chroma_queries": 0,
+  "index_storage_changes": 0,
+  "api_cost_usd": 0.0,
+  "unmeasured": [
+    "energy",
+    "per-query latency"
+  ]
+}

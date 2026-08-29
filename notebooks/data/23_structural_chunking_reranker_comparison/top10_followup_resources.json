@@ -1,0 +1,9 @@
+{
+  "candidate_pairs_per_model": 300,
+  "models_in_saved_score_cache": 2,
+  "total_saved_score_lookups": 600,
+  "gpu_model_load_scoring": 0,
+  "top10_only_latency_vram_measured": false,
+  "latency_or_vram_reduction_claim": false,
+  "network_api_download_new_embedding_chroma_package_install": 0
+}

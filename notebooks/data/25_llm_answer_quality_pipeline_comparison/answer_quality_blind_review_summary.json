@@ -1,0 +1,134 @@
+{
+  "automatic_decision_preserved": "retain_old_end_to_end_package",
+  "blind_pair_count": 80,
+  "decoded_results": {
+    "K3": {
+      "OLD": {
+        "losses": 4,
+        "ties": 30,
+        "wins": 6
+      },
+      "STRUCT": {
+        "losses": 6,
+        "ties": 30,
+        "wins": 4
+      }
+    },
+    "K5": {
+      "OLD": {
+        "losses": 3,
+        "ties": 32,
+        "wins": 5
+      },
+      "STRUCT": {
+        "losses": 5,
+        "ties": 32,
+        "wins": 3
+      }
+    },
+    "breakdown": {
+      "K3_direct": {
+        "STRUCT": {
+          "losses": 3,
+          "ties": 26,
+          "wins": 1
+        }
+      },
+      "K3_recommendation": {
+        "STRUCT": {
+          "losses": 3,
+          "ties": 4,
+          "wins": 3
+        }
+      },
+      "K5_direct": {
+        "STRUCT": {
+          "losses": 3,
+          "ties": 27,
+          "wins": 0
+        }
+      },
+      "K5_recommendation": {
+        "STRUCT": {
+          "losses": 2,
+          "ties": 5,
+          "wins": 3
+        }
+      }
+    },
+    "direct": {
+      "OLD": {
+        "losses": 1,
+        "ties": 53,
+        "wins": 6
+      },
+      "STRUCT": {
+        "losses": 6,
+        "ties": 53,
+        "wins": 1
+      }
+    },
+    "overall": {
+      "OLD": {
+        "losses": 7,
+        "ties": 62,
+        "wins": 11
+      },
+      "STRUCT": {
+        "losses": 11,
+        "ties": 62,
+        "wins": 7
+      }
+    },
+    "recommendation": {
+      "OLD": {
+        "losses": 6,
+        "ties": 9,
+        "wins": 5
+      },
+      "STRUCT": {
+        "losses": 5,
+        "ties": 9,
+        "wins": 6
+      }
+    }
+  },
+  "final_interpretation": [
+    "old_accuracy_first_development_candidate",
+    "no_production_incumbent",
+    "switching_cost_not_applicable",
+    "not_eligible_for_promotion",
+    "dominance_not_established_62_of_80_ties"
+  ],
+  "non_blind_automatic_regression_audit": {
+    "ambiguous": 2,
+    "audited_rows": 20,
+    "false_or_tie": 13,
+    "provenance": "separate non-blind data analyst audit; not part of final blind result",
+    "real_card_omission": 2,
+    "transport": 3
+  },
+  "provenance": {
+    "configuration_key_decoded_only_after_judgment": true,
+    "human_audit": false,
+    "original_raw_outside_packet_evidence_read": false,
+    "review_input": "anonymous packet only",
+    "reviewer": "single custom Codex reviewer"
+  },
+  "severity_with_common_errors_counted": {
+    "OLD": {
+      "critical": 0,
+      "major": 10,
+      "minor": 3
+    },
+    "STRUCT": {
+      "critical": 1,
+      "major": 11,
+      "minor": 5
+    }
+  },
+  "struct_critical_case": {
+    "blind_pair_id": "AB-33bc686e4aed",
+    "error": "response_failure"
+  }
+}

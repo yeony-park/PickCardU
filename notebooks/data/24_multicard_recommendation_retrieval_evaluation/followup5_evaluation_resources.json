@@ -1,0 +1,39 @@
+{
+  "api_cost_usd": 0,
+  "depth_specific_gpu_latency": "not_measured",
+  "evaluation_cpu": {
+    "cpu_seconds": 0.106463062,
+    "incremental_ru_maxrss_mib": 0.0,
+    "peak_rss_mib": 82.7109375,
+    "wall_seconds": 0.10648872004821897
+  },
+  "index_or_storage_change": 0,
+  "latency_reduction_or_increase_claim_allowed": false,
+  "new_embeddings": 0,
+  "new_scoring_measurement": {
+    "pairs": 102,
+    "scope": "aggregate 102 newly scored unique query-bundle pairs only",
+    "scoring_seconds": 3.8716473130043596
+  },
+  "quality_cost_by_depth": {
+    "20": {
+      "candidate_card_pair_increase_vs_d20": 0.0,
+      "candidate_card_pairs": 68,
+      "mean_unique_cards": 6.8,
+      "near_full_10_card_corpus": false
+    },
+    "30": {
+      "candidate_card_pair_increase_vs_d20": 0.25,
+      "candidate_card_pairs": 85,
+      "mean_unique_cards": 8.5,
+      "near_full_10_card_corpus": false
+    },
+    "50": {
+      "candidate_card_pair_increase_vs_d20": 0.4411764705882353,
+      "candidate_card_pairs": 98,
+      "mean_unique_cards": 9.8,
+      "near_full_10_card_corpus": true
+    }
+  },
+  "scoring_resources_sha256": "9e2970e5cf1274e1e1f5de70d3c7afef7602aec9035644798034a0da56257a2e"
+}

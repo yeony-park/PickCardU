@@ -1,0 +1,82 @@
+{
+  "measurement_status": "shared_gpu_measurement_non_confirmatory",
+  "physical_gpu": 0,
+  "cuda_visible_devices": "0",
+  "gpu_before": {
+    "gpu_line": "0, GPU-7ba60a9d-7e53-b0e1-1b30-a1a0e6480ce5, NVIDIA GeForce RTX 3090, 279, 24576, 0",
+    "processes": [
+      {
+        "gpu_uuid": "GPU-7ba60a9d-7e53-b0e1-1b30-a1a0e6480ce5",
+        "pid": 347458,
+        "process_name": "/usr/bin/ollama",
+        "used_memory_mib": 256.0
+      }
+    ],
+    "captured_at_unix": 1787577703.7965007
+  },
+  "gpu_after": {
+    "gpu_line": "0, GPU-7ba60a9d-7e53-b0e1-1b30-a1a0e6480ce5, NVIDIA GeForce RTX 3090, 621, 24576, 76",
+    "processes": [
+      {
+        "gpu_uuid": "GPU-7ba60a9d-7e53-b0e1-1b30-a1a0e6480ce5",
+        "pid": 347458,
+        "process_name": "/usr/bin/ollama",
+        "used_memory_mib": 256.0
+      },
+      {
+        "gpu_uuid": "GPU-7ba60a9d-7e53-b0e1-1b30-a1a0e6480ce5",
+        "pid": 3932323,
+        "process_name": "/home/sms/anaconda3/envs/skn25/bin/python",
+        "used_memory_mib": 336.0
+      }
+    ],
+    "captured_at_unix": 1787577729.0882869
+  },
+  "models": [
+    {
+      "model": "gte",
+      "load_seconds": 1.1283352950122207,
+      "warmup_seconds": 0.20643102005124092,
+      "scoring_seconds": 7.627037076978013,
+      "quality_pairs": 1500,
+      "pairs_per_second": 196.6687699116746,
+      "batch_size": 2,
+      "dtype": "float16",
+      "max_length": 8192,
+      "truncation": "only_second",
+      "oom": false,
+      "peak_allocated_gib": 0.7012882232666016,
+      "peak_reserved_gib": 0.791015625,
+      "measurement_status": "shared_gpu_measurement_non_confirmatory",
+      "token_p50": 280.0,
+      "token_p95": 1185.05,
+      "token_max": 1647,
+      "truncated_pairs": 0,
+      "cache_bytes": 629269531,
+      "revision": "8215cf04918ba6f7b6a62bb44238ce2953d8831c"
+    },
+    {
+      "model": "bge",
+      "load_seconds": 0.97742555802688,
+      "warmup_seconds": 0.02022561919875443,
+      "scoring_seconds": 14.112105360953137,
+      "quality_pairs": 1500,
+      "pairs_per_second": 106.29172342706272,
+      "batch_size": 2,
+      "dtype": "float16",
+      "max_length": 8192,
+      "truncation": "only_second",
+      "oom": false,
+      "peak_allocated_gib": 1.1470298767089844,
+      "peak_reserved_gib": 1.220703125,
+      "measurement_status": "shared_gpu_measurement_non_confirmatory",
+      "token_p50": 280.0,
+      "token_p95": 1185.05,
+      "token_max": 1647,
+      "truncated_pairs": 0,
+      "cache_bytes": 2293568873,
+      "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e"
+    }
+  ],
+  "network_api_download_new_embedding_chroma": 0
+}

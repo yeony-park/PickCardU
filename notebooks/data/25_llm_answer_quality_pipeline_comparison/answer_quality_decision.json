@@ -1,0 +1,49 @@
+{
+  "blind_review_followup": {
+    "automatic_selection_unchanged": true,
+    "blind_overall": {
+      "OLD": {
+        "losses": 7,
+        "ties": 62,
+        "wins": 11
+      },
+      "STRUCT": {
+        "losses": 11,
+        "ties": 62,
+        "wins": 7
+      }
+    },
+    "custom_agent_not_human": true,
+    "dominance_not_established_ties": 62,
+    "final_interpretation": [
+      "old_accuracy_first_development_candidate",
+      "no_production_incumbent",
+      "switching_cost_not_applicable",
+      "not_eligible_for_promotion",
+      "dominance_not_established_62_of_80_ties"
+    ],
+    "summary_sha256": "c300aec8c85b9a4b1047705e3ad4b7559ad6d04f2fbad81eb94ceb5efc3874b2"
+  },
+  "candidates": [
+    {
+      "delta": 0.00624886084125198,
+      "eligible": false,
+      "guardrails": false,
+      "k": 3,
+      "losses": 9,
+      "wins": 13
+    },
+    {
+      "delta": -0.02135828292078279,
+      "eligible": false,
+      "guardrails": false,
+      "k": 5,
+      "losses": 11,
+      "wins": 11
+    }
+  ],
+  "dev_only_no_promotion": true,
+  "raw_best": "STRUCT-K3",
+  "regressions": 20,
+  "selection": "retain_old_end_to_end_package"
+}

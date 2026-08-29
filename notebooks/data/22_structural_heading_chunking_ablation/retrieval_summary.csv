@@ -1,0 +1,13 @@
+configuration,group,denominator,card_hit_at_3,card_hit_at_3_denominator,card_mrr_at_5,card_mrr_at_5_denominator,answer_hit_at_3,answer_hit_at_3_denominator,answer_recall_at_5,answer_recall_at_5_denominator,answer_mrr_at_5,answer_mrr_at_5_denominator,answer_ndcg_at_5,answer_ndcg_at_5_denominator
+existing_exact_v1,all,30,0.9333333333333333,30,0.8972222222222221,30,0.9,20,0.6416558441558441,20,0.8791666666666667,20,0.7484203531550575,20
+existing_exact_v1,card,10,1.0,10,0.9333333333333333,10,,0,,0,,0,,0
+existing_exact_v1,evidence,20,0.9,20,0.8791666666666667,20,0.9,20,0.6416558441558441,20,0.8791666666666667,20,0.7484203531550575,20
+existing_exact_v1,numeric,10,1.0,10,0.9333333333333332,10,1.0,10,0.7045238095238096,10,0.9333333333333332,10,0.792000921150885,10
+existing_exact_v1,semantic,10,0.8,10,0.825,10,0.8,10,0.5787878787878789,10,0.825,10,0.7048397851592301,10
+existing_exact_v1,proper_noun,10,1.0,10,0.9333333333333333,10,,0,,0,,0,,0
+structural_heading_path,all,30,0.9666666666666667,30,0.95,30,0.9,20,0.8583333333333334,20,0.875,20,0.8464579186236862,20
+structural_heading_path,card,10,1.0,10,1.0,10,,0,,0,,0,,0
+structural_heading_path,evidence,20,0.95,20,0.925,20,0.9,20,0.8583333333333334,20,0.875,20,0.8464579186236862,20
+structural_heading_path,numeric,10,1.0,10,1.0,10,0.9,10,0.8666666666666666,10,0.9,10,0.8765360636988622,10
+structural_heading_path,semantic,10,0.9,10,0.85,10,0.9,10,0.85,10,0.85,10,0.8163797735485104,10
+structural_heading_path,proper_noun,10,1.0,10,1.0,10,,0,,0,,0,,0

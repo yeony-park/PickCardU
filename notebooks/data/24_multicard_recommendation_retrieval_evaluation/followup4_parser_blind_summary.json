@@ -1,0 +1,54 @@
+{
+  "blind_limitation": "blind_style_development_only: self-recorded phase order and hashes, not an independent snapshot/commit",
+  "coverage_historical_alias": "coverage_count/coverage_rate",
+  "decision": {
+    "allow_search_bundle_bge": false,
+    "always": [
+      "blind_style_development_only",
+      "not_eligible_for_promotion"
+    ],
+    "api_gpu_model_search_flags": 0,
+    "blind_limitation": "blind_style_development_only: self-recorded phase order and hashes, not an independent snapshot/commit",
+    "coverage_count": 4,
+    "coverage_historical_alias": {
+      "coverage_count": "two_predicate_output_coverage_count",
+      "coverage_rate": "two_predicate_output_coverage_rate"
+    },
+    "coverage_rate": 0.4,
+    "disposition": "deterministic_parser_generalization_failed",
+    "downstream_permanently_forbidden_for_this_parser_version": true,
+    "exact_accuracy": 0.4,
+    "exact_count": 4,
+    "fail_code_counts": {
+      "FAIL_NO_AND_CONNECTOR": 1,
+      "FAIL_TOO_FEW": 5
+    },
+    "fail_count": 6,
+    "future_parser_change_policy": "new Follow-up/version required; no Phase C for this parser version",
+    "gpu_search_started": false,
+    "parser_or_lexicon_modified": false,
+    "predicate_macro_f1": 0.43714285714285717,
+    "predicate_micro_f1": 0.5714285714285714,
+    "strong_pass": false,
+    "terminal": true,
+    "total": 10,
+    "two_predicate_output_coverage_count": 4,
+    "two_predicate_output_coverage_rate": 0.4,
+    "wrong_pair_count": 0
+  },
+  "hash_semantics": {
+    "historical_aliases": {
+      "contract_core.parser_source_sha256": "parser_source_text_sha256",
+      "followup4_parser_freeze.json.parser_source_sha256": "parser_source_artifact_sha256",
+      "followup4_parser_source.json.source_sha256": "parser_source_text_sha256"
+    },
+    "parser_source_artifact_sha256": "f2df3adec8d508df825d51cf109516281d63c34dd647e799d124b75289c48444",
+    "parser_source_text_sha256": "6df586df89c882b501e0db0876daa7bbb9add8536b972dc0fbc389a3f9ef8ba5",
+    "source_artifact_self_hash_excluded_from_source_artifact": true
+  },
+  "historical_expected_reference_sha256": "186b63034b6d997608eb3b02ca9feeb491914c6e70c9bd167a121647779e4c8f",
+  "prediction_freeze_sha256": "0c23c0c2a2edaa28a571f903d8e10a0fd616cc57a6bd86fd3b4955448fc0e849",
+  "reportable_coverage_name": "two_predicate_output_coverage",
+  "two_predicate_output_coverage_count": 4,
+  "two_predicate_output_coverage_rate": 0.4
+}

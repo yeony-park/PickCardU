@@ -1,0 +1,50 @@
+{
+  "api_requests_current_run": 0,
+  "api_seconds": 0.0017710421234369278,
+  "cpu_seconds": 2.7591818849999994,
+  "execution_history": [
+    {
+      "api_requests": 0,
+      "bge_pairs_scored": 0,
+      "embedding_items_created": 0,
+      "sequence": 1,
+      "stage": "cpu_offline_preflight",
+      "status": "success"
+    },
+    {
+      "api_input_tokens": 525,
+      "api_requests": 1,
+      "api_wall_seconds": "not preserved because the failed notebook was not saved",
+      "bge_pairs_scored": 0,
+      "embedding_items_created": 10,
+      "failure": "incorrect np.array_equal assertion collapsed duplicate content hashes whose historical positional vectors differ slightly",
+      "query_cache_sha256": "64102d65421966710dd47b06ebeb64c5279c220175c68b782070a20a8255bfb1",
+      "sequence": 2,
+      "stage": "approved_query_embedding_then_old_cache_loader",
+      "status": "failed_after_cache_creation"
+    },
+    {
+      "api_input_tokens_historical": 525,
+      "api_requests": 0,
+      "batch_size": 2,
+      "bge_pairs_scored": 400,
+      "embedding_items_reused": 10,
+      "oom": false,
+      "sequence": 3,
+      "stage": "authoritative_positional_cache_search_bge_evaluation",
+      "status": "success"
+    },
+    {
+      "api_requests": 0,
+      "bge_pairs_scored": 0,
+      "gpu_used": false,
+      "sequence": 4,
+      "stage": "offline_finalization_validation",
+      "status": "success"
+    }
+  ],
+  "finalization_api_network_requests": 0,
+  "incremental_ru_maxrss_mib": 0.0,
+  "peak_rss_mib": 2291.70703125,
+  "wall_seconds": 2.759007076965645
+}

@@ -1,0 +1,58 @@
+{
+  "always": [
+    "same_10_card_development_only",
+    "not_eligible_for_promotion",
+    "not_operational_or_holdout_evidence"
+  ],
+  "catastrophic_queries": {
+    "30": {},
+    "50": {}
+  },
+  "disposition": "retain_old_selective_bge_d20",
+  "gate_threshold_sources": {
+    "card_recall_at_3": {
+      "source_file": "followup2_summary.json",
+      "source_key": [
+        "and_combination",
+        "old_selective_bge_d20",
+        "card_recall_at_3"
+      ],
+      "tolerance": 1e-12,
+      "value": 0.8416666666666668
+    }
+  },
+  "gates": {
+    "30": {
+      "checks": {
+        "candidate_card_recall_at_n_gte_old_0_95": true,
+        "card_precision_at_5_gte_0_42": true,
+        "card_recall_at_3_gte_f2_old_raw": false,
+        "card_recall_at_5_gte_0_925": true,
+        "catastrophic_loss_count_0": true,
+        "contract_or_truncation_count_0": true,
+        "evidence_accuracy_at_5_gte_structural_d20_0_28": true,
+        "new_zero_ceiling_count_0": true,
+        "supported_recall_at_5_gte_structural_d20_0_6333": true
+      },
+      "pass": false
+    },
+    "50": {
+      "checks": {
+        "candidate_card_recall_at_n_gte_old_0_95": true,
+        "card_precision_at_5_gte_0_42": true,
+        "card_recall_at_3_gte_f2_old_raw": false,
+        "card_recall_at_5_gte_0_925": false,
+        "catastrophic_loss_count_0": true,
+        "contract_or_truncation_count_0": true,
+        "evidence_accuracy_at_5_gte_structural_d20_0_28": true,
+        "new_zero_ceiling_count_0": true,
+        "supported_recall_at_5_gte_structural_d20_0_6333": true
+      },
+      "pass": false
+    }
+  },
+  "score_reuse_strong_fingerprint_exact_pairs": 74,
+  "selected_depth": null,
+  "selection": "old_selective_bge_d20_fixed",
+  "technical_gate_only": true
+}

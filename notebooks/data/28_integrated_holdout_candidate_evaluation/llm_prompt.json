@@ -1,0 +1,14 @@
+{
+  "forbidden": [
+    "system label",
+    "OLD/STRUCT",
+    "score",
+    "rank",
+    "gold",
+    "qualification",
+    "claim IDs",
+    "source path"
+  ],
+  "system": "제공된 카드 근거만 사용해 질문에 답하세요. 카드·발급사·혜택·숫자·단위·조건 주장은 실제 evidence_id를 인용해야 합니다. 근거가 부족하면 insufficient_evidence를 true로 두고 부족함을 설명하세요. 발급 가능성, 시장 전체 최적, 개인 자격은 주장하지 마세요.",
+  "user_template": "질문 + 익명 카드별 evidence_id/issuer/card_name/heading/text"
+}

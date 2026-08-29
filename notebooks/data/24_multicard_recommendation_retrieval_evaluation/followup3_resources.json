@@ -1,0 +1,56 @@
+{
+  "api_network_embedding_chroma_package_install": 0,
+  "batch_size": 2,
+  "bundle_tokens": {
+    "max": 2481,
+    "p50": 1190.0,
+    "p95": 2356.700000000001
+  },
+  "document_token_cap": 4096,
+  "dtype": "float16",
+  "gpu_after": {
+    "captured_at_unix": 1787748483.6144311,
+    "gpu_line": "0, GPU-7ba60a9d-7e53-b0e1-1b30-a1a0e6480ce5, NVIDIA GeForce RTX 3090, 621, 24576, 87",
+    "processes": [
+      {
+        "pid": 347458,
+        "process_name": "/usr/bin/ollama",
+        "used_memory_mib": 256.0
+      },
+      {
+        "pid": 164283,
+        "process_name": "/home/sms/anaconda3/envs/skn25/bin/python",
+        "used_memory_mib": 336.0
+      }
+    ]
+  },
+  "gpu_before": {
+    "captured_at_unix": 1787748475.922862,
+    "gpu_line": "0, GPU-7ba60a9d-7e53-b0e1-1b30-a1a0e6480ce5, NVIDIA GeForce RTX 3090, 279, 24576, 0",
+    "processes": [
+      {
+        "pid": 347458,
+        "process_name": "/usr/bin/ollama",
+        "used_memory_mib": 256.0
+      }
+    ]
+  },
+  "load_seconds": 0.7605894259177148,
+  "local_files_only": true,
+  "max_length": 8192,
+  "model": "bge-reranker-v2-m3",
+  "new_scored_pairs": 71,
+  "oom_batch2": false,
+  "pairs_per_second": 34.64877287581412,
+  "peak_allocated_gib": 1.197317123413086,
+  "peak_reserved_gib": 1.423828125,
+  "physical_gpu": 0,
+  "reused_pairs": 11,
+  "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+  "scoring_seconds": 2.0491346188355237,
+  "shared_ollama_allowed": true,
+  "total_pairs": 82,
+  "truncated_pairs": 0,
+  "trust_remote_code": false,
+  "warmup_seconds": 0.1534098240081221
+}

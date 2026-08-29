@@ -1,0 +1,490 @@
+{
+  "schema_version": "retrieval_ablation_v1",
+  "created_at": "2026-08-13T09:05:13.734965+00:00",
+  "execution": {
+    "network_calls": 0,
+    "openai_calls": 0,
+    "embedding_cache_and_chroma_unchanged": true,
+    "state_before": {
+      "api_requests": 6,
+      "api_input_tokens": 180066,
+      "embedding_cache_hash": "3a42f5ae5ec3c64048918c0bb252d797d188e8647e2dc252ad1fb5a290630446",
+      "chroma_hash": "a25c1d99940f74f35a220ed46c697ef49b2eb2a7e02cb66441d92e34b57e6174",
+      "chroma_count": 327
+    },
+    "state_after": {
+      "api_requests": 6,
+      "api_input_tokens": 180066,
+      "embedding_cache_hash": "3a42f5ae5ec3c64048918c0bb252d797d188e8647e2dc252ad1fb5a290630446",
+      "chroma_hash": "a25c1d99940f74f35a220ed46c697ef49b2eb2a7e02cb66441d92e34b57e6174",
+      "chroma_count": 327
+    }
+  },
+  "settings": {
+    "rrf": {
+      "k": 60,
+      "source_rank_depth": 50,
+      "weights": [
+        "0.5:0.5",
+        "0.6:0.4",
+        "0.7:0.3",
+        "0.8:0.2"
+      ]
+    },
+    "hierarchy": {
+      "card": [
+        "card"
+      ],
+      "page": [
+        "page"
+      ],
+      "section": [
+        "section"
+      ],
+      "benefit": [
+        "benefit"
+      ],
+      "section+benefit": [
+        "section",
+        "benefit"
+      ],
+      "all": [
+        "card",
+        "page",
+        "section",
+        "benefit"
+      ]
+    },
+    "two_stage_candidate_n": [
+      1,
+      3,
+      5
+    ],
+    "duplicate_controls": {
+      "none": {
+        "max_per_card": null,
+        "max_per_parent": null
+      },
+      "card_max_1": {
+        "max_per_card": 1,
+        "max_per_parent": null
+      },
+      "card_max_2": {
+        "max_per_card": 2,
+        "max_per_parent": null
+      },
+      "card_max_2_parent_max_1": {
+        "max_per_card": 2,
+        "max_per_parent": 1
+      }
+    },
+    "tie_breaking": "RRF score descending, then chunk ID ascending; vector squared-L2 ascending then ID; keyword BM25 descending then ID.",
+    "selection_criterion": "Predeclared final uses vector-forward 0.7/0.3 for semantic recall, top-3 candidate cards for recall/diversity, unique explicit metadata alias when available, and max two evidence chunks per card."
+  },
+  "metric_contract": {
+    "card_hit_at_3": "Any top-3 chunk has expected_card.",
+    "strict_evidence_hit_at_3": "Any top-3 chunk is relevant under the unchanged expected_card + expected_level + required_terms contract.",
+    "N/A": "A hierarchy configuration has no chunk at the gold strict evidence level; excluded from that metric denominator."
+  },
+  "leakage_audit": {
+    "status": "passed",
+    "retrieval_allowed_inputs": [
+      "query string",
+      "corpus chunk text/scalar metadata",
+      "cached query/chunk embeddings",
+      "corpus-derived CARD_ALIASES"
+    ],
+    "retrieval_prohibited_inputs": [
+      "expected_card",
+      "expected_level",
+      "required_terms",
+      "category"
+    ],
+    "implementation_contract": "Rank generation passes only query[query] plus cached/base rankings to retrieval functions. Gold fields enter evaluate_ablation, strict_relevant_ids, record grouping, and report rows only.",
+    "metadata_filter_rule": "Apply only when query text matches aliases for exactly one card; ambiguous or absent matches remain unfiltered.",
+    "intent_rule": "Card routing uses only fixed query phrases: 어느 카드사/은행/회사, 발급사, 어떤 상품."
+  },
+  "summaries": [
+    {
+      "family": "weighted_rrf",
+      "configuration": "vector_0.5_keyword_0.5",
+      "query_group": "all",
+      "card_hit_at_3": 0.9,
+      "card_hit_at_3_denominator": 30,
+      "strict_evidence_hit_at_3": 0.6,
+      "strict_evidence_hit_at_3_denominator": 30,
+      "recall_at_5": 0.725,
+      "recall_at_5_denominator": 30,
+      "mrr_at_5": 0.45388888888888884,
+      "mrr_at_5_denominator": 30,
+      "ndcg_at_5": 0.5036922394548896,
+      "ndcg_at_5_denominator": 30
+    },
+    {
+      "family": "weighted_rrf",
+      "configuration": "vector_0.6_keyword_0.4",
+      "query_group": "all",
+      "card_hit_at_3": 0.9,
+      "card_hit_at_3_denominator": 30,
+      "strict_evidence_hit_at_3": 0.6,
+      "strict_evidence_hit_at_3_denominator": 30,
+      "recall_at_5": 0.725,
+      "recall_at_5_denominator": 30,
+      "mrr_at_5": 0.48166666666666663,
+      "mrr_at_5_denominator": 30,
+      "ndcg_at_5": 0.5253494465580817,
+      "ndcg_at_5_denominator": 30
+    },
+    {
+      "family": "weighted_rrf",
+      "configuration": "vector_0.7_keyword_0.3",
+      "query_group": "all",
+      "card_hit_at_3": 0.9,
+      "card_hit_at_3_denominator": 30,
+      "strict_evidence_hit_at_3": 0.6,
+      "strict_evidence_hit_at_3_denominator": 30,
+      "recall_at_5": 0.725,
+      "recall_at_5_denominator": 30,
+      "mrr_at_5": 0.4705555555555555,
+      "mrr_at_5_denominator": 30,
+      "ndcg_at_5": 0.5183289071211779,
+      "ndcg_at_5_denominator": 30
+    },
+    {
+      "family": "weighted_rrf",
+      "configuration": "vector_0.8_keyword_0.2",
+      "query_group": "all",
+      "card_hit_at_3": 0.9333333333333333,
+      "card_hit_at_3_denominator": 30,
+      "strict_evidence_hit_at_3": 0.6,
+      "strict_evidence_hit_at_3_denominator": 30,
+      "recall_at_5": 0.725,
+      "recall_at_5_denominator": 30,
+      "mrr_at_5": 0.4966666666666667,
+      "mrr_at_5_denominator": 30,
+      "ndcg_at_5": 0.5283873346132656,
+      "ndcg_at_5_denominator": 30
+    },
+    {
+      "family": "baseline_reconstructed",
+      "configuration": "keyword",
+      "query_group": "all",
+      "card_hit_at_3": 0.9333333333333333,
+      "card_hit_at_3_denominator": 30,
+      "strict_evidence_hit_at_3": 0.5333333333333333,
+      "strict_evidence_hit_at_3_denominator": 30,
+      "recall_at_5": 0.6166666666666667,
+      "recall_at_5_denominator": 30,
+      "mrr_at_5": 0.3816666666666667,
+      "mrr_at_5_denominator": 30,
+      "ndcg_at_5": 0.42944653268762767,
+      "ndcg_at_5_denominator": 30
+    },
+    {
+      "family": "baseline_reconstructed",
+      "configuration": "vector",
+      "query_group": "all",
+      "card_hit_at_3": 0.9666666666666667,
+      "card_hit_at_3_denominator": 30,
+      "strict_evidence_hit_at_3": 0.6,
+      "strict_evidence_hit_at_3_denominator": 30,
+      "recall_at_5": 0.725,
+      "recall_at_5_denominator": 30,
+      "mrr_at_5": 0.5111111111111112,
+      "mrr_at_5_denominator": 30,
+      "ndcg_at_5": 0.5370432222851463,
+      "ndcg_at_5_denominator": 30
+    },
+    {
+      "family": "baseline_reconstructed",
+      "configuration": "hybrid_rrf_0.5_0.5",
+      "query_group": "all",
+      "card_hit_at_3": 0.9,
+      "card_hit_at_3_denominator": 30,
+      "strict_evidence_hit_at_3": 0.6,
+      "strict_evidence_hit_at_3_denominator": 30,
+      "recall_at_5": 0.725,
+      "recall_at_5_denominator": 30,
+      "mrr_at_5": 0.45388888888888884,
+      "mrr_at_5_denominator": 30,
+      "ndcg_at_5": 0.5036922394548896,
+      "ndcg_at_5_denominator": 30
+    },
+    {
+      "family": "hierarchy",
+      "configuration": "card",
+      "query_group": "all",
+      "card_hit_at_3": 0.9,
+      "card_hit_at_3_denominator": 30,
+      "strict_evidence_hit_at_3": 1.0,
+      "strict_evidence_hit_at_3_denominator": 10,
+      "recall_at_5": 1.0,
+      "recall_at_5_denominator": 10,
+      "mrr_at_5": 1.0,
+      "mrr_at_5_denominator": 10,
+      "ndcg_at_5": 1.0,
+      "ndcg_at_5_denominator": 10
+    },
+    {
+      "family": "hierarchy",
+      "configuration": "page",
+      "query_group": "all",
+      "card_hit_at_3": 0.9,
+      "card_hit_at_3_denominator": 30,
+      "strict_evidence_hit_at_3": null,
+      "strict_evidence_hit_at_3_denominator": 0,
+      "recall_at_5": null,
+      "recall_at_5_denominator": 0,
+      "mrr_at_5": null,
+      "mrr_at_5_denominator": 0,
+      "ndcg_at_5": null,
+      "ndcg_at_5_denominator": 0
+    },
+    {
+      "family": "hierarchy",
+      "configuration": "section",
+      "query_group": "all",
+      "card_hit_at_3": 0.9333333333333333,
+      "card_hit_at_3_denominator": 30,
+      "strict_evidence_hit_at_3": 0.8,
+      "strict_evidence_hit_at_3_denominator": 10,
+      "recall_at_5": 0.8,
+      "recall_at_5_denominator": 10,
+      "mrr_at_5": 0.7033333333333334,
+      "mrr_at_5_denominator": 10,
+      "ndcg_at_5": 0.6957494526189862,
+      "ndcg_at_5_denominator": 10
+    },
+    {
+      "family": "hierarchy",
+      "configuration": "benefit",
+      "query_group": "all",
+      "card_hit_at_3": 0.9333333333333333,
+      "card_hit_at_3_denominator": 30,
+      "strict_evidence_hit_at_3": 0.8,
+      "strict_evidence_hit_at_3_denominator": 10,
+      "recall_at_5": 0.9,
+      "recall_at_5_denominator": 10,
+      "mrr_at_5": 0.7583333333333333,
+      "mrr_at_5_denominator": 10,
+      "ndcg_at_5": 0.8001265835341886,
+      "ndcg_at_5_denominator": 10
+    },
+    {
+      "family": "hierarchy",
+      "configuration": "section+benefit",
+      "query_group": "all",
+      "card_hit_at_3": 0.9,
+      "card_hit_at_3_denominator": 30,
+      "strict_evidence_hit_at_3": 0.65,
+      "strict_evidence_hit_at_3_denominator": 20,
+      "recall_at_5": 0.675,
+      "recall_at_5_denominator": 20,
+      "mrr_at_5": 0.5666666666666667,
+      "mrr_at_5_denominator": 20,
+      "ndcg_at_5": 0.5786932905270475,
+      "ndcg_at_5_denominator": 20
+    },
+    {
+      "family": "hierarchy",
+      "configuration": "all",
+      "query_group": "all",
+      "card_hit_at_3": 0.9,
+      "card_hit_at_3_denominator": 30,
+      "strict_evidence_hit_at_3": 0.6,
+      "strict_evidence_hit_at_3_denominator": 30,
+      "recall_at_5": 0.725,
+      "recall_at_5_denominator": 30,
+      "mrr_at_5": 0.4705555555555555,
+      "mrr_at_5_denominator": 30,
+      "ndcg_at_5": 0.5183289071211779,
+      "ndcg_at_5_denominator": 30
+    },
+    {
+      "family": "two_stage_card",
+      "configuration": "top_1",
+      "query_group": "proper_noun_or_card",
+      "card_hit_at_3": 1.0,
+      "card_hit_at_3_denominator": 10,
+      "strict_evidence_hit_at_3": 1.0,
+      "strict_evidence_hit_at_3_denominator": 10,
+      "recall_at_5": 1.0,
+      "recall_at_5_denominator": 10,
+      "mrr_at_5": 1.0,
+      "mrr_at_5_denominator": 10,
+      "ndcg_at_5": 1.0,
+      "ndcg_at_5_denominator": 10
+    },
+    {
+      "family": "two_stage_evidence",
+      "configuration": "top_1",
+      "query_group": "evidence",
+      "card_hit_at_3": 0.7,
+      "card_hit_at_3_denominator": 20,
+      "strict_evidence_hit_at_3": 0.5,
+      "strict_evidence_hit_at_3_denominator": 20,
+      "recall_at_5": 0.5,
+      "recall_at_5_denominator": 20,
+      "mrr_at_5": 0.4541666666666666,
+      "mrr_at_5_denominator": 20,
+      "ndcg_at_5": 0.4523969090412724,
+      "ndcg_at_5_denominator": 20
+    },
+    {
+      "family": "two_stage_card",
+      "configuration": "top_3",
+      "query_group": "proper_noun_or_card",
+      "card_hit_at_3": 1.0,
+      "card_hit_at_3_denominator": 10,
+      "strict_evidence_hit_at_3": 1.0,
+      "strict_evidence_hit_at_3_denominator": 10,
+      "recall_at_5": 1.0,
+      "recall_at_5_denominator": 10,
+      "mrr_at_5": 1.0,
+      "mrr_at_5_denominator": 10,
+      "ndcg_at_5": 1.0,
+      "ndcg_at_5_denominator": 10
+    },
+    {
+      "family": "two_stage_evidence",
+      "configuration": "top_3",
+      "query_group": "evidence",
+      "card_hit_at_3": 0.8,
+      "card_hit_at_3_denominator": 20,
+      "strict_evidence_hit_at_3": 0.6,
+      "strict_evidence_hit_at_3_denominator": 20,
+      "recall_at_5": 0.6,
+      "recall_at_5_denominator": 20,
+      "mrr_at_5": 0.5041666666666667,
+      "mrr_at_5_denominator": 20,
+      "ndcg_at_5": 0.5154898843984181,
+      "ndcg_at_5_denominator": 20
+    },
+    {
+      "family": "two_stage_card",
+      "configuration": "top_5",
+      "query_group": "proper_noun_or_card",
+      "card_hit_at_3": 1.0,
+      "card_hit_at_3_denominator": 10,
+      "strict_evidence_hit_at_3": 1.0,
+      "strict_evidence_hit_at_3_denominator": 10,
+      "recall_at_5": 1.0,
+      "recall_at_5_denominator": 10,
+      "mrr_at_5": 1.0,
+      "mrr_at_5_denominator": 10,
+      "ndcg_at_5": 1.0,
+      "ndcg_at_5_denominator": 10
+    },
+    {
+      "family": "two_stage_evidence",
+      "configuration": "top_5",
+      "query_group": "evidence",
+      "card_hit_at_3": 0.8,
+      "card_hit_at_3_denominator": 20,
+      "strict_evidence_hit_at_3": 0.6,
+      "strict_evidence_hit_at_3_denominator": 20,
+      "recall_at_5": 0.6,
+      "recall_at_5_denominator": 20,
+      "mrr_at_5": 0.5041666666666667,
+      "mrr_at_5_denominator": 20,
+      "ndcg_at_5": 0.5154898843984181,
+      "ndcg_at_5_denominator": 20
+    },
+    {
+      "family": "duplicate_control",
+      "configuration": "none",
+      "query_group": "evidence",
+      "card_hit_at_3": 0.85,
+      "card_hit_at_3_denominator": 20,
+      "strict_evidence_hit_at_3": 0.65,
+      "strict_evidence_hit_at_3_denominator": 20,
+      "recall_at_5": 0.675,
+      "recall_at_5_denominator": 20,
+      "mrr_at_5": 0.5666666666666667,
+      "mrr_at_5_denominator": 20,
+      "ndcg_at_5": 0.5786932905270475,
+      "ndcg_at_5_denominator": 20
+    },
+    {
+      "family": "duplicate_control",
+      "configuration": "card_max_1",
+      "query_group": "evidence",
+      "card_hit_at_3": 0.9,
+      "card_hit_at_3_denominator": 20,
+      "strict_evidence_hit_at_3": 0.5,
+      "strict_evidence_hit_at_3_denominator": 20,
+      "recall_at_5": 0.425,
+      "recall_at_5_denominator": 20,
+      "mrr_at_5": 0.4875,
+      "mrr_at_5_denominator": 20,
+      "ndcg_at_5": 0.4135059068184884,
+      "ndcg_at_5_denominator": 20
+    },
+    {
+      "family": "duplicate_control",
+      "configuration": "card_max_2",
+      "query_group": "evidence",
+      "card_hit_at_3": 0.9,
+      "card_hit_at_3_denominator": 20,
+      "strict_evidence_hit_at_3": 0.65,
+      "strict_evidence_hit_at_3_denominator": 20,
+      "recall_at_5": 0.5125,
+      "recall_at_5_denominator": 20,
+      "mrr_at_5": 0.5416666666666667,
+      "mrr_at_5_denominator": 20,
+      "ndcg_at_5": 0.48270885352813747,
+      "ndcg_at_5_denominator": 20
+    },
+    {
+      "family": "duplicate_control",
+      "configuration": "card_max_2_parent_max_1",
+      "query_group": "evidence",
+      "card_hit_at_3": 0.9,
+      "card_hit_at_3_denominator": 20,
+      "strict_evidence_hit_at_3": 0.5,
+      "strict_evidence_hit_at_3_denominator": 20,
+      "recall_at_5": 0.425,
+      "recall_at_5_denominator": 20,
+      "mrr_at_5": 0.4875,
+      "mrr_at_5_denominator": 20,
+      "ndcg_at_5": 0.4135059068184884,
+      "ndcg_at_5_denominator": 20
+    },
+    {
+      "family": "metadata_filter",
+      "configuration": "unique_explicit_alias_else_unfiltered",
+      "query_group": "all",
+      "card_hit_at_3": 0.9,
+      "card_hit_at_3_denominator": 30,
+      "strict_evidence_hit_at_3": 0.6,
+      "strict_evidence_hit_at_3_denominator": 30,
+      "recall_at_5": 0.725,
+      "recall_at_5_denominator": 30,
+      "mrr_at_5": 0.4705555555555555,
+      "mrr_at_5_denominator": 30,
+      "ndcg_at_5": 0.5183289071211779,
+      "ndcg_at_5_denominator": 30
+    },
+    {
+      "family": "final",
+      "configuration": "rrf_0.7_0.3_alias_two_stage_n3_card2",
+      "query_group": "all",
+      "card_hit_at_3": 0.9,
+      "card_hit_at_3_denominator": 30,
+      "strict_evidence_hit_at_3": 0.7,
+      "strict_evidence_hit_at_3_denominator": 30,
+      "recall_at_5": 0.625,
+      "recall_at_5_denominator": 30,
+      "mrr_at_5": 0.65,
+      "mrr_at_5_denominator": 30,
+      "ndcg_at_5": 0.6115867824726673,
+      "ndcg_at_5_denominator": 30
+    }
+  ],
+  "limitations": [
+    "All configurations and the final selection are observed on the same 30-query set; an independent holdout is required to estimate generalization and avoid selection overfit.",
+    "CARD_ALIASES are deterministic corpus metadata but manually curated; unseen spelling variants remain unfiltered.",
+    "section and benefit parent_id currently point to the card, so parent_max_1 is effectively a one-result-per-card constraint rather than section-local deduplication.",
+    "BC is selected excerpt, IBK is incomplete/ambiguous, and the other eight cards remain visually unaudited full-page candidates."
+  ]
+}

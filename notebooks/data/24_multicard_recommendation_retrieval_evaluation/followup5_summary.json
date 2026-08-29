@@ -1,0 +1,143 @@
+{
+  "decision": {
+    "always": [
+      "same_10_card_development_only",
+      "not_eligible_for_promotion",
+      "not_operational_or_holdout_evidence"
+    ],
+    "catastrophic_queries": {
+      "30": {},
+      "50": {}
+    },
+    "disposition": "retain_old_selective_bge_d20",
+    "gate_threshold_sources": {
+      "card_recall_at_3": {
+        "source_file": "followup2_summary.json",
+        "source_key": [
+          "and_combination",
+          "old_selective_bge_d20",
+          "card_recall_at_3"
+        ],
+        "tolerance": 1e-12,
+        "value": 0.8416666666666668
+      }
+    },
+    "gates": {
+      "30": {
+        "checks": {
+          "candidate_card_recall_at_n_gte_old_0_95": true,
+          "card_precision_at_5_gte_0_42": true,
+          "card_recall_at_3_gte_f2_old_raw": false,
+          "card_recall_at_5_gte_0_925": true,
+          "catastrophic_loss_count_0": true,
+          "contract_or_truncation_count_0": true,
+          "evidence_accuracy_at_5_gte_structural_d20_0_28": true,
+          "new_zero_ceiling_count_0": true,
+          "supported_recall_at_5_gte_structural_d20_0_6333": true
+        },
+        "pass": false
+      },
+      "50": {
+        "checks": {
+          "candidate_card_recall_at_n_gte_old_0_95": true,
+          "card_precision_at_5_gte_0_42": true,
+          "card_recall_at_3_gte_f2_old_raw": false,
+          "card_recall_at_5_gte_0_925": false,
+          "catastrophic_loss_count_0": true,
+          "contract_or_truncation_count_0": true,
+          "evidence_accuracy_at_5_gte_structural_d20_0_28": true,
+          "new_zero_ceiling_count_0": true,
+          "supported_recall_at_5_gte_structural_d20_0_6333": true
+        },
+        "pass": false
+      }
+    },
+    "score_reuse_strong_fingerprint_exact_pairs": 74,
+    "selected_depth": null,
+    "selection": "old_selective_bge_d20_fixed",
+    "technical_gate_only": true
+  },
+  "metric_notes": {
+    "candidate_card_recall_at_n": "raw chunk prefix를 카드 단위로 접은 후보 recall",
+    "evidence_supported_card_recall_at_5": "Top5 카드 중 자동 번들이 두 frozen atomic claim을 모두 담은 정답 카드 recall",
+    "fixed_k": "빈 슬롯은 실패"
+  },
+  "summary": [
+    {
+      "bundle_reachable_evidence_recall_at_n": 0.7666666666666667,
+      "candidate_card_recall_at_n": 0.95,
+      "card_precision_at_3": 0.6333333333333334,
+      "card_precision_at_5": 0.42000000000000004,
+      "card_recall_at_3": 0.8416666666666668,
+      "card_recall_at_5": 0.925,
+      "card_zero_hit_at_5": 0.0,
+      "denominator": 10,
+      "depth": 20,
+      "evidence_accuracy_at_3": 0.3,
+      "evidence_accuracy_at_5": 0.18,
+      "evidence_supported_card_recall_at_5": 0.38333333333333336,
+      "mean_duplicate_chunk_count": 14.6,
+      "mean_unique_candidate_cards": 5.4,
+      "supported_zero_hit_at_5": 0.3,
+      "system": "old_selective_bge_d20_fixed",
+      "total_candidate_card_pairs": 54
+    },
+    {
+      "bundle_reachable_evidence_recall_at_n": 0.6333333333333333,
+      "candidate_card_recall_at_n": 0.8833333333333332,
+      "card_precision_at_3": 0.5666666666666667,
+      "card_precision_at_5": 0.38,
+      "card_recall_at_3": 0.7583333333333333,
+      "card_recall_at_5": 0.8333333333333333,
+      "card_zero_hit_at_5": 0.0,
+      "denominator": 10,
+      "depth": 20,
+      "evidence_accuracy_at_3": 0.4333333333333333,
+      "evidence_accuracy_at_5": 0.2800000000000001,
+      "evidence_supported_card_recall_at_5": 0.6333333333333333,
+      "mean_duplicate_chunk_count": 13.2,
+      "mean_unique_candidate_cards": 6.8,
+      "supported_zero_hit_at_5": 0.0,
+      "system": "structural_bundle_bge_d20",
+      "total_candidate_card_pairs": 68
+    },
+    {
+      "bundle_reachable_evidence_recall_at_n": 0.775,
+      "candidate_card_recall_at_n": 1.0,
+      "card_precision_at_3": 0.5666666666666668,
+      "card_precision_at_5": 0.43999999999999995,
+      "card_recall_at_3": 0.7416666666666667,
+      "card_recall_at_5": 0.95,
+      "card_zero_hit_at_5": 0.0,
+      "denominator": 10,
+      "depth": 30,
+      "evidence_accuracy_at_3": 0.4666666666666666,
+      "evidence_accuracy_at_5": 0.36,
+      "evidence_supported_card_recall_at_5": 0.775,
+      "mean_duplicate_chunk_count": 21.5,
+      "mean_unique_candidate_cards": 8.5,
+      "supported_zero_hit_at_5": 0.0,
+      "system": "structural_bundle_bge_d30",
+      "total_candidate_card_pairs": 85
+    },
+    {
+      "bundle_reachable_evidence_recall_at_n": 0.775,
+      "candidate_card_recall_at_n": 1.0,
+      "card_precision_at_3": 0.5,
+      "card_precision_at_5": 0.42000000000000004,
+      "card_recall_at_3": 0.6666666666666667,
+      "card_recall_at_5": 0.9,
+      "card_zero_hit_at_5": 0.0,
+      "denominator": 10,
+      "depth": 50,
+      "evidence_accuracy_at_3": 0.4,
+      "evidence_accuracy_at_5": 0.34,
+      "evidence_supported_card_recall_at_5": 0.725,
+      "mean_duplicate_chunk_count": 40.2,
+      "mean_unique_candidate_cards": 9.8,
+      "supported_zero_hit_at_5": 0.0,
+      "system": "structural_bundle_bge_d50",
+      "total_candidate_card_pairs": 98
+    }
+  ]
+}

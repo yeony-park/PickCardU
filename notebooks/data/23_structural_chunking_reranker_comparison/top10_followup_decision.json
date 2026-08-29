@@ -1,0 +1,76 @@
+{
+  "status": "top10_quality_guardrails_pass_dev_followup",
+  "all_bge_top10_passes_all_references": true,
+  "guardrails": {
+    "vs_top20": {
+      "checks": {
+        "evidence:hit_at_3": true,
+        "evidence:recall_at_5": true,
+        "evidence:mrr_at_5": true,
+        "evidence:ndcg_at_5": true,
+        "numeric:hit_at_3": true,
+        "numeric:recall_at_5": true,
+        "numeric:mrr_at_5": true,
+        "numeric:ndcg_at_5": true,
+        "semantic:hit_at_3": true,
+        "semantic:recall_at_5": true,
+        "semantic:mrr_at_5": true,
+        "semantic:ndcg_at_5": true,
+        "card:card_hit_at_3": true,
+        "card:card_mrr_at_5": true
+      },
+      "pass": true
+    },
+    "vs_top50": {
+      "checks": {
+        "evidence:hit_at_3": true,
+        "evidence:recall_at_5": true,
+        "evidence:mrr_at_5": true,
+        "evidence:ndcg_at_5": true,
+        "numeric:hit_at_3": true,
+        "numeric:recall_at_5": true,
+        "numeric:mrr_at_5": true,
+        "numeric:ndcg_at_5": true,
+        "semantic:hit_at_3": true,
+        "semantic:recall_at_5": true,
+        "semantic:mrr_at_5": true,
+        "semantic:ndcg_at_5": true,
+        "card:card_hit_at_3": true,
+        "card:card_mrr_at_5": true
+      },
+      "pass": true
+    },
+    "vs_old_operational_prototype": {
+      "checks": {
+        "evidence:hit_at_3": true,
+        "evidence:recall_at_5": true,
+        "evidence:mrr_at_5": true,
+        "evidence:ndcg_at_5": true,
+        "numeric:hit_at_3": true,
+        "numeric:recall_at_5": true,
+        "numeric:mrr_at_5": true,
+        "numeric:ndcg_at_5": true,
+        "semantic:hit_at_3": true,
+        "semantic:recall_at_5": true,
+        "semantic:mrr_at_5": true,
+        "semantic:ndcg_at_5": true,
+        "card:card_hit_at_3": true,
+        "card:card_mrr_at_5": true
+      },
+      "pass": true,
+      "cross_corpus_recall_ndcg": "diagnostic_only"
+    }
+  },
+  "quality_priority": [
+    "hit_at_3",
+    "recall_at_5",
+    "mrr_at_5",
+    "ndcg_at_5"
+  ],
+  "numeric_nonregression_required": true,
+  "claim": [
+    "development_followup_only",
+    "not_eligible_for_promotion",
+    "no_top10_latency_or_vram_reduction_claim"
+  ]
+}

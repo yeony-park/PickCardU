@@ -1,0 +1,26 @@
+{
+  "critical_retrieval_regression_record_ids_struct_vs_old": [
+    "O07"
+  ],
+  "llm_answer_gates_pending": [
+    "end_to_end_exact_success_count_min_21_of_30",
+    "positive_citation_ownership_1.0",
+    "all_derived_error_totals_0"
+  ],
+  "negative_gate_evaluable": true,
+  "reason": "sealed scoring contract selects on end-to-end answer quality; retrieval-only results cannot choose a winner",
+  "retrieval_only_gates": {
+    "OLD": {
+      "negative_correctness_4_of_4": true,
+      "required_claim_coverage": true,
+      "supported_card_recall_at_3": true
+    },
+    "STRUCT": {
+      "negative_correctness_4_of_4": true,
+      "required_claim_coverage": true,
+      "supported_card_recall_at_3": true
+    }
+  },
+  "selection_eligible": false,
+  "status": "awaiting_llm_generation_no_retrieval_winner"
+}

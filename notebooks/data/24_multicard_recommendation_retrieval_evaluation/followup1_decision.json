@@ -1,0 +1,22 @@
+{
+  "catastrophic_loss_count": 0,
+  "causal_claim": "end-to-end bundle pipeline comparison only; no structural-only causal claim",
+  "diagnostic_vs_structural_single": {
+    "bundle_supported_strict_improvement_over_single": true,
+    "card_precision_at_5_nonreg": true,
+    "card_recall_at_3_nonreg": true,
+    "card_recall_at_5_nonreg": true
+  },
+  "disposition": "adaptive_development_signal_only_bundle_candidate",
+  "gate_checks_vs_old": {
+    "bundle_evidence_accuracy_at_5": true,
+    "bundle_supported_card_recall_at_5": true,
+    "card_precision_at_5": true,
+    "card_recall_at_3": true,
+    "card_recall_at_5": true,
+    "catastrophic_loss_zero": true,
+    "supported_wins_gt_losses": true
+  },
+  "gate_pass": true,
+  "promotion_eligible": false
+}

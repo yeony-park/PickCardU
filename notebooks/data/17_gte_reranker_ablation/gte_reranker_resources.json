@@ -1,0 +1,46 @@
+{
+  "physical_gpu_index": 0,
+  "cuda_visible_devices": "0",
+  "visible_cuda_index": 0,
+  "gpu_name": "NVIDIA GeForce RTX 3090",
+  "dtype": "float16",
+  "batch_size": 2,
+  "max_length": 8192,
+  "truncation": "only_second",
+  "model_load_seconds": 0.9209258519113064,
+  "warmup_seconds": 0.2606452889740467,
+  "microbenchmark": {
+    "pairs": 2,
+    "seconds": 0.029173234943300486,
+    "pairs_per_second": 68.55598989577575
+  },
+  "quality_scoring": {
+    "unique_pairs": 1857,
+    "seconds_measured": 9.171242276905105,
+    "pairs_per_second": 202.48074840158478
+  },
+  "estimated_per_configuration_latency": {
+    "vector_0.5_bm25_0.5_top20": {
+      "seconds_estimated": 2.9632446775137655,
+      "method": "candidate_pairs / measured unique-pair throughput; not separately rerun"
+    },
+    "vector_0.5_bm25_0.5_top50": {
+      "seconds_estimated": 7.408111693784414,
+      "method": "candidate_pairs / measured unique-pair throughput; not separately rerun"
+    },
+    "vector_0.4_bm25_0.6_top20": {
+      "seconds_estimated": 2.9632446775137655,
+      "method": "candidate_pairs / measured unique-pair throughput; not separately rerun"
+    },
+    "vector_0.4_bm25_0.6_top50": {
+      "seconds_estimated": 7.408111693784414,
+      "method": "candidate_pairs / measured unique-pair throughput; not separately rerun"
+    }
+  },
+  "peak_vram_allocated_bytes": 794649600,
+  "peak_vram_reserved_bytes": 1283457024,
+  "network_calls": 0,
+  "api_calls": 0,
+  "new_embeddings": 0,
+  "package_installs": 0
+}

@@ -1,0 +1,4 @@
+system,denominator,card_precision_at_3,card_recall_at_3,card_precision_at_5,card_recall_at_5,single_representative_supported_card_recall_at_5,single_representative_evidence_accuracy_at_5,bundle_supported_card_recall_at_5,bundle_evidence_accuracy_at_5
+old_selective_bge_d20,10,0.6333333333333333,0.62,0.4800000000000001,0.7933333333333333,0.6433333333333333,0.4000000000000001,,
+structural_all_bge_d20_single_chunk,10,0.5666666666666667,0.55,0.5,0.7966666666666667,0.66,0.42000000000000004,,
+structural_card_bundle_bge_d20,10,0.6333333333333333,0.65,0.5,0.8266666666666665,,,0.7933333333333332,0.4800000000000001

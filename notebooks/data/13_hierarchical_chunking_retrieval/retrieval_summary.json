@@ -1,0 +1,476 @@
+{
+  "schema_version": "hierarchical_retrieval_summary_v1",
+  "created_at": "2026-08-13T08:29:18.194625+00:00",
+  "input_fingerprint": "536aa7fd898a5d2d9afb439720ccd203b836ebca4549bcf8af6cdce46a135875",
+  "collection": "gold_hier_536aa7fd898a_text_embedding_3_small",
+  "chroma_path": "notebooks/data/13_hierarchical_chunking_retrieval/chroma",
+  "embedding": {
+    "chunks": 327,
+    "queries": 30,
+    "embedding_items": 357,
+    "planned_tokens": 180066,
+    "batch_size": 64,
+    "planned_requests": 6,
+    "max_items": 1000,
+    "max_tokens": 200000,
+    "chunk_length_stats": {
+      "card": {
+        "count": 10,
+        "chars_min": 372,
+        "chars_p50": 596,
+        "chars_p95": 1025,
+        "chars_max": 1143,
+        "tokens_min": 352,
+        "tokens_p50": 550,
+        "tokens_p95": 1040,
+        "tokens_max": 1134
+      },
+      "page": {
+        "count": 50,
+        "chars_min": 7,
+        "chars_p50": 1135,
+        "chars_p95": 3949,
+        "chars_max": 4478,
+        "tokens_min": 2,
+        "tokens_p50": 1055,
+        "tokens_p95": 3503,
+        "tokens_max": 4157
+      },
+      "section": {
+        "count": 158,
+        "chars_min": 7,
+        "chars_p50": 314,
+        "chars_p95": 1252,
+        "chars_max": 2423,
+        "tokens_min": 2,
+        "tokens_p50": 283,
+        "tokens_p95": 1127,
+        "tokens_max": 2247
+      },
+      "benefit": {
+        "count": 109,
+        "chars_min": 20,
+        "chars_p50": 317,
+        "chars_p95": 1378,
+        "chars_max": 2264,
+        "tokens_min": 12,
+        "tokens_p50": 283,
+        "tokens_p95": 1290,
+        "tokens_max": 2126
+      }
+    },
+    "duplicate_stats": {
+      "exact_duplicate_groups_all_levels": 34,
+      "exact_duplicate_excess_chunks_all_levels": 41,
+      "exact_duplicate_excess_chunks_same_level": 0,
+      "near_duplicate_pairs_same_card_level_jaccard_0_9": 3,
+      "raw_characters": 70471,
+      "chunk_characters": 196412,
+      "chunk_to_raw_character_multiplier": 2.7871322955541995,
+      "structured_labels": 228,
+      "benefit_chunks_after_same_range_merge": 109,
+      "benefit_overlap_characters": 26905,
+      "benefit_overlap_share_of_all_chunks": 0.1369824654298108
+    },
+    "chunking_policy": {
+      "boundary_priority": [
+        "card routing overview from raw lines/headings",
+        "[page n] marker",
+        "Markdown heading",
+        "structured label-assisted benefit range"
+      ],
+      "size_chars": {
+        "card": 2000,
+        "page": 6000,
+        "section": 4000,
+        "benefit": 3000
+      },
+      "card_page_size_reason": "card is a compact routing overview, not a concatenated parent document; page preserves a larger canonical raw span",
+      "structured_join": "labels selecting the same normalized raw range are merged into one benefit chunk; all labels remain scalar JSON metadata"
+    },
+    "overlap_policy": {
+      "card": "0; selective raw overview",
+      "page": "0 fixed overlap; paragraph-boundary split",
+      "section": "0 fixed overlap; heading-boundary split",
+      "benefit": "best matching raw paragraph plus one adjacent paragraph on each side"
+    },
+    "model": "text-embedding-3-small",
+    "executed_api_requests": 6,
+    "cache_hit_batches": 0,
+    "api_input_tokens": 180066,
+    "batches": [
+      {
+        "batch": 1,
+        "items": 64,
+        "cached": false,
+        "input_tokens": 38542,
+        "total_tokens": 38542,
+        "batch_fingerprint": "3c81bda6bc8b1e69ca305b0dcc219203baeede6797e91045dbde36244babc3b4"
+      },
+      {
+        "batch": 2,
+        "items": 64,
+        "cached": false,
+        "input_tokens": 33729,
+        "total_tokens": 33729,
+        "batch_fingerprint": "335a583c624bd1fe61aec74282af4e1462af20962c96147ada05ed5a29605fba"
+      },
+      {
+        "batch": 3,
+        "items": 64,
+        "cached": false,
+        "input_tokens": 35241,
+        "total_tokens": 35241,
+        "batch_fingerprint": "93cd3f7a2ca8c9e070421705a575465a92f29966aebae38a583c2da60a6ee97f"
+      },
+      {
+        "batch": 4,
+        "items": 64,
+        "cached": false,
+        "input_tokens": 29090,
+        "total_tokens": 29090,
+        "batch_fingerprint": "b6ae13c54bbba3d250e83c39da8673647b077dfc91f671565b4cef016593fbf2"
+      },
+      {
+        "batch": 5,
+        "items": 64,
+        "cached": false,
+        "input_tokens": 41357,
+        "total_tokens": 41357,
+        "batch_fingerprint": "8433343533d6e8ae60f40c42d7e4a0b43b751bb36e26532e738ff51eac4a9ae0"
+      },
+      {
+        "batch": 6,
+        "items": 37,
+        "cached": false,
+        "input_tokens": 2107,
+        "total_tokens": 2107,
+        "batch_fingerprint": "cb5d9e87e091be498d91fa51d46619ca60c7fe5314b27a6686b017cb8c304e55"
+      }
+    ],
+    "secret_persisted": false
+  },
+  "chunk_count": 327,
+  "chunk_levels": {
+    "card": 10,
+    "page": 50,
+    "section": 158,
+    "benefit": 109
+  },
+  "chunk_length_stats": {
+    "card": {
+      "count": 10,
+      "chars_min": 372,
+      "chars_p50": 596,
+      "chars_p95": 1025,
+      "chars_max": 1143,
+      "tokens_min": 352,
+      "tokens_p50": 550,
+      "tokens_p95": 1040,
+      "tokens_max": 1134
+    },
+    "page": {
+      "count": 50,
+      "chars_min": 7,
+      "chars_p50": 1135,
+      "chars_p95": 3949,
+      "chars_max": 4478,
+      "tokens_min": 2,
+      "tokens_p50": 1055,
+      "tokens_p95": 3503,
+      "tokens_max": 4157
+    },
+    "section": {
+      "count": 158,
+      "chars_min": 7,
+      "chars_p50": 314,
+      "chars_p95": 1252,
+      "chars_max": 2423,
+      "tokens_min": 2,
+      "tokens_p50": 283,
+      "tokens_p95": 1127,
+      "tokens_max": 2247
+    },
+    "benefit": {
+      "count": 109,
+      "chars_min": 20,
+      "chars_p50": 317,
+      "chars_p95": 1378,
+      "chars_max": 2264,
+      "tokens_min": 12,
+      "tokens_p50": 283,
+      "tokens_p95": 1290,
+      "tokens_max": 2126
+    }
+  },
+  "duplicate_stats": {
+    "exact_duplicate_groups_all_levels": 34,
+    "exact_duplicate_excess_chunks_all_levels": 41,
+    "exact_duplicate_excess_chunks_same_level": 0,
+    "near_duplicate_pairs_same_card_level_jaccard_0_9": 3,
+    "raw_characters": 70471,
+    "chunk_characters": 196412,
+    "chunk_to_raw_character_multiplier": 2.7871322955541995,
+    "structured_labels": 228,
+    "benefit_chunks_after_same_range_merge": 109,
+    "benefit_overlap_characters": 26905,
+    "benefit_overlap_share_of_all_chunks": 0.1369824654298108
+  },
+  "chunking_policy": {
+    "boundary_priority": [
+      "card routing overview from raw lines/headings",
+      "[page n] marker",
+      "Markdown heading",
+      "structured label-assisted benefit range"
+    ],
+    "size_chars": {
+      "card": 2000,
+      "page": 6000,
+      "section": 4000,
+      "benefit": 3000
+    },
+    "card_page_size_reason": "card is a compact routing overview, not a concatenated parent document; page preserves a larger canonical raw span",
+    "structured_join": "labels selecting the same normalized raw range are merged into one benefit chunk; all labels remain scalar JSON metadata"
+  },
+  "overlap_policy": {
+    "card": "0; selective raw overview",
+    "page": "0 fixed overlap; paragraph-boundary split",
+    "section": "0 fixed overlap; heading-boundary split",
+    "benefit": "best matching raw paragraph plus one adjacent paragraph on each side"
+  },
+  "query_count": 30,
+  "metrics": {
+    "keyword": {
+      "hit_at_3": 0.9333333333333333,
+      "recall_at_5": 0.6166666666666667,
+      "mrr_at_5": 0.3816666666666667,
+      "ndcg_at_5": 0.42944653268762767
+    },
+    "vector": {
+      "hit_at_3": 0.9666666666666667,
+      "recall_at_5": 0.725,
+      "mrr_at_5": 0.5111111111111112,
+      "ndcg_at_5": 0.5370432222851463
+    },
+    "hybrid": {
+      "hit_at_3": 0.9,
+      "recall_at_5": 0.725,
+      "mrr_at_5": 0.45388888888888884,
+      "ndcg_at_5": 0.5036922394548896
+    }
+  },
+  "metric_contract": {
+    "Hit@3": "top 3 중 expected card의 청크가 하나 이상이면 1",
+    "Recall@5": "expected card/level에서 required_terms를 모두 포함한 relevant chunks 중 top 5가 회수한 비율",
+    "MRR@5": "첫 relevant chunk의 reciprocal rank, top 5 밖이면 0",
+    "nDCG@5": "위 relevance 정의의 binary gain을 순위 할인해 ideal DCG로 정규화"
+  },
+  "limitations": [
+    "BC corpus is selected excerpt, not complete page transcription.",
+    "IBK corpus is incomplete or ambiguous.",
+    "Other eight cards are full-page candidates pending visual audit.",
+    "The fixed 30-query set is small and derived from the same canonical fixtures.",
+    "Keyword tokenizer is deterministic whitespace/character-class tokenization, not Korean morphological analysis.",
+    "Evaluation query embeddings were created and cached during ingestion; retrieval cells themselves are offline."
+  ],
+  "representative_evidence": [
+    {
+      "query_id": "ibk_semantic",
+      "query": "쿠팡과 G마켓 같은 온라인 쇼핑 혜택은?",
+      "rank": 1,
+      "expected_card": "ibk/IBK_Point3.8(Credit)",
+      "retrieved_card": "shinhan/Shinhan_Toss_Mr.Life_20251231",
+      "level": "benefit",
+      "page_num": 2,
+      "relevant_chunk": false,
+      "evidence": "• 오후 9시 ~ 오전 9시까지 온라인 쇼핑, 택시, 식음료 10% 할인 | 구분 | 서비스 대상 | 서비스 제공 | | --- | --- | --- | | 온라인 쇼핑 | 옥션, g마켓, ak몰, 11번가, 티몬, 위메프, 쿠팡 | 구분 영역별 각각 • 일 1회 / 월 10회 할인 적용 • 1회 승인금액 1만원까지 할인 적용(1회 최대 1천원 할인)| | 택시 | 후불교통/비교통 카드 모두 적용 | | | 식음료 | 한식, 양식, 일식, 중식, 뷔페, 일반대중음식점, 패스트푸드, 커피전문점 업종 | | ※ 편의점, 병원/약국, 세탁소, 식음료는 신한카드 가맹점 업종"
+    },
+    {
+      "query_id": "ibk_semantic",
+      "query": "쿠팡과 G마켓 같은 온라인 쇼핑 혜택은?",
+      "rank": 2,
+      "expected_card": "ibk/IBK_Point3.8(Credit)",
+      "retrieved_card": "shinhan/Shinhan_Toss_Mr.Life_20251231",
+      "level": "benefit",
+      "page_num": 2,
+      "relevant_chunk": false,
+      "evidence": "| 구분 | 서비스 대상 | 서비스 제공 | | --- | --- | --- | | 온라인 쇼핑 | 옥션, g마켓, ak몰, 11번가, 티몬, 위메프, 쿠팡 | 구분 영역별 각각 • 일 1회 / 월 10회 할인 적용 • 1회 승인금액 1만원까지 할인 적용(1회 최대 1천원 할인)| | 택시 | 후불교통/비교통 카드 모두 적용 | | | 식음료 | 한식, 양식, 일식, 중식, 뷔페, 일반대중음식점, 패스트푸드, 커피전문점 업종 | | ※ 편의점, 병원/약국, 세탁소, 식음료는 신한카드 가맹점 업종 기준으로 할인이 제공됩니다. ※ time할인서비스는 주중/주말 상관없이 "
+    },
+    {
+      "query_id": "ibk_semantic",
+      "query": "쿠팡과 G마켓 같은 온라인 쇼핑 혜택은?",
+      "rank": 3,
+      "expected_card": "ibk/IBK_Point3.8(Credit)",
+      "retrieved_card": "shinhan/Shinhan_Toss_Mr.Life_20251231",
+      "level": "section",
+      "page_num": 2,
+      "relevant_chunk": false,
+      "evidence": "### night • 오후 9시 ~ 오전 9시까지 온라인 쇼핑, 택시, 식음료 10% 할인 | 구분 | 서비스 대상 | 서비스 제공 | | --- | --- | --- | | 온라인 쇼핑 | 옥션, g마켓, ak몰, 11번가, 티몬, 위메프, 쿠팡 | 구분 영역별 각각 • 일 1회 / 월 10회 할인 적용 • 1회 승인금액 1만원까지 할인 적용(1회 최대 1천원 할인)| | 택시 | 후불교통/비교통 카드 모두 적용 | | | 식음료 | 한식, 양식, 일식, 중식, 뷔페, 일반대중음식점, 패스트푸드, 커피전문점 업종 | | ※ 편의점, 병원/약국, 세탁소, 식음료는 신"
+    },
+    {
+      "query_id": "woori_semantic",
+      "query": "전월 실적 없이 해외 결제로 마일리지를 더 받는 혜택은?",
+      "rank": 1,
+      "expected_card": "woori/Woori_Classic_EVERY_MILE_SKYPASS",
+      "retrieved_card": "samsung/Samsung_iD_ALL",
+      "level": "section",
+      "page_num": 3,
+      "relevant_chunk": false,
+      "evidence": "### 전월 이용금액에 관계없이, 할인한도 없이 국내외 가맹점 0.5% 결제일 할인 * 해외는 해외겸용카드에 한해 제공 * 해외 이용 시 별도의 수수료 부과. 자세한 내용은 '유의사항'에서 확인"
+    },
+    {
+      "query_id": "woori_semantic",
+      "query": "전월 실적 없이 해외 결제로 마일리지를 더 받는 혜택은?",
+      "rank": 2,
+      "expected_card": "woori/Woori_Classic_EVERY_MILE_SKYPASS",
+      "retrieved_card": "samsung/Samsung_iD_ALL",
+      "level": "benefit",
+      "page_num": 3,
+      "relevant_chunk": false,
+      "evidence": "* 발급월 + 1개월까지는 전월 이용금액 40만원 미만 시에도 40만원 이상 ~ 70만원 미만 실적구간 혜택 적용(전월 이용금액 70만원 이상 시에는 해당 실적 구간 혜택 제공) * 월 할인한도 초과 시 다음 결제건부터 0.5% 할인 적용 * 주유의 경우, 전기차충전소는 환경부(한국자동차환경협회), 한국전기차충전서비스, 지에스차지비, e-pit, sk 일렉링크, 대영채비, 레드이엔지로 삼성카드에 등록된 가맹점에 한함 (대상 충전소 멤버십 가입 후 해당 카드 등록 및 이용 시 제공) * 주유의 경우, 전기차 충전요금은 해당 요금이 아파트 관리비 등 다른 이용건에 포함된"
+    },
+    {
+      "query_id": "woori_semantic",
+      "query": "전월 실적 없이 해외 결제로 마일리지를 더 받는 혜택은?",
+      "rank": 3,
+      "expected_card": "woori/Woori_Classic_EVERY_MILE_SKYPASS",
+      "retrieved_card": "samsung/Samsung_iD_ALL",
+      "level": "benefit",
+      "page_num": 3,
+      "relevant_chunk": false,
+      "evidence": "### 국내외 가맹점 0.5% 할인 ### 전월 이용금액에 관계없이, 할인한도 없이 국내외 가맹점 0.5% 결제일 할인 * 해외는 해외겸용카드에 한해 제공 * 해외 이용 시 별도의 수수료 부과. 자세한 내용은 '유의사항'에서 확인"
+    },
+    {
+      "query_id": "nh_numeric",
+      "query": "나무증권 스마트 캐시백 1위 업종의 적립률은?",
+      "rank": 1,
+      "expected_card": "NH/NH_Namu_NH",
+      "retrieved_card": "NH/NH_Namu_NH",
+      "level": "section",
+      "page_num": 2,
+      "relevant_chunk": false,
+      "evidence": "### 전월실적 구간별 캐시백 한도 | 구분 | 40만원 이상 ~ 80만원 미만 | 80만원 이상 ~ 150만원 미만 | 150만원 이상 | | --- | ---: | ---: | ---: | | 1위 영역 | 8,000원 | 11,000원 | 16,000원 | | 2위 영역 | 7,000원 | 9,000원 | 14,000원 | | 합계 | 15,000원 | 20,000원 | 30,000원 | ※ 나무증권계좌 개설 및 캐시백 계좌 지정 이후 서비스를 받으실 수 있습니다. (캐시백 계좌 미지정 시 상품서비스 제공을 위하여 고객님께 연락할 수 있습니다.) ※ 캐시백은 입"
+    },
+    {
+      "query_id": "nh_numeric",
+      "query": "나무증권 스마트 캐시백 1위 업종의 적립률은?",
+      "rank": 2,
+      "expected_card": "NH/NH_Namu_NH",
+      "retrieved_card": "NH/NH_Namu_NH",
+      "level": "benefit",
+      "page_num": 2,
+      "relevant_chunk": false,
+      "evidence": "### 전월실적 구간별 캐시백 한도 | 구분 | 40만원 이상 ~ 80만원 미만 | 80만원 이상 ~ 150만원 미만 | 150만원 이상 | | --- | ---: | ---: | ---: | | 1위 영역 | 8,000원 | 11,000원 | 16,000원 | | 2위 영역 | 7,000원 | 9,000원 | 14,000원 | | 합계 | 15,000원 | 20,000원 | 30,000원 | ※ 나무증권계좌 개설 및 캐시백 계좌 지정 이후 서비스를 받으실 수 있습니다. (캐시백 계좌 미지정 시 상품서비스 제공을 위하여 고객님께 연락할 수 있습니다.) ※ 캐시백은 입"
+    },
+    {
+      "query_id": "nh_numeric",
+      "query": "나무증권 스마트 캐시백 1위 업종의 적립률은?",
+      "rank": 3,
+      "expected_card": "NH/NH_Namu_NH",
+      "retrieved_card": "NH/NH_Namu_NH",
+      "level": "benefit",
+      "page_num": 2,
+      "relevant_chunk": false,
+      "evidence": "※ 나무증권계좌 개설 및 캐시백 계좌 지정 이후 서비스를 받으실 수 있습니다. (캐시백 계좌 미지정 시 상품서비스 제공을 위하여 고객님께 연락할 수 있습니다.) ※ 캐시백은 입출금이 자유로운 예수금 계좌로 입금되며, 제약없이 현금화 가능합니다. ※ 카드사는 금융투자상품 판매에 관여하지 않습니다.※ 전월실적 40만원 이상 사용 시 제공합니다. ※ 카드사용등록일로부터 다음달 말일까지는 전월실적 미달 시에도 최소실적구간 서비스를 제공하며, 전월실적 조건 달성 시 해당 구간 서비스를 제공합니다. • 스마트 캐시백은 이용한 달의 다음달 15일 이후에 지정하신 캐시백 계좌로 일"
+    },
+    {
+      "query_id": "nh_semantic",
+      "query": "나무멤버스 월 이용료를 돌려받는 혜택은?",
+      "rank": 1,
+      "expected_card": "NH/NH_Namu_NH",
+      "retrieved_card": "NH/NH_Namu_NH",
+      "level": "section",
+      "page_num": 2,
+      "relevant_chunk": true,
+      "evidence": "### 나무멤버스 월 이용료 캐시백 ※ 나무멤버스 이용료 결제 계좌로 익월 초에 캐시백됩니다. ※ 이용료는 실제 납입 요금을 기준으로 월 최대 2,900원 캐시백되며, 무료서비스 이용기간 중에는 캐시백 되지 않습니다. ※ 전월실적 40만원 이상 사용 시 제공합니다. ※ 본 서비스는 카드사용등록월에는 적용되지 않으며, 그 다음 달부터 전월실적 충족 시 nh투자증권이 제공합니다. 나무멤버스란? • nh투자증권의 나무증권 앱에서 운영하는 서비스입니다. (nh투자증권의 qv앱에서는 사용할 수 없습니다.) • 서비스를 통해 투자 컨텐츠와 거래수수료 우대 혜택 등을 제공 받으실"
+    },
+    {
+      "query_id": "nh_semantic",
+      "query": "나무멤버스 월 이용료를 돌려받는 혜택은?",
+      "rank": 2,
+      "expected_card": "NH/NH_Namu_NH",
+      "retrieved_card": "NH/NH_Namu_NH",
+      "level": "benefit",
+      "page_num": 2,
+      "relevant_chunk": false,
+      "evidence": "### 전월실적 구간별 캐시백 한도 | 구분 | 40만원 이상 ~ 80만원 미만 | 80만원 이상 ~ 150만원 미만 | 150만원 이상 | | --- | ---: | ---: | ---: | | 1위 영역 | 8,000원 | 11,000원 | 16,000원 | | 2위 영역 | 7,000원 | 9,000원 | 14,000원 | | 합계 | 15,000원 | 20,000원 | 30,000원 | ※ 나무증권계좌 개설 및 캐시백 계좌 지정 이후 서비스를 받으실 수 있습니다. (캐시백 계좌 미지정 시 상품서비스 제공을 위하여 고객님께 연락할 수 있습니다.) ※ 캐시백은 입"
+    },
+    {
+      "query_id": "nh_semantic",
+      "query": "나무멤버스 월 이용료를 돌려받는 혜택은?",
+      "rank": 3,
+      "expected_card": "NH/NH_Namu_NH",
+      "retrieved_card": "NH/NH_Namu_NH",
+      "level": "benefit",
+      "page_num": 2,
+      "relevant_chunk": false,
+      "evidence": "※ 나무증권계좌 개설 및 캐시백 계좌 지정 이후 서비스를 받으실 수 있습니다. (캐시백 계좌 미지정 시 상품서비스 제공을 위하여 고객님께 연락할 수 있습니다.) ※ 캐시백은 입출금이 자유로운 예수금 계좌로 입금되며, 제약없이 현금화 가능합니다. ※ 카드사는 금융투자상품 판매에 관여하지 않습니다.※ 전월실적 40만원 이상 사용 시 제공합니다. ※ 카드사용등록일로부터 다음달 말일까지는 전월실적 미달 시에도 최소실적구간 서비스를 제공하며, 전월실적 조건 달성 시 해당 구간 서비스를 제공합니다. • 스마트 캐시백은 이용한 달의 다음달 15일 이후에 지정하신 캐시백 계좌로 일"
+    },
+    {
+      "query_id": "kb_numeric",
+      "query": "프랜드 주유카드의 리터당 할인 금액은?",
+      "rank": 1,
+      "expected_card": "kookmin/Kookmin_Friend_20210917",
+      "retrieved_card": "kookmin/Kookmin_Friend_20210917",
+      "level": "benefit",
+      "page_num": 1,
+      "relevant_chunk": true,
+      "evidence": "### 상품서비스 | 구분 | 서비스 내용 | | | --- | --- | ---| | 프앤드(주유)카드 | 주유할인 서비스 | ᄋ 프랜드카드(주유) 전주유소 리터당70원청구할인(lpg포함) - 전주유소(lpg포함)에서 주유시 리터당 70원 상당 할인 ᄋ 할인한도 1일 10만원, 월 25만원이용분까지 ※ 전월 프랜드(주유)카드로 30만원 이상(일시불+할부) 결제금액 회수 시 주유할인 서비스 제공 ※ 주유할인 선택 시 \"리터당 할인금액(70원)은 gs칼텍스 본사 휘발유 표준고시유가를 기준\"으로 합니다. | | | 전월 실적산정 시 제외 매출 | kb국민 프랜드카드로 주"
+    },
+    {
+      "query_id": "kb_numeric",
+      "query": "프랜드 주유카드의 리터당 할인 금액은?",
+      "rank": 2,
+      "expected_card": "kookmin/Kookmin_Friend_20210917",
+      "retrieved_card": "kookmin/Kookmin_Friend_20210917",
+      "level": "page",
+      "page_num": 1,
+      "relevant_chunk": false,
+      "evidence": "(상품설명서) a-2006-0302-9227-00204-05 ### kb국민 프랜드카드 ### 상품서비스 | 구분 | 서비스 내용 | | | --- | --- | ---| | 프앤드(주유)카드 | 주유할인 서비스 | ᄋ 프랜드카드(주유) 전주유소 리터당70원청구할인(lpg포함) - 전주유소(lpg포함)에서 주유시 리터당 70원 상당 할인 ᄋ 할인한도 1일 10만원, 월 25만원이용분까지 ※ 전월 프랜드(주유)카드로 30만원 이상(일시불+할부) 결제금액 회수 시 주유할인 서비스 제공 ※ 주유할인 선택 시 \"리터당 할인금액(70원)은 gs칼텍스 본사 휘발유 표준고시유가를"
+    },
+    {
+      "query_id": "kb_numeric",
+      "query": "프랜드 주유카드의 리터당 할인 금액은?",
+      "rank": 3,
+      "expected_card": "kookmin/Kookmin_Friend_20210917",
+      "retrieved_card": "kookmin/Kookmin_Friend_20210917",
+      "level": "section",
+      "page_num": 1,
+      "relevant_chunk": false,
+      "evidence": "### 상품서비스 | 구분 | 서비스 내용 | | | --- | --- | ---| | 프앤드(주유)카드 | 주유할인 서비스 | ᄋ 프랜드카드(주유) 전주유소 리터당70원청구할인(lpg포함) - 전주유소(lpg포함)에서 주유시 리터당 70원 상당 할인 ᄋ 할인한도 1일 10만원, 월 25만원이용분까지 ※ 전월 프랜드(주유)카드로 30만원 이상(일시불+할부) 결제금액 회수 시 주유할인 서비스 제공 ※ 주유할인 선택 시 \"리터당 할인금액(70원)은 gs칼텍스 본사 휘발유 표준고시유가를 기준\"으로 합니다. | | | 전월 실적산정 시 제외 매출 | kb국민 프랜드카드로 주"
+    },
+    {
+      "query_id": "lotte_semantic",
+      "query": "배달의 민족과 쿠팡이츠에서 받을 수 있는 혜택은?",
+      "rank": 1,
+      "expected_card": "lotte/Lotte_LOCA_LIKIT_Eat",
+      "retrieved_card": "lotte/Lotte_LOCA_LIKIT_Eat",
+      "level": "section",
+      "page_num": 3,
+      "relevant_chunk": true,
+      "evidence": "### 배달앱 배달의 민족, 쿠팡이츠, 요기요 60% 결제일 할인 ᆞ공식 홈페이지 및 앱을 통한 결제 건에만 혜택이 제공되며, 배달원 또는 가맹점 직접 결제 건은 혜택이 제공되지 않습니다."
+    },
+    {
+      "query_id": "lotte_semantic",
+      "query": "배달의 민족과 쿠팡이츠에서 받을 수 있는 혜택은?",
+      "rank": 2,
+      "expected_card": "lotte/Lotte_LOCA_LIKIT_Eat",
+      "retrieved_card": "lotte/Lotte_LOCA_LIKIT_Eat",
+      "level": "benefit",
+      "page_num": 3,
+      "relevant_chunk": false,
+      "evidence": "### 배달앱 배달의 민족, 쿠팡이츠, 요기요 60% 결제일 할인 ᆞ공식 홈페이지 및 앱을 통한 결제 건에만 혜택이 제공되며, 배달원 또는 가맹점 직접 결제 건은 혜택이 제공되지 않습니다."
+    },
+    {
+      "query_id": "lotte_semantic",
+      "query": "배달의 민족과 쿠팡이츠에서 받을 수 있는 혜택은?",
+      "rank": 3,
+      "expected_card": "lotte/Lotte_LOCA_LIKIT_Eat",
+      "retrieved_card": "lotte/Lotte_LOCA_LIKIT_Eat",
+      "level": "page",
+      "page_num": 3,
+      "relevant_chunk": false,
+      "evidence": "### loca likit eat 혜택 안내 ### 음식점 음식점 60% 결제일 할인 ᆞ음식점 업종으로 등록된 가맹점에서 혜택이 제공되며, 주점, 유흥업소, 커피전문점, 베이커리, 제과점 및 백화점·마트 등에 입점한 음식점 이용금액은 혜택이 제공되지 않습니다. ### 배달앱 배달의 민족, 쿠팡이츠, 요기요 60% 결제일 할인 ᆞ공식 홈페이지 및 앱을 통한 결제 건에만 혜택이 제공되며, 배달원 또는 가맹점 직접 결제 건은 혜택이 제공되지 않습니다. ### 커피 스타벅스, 투썸플레이스, 할리스커피, 폴바셋 60% 결제일 할인 ᆞ백화점, 할인점, 쇼핑몰 등에 입점한 매장에"
+    }
+  ]
+}

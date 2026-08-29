@@ -1,0 +1,23 @@
+{
+  "cost_usd": 2.3764979999999998,
+  "input_tokens": 759735,
+  "latency": "unmeasured",
+  "output_tokens": 71419,
+  "price": {
+    "checked_date": "2026-08-27",
+    "input_usd_per_million_tokens": 2.0,
+    "model": "gpt-5.6-terra",
+    "output_usd_per_million_tokens": 12.0,
+    "source_url": "https://openai.com/api/pricing/",
+    "tier": "short-context standard",
+    "verification": "user-provided contract recorded offline; URL not fetched in this run"
+  },
+  "provider_status": {
+    "completed": 159,
+    "incomplete": 1
+  },
+  "refusals": 0,
+  "request_errors": 0,
+  "requests": 160,
+  "total_tokens": 831154
+}

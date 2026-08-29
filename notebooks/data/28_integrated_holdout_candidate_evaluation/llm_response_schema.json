@@ -1,0 +1,61 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "cards": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "card_name": {
+            "type": "string"
+          },
+          "claims": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "citations": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "type": "array"
+                },
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text",
+                "citations"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "issuer": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "issuer",
+          "card_name",
+          "claims"
+        ],
+        "type": "object"
+      },
+      "maxItems": 3,
+      "type": "array"
+    },
+    "insufficient_evidence": {
+      "type": "boolean"
+    },
+    "summary": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "summary",
+    "cards",
+    "insufficient_evidence"
+  ],
+  "type": "object"
+}

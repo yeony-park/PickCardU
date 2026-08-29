@@ -1,0 +1,39 @@
+{
+  "always": [
+    "development_only",
+    "adaptive_oracle_diagnostic",
+    "not_an_operational_decomposer",
+    "not_eligible_for_promotion"
+  ],
+  "catastrophic_by_query": {
+    "CMB01": false,
+    "CMB02": false,
+    "CMB03": false,
+    "CMB04": false,
+    "CMB05": false,
+    "CMB06": false,
+    "CMB07": false,
+    "CMB08": false,
+    "CMB09": false,
+    "CMB10": false
+  },
+  "catastrophic_loss_count": 0,
+  "comparison_baselines": [
+    "old_selective_bge_d20",
+    "structural_combined_query_bundle_all_bge_d20"
+  ],
+  "disposition": "oracle_decomposition_diagnostic_success",
+  "gate_checks": {
+    "card_precision_at_5_gte_better_baseline": true,
+    "card_recall_at_5_gte_old": true,
+    "catastrophic_loss_count_0": true,
+    "cmb05_cmb08_catastrophic_resolved": true,
+    "evidence_accuracy_at_5_gte_better_baseline": true,
+    "supported_recall_at_5_gt_current_structural": true,
+    "supported_wins_gt_losses_vs_current": true,
+    "truncation_or_contract_violation_count_0": true,
+    "union_candidate_recall_each_query_1": true,
+    "union_missing_positive_cards_0": true
+  },
+  "gate_pass": true
+}
