@@ -1,0 +1,1464 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; connect-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; base-uri 'none'; form-action 'self';">
+  <title>PickCardU RAG 검색·답변 실험실</title>
+  <style>
+    :root {
+      --navy-950: #071932;
+      --navy-900: #0d2748;
+      --navy-800: #17365f;
+      --blue-700: #1e5aa8;
+      --blue-100: #eaf2ff;
+      --teal-700: #08766b;
+      --teal-100: #e4f6f2;
+      --amber-800: #884b08;
+      --amber-100: #fff1d6;
+      --red-700: #a23948;
+      --red-100: #ffeaed;
+      --ink: #14213a;
+      --ink-soft: #40506b;
+      --muted: #68758a;
+      --line: #d8e0e9;
+      --line-strong: #b9c6d5;
+      --canvas: #eef2f6;
+      --surface: #ffffff;
+      --surface-soft: #f7f9fb;
+      --focus: #f4ac25;
+      --shadow: 0 18px 50px rgba(18, 39, 70, .10);
+      --radius-lg: 24px;
+      --radius-md: 15px;
+      --radius-sm: 10px;
+      --content: 1240px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      color: var(--ink);
+      background: var(--canvas);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      font-size: 16px;
+      line-height: 1.6;
+      overflow-wrap: anywhere;
+    }
+    button, input, select { font: inherit; }
+    button, select { cursor: pointer; }
+    a { color: var(--blue-700); }
+    [hidden] { display: none !important; }
+    :focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+
+    .skip-link {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      z-index: 1000;
+      padding: 9px 13px;
+      border-radius: 8px;
+      color: white;
+      background: var(--navy-950);
+      transform: translateY(-160%);
+    }
+    .skip-link:focus { transform: translateY(0); }
+
+    .topbar {
+      border-bottom: 1px solid rgba(255, 255, 255, .11);
+      color: #eaf3ff;
+      background: var(--navy-950);
+    }
+    .topbar-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      max-width: var(--content);
+      min-height: 48px;
+      margin: 0 auto;
+      padding: 8px 22px;
+    }
+    .product-mark {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: white;
+      font-size: 14px;
+      font-weight: 850;
+      letter-spacing: .02em;
+    }
+    .product-mark::before {
+      content: "P";
+      display: grid;
+      place-items: center;
+      width: 25px;
+      height: 25px;
+      border-radius: 8px;
+      color: var(--navy-950);
+      background: #72e0ce;
+      font-size: 13px;
+    }
+    .top-link { color: #c8d7ea; font-size: 13px; font-weight: 700; text-decoration: none; }
+    .top-link:hover { color: white; text-decoration: underline; }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      color: white;
+      background:
+        radial-gradient(circle at 88% 2%, rgba(48, 209, 183, .25), transparent 31%),
+        radial-gradient(circle at 7% 115%, rgba(61, 111, 202, .40), transparent 38%),
+        var(--navy-900);
+    }
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background-image: linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+      background-size: 34px 34px;
+      mask-image: linear-gradient(to bottom, black, transparent 86%);
+    }
+    .hero-inner {
+      position: relative;
+      z-index: 1;
+      max-width: var(--content);
+      margin: 0 auto;
+      padding: 58px 22px 44px;
+    }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      color: #9debdc;
+      font-size: 13px;
+      font-weight: 850;
+      letter-spacing: .11em;
+      text-transform: uppercase;
+    }
+    .eyebrow::before { content: ""; width: 22px; height: 3px; border-radius: 3px; background: #48d8c0; }
+    h1 { max-width: 850px; margin: 0; font-size: clamp(34px, 5vw, 58px); line-height: 1.13; letter-spacing: -.045em; }
+    .hero-copy { max-width: 770px; margin: 17px 0 0; color: #d6e3f2; font-size: clamp(16px, 1.55vw, 20px); }
+    .hero-badges { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 24px; }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 32px;
+      padding: 5px 11px;
+      border: 1px solid rgba(255,255,255,.22);
+      border-radius: 999px;
+      color: #dae7f6;
+      background: rgba(255,255,255,.075);
+      font-size: 13px;
+      font-weight: 750;
+    }
+    .hero-badge.strong { color: #11362f; border-color: #9debdc; background: #9debdc; }
+
+    .protocol-banner, .runtime-alert {
+      max-width: var(--content);
+      margin: 18px auto 0;
+      padding: 0 22px;
+    }
+    .banner-inner {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 12px;
+      align-items: start;
+      padding: 14px 16px;
+      border: 1px solid #e1b660;
+      border-radius: 13px;
+      color: #603907;
+      background: #fff6e5;
+      box-shadow: 0 7px 20px rgba(70, 45, 8, .06);
+    }
+    .banner-icon {
+      display: grid;
+      place-items: center;
+      width: 25px;
+      height: 25px;
+      border-radius: 50%;
+      color: white;
+      background: #a96208;
+      font-weight: 900;
+    }
+    .banner-inner strong { display: block; margin-bottom: 2px; }
+    .banner-inner p { margin: 0; }
+    .command {
+      display: inline-block;
+      margin-top: 7px;
+      padding: 4px 8px;
+      border: 1px solid #dfc183;
+      border-radius: 7px;
+      color: #4f330d;
+      background: rgba(255,255,255,.72);
+      font: 700 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      user-select: all;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 300px;
+      gap: 22px;
+      align-items: start;
+      max-width: var(--content);
+      margin: 0 auto;
+      padding: 26px 22px 76px;
+    }
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    .search-panel { min-width: 0; overflow: hidden; }
+    .panel-header { padding: 27px 28px 0; }
+    .panel-kicker { margin: 0 0 4px; color: var(--teal-700); font-size: 12px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+    h2 { margin: 0; font-size: clamp(23px, 2.6vw, 31px); line-height: 1.25; letter-spacing: -.025em; }
+    .panel-lead { margin: 7px 0 0; color: var(--ink-soft); }
+
+    .search-form { padding: 24px 28px 28px; }
+    .field { margin: 0 0 22px; }
+    .field-label, legend { display: block; margin-bottom: 8px; color: var(--ink); font-size: 14px; font-weight: 850; }
+    .required { color: var(--red-700); }
+    .query-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
+    .query-input, select, .alpha-input {
+      width: 100%;
+      min-height: 48px;
+      border: 1px solid var(--line-strong);
+      border-radius: 11px;
+      color: var(--ink);
+      background: white;
+    }
+    .query-input { padding: 11px 14px; font-size: 17px; }
+    .query-input::placeholder { color: #8490a3; }
+    .query-input:hover, select:hover { border-color: #8295ac; }
+    .submit-button {
+      min-width: 112px;
+      min-height: 48px;
+      padding: 10px 20px;
+      border: 1px solid var(--navy-900);
+      border-radius: 11px;
+      color: white;
+      background: var(--navy-900);
+      font-weight: 850;
+      box-shadow: 0 6px 15px rgba(13, 39, 72, .16);
+    }
+    .submit-button:hover:not(:disabled) { background: var(--navy-800); }
+    .submit-button:disabled { cursor: wait; opacity: .66; }
+    .form-hint { margin: 7px 0 0; color: var(--muted); font-size: 12px; }
+    .examples { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 11px; }
+    .example-button {
+      padding: 6px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--ink-soft);
+      background: var(--surface-soft);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .example-button:hover { color: var(--blue-700); border-color: #9db7dc; background: var(--blue-100); }
+
+    fieldset { min-width: 0; margin: 0 0 22px; padding: 0; border: 0; }
+    .mode-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; }
+    .mode-option { position: relative; }
+    .mode-option input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+    .mode-card {
+      display: flex;
+      flex-direction: column;
+      min-height: 104px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      color: var(--ink-soft);
+      background: var(--surface-soft);
+      cursor: pointer;
+    }
+    .mode-name { color: var(--ink); font-size: 14px; font-weight: 850; }
+    .mode-tag { align-self: flex-start; margin-top: 5px; padding: 2px 6px; border-radius: 999px; color: #49596d; background: #e8edf3; font-size: 10px; font-weight: 850; }
+    .mode-tag.local { color: #08675d; background: var(--teal-100); }
+    .mode-tag.recommended { color: #75420b; background: var(--amber-100); }
+    .mode-note { margin-top: auto; padding-top: 8px; color: var(--muted); font-size: 11px; line-height: 1.35; }
+    .mode-option input:checked + .mode-card { border-color: var(--blue-700); background: var(--blue-100); box-shadow: inset 0 0 0 1px var(--blue-700); }
+    .mode-option input:focus-visible + .mode-card { outline: 3px solid var(--focus); outline-offset: 3px; }
+    .mode-option input:disabled + .mode-card { cursor: not-allowed; opacity: .48; }
+    .mode-explainer {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 10px;
+      align-items: start;
+      margin-top: 10px;
+      padding: 11px 12px;
+      border: 1px solid #b6d4cf;
+      border-radius: 10px;
+      color: #174e48;
+      background: #edf9f7;
+      font-size: 13px;
+    }
+    .mode-explainer.external { color: #66410d; border-color: #e5c88b; background: #fff8e9; }
+    .mode-explainer strong { white-space: nowrap; }
+
+    .filter-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) 110px; gap: 11px; }
+    .mini-field label { display: block; margin-bottom: 7px; color: var(--ink-soft); font-size: 12px; font-weight: 800; }
+    select { padding: 9px 34px 9px 11px; }
+    select:disabled { cursor: not-allowed; color: #8995a6; background: #f0f3f6; }
+    .alpha-wrap { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; margin-top: 12px; padding: 11px 12px; border-radius: 10px; background: var(--surface-soft); }
+    .alpha-wrap label { color: var(--ink-soft); font-size: 12px; font-weight: 800; }
+    .alpha-input { min-height: 28px; accent-color: var(--blue-700); }
+    .alpha-value { min-width: 40px; color: var(--blue-700); font-variant-numeric: tabular-nums; font-weight: 850; }
+
+    .generation-region { border-top: 1px solid var(--line); background: #f3f8f7; }
+    .generation-inner { padding: 25px 28px 28px; }
+    .generation-card { padding: 20px; border: 1px solid #b9d8d2; border-radius: 16px; background: white; }
+    .generation-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 15px; }
+    .generation-title { margin: 0; font-size: 21px; line-height: 1.3; letter-spacing: -.02em; }
+    .generation-lead { margin: 6px 0 0; color: var(--ink-soft); font-size: 13px; }
+    .generate-button {
+      flex: 0 0 auto;
+      min-height: 45px;
+      padding: 9px 16px;
+      border: 1px solid #07695f;
+      border-radius: 11px;
+      color: white;
+      background: var(--teal-700);
+      font-weight: 850;
+      box-shadow: 0 6px 15px rgba(8, 118, 107, .15);
+    }
+    .generate-button:hover:not(:disabled) { background: #075f56; }
+    .generate-button:disabled { cursor: not-allowed; opacity: .55; box-shadow: none; }
+    .generation-boundary {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 10px;
+      margin-top: 15px;
+      padding: 12px 13px;
+      border: 1px solid #e2c17d;
+      border-radius: 11px;
+      color: #65420f;
+      background: #fff8e9;
+      font-size: 12px;
+    }
+    .generation-boundary strong { color: #523307; }
+    .generation-boundary-mark { font-weight: 950; }
+    .generation-status { margin: 11px 0 0; color: var(--muted); font-size: 12px; }
+    .answer-state { margin-top: 17px; padding: 18px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-soft); }
+    .answer-state.loading { text-align: center; }
+    .answer-state.error { color: #77303a; border-color: #e4aeb5; background: var(--red-100); }
+    .answer-state.insufficient { color: #69420b; border-color: #e1bd72; background: var(--amber-100); }
+    .answer-state-title { display: block; margin-bottom: 7px; color: var(--ink); font-size: 15px; font-weight: 900; }
+    .answer-state.insufficient .answer-state-title, .answer-state.error .answer-state-title { color: inherit; }
+    .answer-copy { margin: 0; color: #28384e; white-space: pre-wrap; }
+    .answer-meta { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 14px; }
+    .citation-section { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+    .citation-heading { margin: 0 0 10px; font-size: 14px; }
+    .citation-list { display: grid; gap: 9px; margin: 0; padding: 0; list-style: none; }
+    .citation-card { padding: 12px 13px; border: 1px solid var(--line); border-radius: 11px; background: white; }
+    .citation-card-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+    .citation-label { color: var(--ink); font-size: 13px; font-weight: 850; }
+    .citation-link { flex: 0 0 auto; font-size: 12px; font-weight: 850; text-decoration: none; }
+    .citation-link:hover { text-decoration: underline; }
+    .citation-quote { margin: 8px 0 0; color: var(--ink-soft); font-size: 12px; white-space: pre-wrap; }
+
+    .results-region { border-top: 1px solid var(--line); background: #fbfcfd; }
+    .results-inner { padding: 27px 28px 34px; }
+    .results-heading { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px; margin-bottom: 17px; }
+    .results-heading h2 { font-size: 23px; }
+    .results-meta { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+    .state-card {
+      display: grid;
+      place-items: center;
+      min-height: 220px;
+      padding: 35px;
+      border: 1px dashed var(--line-strong);
+      border-radius: 15px;
+      color: var(--ink-soft);
+      background: white;
+      text-align: center;
+    }
+    .state-symbol { display: grid; place-items: center; width: 48px; height: 48px; margin: 0 auto 13px; border-radius: 15px; color: var(--navy-800); background: var(--blue-100); font-size: 23px; font-weight: 900; }
+    .state-card strong { display: block; color: var(--ink); font-size: 17px; }
+    .state-card p { max-width: 520px; margin: 5px 0 0; }
+    .error-state { border-style: solid; border-color: #e4aeb5; color: #77303a; background: var(--red-100); }
+    .error-state .state-symbol { color: white; background: var(--red-700); }
+
+    .loading-pulse { display: flex; gap: 6px; justify-content: center; margin-bottom: 15px; }
+    .loading-pulse span { width: 9px; height: 9px; border-radius: 50%; background: var(--teal-700); animation: pulse 1.1s infinite ease-in-out; }
+    .loading-pulse span:nth-child(2) { animation-delay: .15s; }
+    .loading-pulse span:nth-child(3) { animation-delay: .3s; }
+    @keyframes pulse { 0%, 70%, 100% { transform: translateY(0); opacity: .35; } 35% { transform: translateY(-6px); opacity: 1; } }
+
+    .result-list { display: grid; gap: 13px; margin: 0; padding: 0; list-style: none; }
+    .result-card { border: 1px solid var(--line); border-radius: 16px; background: white; box-shadow: 0 7px 20px rgba(28, 48, 76, .055); overflow: hidden; }
+    .result-top { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 13px; align-items: start; padding: 18px 19px 13px; }
+    .rank { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 11px; color: white; background: var(--navy-900); font-size: 13px; font-weight: 900; }
+    .document-name { margin: 0; font-size: 18px; line-height: 1.3; letter-spacing: -.015em; }
+    .document-id { display: block; margin-top: 4px; color: var(--muted); font: 600 11px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .page-badge { padding: 4px 8px; border-radius: 8px; color: var(--teal-700); background: var(--teal-100); font-size: 12px; font-weight: 850; white-space: nowrap; }
+    .section-path { display: flex; flex-wrap: wrap; gap: 5px; padding: 0 19px 12px 66px; color: var(--muted); font-size: 11px; }
+    .section-path span { display: inline-flex; align-items: center; gap: 5px; }
+    .section-path span:not(:last-child)::after { content: "/"; color: #a8b2c0; }
+    .evidence { margin: 0 19px 15px 66px; padding: 14px 15px; border-left: 4px solid #54b7a6; border-radius: 4px 10px 10px 4px; background: #f0f8f6; }
+    .evidence-label { display: block; margin-bottom: 6px; color: var(--teal-700); font-size: 11px; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; }
+    .evidence-text, .parent-text { margin: 0; color: #28384e; white-space: pre-wrap; }
+    .score-row { display: flex; flex-wrap: wrap; gap: 7px; padding: 0 19px 14px 66px; }
+    .score-chip { padding: 4px 8px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink-soft); background: var(--surface-soft); font-size: 11px; font-variant-numeric: tabular-nums; }
+    .score-chip strong { color: var(--ink); }
+    .result-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 19px 12px 66px; border-top: 1px solid #e7ebf0; background: var(--surface-soft); }
+    details { min-width: 0; flex: 1 1 380px; }
+    summary { color: var(--blue-700); cursor: pointer; font-size: 12px; font-weight: 800; }
+    .parent-text { margin-top: 11px; padding: 13px; border: 1px solid var(--line); border-radius: 10px; background: white; font-size: 13px; max-height: 420px; overflow: auto; }
+    .source-link { flex: 0 0 auto; font-size: 12px; font-weight: 850; text-decoration: none; }
+    .source-link:hover { text-decoration: underline; }
+
+    .sidebar { position: sticky; top: 18px; display: grid; gap: 15px; }
+    .side-card { padding: 20px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); box-shadow: 0 8px 25px rgba(18, 39, 70, .055); }
+    .side-card h2 { font-size: 17px; }
+    .side-card p { margin: 7px 0 0; color: var(--ink-soft); font-size: 13px; }
+    .connection { display: flex; align-items: center; gap: 9px; margin-top: 15px; padding: 10px; border-radius: 10px; color: var(--amber-800); background: var(--amber-100); font-size: 12px; font-weight: 800; }
+    .connection::before { content: ""; flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 4px rgba(136,75,8,.12); }
+    .connection.connected { color: var(--teal-700); background: var(--teal-100); }
+    .connection.error { color: var(--red-700); background: var(--red-100); }
+    .status-list { margin: 15px 0 0; }
+    .status-row { display: flex; justify-content: space-between; gap: 14px; padding: 9px 0; border-top: 1px solid #e7ebf0; font-size: 12px; }
+    .status-row dt { color: var(--muted); }
+    .status-row dd { margin: 0; color: var(--ink); font-weight: 850; font-variant-numeric: tabular-nums; text-align: right; }
+    .guide-list { margin: 13px 0 0; padding-left: 19px; color: var(--ink-soft); font-size: 13px; }
+    .guide-list li + li { margin-top: 8px; }
+    .boundary-note { margin-top: 14px; padding: 11px; border-radius: 10px; color: #653d08; background: var(--amber-100); font-size: 12px; }
+
+    @media (max-width: 900px) {
+      .workspace { grid-template-columns: 1fr; }
+      .sidebar { position: static; grid-row: 1; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .mode-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 620px) {
+      .topbar-inner, .hero-inner, .workspace, .protocol-banner, .runtime-alert { padding-left: 16px; padding-right: 16px; }
+      .topbar-inner { align-items: flex-start; }
+      .hero-inner { padding-top: 42px; padding-bottom: 34px; }
+      .workspace { padding-top: 18px; }
+      .panel-header { padding: 22px 19px 0; }
+      .search-form, .results-inner, .generation-inner { padding-left: 19px; padding-right: 19px; }
+      .query-row { grid-template-columns: 1fr; }
+      .submit-button { width: 100%; }
+      .generate-button { width: 100%; }
+      .filter-grid, .sidebar { grid-template-columns: 1fr; }
+      .result-top { grid-template-columns: auto minmax(0, 1fr); }
+      .page-badge { grid-column: 2; justify-self: start; }
+      .section-path, .evidence, .score-row, .result-footer { margin-left: 0; padding-left: 19px; }
+      .evidence { margin-left: 19px; }
+      .top-link { display: none; }
+    }
+    @media (max-width: 420px) {
+      .mode-grid { grid-template-columns: 1fr; }
+      .mode-card { min-height: 84px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; }
+    }
+    @media print {
+      .topbar, .hero-badges, .protocol-banner, .search-form, .sidebar { display: none !important; }
+      .hero { color: var(--ink); background: white; }
+      .hero-copy { color: var(--ink-soft); }
+      .workspace { display: block; max-width: none; padding: 0; }
+      .panel { border: 0; box-shadow: none; }
+      .results-region { border: 0; }
+      .result-card { break-inside: avoid; box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#search-form">검색 입력으로 바로가기</a>
+
+  <div class="topbar">
+    <div class="topbar-inner">
+      <span class="product-mark">PickCardU · Internal Lab</span>
+      <a class="top-link" href="rag_pipeline_dashboard.html">RAG 파이프라인 성과 리포트 보기</a>
+    </div>
+  </div>
+
+  <header class="hero">
+    <div class="hero-inner">
+      <div class="eyebrow">Grounded RAG tester</div>
+      <h1>자연어로 찾고,<br>근거 있는 답변까지 확인하세요.</h1>
+      <p class="hero-copy">106개 카드 상품설명서에서 근거를 먼저 검색하고, 선택된 parent 문맥으로 GPT-5.6 Luna 답변을 별도로 생성합니다.</p>
+      <div class="hero-badges" aria-label="도구 특성">
+        <span class="hero-badge strong">검색 후 명시적 생성</span>
+        <span class="hero-badge">GPT-5.6 Luna</span>
+        <span class="hero-badge">근거 원문 확인</span>
+        <span class="hero-badge">로컬 서버 연결 필요</span>
+      </div>
+    </div>
+  </header>
+
+  <section class="protocol-banner" id="protocol-banner" hidden aria-live="polite">
+    <div class="banner-inner">
+      <span class="banner-icon" aria-hidden="true">!</span>
+      <div>
+        <strong>이 화면은 파일로 직접 열면 검색할 수 없습니다.</strong>
+        <p>터미널에서 아래 명령으로 검색 서버를 시작한 뒤 <strong>http://127.0.0.1:8765/</strong>로 접속하세요.</p>
+        <code class="command" id="launch-command">.venv/bin/python scripts/rag_pipeline/serve_search_ui.py</code>
+        <p>Hybrid·Vector·Weighted와 Luna 답변 생성 사용: <code class="command">.venv/bin/python scripts/rag_pipeline/serve_search_ui.py --enable-external-models --enable-generation</code> (OPENAI_API_KEY 필요)</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="runtime-alert" id="runtime-alert" hidden aria-live="assertive">
+    <div class="banner-inner">
+      <span class="banner-icon" aria-hidden="true">!</span>
+      <div>
+        <strong>검색 서버에 연결하지 못했습니다.</strong>
+        <p id="runtime-alert-text">서버 실행 상태를 확인한 뒤 페이지를 새로고침해 주세요.</p>
+        <code class="command">.venv/bin/python scripts/rag_pipeline/serve_search_ui.py</code>
+      </div>
+    </div>
+  </section>
+
+  <div class="workspace">
+    <main class="panel search-panel" id="main-content">
+      <div class="panel-header">
+        <p class="panel-kicker">Retrieval console</p>
+        <h2>검색 조건</h2>
+        <p class="panel-lead">같은 질문을 여러 방식으로 검색해 결과 순위와 점수 채널을 비교해 보세요.</p>
+      </div>
+
+      <form class="search-form" id="search-form" novalidate>
+        <div class="field">
+          <label class="field-label" for="query">자연어 질문 <span class="required" aria-hidden="true">*</span></label>
+          <div class="query-row">
+            <input class="query-input" id="query" name="query" type="search" required minlength="2" maxlength="500" autocomplete="off" placeholder="예: 공항 라운지를 연 2회 이용할 수 있는 카드는?" aria-describedby="query-hint">
+            <button class="submit-button" id="submit-button" type="submit">검색하기</button>
+          </div>
+          <p class="form-hint" id="query-hint">Enter로 1단계 검색 · 최대 500자 · Luna 생성은 검색 후 별도 버튼을 눌러야 시작됩니다.</p>
+          <div class="examples" aria-label="예시 질문">
+            <button class="example-button" type="button" data-query="공항 라운지를 연 2회 이용할 수 있는 카드는?">공항 라운지 연 2회</button>
+            <button class="example-button" type="button" data-query="커피 전문점 할인 조건과 월 할인 한도는?">커피 할인 조건</button>
+            <button class="example-button" type="button" data-query="주유 할인은 전월 실적이 얼마부터 적용돼?">주유 할인 실적</button>
+            <button class="example-button" type="button" data-query="해외 이용 수수료 면제 혜택이 있어?">해외 수수료</button>
+          </div>
+        </div>
+
+        <fieldset>
+          <legend>검색 방식</legend>
+          <div class="mode-grid">
+            <div class="mode-option">
+              <input id="mode-keyword" type="radio" name="mode" value="keyword">
+              <label class="mode-card" for="mode-keyword">
+                <span class="mode-name">Keyword</span>
+                <span class="mode-tag local">로컬 FTS</span>
+                <span class="mode-note">문자·단어 일치 중심</span>
+              </label>
+            </div>
+            <div class="mode-option">
+              <input id="mode-hybrid" type="radio" name="mode" value="hybrid">
+              <label class="mode-card" for="mode-hybrid">
+                <span class="mode-name">Hybrid</span>
+                <span class="mode-tag">RRF 결합</span>
+                <span class="mode-note">벡터+키워드 순위 결합</span>
+              </label>
+            </div>
+            <div class="mode-option">
+              <input id="mode-vector" type="radio" name="mode" value="vector">
+              <label class="mode-card" for="mode-vector">
+                <span class="mode-name">Vector</span>
+                <span class="mode-tag">의미 검색</span>
+                <span class="mode-note">임베딩 유사도만 사용</span>
+              </label>
+            </div>
+            <div class="mode-option">
+              <input id="mode-weighted" type="radio" name="mode" value="weighted" checked>
+              <label class="mode-card" for="mode-weighted">
+                <span class="mode-name">Weighted</span>
+                <span class="mode-tag recommended">현재 baseline</span>
+                <span class="mode-note">벡터·키워드 가중 합산</span>
+              </label>
+            </div>
+          </div>
+          <div class="mode-explainer external" id="mode-explainer" aria-live="polite">
+            <strong id="mode-explainer-label">외부 임베딩</strong>
+            <span id="mode-explainer-copy">질의를 임베딩 API에 전송한 뒤, 벡터 50%와 키워드 50%를 결합합니다.</span>
+          </div>
+          <div class="alpha-wrap" id="alpha-wrap">
+            <label for="alpha">벡터 가중치 α <span class="form-hint">(키워드 가중치 = 1 − α)</span></label>
+            <input class="alpha-input" id="alpha" name="alpha" type="range" min="0" max="1" step="0.1" value="0.5">
+            <output class="alpha-value" id="alpha-value" for="alpha">0.5</output>
+          </div>
+        </fieldset>
+
+        <div class="filter-grid">
+          <div class="mini-field">
+            <label for="issuer">발급사 필터 <span class="form-hint">선택</span></label>
+            <select id="issuer" name="issuer" disabled>
+              <option value="">전체 발급사</option>
+            </select>
+          </div>
+          <div class="mini-field">
+            <label for="card-name">카드 필터 <span class="form-hint">선택</span></label>
+            <select id="card-name" name="card_name" disabled>
+              <option value="">전체 카드</option>
+            </select>
+          </div>
+          <div class="mini-field">
+            <label for="top-k">표시 개수</label>
+            <select id="top-k" name="top_k">
+              <option value="3">Top 3</option>
+              <option value="5" selected>Top 5</option>
+              <option value="10">Top 10</option>
+            </select>
+          </div>
+        </div>
+      </form>
+
+      <section class="generation-region" id="generation-region" aria-labelledby="generation-title">
+        <div class="generation-inner">
+          <div class="generation-card">
+            <div class="generation-head">
+              <div>
+                <p class="panel-kicker">Step 2 · Grounded generation</p>
+                <h2 class="generation-title" id="generation-title" tabindex="-1">검색 근거로 Luna 답변 생성</h2>
+                <p class="generation-lead">검색 결과를 먼저 검토한 뒤, 필요할 때만 답변 생성을 실행하세요.</p>
+              </div>
+              <button class="generate-button" id="generate-button" type="button" disabled>GPT-5.6 Luna로 답변 생성</button>
+            </div>
+            <div class="generation-boundary">
+              <span class="generation-boundary-mark" aria-hidden="true">↗</span>
+              <div><strong>외부 전송 경계:</strong> 버튼을 누르면 질문과 이번 검색에서 서버가 선택한 parent 본문이 OpenAI API로 전송됩니다. 버튼을 누르기 전에는 답변 생성 요청이 발생하지 않습니다.</div>
+            </div>
+            <p class="generation-status" id="generation-status" aria-live="polite">검색이 완료되면 답변 생성 버튼이 활성화됩니다.</p>
+
+            <div class="answer-state loading" id="answer-loading" hidden role="status" aria-live="polite">
+              <div class="loading-pulse" aria-hidden="true"><span></span><span></span><span></span></div>
+              <strong class="answer-state-title">GPT-5.6 Luna가 근거 답변을 작성하고 있습니다.</strong>
+              <p class="answer-copy">검색된 parent 문맥 안에서 답을 찾고 citation을 확인합니다.</p>
+            </div>
+
+            <div class="answer-state" id="answer-success" hidden aria-live="polite">
+              <strong class="answer-state-title">근거 기반 답변</strong>
+              <p class="answer-copy" id="answer-copy"></p>
+              <div class="answer-meta" id="answer-meta" aria-label="답변 생성 성능"></div>
+              <section class="citation-section" id="citation-section" aria-labelledby="citation-heading">
+                <h3 class="citation-heading" id="citation-heading">서버가 원문 metadata로 확인한 근거</h3>
+                <ol class="citation-list" id="citation-list"></ol>
+              </section>
+            </div>
+
+            <div class="answer-state insufficient" id="answer-insufficient" hidden role="status" aria-live="polite">
+              <strong class="answer-state-title">근거 부족으로 답변을 보류했습니다.</strong>
+              <p class="answer-copy" id="insufficient-copy">검색된 문맥만으로는 신뢰할 수 있는 답을 만들 수 없습니다. citation은 제공하지 않습니다.</p>
+              <div class="answer-meta" id="insufficient-meta" aria-label="답변 보류 성능"></div>
+            </div>
+
+            <div class="answer-state error" id="answer-error" hidden role="alert">
+              <strong class="answer-state-title">답변을 생성하지 못했습니다.</strong>
+              <p class="answer-copy" id="answer-error-message">검색 결과는 그대로 유지됩니다. 잠시 후 다시 시도해 주세요.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="results-region" aria-labelledby="results-title">
+        <div class="results-inner">
+          <div class="results-heading">
+            <div>
+              <p class="panel-kicker">Evidence results</p>
+              <h2 id="results-title" tabindex="-1">검색 결과</h2>
+            </div>
+            <div class="results-meta" id="results-meta" aria-live="polite"></div>
+          </div>
+
+          <div class="state-card" id="initial-state">
+            <div>
+              <span class="state-symbol" aria-hidden="true">?</span>
+              <strong>확인하고 싶은 혜택이나 조건을 질문해 보세요.</strong>
+              <p>각 결과에서 실제로 매칭된 child 근거와 해당 section의 parent 문맥을 함께 확인할 수 있습니다.</p>
+            </div>
+          </div>
+
+          <div class="state-card" id="loading-state" hidden role="status" aria-live="polite">
+            <div>
+              <div class="loading-pulse" aria-hidden="true"><span></span><span></span><span></span></div>
+              <strong>문서 근거를 검색하고 있습니다.</strong>
+              <p id="loading-copy">질의 임베딩과 하이브리드 검색을 진행합니다.</p>
+            </div>
+          </div>
+
+          <div class="state-card error-state" id="error-state" hidden role="alert">
+            <div>
+              <span class="state-symbol" aria-hidden="true">!</span>
+              <strong>검색을 완료하지 못했습니다.</strong>
+              <p id="error-message">잠시 후 다시 시도해 주세요.</p>
+            </div>
+          </div>
+
+          <div class="state-card" id="empty-state" hidden>
+            <div>
+              <span class="state-symbol" aria-hidden="true">0</span>
+              <strong>조건에 맞는 근거를 찾지 못했습니다.</strong>
+              <p>발급사·카드 필터를 해제하거나, 핵심 혜택과 조건을 다른 표현으로 검색해 보세요.</p>
+            </div>
+          </div>
+
+          <ol class="result-list" id="result-list" hidden aria-live="polite"></ol>
+        </div>
+      </section>
+    </main>
+
+    <aside class="sidebar" aria-label="검색 도구 상태와 사용 안내">
+      <section class="side-card" aria-labelledby="server-title">
+        <p class="panel-kicker">Runtime</p>
+        <h2 id="server-title">검색 서버 상태</h2>
+        <div class="connection" id="connection-status" role="status" aria-live="polite">연결 확인 중</div>
+        <dl class="status-list">
+          <div class="status-row"><dt>문서</dt><dd id="status-documents">—</dd></div>
+          <div class="status-row"><dt>Parent</dt><dd id="status-parents">—</dd></div>
+          <div class="status-row"><dt>Child</dt><dd id="status-children">—</dd></div>
+          <div class="status-row"><dt>질의 임베딩</dt><dd id="status-embedding">확인 중</dd></div>
+          <div class="status-row"><dt>Luna 답변 생성</dt><dd id="status-generation">확인 중</dd></div>
+        </dl>
+      </section>
+
+      <section class="side-card" aria-labelledby="guide-title">
+        <p class="panel-kicker">How to read</p>
+        <h2 id="guide-title">결과 읽는 법</h2>
+        <ol class="guide-list">
+          <li><strong>Child 근거</strong>는 검색 점수를 만든 짧은 텍스트입니다.</li>
+          <li><strong>Parent 문맥</strong>을 펼쳐 조건과 예외까지 함께 확인하세요.</li>
+          <li>Keyword·Vector 점수는 방식이 달라 절대값을 서로 직접 비교하지 마세요.</li>
+        </ol>
+        <div class="boundary-note"><strong>주의:</strong> citation은 서버가 원문 metadata로 연결하지만, citation의 존재만으로 답변의 의미적 정확성이 보장되지는 않습니다. 현재 retrieval Recall@5 baseline도 약 54.62%입니다.</div>
+      </section>
+    </aside>
+  </div>
+
+  <noscript>
+    <div class="runtime-alert"><div class="banner-inner"><span class="banner-icon">!</span><div><strong>JavaScript가 필요합니다.</strong><p>검색 서버와 통신하고 결과를 표시하려면 브라우저에서 JavaScript를 활성화해 주세요.</p></div></div></div>
+  </noscript>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const API = { status: "/api/status", search: "/api/search", answer: "/api/answer" };
+      const modeCopy = {
+        keyword: {
+          label: "로컬 검색",
+          copy: "1단계 검색은 SQLite FTS5의 단어 일치만 사용합니다. 이후 Luna 생성을 누르면 질문과 선택된 parent가 외부로 전송됩니다.",
+          external: false,
+          loading: "로컬 키워드 인덱스에서 근거를 검색합니다."
+        },
+        hybrid: {
+          label: "외부 임베딩",
+          copy: "1단계에서 질의를 임베딩 API에 전송한 뒤 벡터와 키워드 순위를 RRF 방식으로 결합합니다. Luna 생성은 별도 실행입니다.",
+          external: true,
+          loading: "질의를 임베딩하고 벡터·키워드 순위를 결합합니다."
+        },
+        vector: {
+          label: "외부 임베딩",
+          copy: "1단계에서 질의를 임베딩 API에 전송하고 child 벡터와의 의미 유사도로 검색합니다. Luna 생성은 별도 실행입니다.",
+          external: true,
+          loading: "질의를 임베딩하고 의미상 가까운 근거를 검색합니다."
+        },
+        weighted: {
+          label: "외부 임베딩",
+          copy: "1단계에서 질의를 임베딩 API에 전송한 뒤 정규화한 벡터·키워드 점수를 가중 합산합니다. Luna 생성은 별도 실행입니다.",
+          external: true,
+          loading: "질의를 임베딩하고 가중 하이브리드 검색을 진행합니다."
+        }
+      };
+
+      const elements = {
+        form: document.getElementById("search-form"),
+        query: document.getElementById("query"),
+        submit: document.getElementById("submit-button"),
+        issuer: document.getElementById("issuer"),
+        card: document.getElementById("card-name"),
+        topK: document.getElementById("top-k"),
+        alphaWrap: document.getElementById("alpha-wrap"),
+        alpha: document.getElementById("alpha"),
+        alphaValue: document.getElementById("alpha-value"),
+        explainer: document.getElementById("mode-explainer"),
+        explainerLabel: document.getElementById("mode-explainer-label"),
+        explainerCopy: document.getElementById("mode-explainer-copy"),
+        loadingCopy: document.getElementById("loading-copy"),
+        initial: document.getElementById("initial-state"),
+        loading: document.getElementById("loading-state"),
+        error: document.getElementById("error-state"),
+        errorMessage: document.getElementById("error-message"),
+        empty: document.getElementById("empty-state"),
+        results: document.getElementById("result-list"),
+        resultsMeta: document.getElementById("results-meta"),
+        protocolBanner: document.getElementById("protocol-banner"),
+        runtimeAlert: document.getElementById("runtime-alert"),
+        runtimeAlertText: document.getElementById("runtime-alert-text"),
+        connection: document.getElementById("connection-status"),
+        statusDocuments: document.getElementById("status-documents"),
+        statusParents: document.getElementById("status-parents"),
+        statusChildren: document.getElementById("status-children"),
+        statusEmbedding: document.getElementById("status-embedding"),
+        statusGeneration: document.getElementById("status-generation"),
+        generationRegion: document.getElementById("generation-region"),
+        generationButton: document.getElementById("generate-button"),
+        generationStatus: document.getElementById("generation-status"),
+        answerLoading: document.getElementById("answer-loading"),
+        answerSuccess: document.getElementById("answer-success"),
+        answerCopy: document.getElementById("answer-copy"),
+        answerMeta: document.getElementById("answer-meta"),
+        citationSection: document.getElementById("citation-section"),
+        citationList: document.getElementById("citation-list"),
+        answerInsufficient: document.getElementById("answer-insufficient"),
+        insufficientCopy: document.getElementById("insufficient-copy"),
+        insufficientMeta: document.getElementById("insufficient-meta"),
+        answerError: document.getElementById("answer-error"),
+        answerErrorMessage: document.getElementById("answer-error-message")
+      };
+
+      let filterCatalog = [];
+      let activeRequest = null;
+      let answerRequest = null;
+      let answerRequestId = 0;
+      let generationAvailable = false;
+      let generationModel = "gpt-5.6-luna";
+      let generationReasoning = "medium";
+      let lastSearchBody = null;
+      let lastParentIds = [];
+
+      function selectedMode() {
+        const input = document.querySelector('input[name="mode"]:checked');
+        return input ? input.value : "keyword";
+      }
+
+      function setState(name) {
+        ["initial", "loading", "error", "empty", "results"].forEach((key) => {
+          elements[key].hidden = key !== name;
+        });
+      }
+
+      function setAnswerState(name) {
+        const states = {
+          loading: elements.answerLoading,
+          success: elements.answerSuccess,
+          insufficient: elements.answerInsufficient,
+          error: elements.answerError
+        };
+        Object.entries(states).forEach(([key, element]) => {
+          element.hidden = key !== name;
+        });
+      }
+
+      function resetAnswerDisplay() {
+        setAnswerState("");
+        elements.answerCopy.textContent = "";
+        elements.answerMeta.replaceChildren();
+        elements.insufficientMeta.replaceChildren();
+        elements.citationList.replaceChildren();
+      }
+
+      function invalidateGeneration() {
+        if (!lastSearchBody) return;
+        answerRequestId += 1;
+        if (answerRequest) answerRequest.abort();
+        answerRequest = null;
+        lastSearchBody = null;
+        lastParentIds = [];
+        resetAnswerDisplay();
+        elements.generationButton.disabled = true;
+        elements.generationButton.textContent = "GPT-5.6 Luna로 답변 생성";
+        elements.generationStatus.textContent = "질문이나 검색 조건이 바뀌었습니다. 다시 검색한 뒤 답변을 생성해 주세요.";
+      }
+
+      function setConnection(kind, text) {
+        elements.connection.className = "connection" + (kind ? " " + kind : "");
+        elements.connection.textContent = text;
+      }
+
+      function formatInteger(value) {
+        const number = Number(value);
+        return Number.isFinite(number) ? new Intl.NumberFormat("ko-KR").format(number) : "—";
+      }
+
+      function formatScore(value) {
+        const number = Number(value);
+        if (!Number.isFinite(number)) return null;
+        return number.toFixed(4);
+      }
+
+      function formatLatency(value) {
+        const number = Number(value);
+        if (!Number.isFinite(number)) return null;
+        return number < 1000 ? number.toFixed(number < 10 ? 1 : 0) + " ms" : (number / 1000).toFixed(2) + "초";
+      }
+
+      function getNested(object, paths) {
+        for (const path of paths) {
+          let value = object;
+          for (const part of path.split(".")) value = value && typeof value === "object" ? value[part] : undefined;
+          if (value !== undefined && value !== null) return value;
+        }
+        return undefined;
+      }
+
+      function appendOption(select, value, label) {
+        const option = document.createElement("option");
+        option.value = String(value);
+        option.textContent = String(label);
+        select.appendChild(option);
+      }
+
+      function normalizeCatalog(data) {
+        const filters = data && typeof data.filters === "object" ? data.filters : {};
+        const rawIssuers = Array.isArray(filters.issuers) ? filters.issuers : [];
+        const rawCards = Array.isArray(filters.cards) ? filters.cards : [];
+        const catalog = [];
+
+        rawIssuers.forEach((issuer) => {
+          if (typeof issuer === "string") {
+            catalog.push({ value: issuer, label: issuer, cards: [] });
+            return;
+          }
+          if (!issuer || typeof issuer !== "object") return;
+          const value = issuer.value ?? issuer.id ?? issuer.name ?? issuer.issuer;
+          if (!value) return;
+          const cards = Array.isArray(issuer.cards) ? issuer.cards : [];
+          catalog.push({ value: String(value), label: String(issuer.label ?? issuer.name ?? value), cards: cards.map(normalizeCard).filter(Boolean) });
+        });
+
+        rawCards.forEach((card) => {
+          const normalized = normalizeCard(card);
+          if (!normalized) return;
+          const issuer = String(card.issuer ?? card.issuer_id ?? "");
+          let group = catalog.find((item) => item.value === issuer);
+          if (!group) {
+            group = { value: issuer, label: issuer || "기타", cards: [] };
+            catalog.push(group);
+          }
+          if (!group.cards.some((item) => item.value === normalized.value)) group.cards.push(normalized);
+        });
+
+        return catalog.sort((a, b) => a.label.localeCompare(b.label, "ko"));
+      }
+
+      function normalizeCard(card) {
+        if (typeof card === "string") return { value: card, label: card };
+        if (!card || typeof card !== "object") return null;
+        const value = card.value ?? card.id ?? card.card_name ?? card.name;
+        if (!value) return null;
+        return { value: String(value), label: String(card.label ?? card.card_name ?? card.name ?? value) };
+      }
+
+      function populateIssuers() {
+        while (elements.issuer.options.length > 1) elements.issuer.remove(1);
+        filterCatalog.forEach((issuer) => appendOption(elements.issuer, issuer.value, issuer.label));
+        elements.issuer.disabled = filterCatalog.length === 0;
+        populateCards();
+      }
+
+      function populateCards() {
+        const selectedIssuer = elements.issuer.value;
+        const previous = elements.card.value;
+        while (elements.card.options.length > 1) elements.card.remove(1);
+        const groups = selectedIssuer ? filterCatalog.filter((issuer) => issuer.value === selectedIssuer) : filterCatalog;
+        const cards = groups.flatMap((issuer) => issuer.cards).sort((a, b) => a.label.localeCompare(b.label, "ko"));
+        cards.forEach((card) => appendOption(elements.card, card.value, card.label));
+        elements.card.disabled = cards.length === 0;
+        if (cards.some((card) => card.value === previous)) elements.card.value = previous;
+      }
+
+      function setModeAvailability(status) {
+        const modes = status && typeof status.modes === "object" ? status.modes : {};
+        const embeddingAvailable = Boolean(getNested(status, ["embedding.available", "embedding_available", "capabilities.embedding"]));
+        ["keyword", "hybrid", "vector", "weighted"].forEach((mode) => {
+          const input = document.getElementById("mode-" + mode);
+          const declared = modes[mode];
+          const available = typeof declared === "object" ? declared.available !== false : declared !== false;
+          input.disabled = mode === "keyword" ? !available : !(available && embeddingAvailable);
+        });
+        const checked = document.querySelector('input[name="mode"]:checked');
+        if (checked && checked.disabled) {
+          const keyword = document.getElementById("mode-keyword");
+          keyword.checked = !keyword.disabled;
+        }
+        updateModeUI();
+      }
+
+      function updateGenerationAvailability(status) {
+        const generation = status && typeof status.generation === "object" ? status.generation : {};
+        const answer = status && typeof status.answer === "object" ? status.answer : {};
+        const declared = generation.available ?? answer.available ?? getNested(status, ["generation_available", "capabilities.generation.available", "capabilities.generation"]);
+        generationAvailable = declared === true;
+        generationModel = String(generation.model ?? answer.model ?? getNested(status, ["generation_model"]) ?? "gpt-5.6-luna");
+        generationReasoning = String(generation.reasoning ?? answer.reasoning ?? "medium");
+        elements.statusGeneration.textContent = generationAvailable ? "사용 가능 · " + generationModel + " · " + generationReasoning : "사용 불가";
+        if (!generationAvailable) elements.generationButton.disabled = true;
+      }
+
+      function updateModeUI() {
+        const mode = selectedMode();
+        const copy = modeCopy[mode];
+        elements.explainer.classList.toggle("external", copy.external);
+        elements.explainerLabel.textContent = copy.label;
+        elements.explainerCopy.textContent = copy.copy;
+        elements.loadingCopy.textContent = copy.loading;
+        elements.alphaWrap.hidden = mode !== "weighted";
+      }
+
+      async function loadStatus() {
+        if (location.protocol === "file:") {
+          elements.protocolBanner.hidden = false;
+          setConnection("error", "localhost 접속 필요");
+          elements.submit.disabled = true;
+          return;
+        }
+        try {
+          const response = await fetch(API.status, { headers: { Accept: "application/json" }, cache: "no-store" });
+          const payload = await readJson(response);
+          if (!response.ok || payload.ok === false) throw new Error(responseError(payload, "상태 확인에 실패했습니다."));
+          setConnection("connected", "검색 가능");
+          elements.runtimeAlert.hidden = true;
+          elements.submit.disabled = false;
+          elements.statusDocuments.textContent = formatInteger(getNested(payload, ["index.documents", "index.document_count", "counts.documents", "documents"]));
+          elements.statusParents.textContent = formatInteger(getNested(payload, ["index.parents", "index.parent_count", "counts.parents", "parents"]));
+          elements.statusChildren.textContent = formatInteger(getNested(payload, ["index.children", "index.child_count", "counts.children", "children"]));
+          const embeddingAvailable = Boolean(getNested(payload, ["embedding.available", "embedding_available", "capabilities.embedding"]));
+          const embeddingModel = getNested(payload, ["embedding.model", "embedding_model"]);
+          elements.statusEmbedding.textContent = embeddingAvailable ? (embeddingModel ? "사용 가능 · " + embeddingModel : "사용 가능") : "사용 불가";
+          updateGenerationAvailability(payload);
+          const queryLimit = Number(getNested(payload, ["limits.query_chars"]));
+          if (Number.isInteger(queryLimit) && queryLimit >= 2) elements.query.maxLength = queryLimit;
+          filterCatalog = normalizeCatalog(payload);
+          populateIssuers();
+          setModeAvailability(payload);
+        } catch (error) {
+          setConnection("error", "연결 실패");
+          elements.submit.disabled = true;
+          elements.runtimeAlert.hidden = false;
+          elements.statusGeneration.textContent = "확인 실패";
+          elements.runtimeAlertText.textContent = safeMessage(error, "검색 서버 실행 상태를 확인한 뒤 페이지를 새로고침해 주세요.");
+        }
+      }
+
+      async function readJson(response) {
+        const contentType = response.headers.get("content-type") || "";
+        if (!contentType.includes("application/json")) throw new Error("서버가 JSON 응답을 반환하지 않았습니다.");
+        return response.json();
+      }
+
+      function safeMessage(error, fallback) {
+        if (!error || error.name === "AbortError") return fallback;
+        const message = String(error.message || "").trim();
+        return message && message.length <= 240 ? message : fallback;
+      }
+
+      function responseError(payload, fallback) {
+        if (payload && payload.error && typeof payload.error.message === "string") return payload.error.message;
+        if (payload && typeof payload.error === "string") return payload.error;
+        if (payload && typeof payload.message === "string") return payload.message;
+        return fallback;
+      }
+
+      function normalizeResults(payload) {
+        const rows = Array.isArray(payload.results) ? payload.results : (Array.isArray(payload.parents) ? payload.parents : []);
+        const childHits = Array.isArray(payload.child_hits) ? payload.child_hits : [];
+        return rows.map((row, index) => {
+          const parent = row.parent && typeof row.parent === "object" ? row.parent : row;
+          let child = row.child || row.best_child || row.evidence;
+          if (!child || typeof child !== "object") {
+            const childIds = Array.isArray(row.supporting_children) ? row.supporting_children : [];
+            child = childHits.find((hit) => hit.parent_id === parent.chunk_id || childIds.includes(hit.chunk_id));
+          }
+          if (!child || typeof child !== "object") child = {};
+          return {
+            rank: Number(row.rank ?? parent.rank ?? index + 1),
+            score: row.score ?? parent.score,
+            keywordScore: row.keyword_score ?? child.keyword_score,
+            vectorScore: row.vector_score ?? child.vector_score,
+            parentId: parent.chunk_id ?? parent.parent_id ?? row.parent_id ?? row.chunk_id ?? "",
+            documentId: parent.document_id ?? row.document_id ?? "",
+            issuer: parent.issuer ?? row.issuer ?? "",
+            cardName: parent.card_name ?? row.card_name ?? "이름 없는 문서",
+            pageStart: parent.page_start ?? row.page_start,
+            pageEnd: parent.page_end ?? row.page_end,
+            sectionPath: Array.isArray(parent.section_path) ? parent.section_path : (Array.isArray(row.section_path) ? row.section_path : []),
+            childText: child.text ?? row.child_text ?? row.snippet ?? "근거 snippet이 응답에 포함되지 않았습니다.",
+            parentText: parent.text ?? row.parent_text ?? "부모 컨텍스트가 응답에 포함되지 않았습니다.",
+            sourceUrl: row.source_url ?? parent.source_url ?? row.pdf_url ?? parent.pdf_url ?? ""
+          };
+        });
+      }
+
+      function pageLabel(start, end) {
+        if (start === null || start === undefined || start === "") return "페이지 미상";
+        const a = Number(start);
+        const b = Number(end);
+        if (!Number.isFinite(a)) return "페이지 미상";
+        return Number.isFinite(b) && b !== a ? "pp. " + a + "–" + b : "p. " + a;
+      }
+
+      function textElement(tag, className, text) {
+        const element = document.createElement(tag);
+        if (className) element.className = className;
+        element.textContent = String(text ?? "");
+        return element;
+      }
+
+      function scoreChip(label, value) {
+        const formatted = formatScore(value);
+        if (formatted === null) return null;
+        const chip = document.createElement("span");
+        chip.className = "score-chip";
+        const strong = document.createElement("strong");
+        strong.textContent = label + " ";
+        chip.append(strong, document.createTextNode(formatted));
+        return chip;
+      }
+
+      function safeSourceUrl(raw) {
+        if (!raw) return null;
+        try {
+          const url = new URL(String(raw), location.href);
+          if ((url.protocol === "http:" || url.protocol === "https:") && url.origin === location.origin) return url.href;
+        } catch (_error) {
+          return null;
+        }
+        return null;
+      }
+
+      function metricChip(label, value) {
+        if (value === null || value === undefined || value === "") return null;
+        const chip = document.createElement("span");
+        chip.className = "score-chip";
+        const strong = document.createElement("strong");
+        strong.textContent = label + " ";
+        chip.append(strong, document.createTextNode(String(value)));
+        return chip;
+      }
+
+      function formatTokenCount(value) {
+        if (value === null || value === undefined || value === "") return null;
+        const number = Number(value);
+        return Number.isFinite(number) ? formatInteger(number) + " tokens" : null;
+      }
+
+      function renderGenerationMetrics(payload, target) {
+        target.replaceChildren();
+        const totalLatency = formatLatency(payload.total_latency_ms ?? payload.latency_ms);
+        const retrievalLatency = formatLatency(payload.retrieval_latency_ms ?? getNested(payload, ["retrieval.latency_ms", "search_latency_ms"]));
+        const indexLatency = formatLatency(payload.index_latency_ms ?? getNested(payload, ["retrieval.index_latency_ms"]));
+        const embeddingLatency = formatLatency(payload.embedding_latency_ms ?? getNested(payload, ["retrieval.embedding_latency_ms"]));
+        const generationLatency = formatLatency(payload.generation_latency_ms ?? getNested(payload, ["generation.latency_ms"]));
+        const usage = getNested(payload, ["generation_usage", "usage", "generation.usage"]);
+        const inputTokens = usage && (usage.input_tokens ?? usage.prompt_tokens);
+        const outputTokens = usage && (usage.output_tokens ?? usage.completion_tokens);
+        const reasoningTokens = usage && (usage.reasoning_tokens ?? getNested(usage, ["output_tokens_details.reasoning_tokens", "completion_tokens_details.reasoning_tokens"]));
+        const totalTokens = usage && usage.total_tokens;
+        const model = payload.model ?? payload.generation_model ?? getNested(payload, ["generation.model"]) ?? generationModel;
+        const reasoning = payload.reasoning_effort ?? getNested(payload, ["generation.reasoning_effort", "generation.reasoning"]) ?? generationReasoning;
+
+        const chips = [
+          metricChip("모델", model),
+          metricChip("Reasoning", reasoning),
+          metricChip("검색", retrievalLatency),
+          metricChip("인덱스", indexLatency),
+          metricChip("임베딩", embeddingLatency),
+          metricChip("Luna 생성", generationLatency),
+          metricChip("전체", totalLatency),
+          metricChip("생성 입력", formatTokenCount(inputTokens)),
+          metricChip("생성 출력", formatTokenCount(outputTokens)),
+          metricChip("추론 토큰", formatTokenCount(reasoningTokens)),
+          metricChip("생성 합계", formatTokenCount(totalTokens))
+        ].filter(Boolean);
+        chips.forEach((chip) => target.appendChild(chip));
+      }
+
+      function normalizeCitations(payload) {
+        const rows = Array.isArray(payload.citations) ? payload.citations : [];
+        return rows.filter((row) => row && typeof row === "object").map((row, index) => ({
+          index: index + 1,
+          issuer: row.issuer ?? "",
+          cardName: row.card_name ?? row.cardName ?? "",
+          documentId: row.document_id ?? "",
+          parentId: row.parent_id ?? "",
+          supportingChildren: Array.isArray(row.supporting_children) ? row.supporting_children : [],
+          pageStart: row.page_start ?? row.page,
+          pageEnd: row.page_end ?? row.page,
+          quote: row.quote ?? row.excerpt ?? "",
+          sourceUrl: row.source_url ?? ""
+        }));
+      }
+
+      function renderCitation(citation) {
+        const item = document.createElement("li");
+        item.className = "citation-card";
+        const head = document.createElement("div");
+        head.className = "citation-card-head";
+        const identity = [citation.issuer, citation.cardName].filter(Boolean).join(" · ") || citation.documentId || "문서 근거";
+        head.appendChild(textElement("span", "citation-label", "[" + citation.index + "] " + identity + " · " + pageLabel(citation.pageStart, citation.pageEnd)));
+        const sourceUrl = safeSourceUrl(citation.sourceUrl);
+        if (sourceUrl) {
+          const link = document.createElement("a");
+          link.className = "citation-link";
+          link.href = sourceUrl;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          link.textContent = "서버 확인 원문 열기 ↗";
+          head.appendChild(link);
+        }
+        item.appendChild(head);
+        const metadata = [citation.documentId, citation.parentId, citation.supportingChildren.length ? "supporting child " + citation.supportingChildren.length + "개" : ""].filter(Boolean).join(" · ");
+        if (metadata) item.appendChild(textElement("span", "document-id", metadata));
+        if (citation.quote) item.appendChild(textElement("p", "citation-quote", citation.quote));
+        return item;
+      }
+
+      function renderAnswer(payload) {
+        const insufficient = payload.insufficient_evidence === true;
+        const answer = String(payload.answer ?? "").trim();
+        const citations = normalizeCitations(payload);
+        if (insufficient) {
+          elements.insufficientCopy.textContent = answer || "검색된 문맥만으로는 신뢰할 수 있는 답을 만들 수 없습니다. citation은 제공하지 않습니다.";
+          renderGenerationMetrics(payload, elements.insufficientMeta);
+          setAnswerState("insufficient");
+          return;
+        }
+        if (!answer) throw new Error("서버가 답변 본문을 반환하지 않았습니다.");
+        if (!citations.length) throw new Error("서버가 답변의 원문 citation을 확인하지 못해 결과를 표시하지 않았습니다.");
+        elements.answerCopy.textContent = answer;
+        elements.citationList.replaceChildren();
+        citations.forEach((citation) => elements.citationList.appendChild(renderCitation(citation)));
+        renderGenerationMetrics(payload, elements.answerMeta);
+        setAnswerState("success");
+      }
+
+      function renderResult(result) {
+        const item = document.createElement("li");
+        const card = document.createElement("article");
+        card.className = "result-card";
+        card.setAttribute("aria-labelledby", "result-title-" + result.rank);
+
+        const top = document.createElement("div");
+        top.className = "result-top";
+        top.appendChild(textElement("span", "rank", result.rank));
+        const identity = document.createElement("div");
+        const title = textElement("h3", "document-name", [result.issuer, result.cardName].filter(Boolean).join(" · "));
+        title.id = "result-title-" + result.rank;
+        identity.appendChild(title);
+        if (result.documentId) identity.appendChild(textElement("span", "document-id", result.documentId));
+        top.append(identity, textElement("span", "page-badge", pageLabel(result.pageStart, result.pageEnd)));
+        card.appendChild(top);
+
+        if (result.sectionPath.length) {
+          const path = document.createElement("div");
+          path.className = "section-path";
+          path.setAttribute("aria-label", "문서 섹션 경로");
+          result.sectionPath.forEach((part) => path.appendChild(textElement("span", "", part)));
+          card.appendChild(path);
+        }
+
+        const evidence = document.createElement("blockquote");
+        evidence.className = "evidence";
+        evidence.append(textElement("span", "evidence-label", "Matched child evidence"), textElement("p", "evidence-text", result.childText));
+        card.appendChild(evidence);
+
+        const scores = document.createElement("div");
+        scores.className = "score-row";
+        [scoreChip("결합 점수", result.score), scoreChip("Keyword", result.keywordScore), scoreChip("Vector", result.vectorScore)].filter(Boolean).forEach((chip) => scores.appendChild(chip));
+        if (scores.childElementCount) card.appendChild(scores);
+
+        const footer = document.createElement("div");
+        footer.className = "result-footer";
+        const details = document.createElement("details");
+        const summary = document.createElement("summary");
+        summary.textContent = "Parent 문맥 펼치기";
+        details.append(summary, textElement("p", "parent-text", result.parentText));
+        footer.appendChild(details);
+
+        const sourceUrl = safeSourceUrl(result.sourceUrl);
+        if (sourceUrl) {
+          const link = document.createElement("a");
+          link.className = "source-link";
+          link.href = sourceUrl;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          link.textContent = "원본 PDF 열기 ↗";
+          footer.appendChild(link);
+        }
+        card.appendChild(footer);
+        item.appendChild(card);
+        return item;
+      }
+
+      function renderResults(payload, clientElapsed) {
+        const results = normalizeResults(payload);
+        elements.results.replaceChildren();
+        if (!results.length) {
+          elements.resultsMeta.textContent = "0건";
+          setState("empty");
+          return results;
+        }
+        results.forEach((result) => elements.results.appendChild(renderResult(result)));
+        const mode = payload.mode || selectedMode();
+        const totalLatency = formatLatency(payload.latency_ms ?? clientElapsed);
+        const indexLatency = formatLatency(payload.index_latency_ms);
+        const embeddingLatency = formatLatency(payload.embedding_latency_ms);
+        const embeddingTokens = Number(payload.embedding_tokens);
+        const parts = [results.length + "건", String(mode).toUpperCase()];
+        if (totalLatency) parts.push("전체 " + totalLatency);
+        if (indexLatency) parts.push("인덱스 " + indexLatency);
+        if (payload.embedding_used && embeddingLatency) parts.push("임베딩 " + embeddingLatency);
+        if (payload.embedding_used && Number.isFinite(embeddingTokens)) parts.push("임베딩 " + formatInteger(embeddingTokens) + " tokens");
+        elements.resultsMeta.textContent = parts.join(" · ");
+        setState("results");
+        document.getElementById("results-title").focus?.({ preventScroll: true });
+        return results;
+      }
+
+      function prepareGeneration(body, results) {
+        lastSearchBody = { ...body };
+        lastParentIds = [...new Set(results.map((result) => result.parentId).filter(Boolean))].slice(0, 5);
+        resetAnswerDisplay();
+        elements.generationRegion.hidden = false;
+        elements.generationButton.textContent = "GPT-5.6 Luna로 답변 생성";
+        elements.generationButton.disabled = !generationAvailable;
+        if (!generationAvailable) {
+          elements.generationStatus.textContent = "Luna 생성이 비활성화되어 있습니다. 서버를 --enable-generation 옵션으로 다시 시작해 주세요.";
+        } else if (lastParentIds.length) {
+          elements.generationStatus.textContent = "이번 검색의 상위 parent " + lastParentIds.length + "개가 선택되었습니다. 버튼을 누를 때만 질문과 parent 본문이 Luna로 전송됩니다.";
+        } else {
+          elements.generationStatus.textContent = "선택된 parent가 없습니다. 생성 요청 시 서버가 근거 부족 여부를 확인합니다.";
+        }
+      }
+
+      async function runAnswer() {
+        if (!lastSearchBody || !generationAvailable || answerRequest) return;
+        answerRequestId += 1;
+        const requestId = answerRequestId;
+        answerRequest = new AbortController();
+        const body = { ...lastSearchBody };
+        if (lastParentIds.length) body.parent_ids = lastParentIds.slice(0, 5);
+        elements.generationButton.disabled = true;
+        elements.generationButton.textContent = "Luna 생성 중…";
+        elements.generationStatus.textContent = lastParentIds.length
+          ? "질문과 선택된 parent " + lastParentIds.length + "개를 OpenAI API로 전송했습니다."
+          : "근거 부족 여부를 서버에서 확인하고 있습니다.";
+        resetAnswerDisplay();
+        setAnswerState("loading");
+        try {
+          const response = await fetch(API.answer, {
+            method: "POST",
+            headers: { Accept: "application/json", "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+            signal: answerRequest.signal
+          });
+          const payload = await readJson(response);
+          if (requestId !== answerRequestId) return;
+          if (!response.ok || payload.ok === false) throw new Error(responseError(payload, "Luna 답변 생성 요청에 실패했습니다."));
+          renderAnswer(payload);
+          elements.generationStatus.textContent = payload.insufficient_evidence === true
+            ? "Luna가 근거 부족으로 답변을 보류했습니다."
+            : "답변과 서버 확인 citation을 함께 반환했습니다.";
+          elements.generationButton.textContent = "Luna 답변 다시 생성";
+          document.getElementById("generation-title").focus?.({ preventScroll: true });
+        } catch (error) {
+          if (error.name === "AbortError" || requestId !== answerRequestId) return;
+          elements.answerErrorMessage.textContent = safeMessage(error, "검색 결과는 그대로 유지됩니다. 잠시 후 다시 시도해 주세요.");
+          setAnswerState("error");
+          elements.generationStatus.textContent = "답변 생성에 실패했습니다. 검색 결과는 유지됩니다.";
+          elements.generationButton.textContent = "Luna 답변 다시 시도";
+        } finally {
+          if (requestId === answerRequestId) {
+            answerRequest = null;
+            elements.generationButton.disabled = !lastSearchBody || !generationAvailable;
+          }
+        }
+      }
+
+      async function runSearch(event) {
+        event.preventDefault();
+        if (location.protocol === "file:") {
+          elements.protocolBanner.hidden = false;
+          elements.protocolBanner.scrollIntoView({ behavior: "smooth", block: "center" });
+          return;
+        }
+        const query = elements.query.value.trim();
+        if (query.length < 2) {
+          elements.query.setCustomValidity("두 글자 이상 입력해 주세요.");
+          elements.query.reportValidity();
+          elements.query.setCustomValidity("");
+          elements.query.focus();
+          return;
+        }
+
+        if (activeRequest) activeRequest.abort();
+        answerRequestId += 1;
+        if (answerRequest) answerRequest.abort();
+        answerRequest = null;
+        lastSearchBody = null;
+        lastParentIds = [];
+        resetAnswerDisplay();
+        elements.generationRegion.hidden = false;
+        elements.generationButton.disabled = true;
+        elements.generationButton.textContent = "GPT-5.6 Luna로 답변 생성";
+        elements.generationStatus.textContent = "검색을 완료한 뒤 답변 생성 여부를 선택할 수 있습니다.";
+        activeRequest = new AbortController();
+        const searchRequest = activeRequest;
+        const mode = selectedMode();
+        const body = { query, mode, top_k: Number(elements.topK.value) };
+        if (elements.issuer.value) body.issuer = elements.issuer.value;
+        if (elements.card.value) body.card_name = elements.card.value;
+        if (mode === "weighted") body.alpha = Number(elements.alpha.value);
+
+        elements.submit.disabled = true;
+        elements.submit.textContent = "검색 중…";
+        elements.resultsMeta.textContent = "";
+        setState("loading");
+        const started = performance.now();
+        try {
+          const response = await fetch(API.search, {
+            method: "POST",
+            headers: { Accept: "application/json", "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+            signal: searchRequest.signal
+          });
+          const payload = await readJson(response);
+          if (activeRequest !== searchRequest) return;
+          if (!response.ok || payload.ok === false) throw new Error(responseError(payload, "검색 요청에 실패했습니다."));
+          const results = renderResults(payload, performance.now() - started);
+          prepareGeneration(body, results);
+        } catch (error) {
+          if (error.name === "AbortError") return;
+          elements.errorMessage.textContent = safeMessage(error, "검색 서버 상태와 입력값을 확인한 뒤 다시 시도해 주세요.");
+          setState("error");
+          elements.generationStatus.textContent = "검색에 실패해 답변 생성을 시작할 수 없습니다.";
+        } finally {
+          if (activeRequest === searchRequest) {
+            elements.submit.disabled = false;
+            elements.submit.textContent = "검색하기";
+            activeRequest = null;
+          }
+        }
+      }
+
+      document.querySelectorAll('input[name="mode"]').forEach((input) => input.addEventListener("change", updateModeUI));
+      document.querySelectorAll(".example-button").forEach((button) => button.addEventListener("click", () => {
+        invalidateGeneration();
+        elements.query.value = button.dataset.query || "";
+        elements.query.focus();
+      }));
+      elements.alpha.addEventListener("input", () => {
+        elements.alphaValue.textContent = Number(elements.alpha.value).toFixed(1);
+        elements.explainerCopy.textContent = "1단계에서 질의를 임베딩 API에 전송한 뒤 정규화한 벡터 " + elements.alphaValue.textContent + "와 키워드 " + (1 - Number(elements.alpha.value)).toFixed(1) + "를 가중 합산합니다. Luna 생성은 별도 실행입니다.";
+      });
+      elements.issuer.addEventListener("change", populateCards);
+      elements.form.addEventListener("input", invalidateGeneration);
+      elements.form.addEventListener("change", invalidateGeneration);
+      elements.form.addEventListener("submit", runSearch);
+      elements.generationButton.addEventListener("click", runAnswer);
+
+      updateModeUI();
+      loadStatus();
+    })();
+  </script>
+</body>
+</html>
