@@ -20,7 +20,6 @@ from .errors import (
     LlmUngrounded,
     RagError,
     RerankerUnavailable,
-    TokenizerUnavailable,
 )
 from .retrieval import (
     BENEFIT_HIERARCHY,
@@ -38,7 +37,6 @@ from .retrieval import (
     VectorSearcher,
     classify_query,
     collapse_cards,
-    mmr_rank,
     normalize_text,
     normalized_tokens,
     squared_l2_rank,
@@ -72,7 +70,6 @@ __all__ = [
     "RerankerUnavailable",
     "RewriteOutput",
     "SearchConfig",
-    "TokenizerUnavailable",
     "VectorSearcher",
     "classify_query",
     "collapse_cards",
@@ -80,7 +77,6 @@ __all__ = [
     "comparison_config_hash",
     "completed_context",
     "measure_answer_payload",
-    "mmr_rank",
     "normalize_text",
     "normalized_tokens",
     "retrieval_metrics",

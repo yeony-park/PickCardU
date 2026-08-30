@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from pickcardu_rag import IndexIdentity, SearchConfig, comparison_config_hash, retrieval_metrics
+from pickcardu_rag import IndexIdentity, SearchConfig, comparison_config, comparison_config_hash, retrieval_metrics
 
 
 class DiagnosticsTests(unittest.TestCase):
@@ -24,6 +24,8 @@ class DiagnosticsTests(unittest.TestCase):
             "embedding_model_match": True,
             "reranker_artifact": None,
         }
+        material = comparison_config(SearchConfig(reranker="off"), index, **kwargs)
+        self.assertEqual(material["metric_version"], "card_search_metrics_v2")
         free_a = comparison_config_hash(SearchConfig(reranker="off"), index, **kwargs)
         free_b = comparison_config_hash(SearchConfig(reranker="off"), index, **kwargs)
         fixed = comparison_config_hash(

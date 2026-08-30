@@ -15,10 +15,6 @@ class RagError(Exception):
         self.extra = extra or {}
 
 
-class TokenizerUnavailable(RagError):
-    code = "TOKENIZER_UNAVAILABLE"
-
-
 class RerankerUnavailable(RagError):
     code = "RERANKER_UNAVAILABLE"
 
@@ -35,4 +31,3 @@ class LlmUnavailable(RagError):
 
 class LlmUngrounded(LlmUnavailable):
     code = "LLM_UNGROUNDED"
-

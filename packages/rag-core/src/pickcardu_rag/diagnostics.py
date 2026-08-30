@@ -11,7 +11,7 @@ from .retrieval import GTE_REVISION, SearchConfig, normalize_text
 
 
 LAB_LABEL = "development retrieval diagnostics; not a product success criterion."
-METRIC_VERSION = "card_search_metrics_v1"
+METRIC_VERSION = "card_search_metrics_v2"
 
 
 @dataclass(frozen=True)
@@ -55,9 +55,7 @@ def comparison_config(
         "dedup": "unordered_card_key",
         "metric_version": METRIC_VERSION,
         "profile": config.profile,
-        "tokenizer": config.tokenizer,
         "vector_weight": config.vector_weight,
-        "mmr_lambda": config.mmr_lambda,
     }
 
 
@@ -101,4 +99,3 @@ def retrieval_metrics(
         "singleton_hit_equals_recall": len(set(gold_cards)) == 1,
         "claim_citation_metrics": "diagnostic_only",
     }
-

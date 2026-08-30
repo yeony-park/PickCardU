@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 import tempfile
-import sys
 import types
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
 import numpy as np
 import torch
@@ -22,44 +20,35 @@ from pickcardu_rag import (
     SearchConfig,
     classify_query,
     collapse_cards,
-    mmr_rank,
     normalize_text,
     normalized_tokens,
     squared_l2_rank,
     weighted_rrf,
 )
 from pickcardu_rag.errors import RerankerUnavailable
-from pickcardu_rag import retrieval
 from pickcardu_rag.retrieval import _scores_from_logits, fingerprint_local_artifact
 
 
 class RecordingLexical:
     def __init__(self, rows: list[Candidate]) -> None:
         self.rows = rows
-        self.calls: list[tuple[str, str, int]] = []
+        self.calls: list[tuple[str, int]] = []
 
-    def search(self, query: str, *, tokenizer: str, limit: int) -> list[Candidate]:
-        self.calls.append((query, tokenizer, limit))
+    def search(self, query: str, *, limit: int) -> list[Candidate]:
+        self.calls.append((query, limit))
         return self.rows[:limit]
 
 
 class RecordingVector:
     embedding_model = "text-embedding-3-small"
 
-    def __init__(self, rows: list[Candidate], vectors: dict[str, np.ndarray]) -> None:
+    def __init__(self, rows: list[Candidate]) -> None:
         self.rows = rows
-        self.vectors = vectors
         self.calls: list[int] = []
-        self.vector_calls: list[str] = []
 
     def search(self, query_embedding: np.ndarray, *, limit: int) -> list[Candidate]:
         self.calls.append(limit)
         return self.rows[:limit]
-
-    def vector(self, chunk_id: str) -> np.ndarray:
-        self.vector_calls.append(chunk_id)
-        return self.vectors[chunk_id]
-
 
 class FixedReranker:
     def __init__(self) -> None:
@@ -122,7 +111,6 @@ class RetrievalTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             SearchConfig(vector_weight=1.1)
         for kwargs in (
-            {"tokenizer": "other"},
             {"reranker": "other"},
             {"reranker_route": "other"},
         ):
@@ -140,44 +128,17 @@ class RetrievalTests(unittest.TestCase):
             with self.subTest(page_num=page_num), self.assertRaises(ValueError):
                 Chunk(*fields[:6], page_num)
 
-    def test_kiwi_singleton_and_tokenizer_index_are_reused(self) -> None:
-        class FakeKiwi:
-            instances = 0
-
-            def __init__(self) -> None:
-                FakeKiwi.instances += 1
-
-            def tokenize(self, text: str):
-                return [types.SimpleNamespace(form=part) for part in text.split()]
-
-        previous = retrieval._KIWI
-        retrieval._KIWI = None
-        try:
-            with patch.dict(sys.modules, {"kiwipiepy": types.SimpleNamespace(Kiwi=FakeKiwi)}):
-                searcher = InMemoryBM25Searcher(self.chunks)
-                searcher.search("카페 할인", tokenizer="kiwi", limit=3)
-                cached_index = searcher._indexes["kiwi"]
-                searcher.search("항공 혜택", tokenizer="kiwi", limit=3)
-                self.assertIs(searcher._indexes["kiwi"], cached_index)
-                self.assertEqual(FakeKiwi.instances, 1)
-        finally:
-            retrieval._KIWI = previous
-
-    def test_adapter_boundary_pipeline_rerank_mmr_collapse_and_profile(self) -> None:
+    def test_adapter_boundary_pipeline_rerank_collapse_and_profile(self) -> None:
         lexical = RecordingLexical([Candidate("a", 4, 1), Candidate("b", 3, 2), Candidate("c", 2, 3)])
-        vector = RecordingVector(
-            [Candidate("c", 0, 1), Candidate("b", 1, 2)],
-            {chunk.chunk_id: self.embeddings[index] for index, chunk in enumerate(self.chunks)},
-        )
+        vector = RecordingVector([Candidate("c", 0, 1), Candidate("b", 1, 2)])
         reranker = FixedReranker()
         pipeline = RagPipeline(self.chunks, lexical, vector, reranker)
         result = pipeline.search(
-            "카페 혜택 좋은 카드", np.zeros(2, dtype=np.float32), SearchConfig(reranker="bge", mmr_lambda=0.7, top_k=2)
+            "카페 혜택 좋은 카드", np.zeros(2, dtype=np.float32), SearchConfig(reranker="bge", top_k=2)
         )
-        self.assertEqual(lexical.calls, [("카페 혜택 좋은 카드", "normalized", 50)])
+        self.assertEqual(lexical.calls, [("카페 혜택 좋은 카드", 50)])
         self.assertEqual(vector.calls, [50])
         self.assertEqual(reranker.calls, 1)
-        self.assertCountEqual(vector.vector_calls, [row["chunk_id"] for row in result["trace"]["leaf"]])
         self.assertNotIn("a", [item["chunk_id"] for item in result["evidence"]])
         self.assertTrue(all(isinstance(item["page_num"], int) for item in result["evidence"]))
         self.assertEqual(result["trace"]["profile"], "benefit_hierarchy")
@@ -210,8 +171,7 @@ class RetrievalTests(unittest.TestCase):
         self.assertEqual(first["cards"], second["cards"])
         self.assertEqual(first["evidence"], second["evidence"])
         rows = [Candidate("b", 2, 1), Candidate("c", 1, 2)]
-        diversified = mmr_rank(rows, vector, lambda_value=0.7)
-        cards, evidence, budget = collapse_cards(diversified, {chunk.chunk_id: chunk for chunk in self.chunks}, top_k=2)
+        cards, evidence, budget = collapse_cards(rows, {chunk.chunk_id: chunk for chunk in self.chunks}, top_k=2)
         self.assertEqual([card["card_key"] for card in cards], ["c1", "c2"])
         self.assertEqual([item["page_num"] for item in evidence], [1, 2])
         self.assertLessEqual(budget["payload_size"], budget["payload_unit_limit"])

@@ -19,7 +19,7 @@ from typing import Any, Callable, Iterable, Literal, Mapping, Protocol, Sequence
 import numpy as np
 
 from .answering import ANSWER_PAYLOAD_UNIT_LIMIT, measure_answer_payload
-from .errors import RerankerUnavailable, TokenizerUnavailable
+from .errors import RerankerUnavailable
 
 
 TOKEN_PATTERN = re.compile(r"[\w]+(?:[./+-][\w]+)*%?", re.UNICODE)
@@ -36,8 +36,6 @@ NUMERIC_QUESTION_PATTERN = re.compile(
 )
 _ARTIFACT_CACHE: dict[str, tuple[tuple[tuple[str, int, int, int], ...], str]] = {}
 _ARTIFACT_LOCK = threading.Lock()
-_KIWI: Any = None
-_KIWI_LOCK = threading.Lock()
 
 
 @dataclass(frozen=True)
@@ -69,19 +67,16 @@ class Candidate:
     rank: int
     component_ranks: Mapping[str, int | None] = field(default_factory=dict)
     prior_rank: int | None = None
-    mmr_score: float | None = None
 
 
 class LexicalSearcher(Protocol):
-    def search(self, query: str, *, tokenizer: str, limit: int) -> list[Candidate]: ...
+    def search(self, query: str, *, limit: int) -> list[Candidate]: ...
 
 
 class VectorSearcher(Protocol):
     embedding_model: str | None
 
     def search(self, query_embedding: np.ndarray, *, limit: int) -> list[Candidate]: ...
-
-    def vector(self, chunk_id: str) -> np.ndarray: ...
 
 
 class Reranker(Protocol):
@@ -100,28 +95,22 @@ BENEFIT_HIERARCHY = ChunkingProfile("benefit_hierarchy", frozenset({"section", "
 @dataclass(frozen=True)
 class SearchConfig:
     profile: str = "benefit_hierarchy"
-    tokenizer: Literal["normalized", "kiwi"] = "normalized"
     vector_weight: float = 0.4
     component_depth: int = 50
     candidate_depth: int = 20
     top_k: int = 3
     reranker: Literal["off", "bge", "gte"] = "bge"
     reranker_route: Literal["selective", "all"] = "selective"
-    mmr_lambda: float | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.profile, str) or not self.profile.strip() or not 0.0 <= self.vector_weight <= 1.0:
             raise ValueError("invalid profile or vector weight")
-        if self.tokenizer not in {"normalized", "kiwi"}:
-            raise ValueError("unsupported tokenizer")
         if self.reranker not in {"off", "bge", "gte"}:
             raise ValueError("unsupported reranker")
         if self.reranker_route not in {"selective", "all"}:
             raise ValueError("unsupported reranker route")
         if min(self.component_depth, self.candidate_depth, self.top_k) < 1:
             raise ValueError("search depths and top_k must be positive")
-        if self.mmr_lambda is not None and not 0.0 <= self.mmr_lambda <= 1.0:
-            raise ValueError("MMR lambda must be between zero and one")
 
 
 def normalize_text(text: str) -> str:
@@ -130,27 +119,6 @@ def normalize_text(text: str) -> str:
 
 def normalized_tokens(text: str) -> list[str]:
     return [token for token in TOKEN_PATTERN.findall(normalize_text(text)) if token != "_"]
-
-
-def _kiwi() -> Any:
-    global _KIWI
-    if _KIWI is None:
-        with _KIWI_LOCK:
-            if _KIWI is None:
-                try:
-                    from kiwipiepy import Kiwi
-                except ImportError as exc:
-                    raise TokenizerUnavailable("Kiwi tokenizer is unavailable") from exc
-                _KIWI = Kiwi()
-    return _KIWI
-
-
-def tokenize(text: str, mode: str = "normalized") -> list[str]:
-    if mode == "normalized":
-        return normalized_tokens(text)
-    if mode != "kiwi":
-        raise ValueError("unsupported tokenizer")
-    return [token.form.casefold() for token in _kiwi().tokenize(unicodedata.normalize("NFKC", text))]
 
 
 class BM25:
@@ -212,19 +180,10 @@ class InMemoryBM25Searcher:
     def __init__(self, chunks: Sequence[Chunk]) -> None:
         self.chunks = tuple(chunks)
         self.chunk_ids = tuple(chunk.chunk_id for chunk in chunks)
-        self._indexes = {"normalized": BM25(chunk.text for chunk in chunks)}
-        self._index_lock = threading.Lock()
+        self.index = BM25(chunk.text for chunk in chunks)
 
-    def search(self, query: str, *, tokenizer: str, limit: int) -> list[Candidate]:
-        if tokenizer not in {"normalized", "kiwi"}:
-            raise ValueError("unsupported tokenizer")
-        if tokenizer not in self._indexes:
-            with self._index_lock:
-                if tokenizer not in self._indexes:
-                    self._indexes[tokenizer] = BM25(
-                        (chunk.text for chunk in self.chunks), lambda text: tokenize(text, tokenizer)
-                    )
-        scores = self._indexes[tokenizer].scores(tokenize(query, tokenizer))
+    def search(self, query: str, *, limit: int) -> list[Candidate]:
+        scores = self.index.scores(normalized_tokens(query))
         return rank_scores(scores, self.chunk_ids, descending=True, limit=limit)
 
 
@@ -237,14 +196,9 @@ class InMemorySquaredL2Searcher:
         if not np.isfinite(self.embeddings).all():
             raise ValueError("embeddings must be finite")
         self.embedding_model = embedding_model
-        self._indexes = {chunk_id: index for index, chunk_id in enumerate(self.chunk_ids)}
 
     def search(self, query_embedding: np.ndarray, *, limit: int) -> list[Candidate]:
         return squared_l2_rank(query_embedding, self.embeddings, self.chunk_ids, limit)
-
-    def vector(self, chunk_id: str) -> np.ndarray:
-        return self.embeddings[self._indexes[chunk_id]]
-
 
 def weighted_rrf(
     ranked_components: Mapping[str, Sequence[Candidate]], weights: Mapping[str, float], *, k: int = 60
@@ -277,40 +231,6 @@ def classify_query(query: str) -> Literal["proper_noun", "numeric_condition", "s
     if NUMERIC_QUESTION_PATTERN.search(normalized):
         return "numeric_condition"
     return "semantic"
-
-
-def _normalize_scores(rows: Sequence[Candidate]) -> dict[str, float]:
-    if not rows:
-        return {}
-    values = [row.score for row in rows]
-    low, high = min(values), max(values)
-    return {row.chunk_id: (1.0 if high == low else (row.score - low) / (high - low)) for row in rows}
-
-
-def mmr_rank(
-    rows: Sequence[Candidate], vector_searcher: VectorSearcher, *, lambda_value: float
-) -> list[Candidate]:
-    relevance = _normalize_scores(rows)
-    remaining = list(rows)
-    selected: list[Candidate] = []
-    vectors = {row.chunk_id: vector_searcher.vector(row.chunk_id) for row in rows}
-    norms = {chunk_id: np.linalg.norm(vector) for chunk_id, vector in vectors.items()}
-    while remaining:
-        choices = []
-        for row in remaining:
-            vector = vectors[row.chunk_id]
-            redundancy = 0.0
-            for chosen in selected:
-                other = vectors[chosen.chunk_id]
-                denominator = norms[row.chunk_id] * norms[chosen.chunk_id]
-                cosine = float(np.dot(vector, other) / denominator) if denominator else 0.0
-                redundancy = max(redundancy, cosine)
-            score = lambda_value * relevance[row.chunk_id] - (1.0 - lambda_value) * redundancy
-            choices.append((score, row.rank, row.chunk_id, row))
-        winning_score, _, _, winner = min(choices, key=lambda item: (-item[0], item[1], item[2]))
-        selected.append(Candidate(**{**winner.__dict__, "rank": len(selected) + 1, "mmr_score": float(winning_score)}))
-        remaining.remove(winner)
-    return selected
 
 
 def collapse_cards(
@@ -380,8 +300,6 @@ def _candidate_dict(row: Candidate) -> dict[str, Any]:
         result["component_ranks"] = dict(row.component_ranks)
     if row.prior_rank is not None:
         result["prior_rank"] = row.prior_rank
-    if row.mmr_score is not None:
-        result["mmr_score"] = row.mmr_score
     return result
 
 
@@ -410,7 +328,7 @@ class RagPipeline:
             raise ValueError("search profile does not match the registered chunking contract")
         started = time.perf_counter()
         query_type = classify_query(query)
-        lexical = self.lexical_searcher.search(query, tokenizer=config.tokenizer, limit=config.component_depth)
+        lexical = self.lexical_searcher.search(query, limit=config.component_depth)
         vector: list[Candidate] = []
         if config.vector_weight:
             if query_embedding is None or self.vector_searcher is None:
@@ -444,13 +362,8 @@ class RagPipeline:
             ]
             reranked.sort(key=lambda row: (-row.score, row.prior_rank or row.rank, row.chunk_id))
             reranked = [Candidate(**{**row.__dict__, "rank": rank}) for rank, row in enumerate(reranked, 1)]
-        final = reranked
-        if config.mmr_lambda is not None:
-            if self.vector_searcher is None:
-                raise ValueError("vector searcher is required for MMR")
-            final = mmr_rank(reranked, self.vector_searcher, lambda_value=config.mmr_lambda)
         cards, evidence, budget = collapse_cards(
-            final, self.chunks, top_k=config.top_k, standalone_query=query
+            reranked, self.chunks, top_k=config.top_k, standalone_query=query
         )
         return {
             "query_type": query_type,
@@ -463,7 +376,6 @@ class RagPipeline:
                 "leaf": [_candidate_dict(row) for row in leaf],
                 "rerank": [_candidate_dict(row) for row in reranked] if should_rerank else [],
                 "reranker": reranker_trace,
-                "mmr": [_candidate_dict(row) for row in final] if config.mmr_lambda is not None else [],
                 "card": cards,
                 "evidence_budget": budget,
                 "profile": self.profile.identifier,

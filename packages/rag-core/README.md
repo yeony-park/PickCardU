@@ -16,7 +16,7 @@ pipeline = RagPipeline(chunks, lexical, vector)
 result = pipeline.search(query, query_embedding, SearchConfig(reranker="off"))
 ```
 
-서비스/indexer는 `LexicalSearcher.search`, `VectorSearcher.search/vector` 계약을 구현해
+서비스/indexer는 `LexicalSearcher.search`, `VectorSearcher.search` 계약을 구현해
 자체 인덱스를 연결합니다. `InMemory*Searcher`는 fixture와 작은 인덱스용입니다. 패키지는
 corpus 파일 경로나 snapshot loader를 제공하지 않습니다. `LocalReranker`의 모델 캐시는
 수 GB 모델의 중복 로드를 막기 위해 프로세스 수명 동안 유지됩니다.
