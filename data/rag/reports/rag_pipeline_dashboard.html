@@ -1,0 +1,1019 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline';">
+  <title>PickCardU RAG 파이프라인 실행 결과</title>
+  <style>
+    :root {
+      --ink: #14213d;
+      --ink-soft: #41506b;
+      --muted: #6b778c;
+      --line: #dce2ea;
+      --surface: #ffffff;
+      --surface-soft: #f4f7fa;
+      --canvas: #edf1f5;
+      --navy: #132a4f;
+      --blue: #2259a8;
+      --teal: #087f70;
+      --teal-soft: #e3f5f1;
+      --amber: #a45b00;
+      --amber-soft: #fff2d9;
+      --red: #a43d45;
+      --red-soft: #fdebed;
+      --shadow: 0 16px 40px rgba(30, 45, 70, 0.10);
+      --radius-lg: 22px;
+      --radius-md: 14px;
+      --radius-sm: 9px;
+      --content: 1480px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--canvas);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      font-size: 16px;
+      line-height: 1.65;
+      overflow-wrap: anywhere;
+    }
+
+    a { color: var(--blue); }
+    button, textarea { font: inherit; }
+    button { cursor: pointer; }
+    :focus-visible { outline: 3px solid #f6b73c; outline-offset: 3px; }
+
+    .skip-link {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      z-index: 1000;
+      padding: 10px 14px;
+      border-radius: 8px;
+      color: white;
+      background: var(--navy);
+      transform: translateY(-150%);
+    }
+    .skip-link:focus { transform: translateY(0); }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      color: white;
+      background:
+        radial-gradient(circle at 90% 0%, rgba(44, 190, 168, 0.22), transparent 34%),
+        radial-gradient(circle at 0% 100%, rgba(85, 126, 209, 0.28), transparent 36%),
+        var(--navy);
+      padding: 54px max(24px, calc((100vw - var(--content)) / 2)) 42px;
+    }
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background-image: linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+      background-size: 34px 34px;
+      mask-image: linear-gradient(to bottom, black, transparent 78%);
+    }
+    .hero-inner { position: relative; z-index: 1; max-width: var(--content); margin: 0 auto; }
+    .hero-top { display: flex; justify-content: space-between; gap: 32px; align-items: flex-start; }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      color: #aeece1;
+      font-weight: 800;
+      font-size: 13px;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+    .eyebrow::before { content: ""; width: 20px; height: 3px; border-radius: 2px; background: #3fd3bc; }
+    h1 { max-width: 920px; margin: 0; font-size: clamp(34px, 5vw, 64px); line-height: 1.12; letter-spacing: -.04em; }
+    .hero-copy { max-width: 860px; margin: 18px 0 0; color: #dbe7f6; font-size: clamp(16px, 1.5vw, 20px); }
+    .hero-meta { margin-top: 16px; color: #aebfd5; font-size: 14px; }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; min-width: 220px; }
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      padding: 9px 14px;
+      border: 1px solid rgba(255,255,255,.32);
+      border-radius: 10px;
+      color: white;
+      background: rgba(255,255,255,.08);
+      font-weight: 750;
+      text-decoration: none;
+    }
+    .button:hover { background: rgba(255,255,255,.16); }
+    .button.primary { color: var(--navy); border-color: #aeece1; background: #aeece1; }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 34px;
+    }
+    .kpi {
+      min-height: 132px;
+      padding: 20px;
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: 16px;
+      background: rgba(255,255,255,.075);
+      backdrop-filter: blur(4px);
+    }
+    .kpi-label { color: #b9c8da; font-size: 13px; font-weight: 750; }
+    .kpi-value { display: block; margin-top: 6px; font-size: clamp(27px, 3vw, 40px); line-height: 1.15; font-weight: 850; letter-spacing: -.03em; }
+    .kpi-note { display: block; margin-top: 7px; color: #d9e5f3; font-size: 13px; }
+
+    .decision {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 18px;
+      align-items: center;
+      margin-top: 16px;
+      padding: 16px 18px;
+      border: 1px solid rgba(174,236,225,.4);
+      border-radius: 14px;
+      background: rgba(8,127,112,.24);
+    }
+    .decision strong { font-size: 18px; }
+    .decision-label { padding: 5px 10px; border-radius: 999px; color: #0d3b35; background: #aeece1; font-size: 12px; font-weight: 850; }
+    .decision-metric { white-space: nowrap; color: #c9f6ee; font-weight: 750; }
+
+    .stage-nav {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255,255,255,.96);
+      backdrop-filter: blur(12px);
+    }
+    .stage-nav-inner {
+      display: flex;
+      gap: 5px;
+      max-width: var(--content);
+      margin: 0 auto;
+      padding: 10px 20px;
+      overflow-x: auto;
+      scrollbar-width: thin;
+    }
+    .stage-nav a {
+      flex: 0 0 auto;
+      padding: 8px 12px;
+      border-radius: 9px;
+      color: var(--ink-soft);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 750;
+    }
+    .stage-nav a:hover, .stage-nav a[aria-current="step"] { color: white; background: var(--navy); }
+
+    .page-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(320px, .82fr);
+      gap: 24px;
+      align-items: start;
+      max-width: var(--content);
+      margin: 0 auto;
+      padding: 30px 20px 72px;
+    }
+    main { min-width: 0; }
+    .stage {
+      scroll-margin-top: 78px;
+      margin-bottom: 24px;
+      padding: clamp(22px, 3.5vw, 40px);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+      box-shadow: 0 7px 22px rgba(30,45,70,.045);
+    }
+    .stage-header { display: grid; grid-template-columns: auto 1fr auto; gap: 16px; align-items: start; margin-bottom: 24px; }
+    .stage-index {
+      display: grid;
+      place-items: center;
+      width: 44px;
+      height: 44px;
+      border-radius: 13px;
+      color: white;
+      background: var(--navy);
+      font-weight: 850;
+      font-variant-numeric: tabular-nums;
+    }
+    .stage h2 { margin: 0; font-size: clamp(24px, 2.8vw, 34px); line-height: 1.2; letter-spacing: -.025em; }
+    .stage-lead { margin: 6px 0 0; color: var(--ink-soft); }
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 850;
+      white-space: nowrap;
+    }
+    .status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+    .status.complete { color: #07695e; background: var(--teal-soft); }
+    .status.review { color: #8d5200; background: var(--amber-soft); }
+
+    .summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .metric-card { padding: 17px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-soft); }
+    .metric-card .label { display: block; color: var(--muted); font-size: 12px; font-weight: 750; }
+    .metric-card .value { display: block; margin-top: 4px; font-size: 25px; font-weight: 850; letter-spacing: -.025em; }
+    .metric-card .note { display: block; margin-top: 4px; color: var(--ink-soft); font-size: 13px; }
+
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 20px; }
+    .panel { padding: 20px; border: 1px solid var(--line); border-radius: var(--radius-md); }
+    .panel h3 { margin: 0 0 12px; font-size: 17px; }
+    .panel p:last-child, .panel ul:last-child { margin-bottom: 0; }
+    .fact-list { margin: 0; padding-left: 20px; }
+    .fact-list li + li { margin-top: 7px; }
+    .callout { margin-top: 18px; padding: 16px 18px; border-left: 4px solid var(--amber); border-radius: 0 10px 10px 0; color: #5c3a09; background: var(--amber-soft); }
+    .callout.good { color: #084f47; border-color: var(--teal); background: var(--teal-soft); }
+    .callout strong { display: block; margin-bottom: 3px; }
+
+    .flow-line {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      margin-top: 20px;
+    }
+    .flow-node { position: relative; padding: 14px 10px; border-radius: 11px; text-align: center; color: var(--ink-soft); background: var(--surface-soft); font-size: 12px; font-weight: 750; }
+    .flow-node strong { display: block; color: var(--ink); font-size: 19px; }
+
+    .bars { display: grid; gap: 12px; }
+    .bar-row { display: grid; grid-template-columns: minmax(130px, 1.1fr) 3fr 62px; gap: 10px; align-items: center; }
+    .bar-label { font-size: 13px; font-weight: 750; }
+    .bar-track { position: relative; height: 11px; overflow: hidden; border-radius: 999px; background: #e7ebf0; }
+    .bar-fill { width: var(--w); height: 100%; border-radius: inherit; background: var(--blue); }
+    .bar-fill.teal { background: var(--teal); }
+    .bar-fill.amber { background: #cf7b0b; }
+    .bar-value { color: var(--ink-soft); text-align: right; font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .bar-row.best .bar-label::after { content: "상대 1위"; margin-left: 7px; padding: 2px 5px; border-radius: 5px; color: #075d54; background: var(--teal-soft); font-size: 10px; }
+    .legend { margin-top: 11px; color: var(--muted); font-size: 12px; }
+
+    .table-wrap { margin-top: 18px; overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+    caption { padding: 12px 14px; color: var(--ink-soft); text-align: left; font-weight: 800; background: #eef2f6; }
+    th, td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+    th:first-child, td:first-child { text-align: left; }
+    thead th { color: var(--ink-soft); background: #f7f9fb; font-size: 12px; }
+    tbody tr:last-child td { border-bottom: 0; }
+    tbody tr.highlight td { color: #075d54; background: #edf9f6; font-weight: 800; }
+
+    .issue-grid { display: grid; grid-template-columns: 1.25fr .75fr; gap: 18px; margin-top: 20px; }
+    .donut {
+      --p: 41.65%;
+      display: grid;
+      place-items: center;
+      width: 164px;
+      aspect-ratio: 1;
+      margin: 0 auto;
+      border-radius: 50%;
+      background: conic-gradient(var(--amber) var(--p), #e6ebf0 0);
+    }
+    .donut::after { content: "257 / 617\A검토 페이지"; white-space: pre; display: grid; place-items: center; width: 116px; aspect-ratio: 1; border-radius: 50%; color: var(--ink); background: white; text-align: center; font-weight: 850; line-height: 1.35; }
+
+    .conversation { display: grid; gap: 12px; }
+    .bubble { max-width: 88%; padding: 13px 15px; border-radius: 14px; }
+    .bubble.question { justify-self: end; color: white; background: var(--navy); border-bottom-right-radius: 4px; }
+    .bubble.answer { justify-self: start; color: var(--ink); background: #eef3f8; border-bottom-left-radius: 4px; }
+    .citation { display: inline-block; margin-top: 8px; padding: 4px 8px; border-radius: 7px; color: #075d54; background: var(--teal-soft); font-size: 12px; font-weight: 750; }
+    .abstain { border: 1px dashed #d2a043; background: #fff9ec !important; }
+
+    .assistant-column { position: sticky; top: 74px; min-width: 0; }
+    .assistant-card { overflow: hidden; border: 1px solid #cfd7e2; border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); }
+    .assistant-head { padding: 20px; color: white; background: var(--navy); }
+    .assistant-title { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+    .assistant-title h2 { margin: 0; font-size: 20px; }
+    .offline-badge { padding: 4px 7px; border: 1px solid rgba(255,255,255,.3); border-radius: 999px; color: #b9f2e8; font-size: 10px; font-weight: 850; }
+    .assistant-head p { margin: 7px 0 0; color: #cbd8e8; font-size: 13px; }
+    .chat-log { display: flex; flex-direction: column; gap: 10px; height: min(42vh, 390px); min-height: 290px; padding: 18px; overflow-y: auto; background: #f7f9fb; }
+    .chat-message { max-width: 92%; padding: 11px 13px; border-radius: 13px; font-size: 13px; white-space: pre-wrap; }
+    .chat-message.user { align-self: flex-end; color: white; background: var(--blue); border-bottom-right-radius: 4px; }
+    .chat-message.bot { align-self: flex-start; border: 1px solid var(--line); background: white; border-bottom-left-radius: 4px; }
+    .chat-source { display: inline-block; margin-top: 7px; color: var(--blue); font-size: 11px; font-weight: 800; }
+    .quick-wrap { padding: 14px 16px 4px; border-top: 1px solid var(--line); }
+    .quick-label { margin: 0 0 8px; color: var(--muted); font-size: 11px; font-weight: 800; }
+    .quick-list { display: flex; gap: 6px; overflow-x: auto; padding: 2px 2px 8px; }
+    .quick-button { flex: 0 0 auto; max-width: 220px; padding: 7px 9px; border: 1px solid #b8c7dc; border-radius: 999px; color: var(--blue); background: white; font-size: 11px; font-weight: 750; }
+    .quick-button:hover { background: #edf3fb; }
+    .chat-form { padding: 12px 16px 16px; }
+    .chat-form label { display: block; margin-bottom: 6px; color: var(--ink-soft); font-size: 12px; font-weight: 800; }
+    .chat-form textarea { width: 100%; min-height: 74px; max-height: 170px; resize: vertical; padding: 10px 11px; border: 1px solid #b9c5d4; border-radius: 10px; color: var(--ink); background: white; }
+    .chat-actions { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; }
+    .chat-button { padding: 8px 12px; border: 0; border-radius: 9px; font-size: 12px; font-weight: 850; }
+    .chat-button.send { color: white; background: var(--blue); }
+    .chat-button.clear { color: var(--ink-soft); background: #e9edf2; }
+    .chat-footnote { margin: 8px 0 0; color: var(--muted); font-size: 10px; }
+
+    .source-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+    .source-links a { padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; text-decoration: none; font-size: 12px; font-weight: 750; background: white; }
+    code { padding: 2px 5px; border-radius: 5px; color: #263d62; background: #edf1f5; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .88em; }
+    footer { padding: 26px 20px 42px; color: var(--muted); text-align: center; font-size: 12px; }
+
+    @media (max-width: 1080px) {
+      .hero-top { flex-direction: column; }
+      .hero-actions { justify-content: flex-start; }
+      .page-grid { grid-template-columns: 1fr; }
+      .assistant-column { position: static; }
+      .chat-log { height: 360px; }
+    }
+    @media (max-width: 760px) {
+      .hero { padding-top: 38px; }
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+      .decision { grid-template-columns: 1fr; }
+      .decision-metric { white-space: normal; }
+      .stage { padding: 22px 17px; border-radius: 16px; }
+      .stage-header { grid-template-columns: auto 1fr; }
+      .stage-header .status { grid-column: 2; justify-self: start; }
+      .summary-grid, .split, .issue-grid { grid-template-columns: 1fr; }
+      .flow-line { grid-template-columns: 1fr; }
+      .flow-node { text-align: left; }
+      .bar-row { grid-template-columns: 112px 1fr 54px; }
+    }
+    @media (max-width: 420px) {
+      .kpi-grid { grid-template-columns: 1fr; }
+      .kpi { min-height: auto; }
+      .bar-row { grid-template-columns: 1fr 54px; }
+      .bar-track { grid-column: 1 / -1; grid-row: 2; }
+      .bar-value { grid-column: 2; grid-row: 1; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    }
+    @media print {
+      :root { --canvas: white; }
+      body { background: white; font-size: 10pt; }
+      .hero { color: var(--ink); background: white; padding: 20px 0; }
+      .hero::after, .stage-nav, .hero-actions, .assistant-column, .quick-wrap, .chat-form { display: none !important; }
+      .hero-copy, .hero-meta, .kpi-note { color: var(--ink-soft); }
+      .kpi-grid { grid-template-columns: repeat(4, 1fr); }
+      .kpi { color: var(--ink); border-color: var(--line); background: white; }
+      .decision { color: var(--ink); border-color: var(--teal); background: var(--teal-soft); }
+      .decision-metric { color: var(--ink); }
+      .page-grid { display: block; padding: 0; }
+      .stage { break-inside: avoid; box-shadow: none; margin: 0 0 12px; padding: 18px; }
+      .table-wrap, tr, .metric-card, .panel { break-inside: avoid; }
+      footer { padding: 10px 0; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+
+  <header class="hero" id="top">
+    <div class="hero-inner">
+      <div class="hero-top">
+        <div>
+          <span class="eyebrow">PickCardU · Team Results Brief</span>
+          <h1>RAG 파이프라인<br>전수 실행 결과</h1>
+          <p class="hero-copy">106개 카드 안내서를 파싱·검증·구조 청킹하고, keyword/vector/hybrid 검색과 근거 기반 생성까지 실행한 결과입니다.</p>
+          <p class="hero-meta">기준 시각 2026-08-20 15:23 KST · 오프라인 공유용 단일 HTML</p>
+        </div>
+        <div class="hero-actions" aria-label="보고서 작업">
+          <a class="button" href="rag_search_tester.html">검색·Luna 답변 테스트</a>
+          <button class="button primary" id="copy-summary" type="button">핵심 요약 복사</button>
+          <button class="button" id="print-report" type="button">인쇄 / PDF</button>
+        </div>
+      </div>
+
+      <div class="kpi-grid" aria-label="핵심 지표">
+        <div class="kpi"><span class="kpi-label">처리 범위</span><strong class="kpi-value">106 PDF</strong><span class="kpi-note">10개 발급사 · 617페이지</span></div>
+        <div class="kpi"><span class="kpi-label">검색용 청크</span><strong class="kpi-value">3,070</strong><span class="kpi-note">parent 2,079개에 연결</span></div>
+        <div class="kpi"><span class="kpi-label">Baseline Recall@5</span><strong class="kpi-value">54.62%</strong><span class="kpi-note">71/130 hit · 운영 수준 미달</span></div>
+        <div class="kpi"><span class="kpi-label">근거 기반 생성</span><strong class="kpi-value">2 / 2</strong><span class="kpi-note">citation 답변 + abstention</span></div>
+      </div>
+
+      <div class="decision" role="note" aria-label="현재 결론">
+        <span class="decision-label">현재 평가</span>
+        <strong>weighted hybrid α=0.5는 실험 내 상대 1위 baseline이며, production-ready 모델은 아닙니다.</strong>
+        <span class="decision-metric">71/130 hit · 59/130 miss</span>
+      </div>
+    </div>
+  </header>
+
+  <nav class="stage-nav" aria-label="RAG 파이프라인 단계">
+    <div class="stage-nav-inner">
+      <a href="#overview" aria-current="step">요약</a>
+      <a href="#stage-01">01 수집</a>
+      <a href="#stage-02">02 Luna 파싱</a>
+      <a href="#stage-03">03 Upstage 검증</a>
+      <a href="#stage-04">04 구조 청킹</a>
+      <a href="#stage-05">05 Hybrid 검색</a>
+      <a href="#stage-06">06 답변 생성</a>
+      <a href="#next-actions">다음 결정</a>
+    </div>
+  </nav>
+
+  <div class="page-grid">
+    <main id="main-content">
+      <section class="stage" id="overview" data-stage="요약">
+        <div class="stage-header">
+          <span class="stage-index">00</span>
+          <div><h2>한눈에 보는 실행 흐름</h2><p class="stage-lead">원본 PDF에서 citation이 있는 답변까지 한 번의 검증 가능한 흐름으로 연결했습니다.</p></div>
+          <span class="status complete">전 단계 완료</span>
+        </div>
+        <div class="flow-line" aria-label="파이프라인 요약">
+          <div class="flow-node"><strong>617p</strong>Luna 200 DPI</div>
+          <div class="flow-node"><strong>106</strong>Upstage 검증</div>
+          <div class="flow-node"><strong>3,070</strong>검색 child</div>
+          <div class="flow-node"><strong>6조건</strong>검색 비교</div>
+          <div class="flow-node"><strong>2건</strong>생성 검증</div>
+        </div>
+        <div class="split">
+          <div class="panel">
+            <h3>확인된 성과</h3>
+            <ul class="fact-list">
+              <li>Luna와 Upstage 모두 <strong>106/106 문서</strong> 완료</li>
+              <li>임베딩 <strong>3,070/3,070</strong>, 1536차원 일치</li>
+              <li>weighted α=0.5가 실험군 내 Recall@5·MRR·nDCG <strong>상대 1위</strong></li>
+              <li>근거 없음 질문에서 citation 없이 안전하게 abstain</li>
+            </ul>
+          </div>
+          <div class="panel">
+            <h3>아직 확정하면 안 되는 것</h3>
+            <ul class="fact-list">
+              <li>검색 평가는 <strong>6문서·130 seed 질의</strong>와 제한된 relevance 기준</li>
+              <li><code>review_required</code>는 오류 확정이 아닌 추가 검토 표시</li>
+              <li>205페이지는 PP-Structure 후보이지 실패 페이지가 아님</li>
+              <li>현재 vector latency는 Python 전수 비교 성능</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="stage" id="stage-01" data-stage="단계 01 · 수집">
+        <div class="stage-header">
+          <span class="stage-index">01</span>
+          <div><h2>원본 수집과 corpus 고정</h2><p class="stage-lead">검색 결과를 재현할 수 있도록 모든 원본의 경로·페이지 수·SHA-256을 manifest로 고정했습니다.</p></div>
+          <span class="status complete">완료</span>
+        </div>
+        <div class="summary-grid">
+          <div class="metric-card"><span class="label">발급사</span><strong class="value">10</strong><span class="note">BC, NH, 하나, 현대 등</span></div>
+          <div class="metric-card"><span class="label">PDF 문서</span><strong class="value">106</strong><span class="note">누락 문서 없음</span></div>
+          <div class="metric-card"><span class="label">전체 페이지</span><strong class="value">617</strong><span class="note">최대 단일 문서 48페이지</span></div>
+        </div>
+        <div class="callout good"><strong>재현성 기준</strong>source corpus SHA-256 <code>52a171…6657</code>. 이후 단계는 이 corpus와 parser/chunker 설정이 일치할 때만 진행됩니다.</div>
+      </section>
+
+      <section class="stage" id="stage-02" data-stage="단계 02 · Luna 파싱">
+        <div class="stage-header">
+          <span class="stage-index">02</span>
+          <div><h2>GPT-5.6 Luna 200 DPI 본문 파싱</h2><p class="stage-lead">PDF를 200 DPI PNG로 렌더링하고 최대 6페이지 배치로 본문 Markdown을 생성했습니다.</p></div>
+          <span class="status complete">617/617</span>
+        </div>
+        <div class="summary-grid">
+          <div class="metric-card"><span class="label">관측 wall time</span><strong class="value">3h 49m</strong><span class="note">병렬 처리 포함 22.27초/페이지</span></div>
+          <div class="metric-card"><span class="label">총 tokens</span><strong class="value">7.996M</strong><span class="note">평균 약 12,960/page</span></div>
+          <div class="metric-card"><span class="label">API 비용 환산*</span><strong class="value">$5.45</strong><span class="note">약 136.18 Codex credits</span></div>
+        </div>
+        <div class="split">
+          <div class="panel">
+            <h3>실행 구성</h3>
+            <ul class="fact-list">
+              <li>모델 <code>gpt-5.6-luna</code>, reasoning <code>max</code></li>
+              <li>PyMuPDF 200 DPI, 6페이지 batch/checkpoint</li>
+              <li>187개 batch 완료, failed batch 0</li>
+              <li>authoritative 본문은 Luna 결과로 유지</li>
+            </ul>
+          </div>
+          <div class="panel">
+            <h3>기존 표본과의 관계</h3>
+            <p>10문서 표본에서는 원본 PDF direct API Luna 품질이 <strong>0.8546</strong>, CLI Luna 200 DPI는 <strong>0.6860</strong>이었습니다.</p>
+            <p>입력 방식이 달라 DPI 효과만을 뜻하지 않으며, 전수 실행에는 전체 gold가 없어 품질 점수를 직접 산출하지 않았습니다.</p>
+          </div>
+        </div>
+        <div class="table-wrap" role="region" aria-label="Luna 토큰 사용량과 API 비용 환산" tabindex="0">
+          <table>
+            <caption>Luna 토큰 사용량 · API 단기 context 요율로 환산한 참고값</caption>
+            <thead><tr><th>구분</th><th>Tokens</th><th>적용 요율 / 1M</th><th>환산액</th></tr></thead>
+            <tbody>
+              <tr><td>일반 입력</td><td>3,945,429</td><td>$0.20</td><td>$0.7891</td></tr>
+              <tr><td>캐시 입력</td><td>171,776</td><td>$0.02</td><td>$0.0034</td></tr>
+              <tr><td>출력</td><td>3,878,962</td><td>$1.20</td><td>$4.6548</td></tr>
+              <tr class="highlight"><td>합계</td><td>7,996,167</td><td>—</td><td>$5.4473 ≈ $5.45</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="callout"><strong>* 실제 청구액이 아닌 환산치</strong>이번 전수 실행은 API 직접 호출이 아닌 Codex CLI 경로였습니다. $5.45와 약 136.18 credits는 토큰 사용량을 기준으로 한 비교용 값이며, 구독 포함 여부와 실제 추가 청구액은 실행 계정의 Codex usage 화면에서 확인해야 합니다. 2026-08-20 기준 <a href="https://developers.openai.com/api/docs/models/gpt-5.6-luna" target="_blank" rel="noreferrer">GPT-5.6 Luna 공식 API 요율</a>과 <a href="https://help.openai.com/en/articles/11481834" target="_blank" rel="noreferrer">Codex token rate card</a>를 적용했습니다.</div>
+      </section>
+
+      <section class="stage" id="stage-03" data-stage="단계 03 · Upstage 검증">
+        <div class="stage-header">
+          <span class="stage-index">03</span>
+          <div><h2>Upstage 구조 검증과 이슈 분류</h2><p class="stage-lead">Upstage의 heading·table·bbox를 구조 근거로 사용하되 Luna 본문을 자동 덮어쓰지는 않았습니다.</p></div>
+          <span class="status review">추가 검토 존재</span>
+        </div>
+        <div class="summary-grid">
+          <div class="metric-card"><span class="label">Upstage 완료</span><strong class="value">106/106</strong><span class="note">실제 모델 document-parse-260630</span></div>
+          <div class="metric-card"><span class="label">관측 wall time</span><strong class="value">21m 15s</strong><span class="note">117 attempts</span></div>
+          <div class="metric-card"><span class="label">보수적 비용</span><strong class="value">$6.40</strong><span class="note">정상 1회 기준 $6.17</span></div>
+        </div>
+        <div class="issue-grid">
+          <div class="panel">
+            <h3>페이지 이슈 발생 횟수</h3>
+            <div class="bars" aria-label="검증 이슈 횟수">
+              <div class="bar-row"><span class="bar-label">표 개수 불일치</span><span class="bar-track"><span class="bar-fill amber" style="--w:100%"></span></span><span class="bar-value">131</span></div>
+              <div class="bar-row"><span class="bar-label">불확실 본문</span><span class="bar-track"><span class="bar-fill amber" style="--w:58%"></span></span><span class="bar-value">76</span></div>
+              <div class="bar-row"><span class="bar-label">표 구조 불일치</span><span class="bar-track"><span class="bar-fill amber" style="--w:55%"></span></span><span class="bar-value">72</span></div>
+              <div class="bar-row"><span class="bar-label">숫자 불일치</span><span class="bar-track"><span class="bar-fill amber" style="--w:17%"></span></span><span class="bar-value">22</span></div>
+              <div class="bar-row"><span class="bar-label">텍스트 유사도 낮음</span><span class="bar-track"><span class="bar-fill amber" style="--w:13%"></span></span><span class="bar-value">17</span></div>
+              <div class="bar-row"><span class="bar-label">heading 정렬 낮음</span><span class="bar-track"><span class="bar-fill amber" style="--w:4%"></span></span><span class="bar-value">5</span></div>
+            </div>
+            <p class="legend">한 페이지에 여러 이슈가 함께 있을 수 있어 합계는 review 페이지 수와 다릅니다.</p>
+          </div>
+          <div class="panel">
+            <h3>검토 범위</h3>
+            <div class="donut" role="img" aria-label="617페이지 중 257페이지가 review required"></div>
+            <p><strong>문서 기준:</strong> pass 10, review_required 96</p>
+            <p><strong>PP-Structure 후보:</strong> 205페이지</p>
+          </div>
+        </div>
+        <div class="callout"><strong>해석 주의</strong><code>review_required</code>는 오류 판정이 아니라 두 파서의 숫자·표·heading 결과가 달라 추가 확인이 필요하다는 의미입니다. PP-Structure v3는 205페이지에만 선택적으로 붙이면 됩니다.</div>
+      </section>
+
+      <section class="stage" id="stage-04" data-stage="단계 04 · 구조 청킹">
+        <div class="stage-header">
+          <span class="stage-index">04</span>
+          <div><h2>Layout parent–child 청킹</h2><p class="stage-lead">Upstage 구조로 section parent를 만들고, Luna 본문을 검색용 child로 나눴습니다.</p></div>
+          <span class="status complete">완료</span>
+        </div>
+        <div class="summary-grid">
+          <div class="metric-card"><span class="label">Parent chunks</span><strong class="value">2,079</strong><span class="note">생성 context 확장 단위</span></div>
+          <div class="metric-card"><span class="label">Child chunks</span><strong class="value">3,070</strong><span class="note">검색 대상</span></div>
+          <div class="metric-card"><span class="label">Atomic tables</span><strong class="value">586</strong><span class="note">표가 중간에서 잘리지 않음</span></div>
+        </div>
+        <div class="split">
+          <div class="panel">
+            <h3>청킹 규칙</h3>
+            <ul class="fact-list">
+              <li>child 최대 1,600자, overlap 160자</li>
+              <li>표는 원자 child로 보존</li>
+              <li>heading 정렬이 낮으면 page parent fallback</li>
+              <li>검색은 child, 생성은 중복 제거한 parent로 확장</li>
+            </ul>
+          </div>
+          <div class="panel">
+            <h3>품질·계보</h3>
+            <ul class="fact-list">
+              <li>page-parent fallback child 269개</li>
+              <li>source page·block ID·quality flag 보존</li>
+              <li>chunk corpus SHA <code>2d95f9…52a1</code></li>
+              <li>index는 corpus 지문 불일치 시 fail-fast</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="stage" id="stage-05" data-stage="단계 05 · Hybrid 검색">
+        <div class="stage-header">
+          <span class="stage-index">05</span>
+          <div><h2>Keyword · Vector · Hybrid 비교</h2><p class="stage-lead">동일한 130개 seed 질의로 6개 검색 조건을 비교했습니다.</p></div>
+          <span class="status review">baseline 평가</span>
+        </div>
+        <div class="summary-grid">
+          <div class="metric-card"><span class="label">Embedding coverage</span><strong class="value">100%</strong><span class="note">3,070개 · 1536차원</span></div>
+          <div class="metric-card"><span class="label">상대 1위 Recall@5</span><strong class="value">71/130</strong><span class="note">54.62% · weighted α=0.5</span></div>
+          <div class="metric-card"><span class="label">상위 5개 근거 누락</span><strong class="value">59/130</strong><span class="note">45.38% miss · 운영 수준 미달</span></div>
+        </div>
+
+        <div class="panel" style="margin-top:20px">
+          <h3>Recall@5 비교</h3>
+          <div class="bars" aria-label="검색 방식별 Recall at 5">
+            <div class="bar-row"><span class="bar-label">Keyword</span><span class="bar-track"><span class="bar-fill" style="--w:48.46%"></span></span><span class="bar-value">48.46%</span></div>
+            <div class="bar-row"><span class="bar-label">Vector</span><span class="bar-track"><span class="bar-fill" style="--w:42.31%"></span></span><span class="bar-value">42.31%</span></div>
+            <div class="bar-row"><span class="bar-label">RRF hybrid</span><span class="bar-track"><span class="bar-fill teal" style="--w:53.85%"></span></span><span class="bar-value">53.85%</span></div>
+            <div class="bar-row"><span class="bar-label">Weighted α=.2</span><span class="bar-track"><span class="bar-fill teal" style="--w:50.77%"></span></span><span class="bar-value">50.77%</span></div>
+            <div class="bar-row best"><span class="bar-label">Weighted α=.5</span><span class="bar-track"><span class="bar-fill teal" style="--w:54.62%"></span></span><span class="bar-value">54.62%</span></div>
+            <div class="bar-row"><span class="bar-label">Weighted α=.8</span><span class="bar-track"><span class="bar-fill teal" style="--w:47.69%"></span></span><span class="bar-value">47.69%</span></div>
+          </div>
+        </div>
+
+        <div class="table-wrap" role="region" aria-label="검색 성능 전체 표" tabindex="0">
+          <table>
+            <caption>130개 seed 질의 · 전역 106문서 검색</caption>
+            <thead><tr><th>조건</th><th>R@1</th><th>R@3</th><th>R@5</th><th>MRR@10</th><th>nDCG@10</th><th>p50</th></tr></thead>
+            <tbody>
+              <tr><td>Keyword</td><td>.1538</td><td>.4385</td><td>.4846</td><td>.3012</td><td>.3651</td><td>1.71ms</td></tr>
+              <tr><td>Vector</td><td>.2462</td><td>.3769</td><td>.4231</td><td>.3305</td><td>.3812</td><td>222.84ms</td></tr>
+              <tr><td>RRF hybrid</td><td><strong>.3385</strong></td><td>.4615</td><td>.5385</td><td>.4231</td><td>.4754</td><td>222.88ms</td></tr>
+              <tr><td>Weighted α=.2</td><td>.3000</td><td>.4615</td><td>.5077</td><td>.3927</td><td>.4424</td><td>222.94ms</td></tr>
+              <tr class="highlight"><td>Weighted α=.5 · 상대 1위 baseline</td><td>.3308</td><td><strong>.4846</strong></td><td><strong>.5462</strong></td><td><strong>.4292</strong></td><td><strong>.4811</strong></td><td>222.69ms</td></tr>
+              <tr><td>Weighted α=.8</td><td>.2846</td><td>.4308</td><td>.4769</td><td>.3707</td><td>.4164</td><td>222.42ms</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout"><strong>Recall@5 54.62%는 낮습니다</strong>130개 질의 중 71개만 상위 5개 안에서 정답 근거를 찾았고 59개는 놓쳤습니다. weighted α=0.5는 이번 6개 방식 중 상대적으로 가장 나았다는 뜻일 뿐, 생성 단계에 투입할 운영 품질을 충족했다는 뜻이 아닙니다.</div>
+
+        <div class="table-wrap" role="region" aria-label="검색 범위별 Keyword 성능 진단" tabindex="0">
+          <table>
+            <caption>동일 130개 seed 질의의 Keyword 검색 범위 진단 · 필터 행은 전역 성능과 직접 비교 불가</caption>
+            <thead><tr><th>검색 범위</th><th>R@1</th><th>R@3</th><th>R@5</th><th>MRR@10</th><th>해석</th></tr></thead>
+            <tbody>
+              <tr><td>전역 106문서</td><td>.1538</td><td>.4385</td><td>.4846</td><td>.3012</td><td style="text-align:left;white-space:normal">제품 입력을 가정한 global keyword baseline</td></tr>
+              <tr><td>정답 발급사 필터</td><td>.1923</td><td>.4846</td><td>.5769</td><td>.3565</td><td style="text-align:left;white-space:normal">정답 발급사를 이미 안다는 조건부 진단</td></tr>
+              <tr><td>정답 카드 exact-card oracle</td><td>.4308</td><td>.7692</td><td>.8385</td><td>.6005</td><td style="text-align:left;white-space:normal">Oracle 상한 · 제품 성능과 비교 불가</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="split">
+          <div class="panel">
+            <h3>보유카드 필터 효과 · Keyword R@5</h3>
+            <div class="bars">
+              <div class="bar-row"><span class="bar-label">전역 catalog</span><span class="bar-track"><span class="bar-fill" style="--w:48.46%"></span></span><span class="bar-value">48.46%</span></div>
+              <div class="bar-row"><span class="bar-label">정답 발급사</span><span class="bar-track"><span class="bar-fill" style="--w:57.69%"></span></span><span class="bar-value">57.69%</span></div>
+              <div class="bar-row"><span class="bar-label">정답 카드 oracle</span><span class="bar-track"><span class="bar-fill teal" style="--w:83.85%"></span></span><span class="bar-value">83.85%</span></div>
+            </div>
+            <p class="legend">발급사·exact-card 행은 정답 범위를 이미 안다는 진단 조건입니다. 특히 exact-card oracle은 제품 성능과 직접 비교할 수 없습니다.</p>
+          </div>
+          <div class="panel">
+            <h3>속도 해석</h3>
+            <p>Keyword p50은 <strong>1.71ms</strong>, vector/hybrid는 약 <strong>223ms</strong>입니다.</p>
+            <p>현재 vector 후보 계산은 SQLite vector 전체를 Python으로 순회합니다. 운영 성능 비교 전 pgvector/HNSW 같은 ANN index가 필요합니다.</p>
+            <p>질의 embedding batch latency 1,827.685ms는 표의 core-search latency에서 분리했습니다.</p>
+          </div>
+        </div>
+        <div class="callout"><strong>평가 한계</strong>현재 질문은 전체 106문서 중 6문서의 gold context로 만든 130개 seed이며, relevance도 해당 gold context 중심으로 제한돼 있습니다. 자연어 paraphrase·복합조건·비교·답 없음·보유카드 1/3/5장 hard negative와 수작업 relevance 판정을 추가해야 운영 결정을 확정할 수 있습니다. 정답 발급사·카드 필터 결과는 라우팅 정답을 미리 사용한 진단치입니다.</div>
+      </section>
+
+      <section class="stage" id="stage-06" data-stage="단계 06 · 답변 생성">
+        <div class="stage-header">
+          <span class="stage-index">06</span>
+          <div><h2>근거 기반 답변 생성</h2><p class="stage-lead">weighted α=0.5로 찾은 parent를 GPT-5.6 Luna에 전달하고 서버가 source ID를 실제 페이지로 해석했습니다.</p></div>
+          <span class="status complete">2/2 검증</span>
+        </div>
+        <div class="split">
+          <div class="panel">
+            <h3>근거가 있는 질문</h3>
+            <div class="conversation">
+              <div class="bubble question">비즈 에어머니 카드의 공항 라운지는 연간 몇 회 이용할 수 있나요?</div>
+              <div class="bubble answer">비즈 에어머니 카드의 공항 라운지는 연 2회 이용할 수 있습니다. 1일 1회 기준이며, 이용 기간은 매년 1월 1일부터 12월 31일까지입니다.<br><span class="citation">BC Biz AirMoney · 2페이지</span></div>
+            </div>
+            <p class="legend">총 1,894 tokens · 검색 35.977ms · citation S2를 서버가 문서/페이지/청크로 resolve</p>
+          </div>
+          <div class="panel">
+            <h3>근거가 없는 질문</h3>
+            <div class="conversation">
+              <div class="bubble question">비즈 에어머니 카드가 반려동물 수술비를 전액 보장하나요?</div>
+              <div class="bubble answer abstain">제공된 안내서에는 반려동물 수술비 보장 또는 전액 보장에 관한 내용이 없어 확인할 수 없습니다.<br><span class="citation">citation 없음 · insufficient_evidence=true</span></div>
+            </div>
+            <p class="legend">총 1,899 tokens · 검색 12.803ms · 추측 대신 abstention</p>
+          </div>
+        </div>
+        <div class="callout good"><strong>안전 계약</strong>근거가 있으면 citation을 최소 1개 요구하고, <code>insufficient_evidence=true</code>이면 citation을 빈 배열로 강제합니다. 알려지지 않은 source ID는 서버에서 거부합니다.</div>
+        <div class="callout"><strong>직접 테스트</strong><a href="rag_search_tester.html">별도 검색·Luna 답변 화면</a>에서 검색 근거를 먼저 확인한 뒤, 선택된 상위 parent만 전송해 답변·citation·abstention을 직접 검증할 수 있습니다.</div>
+      </section>
+
+      <section class="stage" id="next-actions" data-stage="다음 결정">
+        <div class="stage-header">
+          <span class="stage-index">→</span>
+          <div><h2>팀이 다음으로 결정할 것</h2><p class="stage-lead">현재 결과는 기술 흐름의 완주를 증명했고, 다음은 운영 품질을 판정하는 평가 설계 단계입니다.</p></div>
+          <span class="status review">의사결정 필요</span>
+        </div>
+        <div class="split">
+          <div class="panel">
+            <h3>우선순위 1 · 평가셋</h3>
+            <ol class="fact-list">
+              <li>자연어 paraphrase·복합조건·비교 질의 추가</li>
+              <li>보유카드 1/3/5장과 유사 혜택 hard negative 구성</li>
+              <li>답 없음과 catalog fallback 평가</li>
+              <li>수작업 evidence parent ID로 relevance 고정</li>
+            </ol>
+          </div>
+          <div class="panel">
+            <h3>우선순위 2 · 운영화</h3>
+            <ol class="fact-list">
+              <li>205페이지 PP-Structure v3 원격 검증</li>
+              <li>vector 검색을 pgvector/HNSW로 교체</li>
+              <li>전역 catalog와 보유카드 검색을 별도 트랙으로 운영</li>
+              <li>citation·abstention 회귀셋 확장</li>
+            </ol>
+          </div>
+        </div>
+        <div class="source-links" aria-label="원본 결과 파일">
+          <a href="./pipeline_performance.md">성능 비교 문서</a>
+          <a href="./verification_summary.json">검증 요약 JSON</a>
+          <a href="./chunk_summary.json">청킹 요약 JSON</a>
+          <a href="./retrieval_evaluation.json">검색 평가 JSON</a>
+          <a href="./generation_smoke.json">생성 smoke JSON</a>
+        </div>
+      </section>
+    </main>
+
+    <aside class="assistant-column" aria-label="결과 안내 도우미">
+      <section class="assistant-card">
+        <div class="assistant-head">
+          <div class="assistant-title"><h2>결과 안내 도우미</h2><span class="offline-badge">오프라인 · 전송 없음</span></div>
+          <p>이 HTML에 포함된 검증된 실행 결과만 답합니다.</p>
+        </div>
+        <div class="chat-log" id="chat-log" role="log" aria-live="polite" aria-label="대화 기록"></div>
+        <div class="quick-wrap">
+          <p class="quick-label">추천 질문</p>
+          <div class="quick-list" id="quick-list">
+            <button class="quick-button" type="button">어떤 검색이 가장 좋았나요?</button>
+            <button class="quick-button" type="button">Recall@5 54.62%면 낮지 않나요?</button>
+            <button class="quick-button" type="button">처리 시간과 비용은?</button>
+            <button class="quick-button" type="button">왜 검토 페이지가 많나요?</button>
+            <button class="quick-button" type="button">PP-Structure 범위는?</button>
+            <button class="quick-button" type="button">생성에서 환각을 어떻게 막았나요?</button>
+            <button class="quick-button" type="button">운영 전 남은 작업은?</button>
+          </div>
+        </div>
+        <form class="chat-form" id="chat-form">
+          <label for="chat-input">보고서에 질문하기</label>
+          <textarea id="chat-input" placeholder="예: weighted hybrid가 왜 추천인가요?" autocomplete="off"></textarea>
+          <div class="chat-actions">
+            <button class="chat-button clear" id="clear-chat" type="button">대화 지우기</button>
+            <button class="chat-button send" type="submit">질문 보내기</button>
+          </div>
+          <p class="chat-footnote">Enter 전송 · Shift+Enter 줄바꿈 · 입력은 저장되지 않습니다.</p>
+        </form>
+        <noscript><p style="padding:16px">JavaScript가 꺼져 있어 Q&amp;A는 사용할 수 없지만 전체 보고서는 읽을 수 있습니다.</p></noscript>
+      </section>
+    </aside>
+  </div>
+
+  <footer>
+    PickCardU RAG pipeline · source corpus <code>52a171…6657</code> · chunk corpus <code>2d95f9…52a1</code><br>
+    이 파일은 외부 리소스나 네트워크 요청 없이 동작합니다.
+  </footer>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const facts = [
+        {
+          id: "best-search",
+          title: "가장 좋은 검색 방식",
+          keywords: ["검색", "가장", "최고", "weighted", "웨이티드", "하이브리드", "추천", "alpha", "알파", "rrf"],
+          answer: "현재 130개 전역 seed 질의에서는 weighted hybrid α=0.5가 Recall@5 54.62%, MRR@10 0.4292, nDCG@10 0.4811로 실험군 내 상대 1위였습니다. 다만 71/130 hit, 59/130 miss이므로 production-ready 추천이 아니라 다음 개선 실험의 baseline입니다. Recall@1은 RRF hybrid가 33.85%로 가장 높았습니다.",
+          source: "단계 05 · Hybrid 검색",
+          href: "#stage-05"
+        },
+        {
+          id: "recall-low",
+          title: "Recall@5 수준 해석",
+          keywords: ["recall", "리콜", "낮", "54", "54.62", "50%", "71", "59", "놓쳤", "운영 수준", "production"],
+          answer: "맞습니다. Recall@5 54.62%는 운영하기에 낮습니다. 130개 질의 중 71개만 상위 5개 안에서 정답 근거를 찾았고 59개는 놓쳤습니다. weighted α=0.5는 비교한 6개 방식 중 상대 1위일 뿐입니다. Keyword 진단에서는 전역 R@5 48.46%, 정답 발급사 필터 57.69%, exact-card oracle 83.85%여서 카드 라우팅과 보유카드 후보 제한이 큰 개선 지점이지만, oracle은 제품 성능과 직접 비교할 수 없습니다.",
+          source: "단계 05 · Hybrid 검색",
+          href: "#stage-05"
+        },
+        {
+          id: "time-cost",
+          title: "처리 시간과 비용",
+          keywords: ["시간", "비용", "얼마", "토큰", "token", "달러", "cost", "소요"],
+          answer: "Luna 200 DPI 전수 파싱은 3시간 49분, 7,996,167 tokens였습니다. 일반 입력 3,945,429($0.7891), 캐시 입력 171,776($0.0034), 출력 3,878,962($4.6548)로 API 요율을 적용하면 $5.4473, 약 $5.45이며 Codex 약 136.18 credits에 해당합니다. 단, Codex CLI 실행의 실제 청구액이 아니라 비교용 환산치이므로 구독 포함·추가 청구 여부는 실행 계정의 usage 화면에서 확인해야 합니다. Upstage 보수적 추정은 $6.40입니다.",
+          source: "단계 02·03·05",
+          href: "#stage-02"
+        },
+        {
+          id: "coverage",
+          title: "처리 범위와 완료율",
+          keywords: ["몇개", "몇 개", "문서", "pdf", "페이지", "완료", "범위", "누락", "corpus", "코퍼스"],
+          answer: "10개 발급사의 PDF 106개, 총 617페이지를 처리했습니다. Luna와 Upstage 모두 106/106 문서, 617/617페이지 완료이며 누락 문서는 없습니다.",
+          source: "단계 01 · 수집",
+          href: "#stage-01"
+        },
+        {
+          id: "luna",
+          title: "Luna 파싱 결과",
+          keywords: ["luna", "루나", "dpi", "파싱", "본문", "ocr", "200"],
+          answer: "gpt-5.6-luna reasoning max로 PDF를 200 DPI PNG로 렌더링해 최대 6페이지 배치로 파싱했습니다. 617/617페이지 완료, failed batch 0, 관측 wall time 3시간 49분, 평균 약 12,960 tokens/page였습니다. 기록된 토큰의 API 비용 환산은 약 $5.45(약 136.18 Codex credits)이며 실제 Codex 청구액은 usage 화면에서 별도로 확인해야 합니다.",
+          source: "단계 02 · Luna 파싱",
+          href: "#stage-02"
+        },
+        {
+          id: "upstage",
+          title: "Upstage 검증 결과",
+          keywords: ["upstage", "업스테이지", "구조", "2차", "검증", "document parse", "생략", "빈 페이지"],
+          answer: "Upstage Document Parse는 106/106 문서를 완료했고 실제 응답 모델은 document-parse-260630입니다. elements에서 생략된 내용 없는 7페이지는 Luna 빈 본문·렌더 dominant color·PDF 객체 수로 로컬 검증해 근거를 보존했습니다.",
+          source: "단계 03 · Upstage 검증",
+          href: "#stage-03"
+        },
+        {
+          id: "review",
+          title: "review_required 해석",
+          keywords: ["review", "리뷰", "검토", "왜 많", "오류", "불일치", "257", "96"],
+          answer: "96개 문서, 257페이지가 review_required입니다. 이는 오류 확정이 아니라 Luna와 Upstage의 숫자·표·heading 결과가 달라 추가 확인이 필요하다는 뜻입니다. 가장 많은 이슈는 table_count_mismatch 131건입니다.",
+          source: "단계 03 · Upstage 검증",
+          href: "#stage-03"
+        },
+        {
+          id: "pp-structure",
+          title: "PP-Structure 검증 범위",
+          keywords: ["pp", "structure", "pp-structure", "가상서버", "vm", "205", "추가 검증"],
+          answer: "PP-Structure v3 후보는 전체 617페이지 중 205페이지입니다. 전수 재처리가 아니라 표 개수·표 구조·heading 정렬 이슈가 있는 페이지에만 선택적으로 적용하면 됩니다. 후보라는 뜻이며 205페이지가 모두 실패했다는 의미는 아닙니다.",
+          source: "단계 03 · Upstage 검증",
+          href: "#stage-03"
+        },
+        {
+          id: "chunking",
+          title: "Parent–child 청킹 방식",
+          keywords: ["chunk", "청크", "청킹", "parent", "child", "부모", "자식", "표", "1600", "overlap"],
+          answer: "Upstage heading/table/bbox로 section parent 2,079개를 만들고 Luna 본문을 검색용 child 3,070개로 나눴습니다. child는 최대 1,600자, overlap 160자이며 표 586개는 원자 단위로 보존했습니다. 검색은 child, 생성 context는 parent로 확장합니다.",
+          source: "단계 04 · 구조 청킹",
+          href: "#stage-04"
+        },
+        {
+          id: "embedding",
+          title: "임베딩과 인덱스",
+          keywords: ["embedding", "임베딩", "벡터", "차원", "1536", "3070", "index", "인덱스"],
+          answer: "text-embedding-3-small로 child 3,070개 전부를 1536차원으로 임베딩했습니다. coverage는 100%, index stale=false이며 embedding 입력은 802,879 tokens였습니다.",
+          source: "단계 05 · Hybrid 검색",
+          href: "#stage-05"
+        },
+        {
+          id: "latency",
+          title: "Vector 검색이 느린 이유",
+          keywords: ["느리", "latency", "레이턴시", "지연", "속도", "223", "hnsw", "pgvector", "ann"],
+          answer: "Keyword p50은 1.71ms지만 vector/hybrid는 약 223ms입니다. 현재 구현이 SQLite에 저장된 3,070개 vector를 Python으로 전수 비교하기 때문입니다. 운영 전 pgvector/HNSW 또는 동등한 ANN index로 바꾸면 별도 성능 측정이 필요합니다.",
+          source: "단계 05 · Hybrid 검색",
+          href: "#stage-05"
+        },
+        {
+          id: "owned-card",
+          title: "보유카드 필터 효과",
+          keywords: ["보유카드", "카드 필터", "필터", "oracle", "오라클", "발급사", "83.85", "라우팅"],
+          answer: "Keyword 성능은 전역 R@1/3/5/MRR이 .1538/.4385/.4846/.3012, 정답 발급사 필터는 .1923/.4846/.5769/.3565, exact-card oracle은 .4308/.7692/.8385/.6005였습니다. 발급사 필터는 정답 발급사를 안다는 조건부 진단이고 exact-card는 라우팅 정답을 미리 쓴 oracle 상한이라 전역 제품 성능과 직접 비교할 수 없습니다.",
+          source: "단계 05 · Hybrid 검색",
+          href: "#stage-05"
+        },
+        {
+          id: "evaluation-limit",
+          title: "평가 결과의 한계",
+          keywords: ["한계", "신뢰", "평가셋", "질의", "130", "6문서", "seed", "골드", "확정"],
+          answer: "현재 검색 지표는 전체 106문서 중 6문서의 구조화 gold에서 만든 130개 context seed 질의와 제한된 relevance 판정 기준입니다. 자연어 일반화, 복합·비교·답 없음 질의, cross-card hard negative를 충분히 측정하지 못했습니다. 정답 발급사·카드 필터 수치는 라우팅 정답을 미리 사용한 진단치이므로 운영 모델을 확정하는 최종 점수로 사용하면 안 됩니다.",
+          source: "단계 05 · Hybrid 검색",
+          href: "#stage-05"
+        },
+        {
+          id: "generation",
+          title: "생성 결과와 citation",
+          keywords: ["생성", "답변", "citation", "인용", "근거", "연 2회", "s2", "페이지"],
+          answer: "weighted α=0.5와 BC Biz AirMoney 카드 필터로 생성했습니다. 라운지 질문에는 ‘연 2회, 1일 1회’라고 답하고 BC Biz AirMoney 2페이지를 citation으로 연결했습니다. 모델의 S2는 서버가 실제 문서·페이지·parent·child로 해석했습니다.",
+          source: "단계 06 · 답변 생성",
+          href: "#stage-06"
+        },
+        {
+          id: "hallucination",
+          title: "환각과 답 없음 처리",
+          keywords: ["생성에서 환각", "환각", "hallucination", "답 없음", "abstain", "거절", "insufficient", "안전", "반려동물"],
+          answer: "제공된 SOURCE만 사용하도록 제한하고, 근거가 있으면 citation 최소 1개를 요구합니다. 근거가 없으면 insufficient_evidence=true와 빈 citation 배열을 요구합니다. 반려동물 수술비 질문은 안내서에 근거가 없어 citation 없이 정상 abstain했습니다.",
+          source: "단계 06 · 답변 생성",
+          href: "#stage-06"
+        },
+        {
+          id: "next",
+          title: "운영 전 남은 작업",
+          keywords: ["다음", "남은", "작업", "운영", "해야", "우선순위", "로드맵", "next"],
+          answer: "우선 수작업 자연어 평가셋을 만들고 전역 catalog·보유카드 후보군·fallback을 분리해야 합니다. 이어서 205페이지 PP-Structure 검증, pgvector/HNSW 기반 ANN 전환, citation·abstention 회귀셋 확장이 필요합니다.",
+          source: "다음 결정",
+          href: "#next-actions"
+        }
+      ];
+
+      const chatLog = document.getElementById("chat-log");
+      const chatForm = document.getElementById("chat-form");
+      const chatInput = document.getElementById("chat-input");
+
+      function appendMessage(kind, text, source, href) {
+        const item = document.createElement("div");
+        item.className = `chat-message ${kind}`;
+        const body = document.createElement("div");
+        body.textContent = text;
+        item.appendChild(body);
+        if (source && href) {
+          const link = document.createElement("a");
+          link.className = "chat-source";
+          link.href = href;
+          link.textContent = `근거: ${source} →`;
+          item.appendChild(link);
+        }
+        chatLog.appendChild(item);
+        chatLog.scrollTop = chatLog.scrollHeight;
+      }
+
+      function normalize(value) {
+        return value.toLocaleLowerCase("ko-KR").replace(/[^0-9a-z가-힣.\-@]+/g, " ").trim();
+      }
+
+      function findFact(question) {
+        const query = normalize(question);
+        const tokens = query.split(/\s+/).filter(Boolean);
+        let best = null;
+        let bestScore = 0;
+        for (const fact of facts) {
+          let score = 0;
+          for (const keyword of fact.keywords) {
+            const key = normalize(keyword);
+            if (query.includes(key)) score += key.length > 4 ? 4 : 2;
+            for (const token of tokens) {
+              if (token.length >= 2 && key.includes(token)) score += 0.6;
+            }
+          }
+          if (score > bestScore) { best = fact; bestScore = score; }
+        }
+        return bestScore >= 2 ? best : null;
+      }
+
+      function ask(question) {
+        const clean = question.trim();
+        if (!clean) return;
+        appendMessage("user", clean);
+        const fact = findFact(clean);
+        if (fact) {
+          appendMessage("bot", fact.answer, fact.source, fact.href);
+        } else {
+          appendMessage("bot", "현재 보고서에 직접 근거가 있는 답을 찾지 못했습니다. ‘Recall@5가 낮은가요?’, ‘가장 좋은 검색 방식’, ‘Luna 처리 비용’, ‘PP-Structure 범위’, ‘생성 안전장치’, ‘운영 전 남은 작업’ 중 하나로 질문해 주세요.");
+        }
+      }
+
+      function resetChat() {
+        chatLog.textContent = "";
+        appendMessage("bot", "안녕하세요. 이 보고서에 포함된 RAG 실행 결과만 근거로 답합니다. 추천 질문을 누르거나 직접 입력해 주세요.", "전체 요약", "#overview");
+      }
+
+      chatForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        ask(chatInput.value);
+        chatInput.value = "";
+        chatInput.focus();
+      });
+      chatInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          chatForm.requestSubmit();
+        }
+      });
+      document.getElementById("quick-list").addEventListener("click", (event) => {
+        const button = event.target.closest("button");
+        if (button) ask(button.textContent || "");
+      });
+      document.getElementById("clear-chat").addEventListener("click", resetChat);
+
+      const summaryText = [
+        "PickCardU RAG 실행 요약",
+        "- 106 PDF / 617페이지: Luna·Upstage 전수 완료",
+        "- Luna 비용: API 환산 $5.45 / 약 136.18 Codex credits (실제 청구액은 usage 확인)",
+        "- Parent 2,079 / Child 3,070 / Embedding coverage 100%",
+        "- 검색 baseline: weighted hybrid α=0.5 상대 1위 (R@5 54.62% = 71/130 hit, 59/130 miss; 운영 수준 미달)",
+        "- RRF hybrid는 R@1 33.85%로 최고",
+        "- Keyword 진단 R@5: 전역 48.46% / 정답 발급사 57.69% / exact-card oracle 83.85% (oracle 비교 불가)",
+        "- 생성: 근거 답변 citation 연결, 근거 없음 abstention 성공",
+        "- 주의: 검색 평가는 6문서·130 seed 질의와 제한된 relevance 기준",
+        "- 다음: 수작업 평가셋, 205페이지 PP-Structure, ANN index"
+      ].join("\n");
+
+      document.getElementById("copy-summary").addEventListener("click", async (event) => {
+        const button = event.currentTarget;
+        const original = button.textContent;
+        try {
+          if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(summaryText);
+          } else {
+            const area = document.createElement("textarea");
+            area.value = summaryText;
+            area.style.position = "fixed";
+            area.style.opacity = "0";
+            document.body.appendChild(area);
+            area.select();
+            document.execCommand("copy");
+            area.remove();
+          }
+          button.textContent = "복사 완료";
+        } catch (_) {
+          button.textContent = "복사 실패";
+        }
+        window.setTimeout(() => { button.textContent = original; }, 1600);
+      });
+      document.getElementById("print-report").addEventListener("click", () => window.print());
+
+      const navLinks = [...document.querySelectorAll(".stage-nav a")];
+      const sections = [...document.querySelectorAll("main > section[id]")];
+      if ("IntersectionObserver" in window) {
+        const observer = new IntersectionObserver((entries) => {
+          const visible = entries.filter((entry) => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+          if (!visible) return;
+          for (const link of navLinks) {
+            if (link.getAttribute("href") === `#${visible.target.id}`) link.setAttribute("aria-current", "step");
+            else link.removeAttribute("aria-current");
+          }
+        }, { rootMargin: "-20% 0px -65% 0px", threshold: [0, .2, .6] });
+        sections.forEach((section) => observer.observe(section));
+      }
+
+      resetChat();
+    })();
+  </script>
+</body>
+</html>

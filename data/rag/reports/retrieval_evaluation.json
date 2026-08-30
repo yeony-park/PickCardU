@@ -1,0 +1,3216 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-08-20T15:21:08+09:00",
+  "embedding_model": "text-embedding-3-small",
+  "embedding_status": {
+    "total_children": 3070,
+    "embedded_children": 3070,
+    "embedding_model": "text-embedding-3-small",
+    "embedding_dimensions": [
+      1536
+    ]
+  },
+  "index_corpus_sha256": "7283064681e98852241fcf15820b4fa58503e8bac8e768769323ef424035bfc6",
+  "query_set_sha256": "fe4f6d12309980e86473d672590310952fe66a082517b3fc78005e3c792d1598",
+  "query_embedding_tokens": 4817,
+  "query_embedding_batch_latency_ms": 1827.685,
+  "condition_latency_scope": "local index search only; query embedding batch latency is reported separately",
+  "conditions": {
+    "keyword": {
+      "query_count": 130,
+      "recall_at_1": 0.15384615384615385,
+      "recall_at_3": 0.43846153846153846,
+      "recall_at_5": 0.4846153846153846,
+      "mrr_at_10": 0.30117216117216117,
+      "ndcg_at_10": 0.3650969181825762,
+      "latency_ms_p50": 1.707,
+      "latency_ms_p95": 3.198,
+      "details": [
+        {
+          "query_id": "BC:BC_Biz_AirMoney:launch_date",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:benefit_maintenance_period",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:refund_processing_deadline",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:refund_latest_deadline",
+          "rank": 10
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:account_cutoff_time",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:air_money_earn_rate",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:point_to_won",
+          "rank": 2
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:point_expiry",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:point_expiry_example",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:rounding_threshold",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:payment_example_before",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:payment_example_points",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:payment_example_after",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:lounge_phone",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:lounge_hours",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:lounge_quota",
+          "rank": 2
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:lounge_period",
+          "rank": 2
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:excluded_four_major_insurances",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:domestic_annual_fee_total",
+          "rank": 2
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:domestic_annual_fee_base",
+          "rank": 2
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:domestic_annual_fee_partner",
+          "rank": 2
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:international_annual_fee_total",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:international_annual_fee_base",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:international_annual_fee_partner",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:customer_center_phone",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:international_brand_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:dcc_block_phone",
+          "rank": 2
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount_per_liter",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount_daily_spend_limit",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount_monthly_spend_limit",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount_previous_month_spend",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:asiana_mileage_spend_unit",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:asiana_mileage_earned",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:everland_discount_rate",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:everland_annual_limit",
+          "rank": 2
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:caribbean_bay_discount_rate",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:gold_annual_fee_total",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:platinum_annual_fee_total",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:next_year_base_fee_waiver_spend",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:card_name",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount_previous_month_requirement",
+          "rank": 2
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount_previous_month_exclusions",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:asiana_mileage_earning",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:mileage_earning_exclusions",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:interest_free_installment",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:everland_discount",
+          "rank": 6
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:caribbean_bay_discount",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:annual_fee",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:next_year_base_annual_fee_waiver",
+          "rank": null
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:restaurant_discount_rate",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:delivery_app_discount_rate",
+          "rank": 2
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:coffee_discount_rate",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:membership_discount_rate",
+          "rank": 3
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:previous_month_spend_requirement",
+          "rank": 2
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:monthly_integrated_discount_limit",
+          "rank": 2
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:domestic_annual_fee",
+          "rank": null
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:international_annual_fee",
+          "rank": 2
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:master_international_brand_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:amex_international_brand_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:credit_card_overseas_service_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:card_name",
+          "rank": 2
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:restaurant_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:delivery_app_discount",
+          "rank": 3
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:coffee_discount",
+          "rank": 3
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:membership_discount",
+          "rank": 2
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:discount_common_requirement",
+          "rank": 2
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:discount_exclusions",
+          "rank": 4
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:initial_issue_benefit_rule",
+          "rank": 3
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:previous_month_spend_exclusions",
+          "rank": 3
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:annual_fee",
+          "rank": 2
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:overseas_fee_rates",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:highest_spend_category_discount_rate",
+          "rank": 5
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:highest_spend_category_limit_low",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:highest_spend_category_limit_high",
+          "rank": 8
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:fuel_telecom_apartment_discount_rate",
+          "rank": 3
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:general_discount_rate",
+          "rank": 6
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:primary_international_annual_fee_total",
+          "rank": 6
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:family_international_annual_fee_total",
+          "rank": 5
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:international_mastercard_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:international_visa_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:overseas_service_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:card_name",
+          "rank": 1
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:highest_spend_category_discount",
+          "rank": 2
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:fuel_telecom_apartment_discount",
+          "rank": 2
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:general_domestic_overseas_discount",
+          "rank": 2
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:previous_month_spend_exclusions",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:discount_exclusions",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:primary_international_annual_fee",
+          "rank": 4
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:family_international_annual_fee",
+          "rank": 1
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:foreign_currency_conversion_blocking",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:benefit_service_launch_date",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:domestic_annual_fee",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:international_annual_fee",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:monthly_bill_discount_rate",
+          "rank": 3
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:fuel_discount_per_liter",
+          "rank": 3
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:time_discount_rate",
+          "rank": 3
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:intake_discount_rate",
+          "rank": 3
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:international_brand_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:credit_card_overseas_service_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:check_card_overseas_service_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:card_name",
+          "rank": 1
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:monthly_bill_discount",
+          "rank": 3
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:weekend_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:time_discount",
+          "rank": 7
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:all_day_discount_usage_limit",
+          "rank": 4
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:night_discount_usage_limit",
+          "rank": 3
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:intake_discount",
+          "rank": 2
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:annual_fee",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:previous_month_spend_exclusions",
+          "rank": 3
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:launch_date",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:benefit_maintenance_period",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:overseas_atm_withdrawal_fee",
+          "rank": 8
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:annual_fee_refund_deadline",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:annual_fee_refund_latest_deadline",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:mileage_earning_unit",
+          "rank": 2
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:additional_mileage_monthly_cap",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:lounge_quota",
+          "rank": 6
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:lounge_previous_month_spend",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:lounge_voucher_validity",
+          "rank": 5
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:card_name",
+          "rank": 2
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:basic_mileage_earning",
+          "rank": 6
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:additional_overseas_mileage_earning",
+          "rank": 1
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:mileage_previous_month_spend_requirement",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:airport_lounge_quota",
+          "rank": 2
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:airport_lounge_previous_month_spend_requirement",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:international_brand_fee_waiver",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:overseas_service_fee_waiver",
+          "rank": 7
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:primary_card_annual_fee",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:family_card_annual_fee",
+          "rank": null
+        }
+      ]
+    },
+    "vector": {
+      "query_count": 130,
+      "recall_at_1": 0.24615384615384617,
+      "recall_at_3": 0.3769230769230769,
+      "recall_at_5": 0.4230769230769231,
+      "mrr_at_10": 0.33054029304029303,
+      "ndcg_at_10": 0.38121262953766155,
+      "latency_ms_p50": 222.836,
+      "latency_ms_p95": 258.386,
+      "details": [
+        {
+          "query_id": "BC:BC_Biz_AirMoney:launch_date",
+          "rank": 2
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:benefit_maintenance_period",
+          "rank": 5
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:refund_processing_deadline",
+          "rank": 2
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:refund_latest_deadline",
+          "rank": 2
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:account_cutoff_time",
+          "rank": 3
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:air_money_earn_rate",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:point_to_won",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:point_expiry",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:point_expiry_example",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:rounding_threshold",
+          "rank": 3
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:payment_example_before",
+          "rank": 2
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:payment_example_points",
+          "rank": 4
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:payment_example_after",
+          "rank": 2
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:lounge_phone",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:lounge_hours",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:lounge_quota",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:lounge_period",
+          "rank": 6
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:excluded_four_major_insurances",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:domestic_annual_fee_total",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:domestic_annual_fee_base",
+          "rank": 2
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:domestic_annual_fee_partner",
+          "rank": 3
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:international_annual_fee_total",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:international_annual_fee_base",
+          "rank": 6
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:international_annual_fee_partner",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:customer_center_phone",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:international_brand_fee_rate",
+          "rank": 9
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:dcc_block_phone",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount_per_liter",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount_daily_spend_limit",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount_monthly_spend_limit",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount_previous_month_spend",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:asiana_mileage_spend_unit",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:asiana_mileage_earned",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:everland_discount_rate",
+          "rank": 6
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:everland_annual_limit",
+          "rank": 3
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:caribbean_bay_discount_rate",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:gold_annual_fee_total",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:platinum_annual_fee_total",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:next_year_base_fee_waiver_spend",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:card_name",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount_previous_month_requirement",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount_previous_month_exclusions",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:asiana_mileage_earning",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:mileage_earning_exclusions",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:interest_free_installment",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:everland_discount",
+          "rank": 5
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:caribbean_bay_discount",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:annual_fee",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:next_year_base_annual_fee_waiver",
+          "rank": null
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:restaurant_discount_rate",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:delivery_app_discount_rate",
+          "rank": 8
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:coffee_discount_rate",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:membership_discount_rate",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:previous_month_spend_requirement",
+          "rank": 6
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:monthly_integrated_discount_limit",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:domestic_annual_fee",
+          "rank": null
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:international_annual_fee",
+          "rank": 4
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:master_international_brand_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:amex_international_brand_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:credit_card_overseas_service_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:card_name",
+          "rank": null
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:restaurant_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:delivery_app_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:coffee_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:membership_discount",
+          "rank": 2
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:discount_common_requirement",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:discount_exclusions",
+          "rank": 6
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:initial_issue_benefit_rule",
+          "rank": null
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:previous_month_spend_exclusions",
+          "rank": 10
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:annual_fee",
+          "rank": 8
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:overseas_fee_rates",
+          "rank": 10
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:highest_spend_category_discount_rate",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:highest_spend_category_limit_low",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:highest_spend_category_limit_high",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:fuel_telecom_apartment_discount_rate",
+          "rank": 3
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:general_discount_rate",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:primary_international_annual_fee_total",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:family_international_annual_fee_total",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:international_mastercard_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:international_visa_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:overseas_service_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:card_name",
+          "rank": 1
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:highest_spend_category_discount",
+          "rank": 2
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:fuel_telecom_apartment_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:general_domestic_overseas_discount",
+          "rank": 2
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:previous_month_spend_exclusions",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:discount_exclusions",
+          "rank": 9
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:primary_international_annual_fee",
+          "rank": 7
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:family_international_annual_fee",
+          "rank": 5
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:foreign_currency_conversion_blocking",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:benefit_service_launch_date",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:domestic_annual_fee",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:international_annual_fee",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:monthly_bill_discount_rate",
+          "rank": 8
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:fuel_discount_per_liter",
+          "rank": 1
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:time_discount_rate",
+          "rank": 1
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:intake_discount_rate",
+          "rank": 1
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:international_brand_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:credit_card_overseas_service_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:check_card_overseas_service_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:card_name",
+          "rank": 1
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:monthly_bill_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:weekend_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:time_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:all_day_discount_usage_limit",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:night_discount_usage_limit",
+          "rank": 9
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:intake_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:annual_fee",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:previous_month_spend_exclusions",
+          "rank": 3
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:launch_date",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:benefit_maintenance_period",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:overseas_atm_withdrawal_fee",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:annual_fee_refund_deadline",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:annual_fee_refund_latest_deadline",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:mileage_earning_unit",
+          "rank": 1
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:additional_mileage_monthly_cap",
+          "rank": 1
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:lounge_quota",
+          "rank": 7
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:lounge_previous_month_spend",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:lounge_voucher_validity",
+          "rank": 5
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:card_name",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:basic_mileage_earning",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:additional_overseas_mileage_earning",
+          "rank": 1
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:mileage_previous_month_spend_requirement",
+          "rank": 1
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:airport_lounge_quota",
+          "rank": 2
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:airport_lounge_previous_month_spend_requirement",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:international_brand_fee_waiver",
+          "rank": 7
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:overseas_service_fee_waiver",
+          "rank": 2
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:primary_card_annual_fee",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:family_card_annual_fee",
+          "rank": null
+        }
+      ]
+    },
+    "hybrid": {
+      "query_count": 130,
+      "recall_at_1": 0.3384615384615385,
+      "recall_at_3": 0.46153846153846156,
+      "recall_at_5": 0.5384615384615384,
+      "mrr_at_10": 0.423052503052503,
+      "ndcg_at_10": 0.47542917142859326,
+      "latency_ms_p50": 222.88,
+      "latency_ms_p95": 244.727,
+      "details": [
+        {
+          "query_id": "BC:BC_Biz_AirMoney:launch_date",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:benefit_maintenance_period",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:refund_processing_deadline",
+          "rank": 5
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:refund_latest_deadline",
+          "rank": 2
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:account_cutoff_time",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:air_money_earn_rate",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:point_to_won",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:point_expiry",
+          "rank": 8
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:point_expiry_example",
+          "rank": 5
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:rounding_threshold",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:payment_example_before",
+          "rank": 8
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:payment_example_points",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:payment_example_after",
+          "rank": 9
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:lounge_phone",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:lounge_hours",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:lounge_quota",
+          "rank": 7
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:lounge_period",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:excluded_four_major_insurances",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:domestic_annual_fee_total",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:domestic_annual_fee_base",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:domestic_annual_fee_partner",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:international_annual_fee_total",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:international_annual_fee_base",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:international_annual_fee_partner",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:customer_center_phone",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:international_brand_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:dcc_block_phone",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount_per_liter",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount_daily_spend_limit",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount_monthly_spend_limit",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount_previous_month_spend",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:asiana_mileage_spend_unit",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:asiana_mileage_earned",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:everland_discount_rate",
+          "rank": 4
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:everland_annual_limit",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:caribbean_bay_discount_rate",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:gold_annual_fee_total",
+          "rank": 2
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:platinum_annual_fee_total",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:next_year_base_fee_waiver_spend",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:card_name",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount_previous_month_requirement",
+          "rank": 3
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount_previous_month_exclusions",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:asiana_mileage_earning",
+          "rank": 3
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:mileage_earning_exclusions",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:interest_free_installment",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:everland_discount",
+          "rank": 3
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:caribbean_bay_discount",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:annual_fee",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:next_year_base_annual_fee_waiver",
+          "rank": null
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:restaurant_discount_rate",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:delivery_app_discount_rate",
+          "rank": null
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:coffee_discount_rate",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:membership_discount_rate",
+          "rank": 2
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:previous_month_spend_requirement",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:monthly_integrated_discount_limit",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:domestic_annual_fee",
+          "rank": 7
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:international_annual_fee",
+          "rank": 2
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:master_international_brand_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:amex_international_brand_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:credit_card_overseas_service_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:card_name",
+          "rank": 10
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:restaurant_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:delivery_app_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:coffee_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:membership_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:discount_common_requirement",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:discount_exclusions",
+          "rank": 3
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:initial_issue_benefit_rule",
+          "rank": 6
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:previous_month_spend_exclusions",
+          "rank": 2
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:annual_fee",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:overseas_fee_rates",
+          "rank": 3
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:highest_spend_category_discount_rate",
+          "rank": 9
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:highest_spend_category_limit_low",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:highest_spend_category_limit_high",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:fuel_telecom_apartment_discount_rate",
+          "rank": 2
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:general_discount_rate",
+          "rank": 5
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:primary_international_annual_fee_total",
+          "rank": 8
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:family_international_annual_fee_total",
+          "rank": 5
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:international_mastercard_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:international_visa_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:overseas_service_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:card_name",
+          "rank": 1
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:highest_spend_category_discount",
+          "rank": 2
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:fuel_telecom_apartment_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:general_domestic_overseas_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:previous_month_spend_exclusions",
+          "rank": 9
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:discount_exclusions",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:primary_international_annual_fee",
+          "rank": 2
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:family_international_annual_fee",
+          "rank": 1
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:foreign_currency_conversion_blocking",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:benefit_service_launch_date",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:domestic_annual_fee",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:international_annual_fee",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:monthly_bill_discount_rate",
+          "rank": 3
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:fuel_discount_per_liter",
+          "rank": 1
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:time_discount_rate",
+          "rank": 1
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:intake_discount_rate",
+          "rank": 1
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:international_brand_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:credit_card_overseas_service_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:check_card_overseas_service_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:card_name",
+          "rank": 1
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:monthly_bill_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:weekend_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:time_discount",
+          "rank": 4
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:all_day_discount_usage_limit",
+          "rank": 8
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:night_discount_usage_limit",
+          "rank": 4
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:intake_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:annual_fee",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:previous_month_spend_exclusions",
+          "rank": 2
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:launch_date",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:benefit_maintenance_period",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:overseas_atm_withdrawal_fee",
+          "rank": 4
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:annual_fee_refund_deadline",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:annual_fee_refund_latest_deadline",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:mileage_earning_unit",
+          "rank": 1
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:additional_mileage_monthly_cap",
+          "rank": 9
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:lounge_quota",
+          "rank": 1
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:lounge_previous_month_spend",
+          "rank": 5
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:lounge_voucher_validity",
+          "rank": 1
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:card_name",
+          "rank": 4
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:basic_mileage_earning",
+          "rank": 8
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:additional_overseas_mileage_earning",
+          "rank": 1
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:mileage_previous_month_spend_requirement",
+          "rank": 8
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:airport_lounge_quota",
+          "rank": 1
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:airport_lounge_previous_month_spend_requirement",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:international_brand_fee_waiver",
+          "rank": 2
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:overseas_service_fee_waiver",
+          "rank": 1
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:primary_card_annual_fee",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:family_card_annual_fee",
+          "rank": null
+        }
+      ]
+    },
+    "weighted_alpha_0.2": {
+      "query_count": 130,
+      "recall_at_1": 0.3,
+      "recall_at_3": 0.46153846153846156,
+      "recall_at_5": 0.5076923076923077,
+      "mrr_at_10": 0.39272893772893774,
+      "ndcg_at_10": 0.44241757874388643,
+      "latency_ms_p50": 222.94150000000002,
+      "latency_ms_p95": 246.474,
+      "details": [
+        {
+          "query_id": "BC:BC_Biz_AirMoney:launch_date",
+          "rank": 4
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:benefit_maintenance_period",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:refund_processing_deadline",
+          "rank": 7
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:refund_latest_deadline",
+          "rank": 7
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:account_cutoff_time",
+          "rank": 3
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:air_money_earn_rate",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:point_to_won",
+          "rank": 2
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:point_expiry",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:point_expiry_example",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:rounding_threshold",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:payment_example_before",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:payment_example_points",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:payment_example_after",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:lounge_phone",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:lounge_hours",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:lounge_quota",
+          "rank": 2
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:lounge_period",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:excluded_four_major_insurances",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:domestic_annual_fee_total",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:domestic_annual_fee_base",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:domestic_annual_fee_partner",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:international_annual_fee_total",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:international_annual_fee_base",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:international_annual_fee_partner",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:customer_center_phone",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:international_brand_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:dcc_block_phone",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount_per_liter",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount_daily_spend_limit",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount_monthly_spend_limit",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount_previous_month_spend",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:asiana_mileage_spend_unit",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:asiana_mileage_earned",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:everland_discount_rate",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:everland_annual_limit",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:caribbean_bay_discount_rate",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:gold_annual_fee_total",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:platinum_annual_fee_total",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:next_year_base_fee_waiver_spend",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:card_name",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount_previous_month_requirement",
+          "rank": 2
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount_previous_month_exclusions",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:asiana_mileage_earning",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:mileage_earning_exclusions",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:interest_free_installment",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:everland_discount",
+          "rank": 5
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:caribbean_bay_discount",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:annual_fee",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:next_year_base_annual_fee_waiver",
+          "rank": null
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:restaurant_discount_rate",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:delivery_app_discount_rate",
+          "rank": 2
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:coffee_discount_rate",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:membership_discount_rate",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:previous_month_spend_requirement",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:monthly_integrated_discount_limit",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:domestic_annual_fee",
+          "rank": null
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:international_annual_fee",
+          "rank": 2
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:master_international_brand_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:amex_international_brand_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:credit_card_overseas_service_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:card_name",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:restaurant_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:delivery_app_discount",
+          "rank": 2
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:coffee_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:membership_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:discount_common_requirement",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:discount_exclusions",
+          "rank": 3
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:initial_issue_benefit_rule",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:previous_month_spend_exclusions",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:annual_fee",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:overseas_fee_rates",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:highest_spend_category_discount_rate",
+          "rank": 6
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:highest_spend_category_limit_low",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:highest_spend_category_limit_high",
+          "rank": 8
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:fuel_telecom_apartment_discount_rate",
+          "rank": 2
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:general_discount_rate",
+          "rank": 6
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:primary_international_annual_fee_total",
+          "rank": 5
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:family_international_annual_fee_total",
+          "rank": 5
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:international_mastercard_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:international_visa_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:overseas_service_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:card_name",
+          "rank": 1
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:highest_spend_category_discount",
+          "rank": 2
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:fuel_telecom_apartment_discount",
+          "rank": 2
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:general_domestic_overseas_discount",
+          "rank": 2
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:previous_month_spend_exclusions",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:discount_exclusions",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:primary_international_annual_fee",
+          "rank": 1
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:family_international_annual_fee",
+          "rank": 1
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:foreign_currency_conversion_blocking",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:benefit_service_launch_date",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:domestic_annual_fee",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:international_annual_fee",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:monthly_bill_discount_rate",
+          "rank": 4
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:fuel_discount_per_liter",
+          "rank": 3
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:time_discount_rate",
+          "rank": 3
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:intake_discount_rate",
+          "rank": 3
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:international_brand_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:credit_card_overseas_service_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:check_card_overseas_service_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:card_name",
+          "rank": 1
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:monthly_bill_discount",
+          "rank": 3
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:weekend_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:time_discount",
+          "rank": 7
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:all_day_discount_usage_limit",
+          "rank": 6
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:night_discount_usage_limit",
+          "rank": 3
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:intake_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:annual_fee",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:previous_month_spend_exclusions",
+          "rank": 3
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:launch_date",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:benefit_maintenance_period",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:overseas_atm_withdrawal_fee",
+          "rank": 7
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:annual_fee_refund_deadline",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:annual_fee_refund_latest_deadline",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:mileage_earning_unit",
+          "rank": 2
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:additional_mileage_monthly_cap",
+          "rank": 10
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:lounge_quota",
+          "rank": 5
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:lounge_previous_month_spend",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:lounge_voucher_validity",
+          "rank": 3
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:card_name",
+          "rank": 2
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:basic_mileage_earning",
+          "rank": 6
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:additional_overseas_mileage_earning",
+          "rank": 1
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:mileage_previous_month_spend_requirement",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:airport_lounge_quota",
+          "rank": 1
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:airport_lounge_previous_month_spend_requirement",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:international_brand_fee_waiver",
+          "rank": 8
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:overseas_service_fee_waiver",
+          "rank": 6
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:primary_card_annual_fee",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:family_card_annual_fee",
+          "rank": null
+        }
+      ]
+    },
+    "weighted_alpha_0.5": {
+      "query_count": 130,
+      "recall_at_1": 0.33076923076923076,
+      "recall_at_3": 0.4846153846153846,
+      "recall_at_5": 0.5461538461538461,
+      "mrr_at_10": 0.42923687423687423,
+      "ndcg_at_10": 0.4810550328581617,
+      "latency_ms_p50": 222.69,
+      "latency_ms_p95": 248.899,
+      "details": [
+        {
+          "query_id": "BC:BC_Biz_AirMoney:launch_date",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:benefit_maintenance_period",
+          "rank": 8
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:refund_processing_deadline",
+          "rank": 2
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:refund_latest_deadline",
+          "rank": 2
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:account_cutoff_time",
+          "rank": 3
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:air_money_earn_rate",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:point_to_won",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:point_expiry",
+          "rank": 2
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:point_expiry_example",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:rounding_threshold",
+          "rank": 7
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:payment_example_before",
+          "rank": 5
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:payment_example_points",
+          "rank": 5
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:payment_example_after",
+          "rank": 6
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:lounge_phone",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:lounge_hours",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:lounge_quota",
+          "rank": 8
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:lounge_period",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:excluded_four_major_insurances",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:domestic_annual_fee_total",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:domestic_annual_fee_base",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:domestic_annual_fee_partner",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:international_annual_fee_total",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:international_annual_fee_base",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:international_annual_fee_partner",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:customer_center_phone",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:international_brand_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:dcc_block_phone",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount_per_liter",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount_daily_spend_limit",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount_monthly_spend_limit",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount_previous_month_spend",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:asiana_mileage_spend_unit",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:asiana_mileage_earned",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:everland_discount_rate",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:everland_annual_limit",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:caribbean_bay_discount_rate",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:gold_annual_fee_total",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:platinum_annual_fee_total",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:next_year_base_fee_waiver_spend",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:card_name",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount_previous_month_requirement",
+          "rank": 2
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount_previous_month_exclusions",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:asiana_mileage_earning",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:mileage_earning_exclusions",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:interest_free_installment",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:everland_discount",
+          "rank": 3
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:caribbean_bay_discount",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:annual_fee",
+          "rank": 5
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:next_year_base_annual_fee_waiver",
+          "rank": null
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:restaurant_discount_rate",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:delivery_app_discount_rate",
+          "rank": 3
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:coffee_discount_rate",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:membership_discount_rate",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:previous_month_spend_requirement",
+          "rank": 2
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:monthly_integrated_discount_limit",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:domestic_annual_fee",
+          "rank": null
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:international_annual_fee",
+          "rank": 2
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:master_international_brand_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:amex_international_brand_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:credit_card_overseas_service_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:card_name",
+          "rank": 5
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:restaurant_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:delivery_app_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:coffee_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:membership_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:discount_common_requirement",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:discount_exclusions",
+          "rank": 4
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:initial_issue_benefit_rule",
+          "rank": 6
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:previous_month_spend_exclusions",
+          "rank": 4
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:annual_fee",
+          "rank": 2
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:overseas_fee_rates",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:highest_spend_category_discount_rate",
+          "rank": 7
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:highest_spend_category_limit_low",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:highest_spend_category_limit_high",
+          "rank": 9
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:fuel_telecom_apartment_discount_rate",
+          "rank": 2
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:general_discount_rate",
+          "rank": 10
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:primary_international_annual_fee_total",
+          "rank": 9
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:family_international_annual_fee_total",
+          "rank": 6
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:international_mastercard_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:international_visa_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:overseas_service_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:card_name",
+          "rank": 1
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:highest_spend_category_discount",
+          "rank": 2
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:fuel_telecom_apartment_discount",
+          "rank": 2
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:general_domestic_overseas_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:previous_month_spend_exclusions",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:discount_exclusions",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:primary_international_annual_fee",
+          "rank": 2
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:family_international_annual_fee",
+          "rank": 2
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:foreign_currency_conversion_blocking",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:benefit_service_launch_date",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:domestic_annual_fee",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:international_annual_fee",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:monthly_bill_discount_rate",
+          "rank": 4
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:fuel_discount_per_liter",
+          "rank": 1
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:time_discount_rate",
+          "rank": 1
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:intake_discount_rate",
+          "rank": 1
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:international_brand_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:credit_card_overseas_service_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:check_card_overseas_service_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:card_name",
+          "rank": 1
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:monthly_bill_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:weekend_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:time_discount",
+          "rank": 3
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:all_day_discount_usage_limit",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:night_discount_usage_limit",
+          "rank": 7
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:intake_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:annual_fee",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:previous_month_spend_exclusions",
+          "rank": 3
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:launch_date",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:benefit_maintenance_period",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:overseas_atm_withdrawal_fee",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:annual_fee_refund_deadline",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:annual_fee_refund_latest_deadline",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:mileage_earning_unit",
+          "rank": 1
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:additional_mileage_monthly_cap",
+          "rank": 2
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:lounge_quota",
+          "rank": 4
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:lounge_previous_month_spend",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:lounge_voucher_validity",
+          "rank": 1
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:card_name",
+          "rank": 2
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:basic_mileage_earning",
+          "rank": 6
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:additional_overseas_mileage_earning",
+          "rank": 1
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:mileage_previous_month_spend_requirement",
+          "rank": 2
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:airport_lounge_quota",
+          "rank": 1
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:airport_lounge_previous_month_spend_requirement",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:international_brand_fee_waiver",
+          "rank": 6
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:overseas_service_fee_waiver",
+          "rank": 1
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:primary_card_annual_fee",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:family_card_annual_fee",
+          "rank": null
+        }
+      ]
+    },
+    "weighted_alpha_0.8": {
+      "query_count": 130,
+      "recall_at_1": 0.2846153846153846,
+      "recall_at_3": 0.4307692307692308,
+      "recall_at_5": 0.47692307692307695,
+      "mrr_at_10": 0.37068986568986567,
+      "ndcg_at_10": 0.4163521131686759,
+      "latency_ms_p50": 222.424,
+      "latency_ms_p95": 232.813,
+      "details": [
+        {
+          "query_id": "BC:BC_Biz_AirMoney:launch_date",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:benefit_maintenance_period",
+          "rank": 6
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:refund_processing_deadline",
+          "rank": 2
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:refund_latest_deadline",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:account_cutoff_time",
+          "rank": 2
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:air_money_earn_rate",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:point_to_won",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:point_expiry",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:point_expiry_example",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:rounding_threshold",
+          "rank": 4
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:payment_example_before",
+          "rank": 3
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:payment_example_points",
+          "rank": 5
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:payment_example_after",
+          "rank": 2
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:lounge_phone",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:lounge_hours",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:lounge_quota",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:lounge_period",
+          "rank": 3
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:excluded_four_major_insurances",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:domestic_annual_fee_total",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:domestic_annual_fee_base",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:domestic_annual_fee_partner",
+          "rank": 3
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:international_annual_fee_total",
+          "rank": 1
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:international_annual_fee_base",
+          "rank": 2
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:international_annual_fee_partner",
+          "rank": 3
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:customer_center_phone",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:international_brand_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "BC:BC_Biz_AirMoney:dcc_block_phone",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount_per_liter",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount_daily_spend_limit",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount_monthly_spend_limit",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount_previous_month_spend",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:asiana_mileage_spend_unit",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:asiana_mileage_earned",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:everland_discount_rate",
+          "rank": 5
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:everland_annual_limit",
+          "rank": 2
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:caribbean_bay_discount_rate",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:gold_annual_fee_total",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:platinum_annual_fee_total",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:next_year_base_fee_waiver_spend",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:card_name",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount_previous_month_requirement",
+          "rank": 8
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:fuel_discount_previous_month_exclusions",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:asiana_mileage_earning",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:mileage_earning_exclusions",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:interest_free_installment",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:everland_discount",
+          "rank": 2
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:caribbean_bay_discount",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:annual_fee",
+          "rank": null
+        },
+        {
+          "query_id": "kookmin:Kookmin_Friend_20210917:next_year_base_annual_fee_waiver",
+          "rank": null
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:restaurant_discount_rate",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:delivery_app_discount_rate",
+          "rank": 6
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:coffee_discount_rate",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:membership_discount_rate",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:previous_month_spend_requirement",
+          "rank": 6
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:monthly_integrated_discount_limit",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:domestic_annual_fee",
+          "rank": null
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:international_annual_fee",
+          "rank": 3
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:master_international_brand_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:amex_international_brand_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:credit_card_overseas_service_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:card_name",
+          "rank": null
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:restaurant_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:delivery_app_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:coffee_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:membership_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:discount_common_requirement",
+          "rank": 1
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:discount_exclusions",
+          "rank": 5
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:initial_issue_benefit_rule",
+          "rank": null
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:previous_month_spend_exclusions",
+          "rank": 7
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:annual_fee",
+          "rank": 4
+        },
+        {
+          "query_id": "lotte:Lotte_LOCA_LIKIT_Eat:overseas_fee_rates",
+          "rank": 9
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:highest_spend_category_discount_rate",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:highest_spend_category_limit_low",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:highest_spend_category_limit_high",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:fuel_telecom_apartment_discount_rate",
+          "rank": 2
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:general_discount_rate",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:primary_international_annual_fee_total",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:family_international_annual_fee_total",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:international_mastercard_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:international_visa_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:overseas_service_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:card_name",
+          "rank": 1
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:highest_spend_category_discount",
+          "rank": 2
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:fuel_telecom_apartment_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:general_domestic_overseas_discount",
+          "rank": 2
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:previous_month_spend_exclusions",
+          "rank": null
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:discount_exclusions",
+          "rank": 10
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:primary_international_annual_fee",
+          "rank": 3
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:family_international_annual_fee",
+          "rank": 2
+        },
+        {
+          "query_id": "samsung:Samsung_iD_ALL:foreign_currency_conversion_blocking",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:benefit_service_launch_date",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:domestic_annual_fee",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:international_annual_fee",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:monthly_bill_discount_rate",
+          "rank": 6
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:fuel_discount_per_liter",
+          "rank": 1
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:time_discount_rate",
+          "rank": 1
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:intake_discount_rate",
+          "rank": 1
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:international_brand_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:credit_card_overseas_service_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:check_card_overseas_service_fee_rate",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:card_name",
+          "rank": 1
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:monthly_bill_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:weekend_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:time_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:all_day_discount_usage_limit",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:night_discount_usage_limit",
+          "rank": 8
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:intake_discount",
+          "rank": 1
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:annual_fee",
+          "rank": null
+        },
+        {
+          "query_id": "shinhan:Shinhan_Toss_Mr.Life_20251231:previous_month_spend_exclusions",
+          "rank": 3
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:launch_date",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:benefit_maintenance_period",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:overseas_atm_withdrawal_fee",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:annual_fee_refund_deadline",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:annual_fee_refund_latest_deadline",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:mileage_earning_unit",
+          "rank": 1
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:additional_mileage_monthly_cap",
+          "rank": 1
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:lounge_quota",
+          "rank": 5
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:lounge_previous_month_spend",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:lounge_voucher_validity",
+          "rank": 2
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:card_name",
+          "rank": 7
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:basic_mileage_earning",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:additional_overseas_mileage_earning",
+          "rank": 1
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:mileage_previous_month_spend_requirement",
+          "rank": 1
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:airport_lounge_quota",
+          "rank": 1
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:airport_lounge_previous_month_spend_requirement",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:international_brand_fee_waiver",
+          "rank": 7
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:overseas_service_fee_waiver",
+          "rank": 2
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:primary_card_annual_fee",
+          "rank": null
+        },
+        {
+          "query_id": "woori:Woori_Classic_EVERY_MILE_SKYPASS:family_card_annual_fee",
+          "rank": null
+        }
+      ]
+    }
+  },
+  "index_metadata_sha256": "f5654c326289d870b46a628697a0a44d2e5d921d3ce7ab2b6314ca7210bf0606",
+  "chunk_corpus_sha256": "2d95f92f1cfc5c7e99d688a2e0522b823453496546de3099569ea5fa65b852a1",
+  "chunk_build_sha256": "8735f43f0f6369dd57af693b1bbfecb349b8427a0ffc34d89010074fd957b891",
+  "chunk_config_sha256": "d6bbe0d3d06751e52c0459b9dde235cc4f6ac7301350dffdb21937d21a883cba"
+}

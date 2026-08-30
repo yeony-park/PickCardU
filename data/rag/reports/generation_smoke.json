@@ -1,0 +1,57 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-08-20T15:23:03+09:00",
+  "model": "gpt-5.6-luna",
+  "reasoning": "medium",
+  "retrieval": {
+    "mode": "weighted",
+    "alpha": 0.5,
+    "top_k": 3,
+    "card_name_filter": "BC_Biz_AirMoney",
+    "chunk_corpus_sha256": "2d95f92f1cfc5c7e99d688a2e0522b823453496546de3099569ea5fa65b852a1"
+  },
+  "cases": [
+    {
+      "case_id": "supported_lounge_quota",
+      "question": "비즈 에어머니 카드의 공항 라운지는 연간 몇 회 이용할 수 있나요?",
+      "answer": "비즈 에어머니 카드의 공항 라운지는 연 2회 이용할 수 있습니다. 1일 1회 기준이며, 이용 기간은 매년 1월 1일부터 12월 31일까지입니다.",
+      "citations": [
+        {
+          "source_id": "S2",
+          "document_id": "BC/BC_Biz_AirMoney",
+          "source_path": "data/raw/BC/BC_Biz_AirMoney.pdf",
+          "page_start": 2,
+          "page_end": 2,
+          "parent_id": "par_207d7051ed7f7a7079283b42",
+          "supporting_children": [
+            "chi_fe11d88115f9dbe566cb7fcb"
+          ]
+        }
+      ],
+      "insufficient_evidence": false,
+      "usage": {
+        "input_tokens": 1816,
+        "output_tokens": 78,
+        "reasoning_tokens": 0,
+        "total_tokens": 1894
+      },
+      "retrieval_latency_ms": 35.977,
+      "retrieved_parent_count": 3
+    },
+    {
+      "case_id": "unsupported_pet_surgery",
+      "question": "비즈 에어머니 카드가 반려동물 수술비를 전액 보장하나요?",
+      "answer": "제공된 안내서에는 반려동물 수술비 보장 또는 전액 보장에 관한 내용이 없어 확인할 수 없습니다.",
+      "citations": [],
+      "insufficient_evidence": true,
+      "usage": {
+        "input_tokens": 1813,
+        "output_tokens": 86,
+        "reasoning_tokens": 28,
+        "total_tokens": 1899
+      },
+      "retrieval_latency_ms": 12.803,
+      "retrieved_parent_count": 3
+    }
+  ]
+}

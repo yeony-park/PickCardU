@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-08-19T21:31:46+09:00",
+  "expected_documents": 106,
+  "paired_documents": 106,
+  "verified_documents": 106,
+  "missing_documents": [],
+  "verdicts": {
+    "pass": 10,
+    "review_required": 96
+  },
+  "issue_counts": {
+    "heading_alignment_low": 5,
+    "numeric_mismatch": 22,
+    "table_count_mismatch": 131,
+    "table_structure_mismatch": 72,
+    "text_similarity_low": 17,
+    "uncertain_primary_text": 76
+  },
+  "pp_structure_v3_deferred_pages": 205,
+  "failures": []
+}
