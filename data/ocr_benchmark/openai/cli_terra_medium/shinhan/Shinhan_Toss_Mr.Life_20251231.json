@@ -1,0 +1,50 @@
+{
+  "schema_version": "1.0",
+  "run_status": "completed",
+  "tool": "codex_cli",
+  "condition": {
+    "key": "cli_terra_medium",
+    "surface": "cli",
+    "model": "gpt-5.6-terra",
+    "reasoning": "medium",
+    "detail": null
+  },
+  "dpi": 200,
+  "input_format": "png_pages",
+  "issuer": "shinhan",
+  "card_name": "Shinhan_Toss_Mr.Life_20251231",
+  "source_pdf": "data/raw/shinhan/Shinhan_Toss_Mr.Life_20251231.pdf",
+  "started_at": "2026-08-13T20:55:34+09:00",
+  "finished_at": "2026-08-13T20:55:44+09:00",
+  "elapsed_seconds": 10.298,
+  "page_count": 2,
+  "usage": {
+    "input_tokens": 20132,
+    "cached_input_tokens": 12032,
+    "output_tokens": 267,
+    "reasoning_tokens": null,
+    "total_tokens": 20399
+  },
+  "pages": [
+    {
+      "page_num": 1,
+      "status": "success",
+      "markdown": "Mr.Life\n\nShinhanCard\n\ntoss\n\nEssential For\nEvery Lifestyle\nMr.Life\n\n5 15195 5 1020\n\n신한카드\n\nShinhanCard",
+      "uncertain_spans": []
+    },
+    {
+      "page_num": 2,
+      "status": "success",
+      "markdown": "",
+      "uncertain_spans": []
+    }
+  ],
+  "metrics": {
+    "processing_success_rate": 1.0,
+    "page_coverage": 0.5,
+    "empty_output_rate": 0.5,
+    "seconds_per_page": 5.149,
+    "tokens_per_page": 10199.5,
+    "schema_valid": true
+  }
+}

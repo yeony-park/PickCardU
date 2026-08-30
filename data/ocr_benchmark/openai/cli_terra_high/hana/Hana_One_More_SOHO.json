@@ -1,0 +1,50 @@
+{
+  "schema_version": "1.0",
+  "run_status": "completed",
+  "tool": "codex_cli",
+  "condition": {
+    "key": "cli_terra_high",
+    "surface": "cli",
+    "model": "gpt-5.6-terra",
+    "reasoning": "high",
+    "detail": null
+  },
+  "dpi": 200,
+  "input_format": "png_pages",
+  "issuer": "hana",
+  "card_name": "Hana_One_More_SOHO",
+  "source_pdf": "data/raw/hana/Hana_One_More_SOHO.pdf",
+  "started_at": "2026-08-13T20:36:21+09:00",
+  "finished_at": "2026-08-13T20:37:00+09:00",
+  "elapsed_seconds": 38.861,
+  "page_count": 2,
+  "usage": {
+    "input_tokens": 20088,
+    "cached_input_tokens": 12032,
+    "output_tokens": 1296,
+    "reasoning_tokens": null,
+    "total_tokens": 21384
+  },
+  "pages": [
+    {
+      "page_num": 1,
+      "status": "success",
+      "markdown": "HANA THE SOHO\n하나더소호\n\n하나카드\nHANA THE SOHO CARD\n\n하나 더 소호\n카드\n\n| 서비스 | 제공 횟수 |\n|---|---|\n| 부가세 환급 편의 지원서비스 | 무료 |\n| 상권 분석 서비스 | 월 3회 |\n\n| 할인율 | 전월 실적 | 할인한도 |\n|---|---|---|\n| 5% | 50만원 이상 100만원 미만 | 월 1만원 |\n| 5% | 100만원 이상 150만원 미만 | 월 1만 5천원 |\n| 5% | 150만원 이상 | 월 2만원 |\n\n| 업종 | 대상 |\n|---|---|\n| 식자재마트 | 배민상회, 식자재왕도매마트, 장보고식자재마트 |\n| 온라인쇼핑 | 네이버쇼핑, 쿠팡, 11번가, G마켓, 옥션 |\n| 주유(LPG포함) | SK주유소, GS칼텍스, HD현대오일뱅크, S-Oil |\n| 친환경 충전 | EV(전기차) 충전 |\n\n| 할인율 | 할인한도 |\n|---|---|\n| 2% | 없음 |\n\n| 할인율 | 할인한도 |\n|---|---|\n| 0.5% | 없음 |\n\n| 할인율 | 전월 실적 | 할인한도 |\n|---|---|---|\n| 3% | 50만원 이상 100만원 미만 | 월 1만원 |\n| 3% | 100만원 이상 150만원 미만 | 월 1만 5천원 |\n| 3% | 150만원 이상 | 월 2만원 |\n\n| 업종 | 대상 |\n|---|---|\n| 4대 사회보험(자동납부) | 국민연금, 고용보험료, 산재보험료, 건강보험료 |\n| 손해보험 | 하나손해보험, 삼성화재, DB손해보험, 현대해상, KB손해보험, 메리츠화재, 롯데손해보험, 한화손해보험 |\n| 렌탈/방역(자동납부) | 바디프렌즈, 코웨이, SK매직, 청호나이스, 세스코 |\n| 통신요금(자동납부) | SKT, KT, LGU+ 통신요금 |\n| 전기/도시가스(자동납부) | 전기요금(한국전력), 도시가스요금 |\n\n| 할부이자 | 할부개월수 |\n|---|---|\n| 없음 | 2~3개월 |",
+      "uncertain_spans": []
+    },
+    {
+      "page_num": 2,
+      "status": "success",
+      "markdown": "| 구분 | 연회비 | 내용 |\n|---|---:|---|\n| 국내전용 | 23,000원 | 기본연회비 23,000원, 제휴연회비 0원 |\n| 국내외겸용 (UPI) | 23,000원 | 기본연회비 23,000원, 제휴연회비 0원 |\n| 국내외겸용 (Visa,AMEX,Mastercard) | 25,000원 | 기본연회비 25,000원, 제휴연회비 0원 |\n\nHANA THE SOHO\n\n고객센터 1800-1111\n\n카드대출 1800-1000\n\n단기카드대출(현금서비스) / 장기카드대출(카드론)",
+      "uncertain_spans": []
+    }
+  ],
+  "metrics": {
+    "processing_success_rate": 1.0,
+    "page_coverage": 1.0,
+    "empty_output_rate": 0.0,
+    "seconds_per_page": 19.4305,
+    "tokens_per_page": 10692.0,
+    "schema_valid": true
+  }
+}
