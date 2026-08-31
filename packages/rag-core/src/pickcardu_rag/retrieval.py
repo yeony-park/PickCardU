@@ -48,6 +48,9 @@ class Chunk:
     level: str
     page_num: int
     section: str | None = None
+    reranker_text: str | None = None
+    parent_id: str | None = None
+    child_ids: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         for name in ("chunk_id", "text", "card_key", "card_name", "issuer", "level"):
@@ -58,6 +61,14 @@ class Chunk:
             raise ValueError("page_num must be a non-negative integer")
         if self.section is not None and not isinstance(self.section, str):
             raise ValueError("section must be a string or None")
+        if self.reranker_text is not None and (not isinstance(self.reranker_text, str) or not self.reranker_text.strip()):
+            raise ValueError("reranker_text must be a non-empty string or None")
+        if self.parent_id is not None and (not isinstance(self.parent_id, str) or not self.parent_id.strip()):
+            raise ValueError("parent_id must be a non-empty string or None")
+        if not isinstance(self.child_ids, tuple) or any(
+            not isinstance(child_id, str) or not child_id.strip() for child_id in self.child_ids
+        ):
+            raise ValueError("child_ids must be a tuple of non-empty strings")
 
 
 @dataclass(frozen=True)
@@ -89,12 +100,23 @@ class ChunkingProfile:
     eligible_levels: frozenset[str]
 
 
-BENEFIT_HIERARCHY = ChunkingProfile("benefit_hierarchy", frozenset({"section", "benefit"}))
+CARD_PAGE_SECTION_BENEFIT = ChunkingProfile(
+    "card_page_section_benefit", frozenset({"section", "benefit"})
+)
+PARENT_CHILD_BUNDLE = ChunkingProfile(
+    "parent_child_bundle", frozenset({"bundle", "benefit"})
+)
+# Historical import alias. New manifests and API requests use the explicit name.
+BENEFIT_HIERARCHY = CARD_PAGE_SECTION_BENEFIT
+CHUNKING_PROFILES = {
+    profile.identifier: profile
+    for profile in (CARD_PAGE_SECTION_BENEFIT, PARENT_CHILD_BUNDLE)
+}
 
 
 @dataclass(frozen=True)
 class SearchConfig:
-    profile: str = "benefit_hierarchy"
+    profile: str = "card_page_section_benefit"
     vector_weight: float = 0.4
     component_depth: int = 50
     candidate_depth: int = 20
@@ -294,6 +316,37 @@ def collapse_cards(
     }
 
 
+def hydrate_evidence_rows(
+    rows: Sequence[Candidate], chunks: Mapping[str, Chunk]
+) -> list[Candidate]:
+    """Replace selected aggregate parents with their exact benefit children."""
+    hydrated: list[Candidate] = []
+    seen: set[str] = set()
+    for row in rows:
+        chunk = chunks[row.chunk_id]
+        child_ids = chunk.child_ids if chunk.level in {"section", "bundle"} else ()
+        if chunk.level in {"section", "bundle"} and not child_ids:
+            raise ValueError("aggregate chunk has no benefit children")
+        target_ids = child_ids or (row.chunk_id,)
+        for child_id in target_ids:
+            if child_id in seen:
+                continue
+            child = chunks.get(child_id)
+            if child is None or (child_ids and (child.parent_id != chunk.chunk_id or child.level != "benefit")):
+                raise ValueError("aggregate child relationship is invalid")
+            seen.add(child_id)
+            hydrated.append(
+                Candidate(
+                    chunk_id=child_id,
+                    score=row.score,
+                    rank=len(hydrated) + 1,
+                    component_ranks=row.component_ranks,
+                    prior_rank=row.prior_rank or row.rank,
+                )
+            )
+    return hydrated
+
+
 def _candidate_dict(row: Candidate) -> dict[str, Any]:
     result: dict[str, Any] = {"chunk_id": row.chunk_id, "score": row.score, "rank": row.rank}
     if row.component_ranks:
@@ -352,7 +405,9 @@ class RagPipeline:
             if self.reranker is None:
                 raise RerankerUnavailable("reranker is unavailable")
             scores, reranker_trace = self.reranker.score(
-                config.reranker, query, [self.chunks[row.chunk_id].text for row in leaf]
+                config.reranker,
+                query,
+                [self.chunks[row.chunk_id].reranker_text or self.chunks[row.chunk_id].text for row in leaf],
             )
             if len(scores) != len(leaf) or not np.isfinite(np.asarray(scores, dtype=np.float64)).all():
                 raise RerankerUnavailable("reranker score count or finiteness mismatch")
@@ -362,8 +417,9 @@ class RagPipeline:
             ]
             reranked.sort(key=lambda row: (-row.score, row.prior_rank or row.rank, row.chunk_id))
             reranked = [Candidate(**{**row.__dict__, "rank": rank}) for rank, row in enumerate(reranked, 1)]
+        hydrated = hydrate_evidence_rows(reranked, self.chunks)
         cards, evidence, budget = collapse_cards(
-            reranked, self.chunks, top_k=config.top_k, standalone_query=query
+            hydrated, self.chunks, top_k=config.top_k, standalone_query=query
         )
         return {
             "query_type": query_type,
@@ -375,6 +431,7 @@ class RagPipeline:
                 "rrf": [_candidate_dict(row) for row in fused],
                 "leaf": [_candidate_dict(row) for row in leaf],
                 "rerank": [_candidate_dict(row) for row in reranked] if should_rerank else [],
+                "evidence_hydration": [_candidate_dict(row) for row in hydrated],
                 "reranker": reranker_trace,
                 "card": cards,
                 "evidence_budget": budget,

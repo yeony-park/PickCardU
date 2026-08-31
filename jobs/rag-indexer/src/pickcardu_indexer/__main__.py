@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 from typing import Any
 
-from .pipeline import Indexer
+from .pipeline import Indexer, OpenAIEmbeddingAdapter
 
 
 def json_output(value: Any) -> None:
@@ -23,9 +24,18 @@ def parser() -> argparse.ArgumentParser:
     run.add_argument("--upstage-json-dir", type=Path)
     run.add_argument("--fake-vectors", action="store_true", help="explicit test-only deterministic vectors")
     run.add_argument("--allow-partial", action="store_true")
+    run.add_argument(
+        "--profile",
+        choices=("card_page_section_benefit", "parent_child_bundle"),
+        default="card_page_section_benefit",
+    )
     run.add_argument("--confirm-luna", action="store_true")
     run.add_argument("--confirm-upstage", action="store_true")
-    run.add_argument("--confirm-embedding", action="store_true")
+    run.add_argument(
+        "--confirm-embedding",
+        action="store_true",
+        help="explicitly allow retrieval_text to be sent to OpenAI text-embedding-3-small",
+    )
 
     status = subcommands.add_parser("status")
     status.add_argument("--run-id")
@@ -56,15 +66,35 @@ def main(argv: list[str] | None = None) -> int:
     indexer = Indexer(arguments.runtime_root)
     try:
         if arguments.command == "run":
-            if (arguments.confirm_luna or arguments.confirm_upstage or arguments.confirm_embedding) and not (arguments.luna_json_dir and arguments.upstage_json_dir):
-                raise RuntimeError("live provider adapters are intentionally unavailable; inject local lane artifacts instead")
+            if arguments.confirm_luna or arguments.confirm_upstage:
+                raise RuntimeError("live OCR provider adapters are intentionally unavailable; inject local lane artifacts instead")
+            if not (arguments.luna_json_dir and arguments.upstage_json_dir):
+                raise RuntimeError("both local Luna and Upstage artifact directories are required")
+            if arguments.fake_vectors and arguments.confirm_embedding:
+                raise RuntimeError("fake vectors and approved external embedding are mutually exclusive")
+            api_key = os.environ.get("OPENAI_API_KEY")
+            if arguments.confirm_embedding and not api_key:
+                raise RuntimeError("OPENAI_API_KEY is required for approved document embedding")
+            embedding_adapter = (
+                OpenAIEmbeddingAdapter(api_key=api_key)
+                if arguments.confirm_embedding
+                else None
+            )
+            config = {
+                "profile": arguments.profile,
+                "fake_vectors": arguments.fake_vectors,
+                "allow_partial": arguments.allow_partial,
+                "embedding_model": embedding_adapter.model if embedding_adapter else None,
+                "embedding_dimension": embedding_adapter.dimension if embedding_adapter else None,
+            }
             result = indexer.run(
                 arguments.source_manifest,
                 arguments.luna_json_dir,
                 arguments.upstage_json_dir,
                 fake_vectors=arguments.fake_vectors,
                 allow_partial=arguments.allow_partial,
-                config={"strategy": "benefit_hierarchy", "fake_vectors": arguments.fake_vectors, "allow_partial": arguments.allow_partial},
+                config=config,
+                embedding_adapter=embedding_adapter,
             )
             json_output(result)
         elif arguments.command == "status":

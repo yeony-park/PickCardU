@@ -13,7 +13,7 @@ import numpy as np
 from pickcardu_rag import AnswerOutput, AtomicClaim, Recommendation
 
 from pickcardu_rag_api.config import Settings
-from pickcardu_rag_api.index import _canonical, _sha256, _tree_hash
+from pickcardu_rag_api.index import _canonical, _embedding_sha256, _sha256, _tree_hash
 
 
 def build_release(runtime: Path) -> dict[str, Any]:
@@ -26,14 +26,14 @@ def build_release(runtime: Path) -> dict[str, Any]:
             "document_id": "issuer/card-a",
             "level": "benefit",
             "text": "카페 10% 할인",
-            "metadata": {"document_id": "issuer/card-a", "level": "benefit", "issuer_name": "Issuer", "card_name": "Card A", "evidence_refs": {"luna": {"provider": "luna", "page": 2, "quote": "카페 10% 할인"}, "upstage": {"provider": "upstage", "page": 2, "quote": "카페 10% 할인"}}},
+            "metadata": {"document_id": "issuer/card-a", "level": "benefit", "issuer_name": "Issuer", "card_name": "Card A", "section": "카페", "parent_id": None, "child_ids": [], "source_pages": [2], "retrieval_text": "Issuer | Card A | 카페\n카페 10% 할인", "reranker_text": "Issuer | Card A | 카페\n카페 10% 할인", "evidence_refs": {"luna": {"provider": "luna", "page": 2, "quote": "카페 10% 할인"}, "upstage": {"provider": "upstage", "page": 2, "quote": "카페 10% 할인"}}},
         },
         {
             "chunk_id": "chunk-fuel",
             "document_id": "issuer/card-b",
             "level": "benefit",
             "text": "주유 리터당 100원 할인",
-            "metadata": {"document_id": "issuer/card-b", "level": "benefit", "issuer_name": "Issuer", "card_name": "Card B", "evidence_refs": {"luna": {"provider": "luna", "page": 3, "quote": "주유 리터당 100원 할인"}, "upstage": {"provider": "upstage", "page": 3, "quote": "주유 리터당 100원 할인"}}},
+            "metadata": {"document_id": "issuer/card-b", "level": "benefit", "issuer_name": "Issuer", "card_name": "Card B", "section": "주유", "parent_id": None, "child_ids": [], "source_pages": [3], "retrieval_text": "Issuer | Card B | 주유\n주유 리터당 100원 할인", "reranker_text": "Issuer | Card B | 주유\n주유 리터당 100원 할인", "evidence_refs": {"luna": {"provider": "luna", "page": 3, "quote": "주유 리터당 100원 할인"}, "upstage": {"provider": "upstage", "page": 3, "quote": "주유 리터당 100원 할인"}}},
         },
     ]
     import sqlite3
@@ -42,25 +42,30 @@ def build_release(runtime: Path) -> dict[str, Any]:
     connection.executescript("CREATE TABLE chunks(chunk_id TEXT PRIMARY KEY,document_id TEXT,level TEXT,text TEXT,metadata_json TEXT); CREATE VIRTUAL TABLE chunks_fts USING fts5(chunk_id UNINDEXED,text,tokenize='unicode61');")
     for record in records:
         connection.execute("INSERT INTO chunks VALUES(?,?,?,?,?)", (record["chunk_id"], record["document_id"], record["level"], record["text"], _canonical(record["metadata"])))
-        connection.execute("INSERT INTO chunks_fts VALUES(?,?)", (record["chunk_id"], record["text"]))
+        connection.execute("INSERT INTO chunks_fts VALUES(?,?)", (record["chunk_id"], record["metadata"]["retrieval_text"]))
     connection.commit()
     connection.close()
     corpus_hash = hashlib.sha256(_canonical(records).encode()).hexdigest()
     source = release / "chroma"
     client = chromadb.PersistentClient(path=str(source))
-    collection = client.get_or_create_collection("benefit_hierarchy", metadata={"hnsw:space": "l2", "corpus_hash": corpus_hash})
-    collection.add(ids=[row["chunk_id"] for row in records], documents=[row["text"] for row in records], embeddings=[[0.0, 0.0], [1.0, 1.0]], metadatas=[{"document_id": row["document_id"], "level": row["level"]} for row in records])
+    collection = client.get_or_create_collection("card_page_section_benefit", metadata={"hnsw:space": "l2", "corpus_hash": corpus_hash})
+    fixture_embeddings = np.asarray([[0.0, 0.0], [1.0, 1.0]], dtype=np.float32)
+    collection.add(ids=[row["chunk_id"] for row in records], documents=[row["metadata"]["retrieval_text"] for row in records], embeddings=fixture_embeddings.tolist(), metadatas=[{"document_id": row["document_id"], "level": row["level"]} for row in records])
     del collection, client
     gc.collect()
     tree_hash = _tree_hash(source)
     manifest = {
         "schema_version": "rag_index_release_v1",
         "release_id": release_id,
-        "strategy": "benefit_hierarchy",
+        "strategy": "card_page_section_benefit",
         "release_status": "production",
         "distance_contract": "squared_l2",
         "embedding_model": "text-embedding-3-small",
         "embedding_dimension": 2,
+        "embedding_sha256": _embedding_sha256(
+            [row["chunk_id"] for row in records], fixture_embeddings
+        ),
+        "corpus_sqlite_sha256": _sha256(release / "corpus.sqlite"),
         "corpus_hash": corpus_hash,
         "chunk_ids": [row["chunk_id"] for row in records],
         "document_ids": ["issuer/card-a", "issuer/card-b"],
@@ -74,12 +79,11 @@ def build_release(runtime: Path) -> dict[str, Any]:
     shutil.copytree(source, serving / "chroma")
     # Match indexer materialization: its identity verification opens the copied
     # Chroma once before computing the immutable serving hash.
-    verification = chromadb.PersistentClient(path=str(serving / "chroma")).get_collection("benefit_hierarchy")
+    verification = chromadb.PersistentClient(path=str(serving / "chroma")).get_collection("card_page_section_benefit")
     verification.get(include=["embeddings"])
     del verification
     gc.collect()
-    serving_hash = _tree_hash(serving / "chroma")
-    marker = {"release_id": release_id, "chroma_tree_sha256": tree_hash, "corpus_hash": corpus_hash, "chunk_ids": manifest["chunk_ids"], "embedding_dimension": 2, "serving_tree_sha256": serving_hash}
+    marker = {"release_id": release_id, "chroma_tree_sha256": tree_hash, "corpus_hash": corpus_hash, "chunk_ids": manifest["chunk_ids"], "embedding_dimension": 2, "embedding_sha256": manifest["embedding_sha256"]}
     (serving / "version.json").write_text(_canonical(marker) + "\n", encoding="utf-8")
     lock_root = runtime / "serving/.locks"
     lock_root.mkdir(parents=True)
@@ -93,7 +97,15 @@ def build_release(runtime: Path) -> dict[str, Any]:
 def settings(root: Path) -> Settings:
     bge = root / "bge"
     bge.mkdir(exist_ok=True)
-    return Settings("development", False, root / "service.sqlite3", root / "runtime", ("http://testserver",), False, True, None, "text-embedding-3-small", "gpt-5.6-luna", bge)
+    return Settings(
+        "test",
+        root / "runtime",
+        ("http://testserver",),
+        None,
+        "text-embedding-3-small",
+        "gpt-5.6-luna",
+        bge,
+    )
 
 
 class FakeProvider:

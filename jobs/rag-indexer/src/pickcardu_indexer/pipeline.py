@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gc
 import hashlib
 import json
 import os
@@ -20,6 +21,8 @@ from .state import StateStore, canonical_json
 
 RELATION_FIELDS = ("target", "condition", "value", "unit", "cap", "frequency", "period", "exceptions")
 NUMBER = re.compile(r"\d+(?:[,.]\d+)?")
+CHUNKING_PROFILES = {"card_page_section_benefit", "parent_child_bundle"}
+DEFAULT_CHUNKING_PROFILE = "card_page_section_benefit"
 
 
 def now() -> str:
@@ -41,6 +44,15 @@ def sha256_file(path: Path) -> str:
 def tree_hash(root: Path) -> str:
     rows = [{"path": path.relative_to(root).as_posix(), "sha256": sha256_file(path)} for path in sorted(root.rglob("*")) if path.is_file()]
     return sha256_bytes(canonical_json(rows).encode())
+
+
+def embedding_sha256(chunk_ids: list[str], embeddings: np.ndarray) -> str:
+    array = np.asarray(embeddings, dtype=np.float32)
+    if array.ndim != 2 or array.shape[0] != len(chunk_ids) or not np.isfinite(array).all():
+        raise ValueError("embedding identity shape or finiteness mismatch")
+    digest = hashlib.sha256(canonical_json(chunk_ids).encode())
+    digest.update(array.tobytes(order="C"))
+    return digest.hexdigest()
 
 
 def input_fingerprint(source_manifest: Path, documents: list[dict[str, str]], luna_dir: Path | None, upstage_dir: Path | None) -> str:
@@ -81,6 +93,20 @@ def numbers(value: str) -> set[str]:
     return {token.replace(",", "") for token in NUMBER.findall(value)}
 
 
+def evidence_pages(value: Any) -> list[int]:
+    pages: set[int] = set()
+    if isinstance(value, dict):
+        page = value.get("page")
+        if isinstance(page, int) and not isinstance(page, bool) and page >= 1:
+            pages.add(page)
+        for nested in value.values():
+            pages.update(evidence_pages(nested))
+    elif isinstance(value, list):
+        for nested in value:
+            pages.update(evidence_pages(nested))
+    return sorted(pages)
+
+
 def validate_fact_evidence(fact: dict[str, str], quote: str, context: str) -> None:
     for field in ("target", "condition", "unit", "cap", "frequency", "period", "exceptions"):
         if fact[field] and fact[field] not in quote:
@@ -88,8 +114,47 @@ def validate_fact_evidence(fact: dict[str, str], quote: str, context: str) -> No
     value_numbers = numbers(fact["value"])
     if value_numbers and not value_numbers <= numbers(quote):
         raise ValueError(f"{context} has a value not linked to its evidence quote")
+    if not value_numbers and fact["value"] not in quote:
+        raise ValueError(f"{context} has a non-numeric value not linked to its evidence quote")
     if fact["value"] == "0" and "0" not in numbers(quote):
         raise ValueError(f"{context} zero is not explicit in its evidence quote")
+
+
+def compare_ocr_outputs(luna_payload: dict[str, Any], upstage_payload: dict[str, Any]) -> dict[str, Any]:
+    """Page-aligned OCR comparison audit; relation validation remains the correctness gate."""
+    lanes: dict[str, dict[int, str]] = {}
+    for provider, payload in (("luna", luna_payload), ("upstage", upstage_payload)):
+        pages: dict[int, str] = {}
+        for row in payload.get("pages", []):
+            page = row.get("page", row.get("number")) if isinstance(row, dict) else None
+            text = row.get("text") if isinstance(row, dict) else None
+            if isinstance(page, bool) or not isinstance(page, int) or not isinstance(text, str):
+                raise ValueError(f"{provider} page format invalid")
+            if page in pages:
+                raise ValueError(f"{provider} page number is duplicated")
+            pages[page] = normalized(text)
+        lanes[provider] = pages
+    page_numbers = sorted(set(lanes["luna"]) | set(lanes["upstage"]))
+    rows = []
+    for page in page_numbers:
+        luna_text, upstage_text = lanes["luna"].get(page, ""), lanes["upstage"].get(page, "")
+        luna_tokens, upstage_tokens = set(luna_text.split()), set(upstage_text.split())
+        union = luna_tokens | upstage_tokens
+        rows.append({
+            "page": page,
+            "luna_present": page in lanes["luna"],
+            "upstage_present": page in lanes["upstage"],
+            "normalized_text_equal": luna_text == upstage_text,
+            "token_jaccard": 1.0 if not union else len(luna_tokens & upstage_tokens) / len(union),
+            "luna_numbers": sorted(numbers(luna_text)),
+            "upstage_numbers": sorted(numbers(upstage_text)),
+        })
+    return {
+        "purpose": "diagnostic_only_not_a_correctness_or_selection_gate",
+        "page_count_equal": set(lanes["luna"]) == set(lanes["upstage"]),
+        "all_normalized_text_equal": all(row["normalized_text_equal"] for row in rows),
+        "pages": rows,
+    }
 
 
 def lane_path(root: Path, document_id: str) -> Path:
@@ -100,6 +165,82 @@ class ProviderAdapter(Protocol):
     provider: str
 
     def load(self, document_id: str) -> tuple[Path, dict[str, Any]]: ...
+
+
+class EmbeddingAdapter(Protocol):
+    model: str
+    dimension: int
+
+    def embed_documents(self, texts: list[str]) -> tuple[np.ndarray, dict[str, Any]]: ...
+
+
+class OpenAIEmbeddingAdapter:
+    """Explicitly constructed document-embedding boundary; construction performs no I/O."""
+
+    model = "text-embedding-3-small"
+    dimension = 1536
+
+    def __init__(
+        self,
+        *,
+        api_key: str | None,
+        batch_size: int = 64,
+        client: Any = None,
+    ) -> None:
+        if isinstance(batch_size, bool) or not isinstance(batch_size, int) or batch_size < 1:
+            raise ValueError("embedding batch size must be positive")
+        self.api_key = api_key
+        self.batch_size = batch_size
+        self._client = client
+
+    def _get_client(self) -> Any:
+        if self._client is not None:
+            return self._client
+        if not self.api_key:
+            raise RuntimeError("OPENAI_API_KEY is required for approved document embedding")
+        from openai import OpenAI
+
+        self._client = OpenAI(api_key=self.api_key, max_retries=0)
+        return self._client
+
+    def embed_documents(self, texts: list[str]) -> tuple[np.ndarray, dict[str, Any]]:
+        if not texts or any(not isinstance(text, str) or not text.strip() for text in texts):
+            raise ValueError("document embedding requires non-empty texts")
+        vectors: list[list[float]] = []
+        provider_usage: list[dict[str, Any]] = []
+        client = self._get_client()
+        for start in range(0, len(texts), self.batch_size):
+            batch = texts[start : start + self.batch_size]
+            response = client.embeddings.create(
+                input=batch,
+                model=self.model,
+                dimensions=self.dimension,
+                encoding_format="float",
+                timeout=60.0,
+            )
+            data = sorted(response.data, key=lambda row: row.index)
+            if [row.index for row in data] != list(range(len(batch))):
+                raise ValueError("embedding response indices do not match the request batch")
+            vectors.extend(row.embedding for row in data)
+            usage = getattr(response, "usage", None)
+            if hasattr(usage, "model_dump"):
+                provider_usage.append(usage.model_dump())
+            elif isinstance(usage, dict):
+                provider_usage.append(dict(usage))
+            else:
+                provider_usage.append({})
+        array = np.asarray(vectors, dtype=np.float32)
+        if array.shape != (len(texts), self.dimension) or not np.isfinite(array).all():
+            raise ValueError("embedding response shape or finiteness mismatch")
+        return array, {
+            "provider_called": True,
+            "model": self.model,
+            "dimension": self.dimension,
+            "item_count": len(texts),
+            "request_count": len(provider_usage),
+            "batch_size": self.batch_size,
+            "provider_usage": provider_usage,
+        }
 
 
 class LocalJsonAdapter:
@@ -136,6 +277,8 @@ def validate_lane(provider: str, payload: dict[str, Any]) -> list[dict[str, Any]
         text = page.get("text")
         if isinstance(page_number, bool) or not isinstance(page_number, int) or page_number < 1 or not isinstance(text, str):
             raise ValueError(f"{provider} page format invalid")
+        if page_number in pages:
+            raise ValueError(f"{provider} page number is duplicated")
         pages[page_number] = text
     if not pages:
         raise ValueError(f"{provider} has no pages")
@@ -180,9 +323,20 @@ def validate_lane(provider: str, payload: dict[str, Any]) -> list[dict[str, Any]
             raise ValueError(f"{provider} ignored span reason is required")
         if disposition["kind"] == "ignore":
             raise ValueError(f"{provider} ignored span requires review")
+        line = item[1]
+        if disposition["kind"] == "fact" and not any(quote in line or line in quote for quote in covered):
+            raise ValueError(f"{provider} fact disposition is not linked to a validated fact")
+        if disposition["kind"] == "identity" and not any(quote in line or line in quote for quote in identity_quotes):
+            raise ValueError(f"{provider} identity disposition is not linked to validated identity")
         mapped.add(item)
     if mapped != lines:
         raise ValueError(f"{provider} OCR line lacks explicit disposition")
+    fact_lines = {normalized(row.get("quote", "")) for row in dispositions if row.get("kind") == "fact"}
+    identity_lines = {normalized(row.get("quote", "")) for row in dispositions if row.get("kind") == "identity"}
+    if any(not any(quote in line or line in quote for line in fact_lines) for quote in covered):
+        raise ValueError(f"{provider} validated fact lacks a fact disposition")
+    if any(not any(quote in line or line in quote for line in identity_lines) for quote in identity_quotes):
+        raise ValueError(f"{provider} validated identity lacks an identity disposition")
     return validated
 
 
@@ -339,8 +493,14 @@ class Indexer:
         allow_partial: bool,
         config: dict[str, Any],
         providers: dict[str, ProviderAdapter] | None = None,
+        embedding_adapter: EmbeddingAdapter | None = None,
     ) -> dict[str, Any]:
+        if fake_vectors and embedding_adapter is not None:
+            raise ValueError("fake vectors and an embedding adapter are mutually exclusive")
         documents = read_source_manifest(source_manifest)
+        profile = str(config.get("profile", config.get("strategy", DEFAULT_CHUNKING_PROFILE)))
+        if profile not in CHUNKING_PROFILES:
+            raise ValueError(f"unsupported chunking profile: {profile}")
         input_hash = input_fingerprint(source_manifest, documents, luna_dir, upstage_dir)
         config_hash = sha256_bytes(canonical_json(config).encode())
         run_id = "run_" + sha256_bytes(f"{input_hash}:{config_hash}".encode())[:16]
@@ -356,8 +516,17 @@ class Indexer:
             self.state.set_run_status(run_id, "failed", now())
         release_id = None
         if fake_vectors:
-            release_id = self.publish(run_id, allow_partial=allow_partial, fake_vectors=True)
+            release_id = self.publish(run_id, allow_partial=allow_partial, fake_vectors=True, profile=profile)
             self.state.set_run_status(run_id, "test_only_published", now())
+        elif embedding_adapter is not None:
+            release_id = self.publish(
+                run_id,
+                allow_partial=allow_partial,
+                fake_vectors=False,
+                profile=profile,
+                embedding_adapter=embedding_adapter,
+            )
+            self.state.set_run_status(run_id, "production_published", now())
         elif document_statuses == {"canonical_approved"}:
             self.state.set_run_status(run_id, "canonical_approved", now())
         return {"run_id": run_id, "release_id": release_id, "status": self.state.status(run_id)}
@@ -390,6 +559,16 @@ class Indexer:
             # Each lane is loaded and validated only from its own provider directory.
             self.state.record_artifact(run_id, document_id, "ocr_json", "luna", str(luna_path), sha256_file(luna_path), {"provider": "luna"})
             self.state.record_artifact(run_id, document_id, "ocr_json", "upstage", str(upstage_path), sha256_file(upstage_path), {"provider": "upstage"})
+            ocr_comparison = compare_ocr_outputs(luna_payload, upstage_payload)
+            self.state.record_stage(
+                run_id,
+                document_id,
+                "ocr_comparison",
+                sha256_bytes(canonical_json(ocr_comparison).encode()),
+                "completed",
+                ocr_comparison,
+                now(),
+            )
             luna = validate_lane("luna", luna_payload)
             upstage = validate_lane("upstage", upstage_payload)
             self.state.record_stage(run_id, document_id, "structured", sha256_bytes(canonical_json([luna, upstage]).encode()), "completed", {"lanes": ["luna", "upstage"]}, now())
@@ -461,7 +640,54 @@ class Indexer:
         approved = self.state.resolve_with_canonical(review_id, reviewer, reason, audit, str(canonical_path), canonical_sha256, len(canonical), now())
         return {"review_id": review_id, "canonical_path": str(canonical_path), "canonical_approved": approved, "luna_sha256": sha256_file(luna_path), "upstage_sha256": sha256_file(upstage_path)}
 
-    def _chunks(self, run_id: str, documents: Iterable[Any]) -> tuple[list[dict[str, Any]], list[str]]:
+    @staticmethod
+    def _chunk_record(
+        document_id: str,
+        identity: dict[str, Any],
+        level: str,
+        local_key: str,
+        text: str,
+        evidence_refs: Any,
+        *,
+        section: str | None = None,
+        parent_id: str | None = None,
+        child_ids: list[str] | None = None,
+        source_pages: list[int] | None = None,
+    ) -> dict[str, Any]:
+        chunk_id = sha256_bytes(f"{document_id}:{level}:{local_key}:{text}".encode())[:32]
+        title = " | ".join(value for value in (identity.get("issuer_name"), identity.get("card_name"), section) if value)
+        pages = evidence_pages(evidence_refs) if source_pages is None else sorted(set(source_pages))
+        if not pages:
+            raise ValueError("chunk requires source page provenance")
+        augmented_text = f"{title}\n{text}" if title else text
+        return {
+            "chunk_id": chunk_id,
+            "document_id": document_id,
+            "level": level,
+            "text": text,
+            "metadata": {
+                "document_id": document_id,
+                "level": level,
+                "issuer_name": identity.get("issuer_name"),
+                "card_name": identity.get("card_name"),
+                "section": section,
+                "parent_id": parent_id,
+                "child_ids": child_ids or [],
+                "source_pages": pages,
+                "retrieval_text": augmented_text,
+                "reranker_text": augmented_text,
+                "evidence_refs": evidence_refs,
+            },
+        }
+
+    def _chunks(
+        self,
+        run_id: str,
+        documents: Iterable[Any],
+        profile: str = DEFAULT_CHUNKING_PROFILE,
+    ) -> tuple[list[dict[str, Any]], list[str]]:
+        if profile not in CHUNKING_PROFILES:
+            raise ValueError(f"unsupported chunking profile: {profile}")
         chunks: list[dict[str, Any]] = []
         document_ids: list[str] = []
         for document in documents:
@@ -472,15 +698,104 @@ class Indexer:
             payload = json.loads(canonical_path.read_text(encoding="utf-8"))
             identity = payload.get("identity", {})
             document_ids.append(document_id)
-            for index, item in enumerate(payload["facts"]):
+            facts = list(payload["facts"])
+            if not facts:
+                continue
+            card_text = " ".join(value for value in (identity.get("issuer_name"), identity.get("card_name")) if value)
+            chunks.append(
+                self._chunk_record(
+                    document_id,
+                    identity,
+                    "card",
+                    "card",
+                    card_text,
+                    identity.get("evidence_refs") or facts[0]["evidence_refs"],
+                )
+            )
+            grouped: dict[str, list[tuple[int, dict[str, Any], str]]] = {}
+            pages: dict[int, list[tuple[int, dict[str, Any], str]]] = {}
+            for index, item in enumerate(facts):
                 fact = item["fact"]
                 text = " | ".join(f"{field}: {fact[field]}" for field in RELATION_FIELDS if fact[field])
-                chunk_id = sha256_bytes(f"{document_id}:{index}:{canonical_json(fact)}".encode())[:32]
-                chunks.append({"chunk_id": chunk_id, "document_id": document_id, "level": "benefit", "text": text, "metadata": {"document_id": document_id, "level": "benefit", "issuer_name": identity.get("issuer_name"), "card_name": identity.get("card_name"), "evidence_refs": item["evidence_refs"]}})
+                grouped.setdefault(fact["target"], []).append((index, item, text))
+                page_values = [ref.get("page") for ref in item["evidence_refs"].values() if isinstance(ref, dict)]
+                valid_pages = [
+                    value
+                    for value in page_values
+                    if isinstance(value, int) and not isinstance(value, bool) and value >= 1
+                ]
+                if not valid_pages:
+                    raise ValueError("canonical fact requires source page provenance")
+                page = min(valid_pages)
+                pages.setdefault(page, []).append((index, item, text))
+            if profile == "card_page_section_benefit":
+                for page, rows in pages.items():
+                    chunks.append(
+                        self._chunk_record(
+                            document_id,
+                            identity,
+                            "page",
+                            str(page),
+                            "\n".join(row[2] for row in rows),
+                            [row[1]["evidence_refs"] for row in rows],
+                            source_pages=[page],
+                        )
+                    )
+                for section, rows in grouped.items():
+                    child_ids = [
+                        sha256_bytes(f"{document_id}:benefit:{index}:{text}".encode())[:32]
+                        for index, _item, text in rows
+                    ]
+                    section_record = self._chunk_record(
+                        document_id,
+                        identity,
+                        "section",
+                        section,
+                        "\n".join(row[2] for row in rows),
+                        [row[1]["evidence_refs"] for row in rows],
+                        section=section,
+                        child_ids=child_ids,
+                    )
+                    chunks.append(section_record)
+                    for index, item, text in rows:
+                        chunks.append(self._chunk_record(
+                            document_id, identity, "benefit", str(index), text, item["evidence_refs"], section=section, parent_id=section_record["chunk_id"]
+                        ))
+            else:
+                for section, rows in grouped.items():
+                    child_ids = [
+                        sha256_bytes(f"{document_id}:benefit:{index}:{text}".encode())[:32]
+                        for index, _item, text in rows
+                    ]
+                    bundle = self._chunk_record(
+                        document_id,
+                        identity,
+                        "bundle",
+                        section,
+                        "\n".join(row[2] for row in rows),
+                        [row[1]["evidence_refs"] for row in rows],
+                        section=section,
+                        child_ids=child_ids,
+                    )
+                    chunks.append(bundle)
+                    for index, item, text in rows:
+                        chunks.append(self._chunk_record(
+                            document_id, identity, "benefit", str(index), text, item["evidence_refs"], section=section, parent_id=bundle["chunk_id"]
+                        ))
         return sorted(chunks, key=lambda item: item["chunk_id"]), sorted(document_ids)
 
-    def publish(self, run_id: str, *, allow_partial: bool, fake_vectors: bool) -> str:
-        if not fake_vectors:
+    def publish(
+        self,
+        run_id: str,
+        *,
+        allow_partial: bool,
+        fake_vectors: bool,
+        profile: str = DEFAULT_CHUNKING_PROFILE,
+        embedding_adapter: EmbeddingAdapter | None = None,
+    ) -> str:
+        if fake_vectors and embedding_adapter is not None:
+            raise ValueError("fake vectors and an embedding adapter are mutually exclusive")
+        if not fake_vectors and embedding_adapter is None:
             raise RuntimeError("embedding is blocked: inject an approved adapter or use explicit test-only --fake-vectors")
         all_documents = self.state.documents(run_id)
         approved = [row for row in all_documents if row["status"] == "canonical_approved"]
@@ -490,15 +805,39 @@ class Indexer:
         document_ids = [str(row["document_id"]) for row in approved]
         if not approved or self.state.unresolved_count(run_id, document_ids):
             raise RuntimeError("release blocked: unresolved review or no approved documents")
-        chunks, document_ids = self._chunks(run_id, approved)
+        chunks, document_ids = self._chunks(run_id, approved, profile)
         if not chunks:
             raise RuntimeError("release blocked: no benefit chunks")
+        if fake_vectors:
+            embedding_model = "test-only-sha256-16"
+            dimension = 16
+            release_status = "test_only"
+            vector_mode = "test_fake_vector"
+        else:
+            embedding_model = str(getattr(embedding_adapter, "model", "")).strip()
+            dimension = getattr(embedding_adapter, "dimension", 0)
+            if not embedding_model or isinstance(dimension, bool) or not isinstance(dimension, int) or dimension < 1:
+                raise ValueError("embedding adapter model and dimension are required")
+            release_status = "production"
+            vector_mode = "approved_adapter"
         corpus_hash = sha256_bytes(canonical_json(chunks).encode())
-        release_id = "release_" + sha256_bytes(f"{run_id}:{corpus_hash}".encode())[:16]
+        release_id = "release_" + sha256_bytes(
+            f"{run_id}:{corpus_hash}:{embedding_model}:{dimension}:{release_status}".encode()
+        )[:16]
         final_root = self.runtime_root / "index-release" / release_id
         if final_root.exists():
             manifest = json.loads((final_root / "manifest.json").read_text(encoding="utf-8"))
-            embeddings = np.asarray([self._fake_embedding(chunk["text"], int(manifest["embedding_dimension"])) for chunk in chunks], dtype=np.float32)
+            if (
+                manifest.get("embedding_model") != embedding_model
+                or manifest.get("embedding_dimension") != dimension
+                or manifest.get("release_status") != release_status
+            ):
+                raise RuntimeError("existing release embedding contract mismatch")
+            embeddings = self._read_embeddings(
+                final_root / "chroma",
+                profile,
+                [chunk["chunk_id"] for chunk in chunks],
+            )
             self._materialize_serving(final_root, manifest, chunks, embeddings)
             try:
                 self.state.release(release_id)
@@ -510,16 +849,31 @@ class Indexer:
         try:
             corpus_path = temporary_root / "corpus.sqlite"
             self._build_fts(corpus_path, chunks)
-            dimension = 16
-            embeddings = np.asarray([self._fake_embedding(chunk["text"], dimension) for chunk in chunks], dtype=np.float32)
-            self._build_chroma(temporary_root / "chroma", chunks, embeddings, corpus_hash)
+            retrieval_texts = [str(chunk["metadata"]["retrieval_text"]) for chunk in chunks]
+            if fake_vectors:
+                embeddings = np.asarray(
+                    [self._fake_embedding(text, dimension) for text in retrieval_texts],
+                    dtype=np.float32,
+                )
+                embedding_usage: dict[str, Any] = {
+                    "provider_called": False,
+                    "item_count": len(chunks),
+                }
+            else:
+                adapter_embeddings, embedding_usage = embedding_adapter.embed_documents(retrieval_texts)
+                embeddings = np.asarray(adapter_embeddings, dtype=np.float32)
+                if not isinstance(embedding_usage, dict):
+                    raise ValueError("embedding adapter usage must be a dictionary")
+            if embeddings.shape != (len(chunks), dimension) or not np.isfinite(embeddings).all():
+                raise ValueError("embedding adapter result shape or finiteness mismatch")
+            self._build_chroma(temporary_root / "chroma", chunks, embeddings, corpus_hash, profile)
             manifest = {
                 "schema_version": "rag_index_release_v1",
                 "release_id": release_id,
                 "run_id": run_id,
-                "strategy": "benefit_hierarchy",
-                "vector_mode": "test_fake_vector",
-                "release_status": "test_only",
+                "strategy": profile,
+                "vector_mode": vector_mode,
+                "release_status": release_status,
                 "distance_contract": "squared_l2",
                 "corpus_hash": corpus_hash,
                 "scope_document_ids": document_ids,
@@ -528,6 +882,12 @@ class Indexer:
                 "catalog": [{"document_id": key[0], "issuer_name": key[1], "card_name": key[2]} for key in sorted({(chunk["document_id"], chunk["metadata"].get("issuer_name"), chunk["metadata"].get("card_name")) for chunk in chunks})],
                 "chunk_ids": [chunk["chunk_id"] for chunk in chunks],
                 "embedding_dimension": dimension,
+                "embedding_model": embedding_model,
+                "embedding_usage": embedding_usage,
+                "embedding_sha256": embedding_sha256(
+                    [chunk["chunk_id"] for chunk in chunks], embeddings
+                ),
+                "corpus_sqlite_sha256": sha256_file(corpus_path),
                 "chroma_tree_sha256": tree_hash(temporary_root / "chroma"),
                 "coverage": {"included_document_ids": document_ids, "omitted_document_ids": omitted, "partial": bool(omitted)},
             }
@@ -537,7 +897,14 @@ class Indexer:
             os.replace(temporary_root, final_root)
             self._make_read_only(final_root)
             self._materialize_serving(final_root, manifest, chunks, embeddings)
-            self.state.record_release(release_id, run_id, str(final_root), sha256_file(final_root / "manifest.json"), now(), "test_only")
+            self.state.record_release(
+                release_id,
+                run_id,
+                str(final_root),
+                sha256_file(final_root / "manifest.json"),
+                now(),
+                release_status,
+            )
             return release_id
         except Exception:
             shutil.rmtree(temporary_root, ignore_errors=True)
@@ -553,6 +920,32 @@ class Indexer:
         return (np.frombuffer(bytes(values[:dimension]), dtype=np.uint8).astype(np.float32) / 255.0) - 0.5
 
     @staticmethod
+    def _read_embeddings(path: Path, collection_name: str, chunk_ids: list[str]) -> np.ndarray:
+        import chromadb
+
+        with tempfile.TemporaryDirectory() as temporary:
+            working = Path(temporary) / "chroma"
+            shutil.copytree(path, working, copy_function=shutil.copy2)
+            working.chmod(0o755)
+            for item in working.rglob("*"):
+                item.chmod(0o755 if item.is_dir() else 0o644)
+            client = chromadb.PersistentClient(path=str(working))
+            collection = client.get_collection(collection_name)
+            output = collection.get(ids=chunk_ids, include=["embeddings"])
+            by_id = {
+                chunk_id: embedding
+                for chunk_id, embedding in zip(output["ids"], output["embeddings"], strict=True)
+            }
+            if set(by_id) != set(chunk_ids):
+                raise RuntimeError("stored embedding identity mismatch")
+            embeddings = np.asarray([by_id[chunk_id] for chunk_id in chunk_ids], dtype=np.float32)
+            del collection, client
+            gc.collect()
+        if embeddings.ndim != 2 or not np.isfinite(embeddings).all():
+            raise RuntimeError("stored embeddings are invalid")
+        return embeddings
+
+    @staticmethod
     def _build_fts(path: Path, chunks: list[dict[str, Any]]) -> None:
         connection = sqlite3.connect(path)
         try:
@@ -563,23 +956,37 @@ class Indexer:
             )
             for chunk in chunks:
                 connection.execute("INSERT INTO chunks VALUES(?,?,?,?,?)", (chunk["chunk_id"], chunk["document_id"], chunk["level"], chunk["text"], canonical_json(chunk["metadata"])))
-                connection.execute("INSERT INTO chunks_fts VALUES(?,?)", (chunk["chunk_id"], normalized(chunk["text"])))
+                connection.execute(
+                    "INSERT INTO chunks_fts VALUES(?,?)",
+                    (
+                        chunk["chunk_id"],
+                        normalized(str(chunk["metadata"].get("retrieval_text", chunk["text"]))),
+                    ),
+                )
             connection.commit()
         finally:
             connection.close()
 
     @staticmethod
-    def _build_chroma(path: Path, chunks: list[dict[str, Any]], embeddings: np.ndarray, corpus_hash: str = "test") -> None:
+    def _build_chroma(
+        path: Path,
+        chunks: list[dict[str, Any]],
+        embeddings: np.ndarray,
+        corpus_hash: str = "test",
+        collection_name: str = DEFAULT_CHUNKING_PROFILE,
+    ) -> None:
         import chromadb
 
         client = chromadb.PersistentClient(path=str(path))
-        collection = client.get_or_create_collection("benefit_hierarchy", metadata={"hnsw:space": "l2", "corpus_hash": corpus_hash})
+        collection = client.get_or_create_collection(collection_name, metadata={"hnsw:space": "l2", "corpus_hash": corpus_hash})
         collection.add(
             ids=[chunk["chunk_id"] for chunk in chunks],
-            documents=[chunk["text"] for chunk in chunks],
+            documents=[str(chunk["metadata"].get("retrieval_text", chunk["text"])) for chunk in chunks],
             metadatas=[{"document_id": chunk["document_id"], "level": chunk["level"]} for chunk in chunks],
             embeddings=embeddings.tolist(),
         )
+        del collection, client
+        gc.collect()
 
     @staticmethod
     def _verify_release(root: Path, manifest: dict[str, Any], chunks: list[dict[str, Any]], embeddings: np.ndarray, chroma_root: Path | None = None) -> None:
@@ -592,16 +999,32 @@ class Indexer:
         expected_ids = [chunk["chunk_id"] for chunk in chunks]
         if [row[0] for row in rows] != expected_ids or fts_count != len(expected_ids):
             raise RuntimeError("FTS identity mismatch")
+        if manifest.get("corpus_sqlite_sha256") and sha256_file(root / "corpus.sqlite") != manifest["corpus_sqlite_sha256"]:
+            raise RuntimeError("SQLite corpus hash mismatch")
         import chromadb
 
-        collection = chromadb.PersistentClient(path=str(chroma_root or root / "chroma")).get_collection("benefit_hierarchy")
+        client = chromadb.PersistentClient(path=str(chroma_root or root / "chroma"))
+        collection = client.get_collection(manifest.get("strategy", DEFAULT_CHUNKING_PROFILE))
         output = collection.get(include=["embeddings"])
-        if sorted(output["ids"]) != expected_ids or np.asarray(output["embeddings"]).shape != embeddings.shape:
+        collection_corpus_hash = collection.metadata.get("corpus_hash")
+        del collection, client
+        gc.collect()
+        output_by_id = {
+            chunk_id: embedding
+            for chunk_id, embedding in zip(output["ids"], output["embeddings"], strict=True)
+        }
+        stored_embeddings = np.asarray(
+            [output_by_id[chunk_id] for chunk_id in expected_ids if chunk_id in output_by_id],
+            dtype=np.float32,
+        )
+        if set(output_by_id) != set(expected_ids) or stored_embeddings.shape != embeddings.shape:
             raise RuntimeError("FTS5-Chroma identity or dimension mismatch")
         if manifest["chunk_ids"] != expected_ids or manifest["document_ids"] != sorted({chunk["document_id"] for chunk in chunks}):
             raise RuntimeError("release manifest identity mismatch")
-        if collection.metadata.get("corpus_hash") != manifest.get("corpus_hash", "test"):
+        if collection_corpus_hash != manifest.get("corpus_hash", "test"):
             raise RuntimeError("Chroma corpus hash mismatch")
+        if manifest.get("embedding_sha256") and embedding_sha256(expected_ids, stored_embeddings) != manifest["embedding_sha256"]:
+            raise RuntimeError("Chroma embedding hash mismatch")
         if manifest.get("chroma_tree_sha256") and tree_hash(root / "chroma") != manifest["chroma_tree_sha256"]:
             raise RuntimeError("immutable Chroma source hash mismatch")
 
@@ -622,6 +1045,7 @@ class Indexer:
             "corpus_hash": manifest["corpus_hash"],
             "chunk_ids": manifest["chunk_ids"],
             "embedding_dimension": manifest["embedding_dimension"],
+            "embedding_sha256": manifest["embedding_sha256"],
         }
         lock_root = serving_root / ".locks"
         lock_root.mkdir(parents=True, exist_ok=True)
@@ -631,9 +1055,14 @@ class Indexer:
                 if version_root.exists():
                     marker_path = version_root / "version.json"
                     existing_marker = json.loads(marker_path.read_text(encoding="utf-8")) if marker_path.is_file() else None
-                    if not isinstance(existing_marker, dict) or {key: existing_marker.get(key) for key in marker_contract} != marker_contract or set(existing_marker) != {*marker_contract, "serving_tree_sha256"}:
+                    if not isinstance(existing_marker, dict) or existing_marker != marker_contract:
                         raise RuntimeError("existing serving version marker mismatch")
-                    if tree_hash(version_root / "chroma") != existing_marker["serving_tree_sha256"]:
+                    stored = self._read_embeddings(
+                        version_root / "chroma",
+                        str(manifest["strategy"]),
+                        list(manifest["chunk_ids"]),
+                    )
+                    if embedding_sha256(list(manifest["chunk_ids"]), stored) != manifest["embedding_sha256"]:
                         raise RuntimeError("existing serving version content mismatch")
                     return version_root
                 version_parent.mkdir(parents=True, exist_ok=True)
@@ -646,8 +1075,7 @@ class Indexer:
                     self._verify_release(release_root, manifest, chunks, embeddings, staging / "chroma")
                     if tree_hash(source) != version:
                         raise RuntimeError("immutable Chroma source changed while materializing serving copy")
-                    marker = {**marker_contract, "serving_tree_sha256": tree_hash(staging / "chroma")}
-                    (staging / "version.json").write_text(canonical_json(marker) + "\n", encoding="utf-8")
+                    (staging / "version.json").write_text(canonical_json(marker_contract) + "\n", encoding="utf-8")
                     os.replace(staging, version_root)
                     (version_root / "version.json").chmod(0o444)
                     version_root.chmod(0o555)
@@ -675,9 +1103,10 @@ class Indexer:
         manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
         if manifest.get("release_id") != release_id:
             raise RuntimeError("release manifest ID mismatch")
-        if manifest.get("release_status") == "test_only":
-            raise RuntimeError("test-only release cannot be activated")
-        raise RuntimeError("live embedding/activation unavailable")
+        if manifest.get("release_status") != "production":
+            raise RuntimeError("only a production release can be activated")
+        if sha256_file(root / "manifest.json") != release["manifest_sha256"]:
+            raise RuntimeError("release manifest hash mismatch")
         target = self.runtime_root / "active-index.json"
         lock_path = self.runtime_root / ".active-index.lock"
         with lock_path.open("a+") as lock:

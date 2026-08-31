@@ -86,11 +86,33 @@ class RetrievalTests(unittest.TestCase):
         self.chunks = [
             Chunk("a", "카페 할인", "c1", "카드1", "발급사", "page", 0, "표지"),
             Chunk("b", "카페 10% 할인", "c1", "카드1", "발급사", "benefit", 1, "카페"),
-            Chunk("c", "항공 마일리지", "c2", "카드2", "발급사", "section", 2, "항공"),
+            Chunk(
+                "c",
+                "항공 마일리지",
+                "c2",
+                "카드2",
+                "발급사",
+                "section",
+                2,
+                "항공",
+                child_ids=("e",),
+            ),
             Chunk("d", "OTT 구독 할인", "c3", "카드3", "발급사", "benefit", 3, "OTT"),
+            Chunk(
+                "e",
+                "항공 1마일 적립",
+                "c2",
+                "카드2",
+                "발급사",
+                "benefit",
+                2,
+                "항공",
+                parent_id="c",
+            ),
         ]
         self.embeddings = np.asarray(
-            [[1.0, 0.0], [1.0, 0.0], [0.0, 1.0], [0.7, 0.7]], dtype=np.float32
+            [[1.0, 0.0], [1.0, 0.0], [0.0, 1.0], [0.7, 0.7], [0.0, 1.0]],
+            dtype=np.float32,
         )
 
     def test_normalization_bm25_l2_rrf_and_classifier_parity(self) -> None:
@@ -140,8 +162,10 @@ class RetrievalTests(unittest.TestCase):
         self.assertEqual(vector.calls, [50])
         self.assertEqual(reranker.calls, 1)
         self.assertNotIn("a", [item["chunk_id"] for item in result["evidence"]])
+        self.assertNotIn("c", [item["chunk_id"] for item in result["evidence"]])
+        self.assertIn("e", [item["chunk_id"] for item in result["evidence"]])
         self.assertTrue(all(isinstance(item["page_num"], int) for item in result["evidence"]))
-        self.assertEqual(result["trace"]["profile"], "benefit_hierarchy")
+        self.assertEqual(result["trace"]["profile"], "card_page_section_benefit")
         with self.assertRaises(ValueError):
             pipeline.search("q", np.zeros(2), SearchConfig(profile="other", reranker="off"))
 

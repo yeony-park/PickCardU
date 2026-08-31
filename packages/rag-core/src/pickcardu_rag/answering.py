@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import json
 import time
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 import numpy as np
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from .errors import EmbeddingUnavailable, LlmUnavailable, LlmUngrounded
 
@@ -61,9 +61,10 @@ class AtomicClaim(BaseModel):
 
 class AnswerOutput(BaseModel):
     model_config = ConfigDict(extra="forbid")
+    answer_status: Literal["answered", "insufficient_evidence"] = "answered"
     answer_text: str = Field(min_length=1, max_length=400)
-    recommendations: list[Recommendation] = Field(default_factory=list, max_length=3)
-    claims: list[AtomicClaim] = Field(min_length=1, max_length=3)
+    recommendations: list[Recommendation] = Field(default_factory=list, max_length=5)
+    claims: list[AtomicClaim] = Field(default_factory=list, max_length=5)
 
     @field_validator("answer_text")
     @classmethod
@@ -72,6 +73,14 @@ class AnswerOutput(BaseModel):
         if not value:
             raise ValueError("answer_text must not be blank")
         return value
+
+    @model_validator(mode="after")
+    def validate_answer_state(self) -> "AnswerOutput":
+        if self.answer_status == "answered" and not self.claims:
+            raise ValueError("answered response requires at least one grounded claim")
+        if self.answer_status == "insufficient_evidence" and (self.recommendations or self.claims):
+            raise ValueError("insufficient response must not contain recommendations or claims")
+        return self
 
 
 def build_answer_payload(standalone_query: str, evidence: list[dict[str, Any]]) -> dict[str, Any]:
@@ -119,6 +128,10 @@ def completed_context(
 
 
 def validate_grounding(answer: AnswerOutput, evidence: list[dict[str, Any]]) -> AnswerOutput:
+    if answer.answer_status == "insufficient_evidence":
+        if answer.recommendations or answer.claims:
+            raise ValueError("insufficient response contains grounded output")
+        return answer
     chunk_to_card = {item["chunk_id"]: item["card_key"] for item in evidence}
     valid_cards = set(chunk_to_card.values())
     for item in [*answer.recommendations, *answer.claims]:
@@ -241,8 +254,11 @@ class OpenAIService:
         instructions = (
             "제공된 evidence만 사용해 한국어로 매우 간결하게 답하세요. 모든 atomic claim과 추천은 card_key와 citations를 넣으세요. "
             "각 citation chunk는 해당 claim 또는 추천의 card_key와 같아야 합니다. "
-            "각 추천 카드의 핵심 조건 중심으로 작성하고, 추천은 최대 3개, atomic claim은 1~3개, "
-            "항목당 citations는 최대 2개로 제한하세요. 공식 상품설명서 재확인이 필요함을 밝히세요."
+            "각 추천 카드의 핵심 조건 중심으로 작성하고, evidence에 포함된 카드 중 추천은 최대 5개, "
+            "atomic claim은 1~5개, "
+            "항목당 citations는 최대 2개로 제한하세요. 공식 상품설명서 재확인이 필요함을 밝히세요. "
+            "질문을 직접 뒷받침하는 근거가 부족하면 answer_status를 insufficient_evidence로 설정하고 "
+            "recommendations와 claims를 비운 뒤 현재 등록된 카드 문서에서 확인하기 어렵다고 답하세요."
         )
         retry_instructions = (
             f"{instructions} 이전 출력이 잘렸으므로 답변, 추천 이유, claim, 조건을 첫 시도보다 더 짧게 작성하세요."

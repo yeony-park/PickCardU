@@ -1,19 +1,39 @@
 from __future__ import annotations
 
+import gc
 import json
 import hashlib
 import sqlite3
 import sys
 import tempfile
+import types
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+import numpy as np
+from fastapi.testclient import TestClient
+
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1] / "src"
-sys.path.insert(0, str(PACKAGE_ROOT))
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+sys.path[:0] = [
+    str(PACKAGE_ROOT),
+    str(PROJECT_ROOT / "services/rag-api/src"),
+    str(PROJECT_ROOT / "packages/rag-core/src"),
+]
 
-from pickcardu_indexer.pipeline import Indexer, normalise_fact, strict_resolution, validate_lane  # noqa: E402
+from pickcardu_indexer.pipeline import (  # noqa: E402
+    Indexer,
+    OpenAIEmbeddingAdapter,
+    compare_ocr_outputs,
+    normalise_fact,
+    strict_resolution,
+    validate_lane,
+)
+from pickcardu_rag_api.config import Settings  # noqa: E402
+from pickcardu_rag_api.index import ActiveIndexLoader  # noqa: E402
+from pickcardu_rag_api.main import create_app  # noqa: E402
 
 
 def write_json(path: Path, value: object) -> None:
@@ -73,6 +93,49 @@ def relation_item(condition: str, luna_quote: str, upstage_quote: str, *, luna_s
     }
 
 
+class DeterministicEmbeddingAdapter:
+    model = "text-embedding-3-small"
+    dimension = 16
+
+    def __init__(self) -> None:
+        self.calls: list[list[str]] = []
+
+    def embed_documents(self, texts: list[str]) -> tuple[np.ndarray, dict[str, object]]:
+        self.calls.append(list(texts))
+        return (
+            np.asarray([Indexer._fake_embedding(text, self.dimension) for text in texts], dtype=np.float32),
+            {"provider_called": False, "item_count": len(texts)},
+        )
+
+
+class FakeEmbeddingClient:
+    def __init__(self) -> None:
+        self.embeddings = self
+        self.calls: list[dict[str, object]] = []
+
+    def create(self, **kwargs):
+        self.calls.append(kwargs)
+        rows = [
+            types.SimpleNamespace(index=index, embedding=[float(index + 1)] * 1536)
+            for index, _text in enumerate(kwargs["input"])
+        ]
+        usage = types.SimpleNamespace(model_dump=lambda: {"total_tokens": len(rows)})
+        return types.SimpleNamespace(data=list(reversed(rows)), usage=usage)
+
+
+class QueryEmbeddingProvider:
+    embedding_model = "text-embedding-3-small"
+    llm_model = "gpt-5.6-luna"
+
+    def embed(self, query: str):
+        return Indexer._fake_embedding(query, 16), {"provider_called": False}
+
+
+class UnusedReranker:
+    def score(self, _mode: str, _query: str, _documents: list[str]):
+        raise AssertionError("numeric integration query must bypass the reranker")
+
+
 class IndexerTest(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
@@ -103,7 +166,7 @@ class IndexerTest(unittest.TestCase):
             self.upstage_dir,
             fake_vectors=True,
             allow_partial=partial,
-            config={"strategy": "benefit_hierarchy", "fake_vectors": True, "allow_partial": partial},
+            config={"profile": "card_page_section_benefit", "fake_vectors": True, "allow_partial": partial},
         )
 
     def open_relation_review(self) -> tuple[int, Path]:
@@ -128,14 +191,87 @@ class IndexerTest(unittest.TestCase):
         self.assertEqual(manifest["document_ids"], [self.document_id])
         self.assertEqual(manifest["coverage"], {"included_document_ids": [self.document_id], "omitted_document_ids": [], "partial": False})
         connection = sqlite3.connect(release / "corpus.sqlite")
-        self.assertEqual(connection.execute("SELECT COUNT(*) FROM chunks").fetchone()[0], 1)
-        self.assertEqual(connection.execute("SELECT COUNT(*) FROM chunks_fts").fetchone()[0], 1)
+        self.assertEqual(connection.execute("SELECT COUNT(*) FROM chunks").fetchone()[0], 4)
+        self.assertEqual(connection.execute("SELECT COUNT(*) FROM chunks_fts").fetchone()[0], 4)
         connection.close()
-        with self.assertRaisesRegex(RuntimeError, "test-only"):
+        with self.assertRaisesRegex(RuntimeError, "production"):
             self.indexer.activate(str(release_id))
         resumed = self.execute_indexer()
         self.assertEqual(resumed["run_id"], result["run_id"])
         self.assertEqual(resumed["release_id"], release_id)
+
+    def test_both_production_profiles_activate_and_reach_search_endpoint(self) -> None:
+        runtime = self.root / "runtime"
+        for profile in ("card_page_section_benefit", "parent_child_bundle"):
+            with self.subTest(profile=profile):
+                adapter = DeterministicEmbeddingAdapter()
+                result = self.indexer.run(
+                    self.manifest,
+                    self.luna_dir,
+                    self.upstage_dir,
+                    fake_vectors=False,
+                    allow_partial=False,
+                    config={
+                        "profile": profile,
+                        "fake_vectors": False,
+                        "allow_partial": False,
+                        "embedding_model": adapter.model,
+                        "embedding_dimension": adapter.dimension,
+                    },
+                    embedding_adapter=adapter,
+                )
+                release = runtime / "index-release" / str(result["release_id"])
+                manifest = json.loads((release / "manifest.json").read_text(encoding="utf-8"))
+                self.assertEqual(manifest["release_status"], "production")
+                self.assertEqual(manifest["embedding_model"], adapter.model)
+                self.assertEqual(len(adapter.calls), 1)
+                self.indexer.activate(str(result["release_id"]))
+                bge_path = self.root / "unused-bge"
+                bge_path.mkdir(exist_ok=True)
+                settings = Settings(
+                    "test",
+                    runtime,
+                    ("http://testserver",),
+                    None,
+                    adapter.model,
+                    "gpt-5.6-luna",
+                    bge_path,
+                )
+                provider, reranker = QueryEmbeddingProvider(), UnusedReranker()
+                client = TestClient(
+                    create_app(
+                        settings,
+                        provider=provider,
+                        index_loader=ActiveIndexLoader(runtime, reranker=reranker),
+                        reranker=reranker,
+                    )
+                )
+                try:
+                    response = client.post(
+                        "/v1/search",
+                        json={"query": "Card 할인율은 얼마야?", "profile": profile},
+                    )
+                finally:
+                    client.close()
+                self.assertEqual(response.status_code, 200)
+                body = response.json()
+                self.assertEqual(body["profile"], profile)
+                self.assertEqual(body["cards"][0]["card_key"], self.document_id)
+                self.assertTrue(body["evidence"])
+                self.assertTrue(all(row["level"] == "benefit" for row in body["evidence"]))
+
+    def test_openai_embedding_adapter_batches_and_restores_response_order(self) -> None:
+        client = FakeEmbeddingClient()
+        adapter = OpenAIEmbeddingAdapter(api_key=None, batch_size=2, client=client)
+        vectors, usage = adapter.embed_documents(["one", "two", "three"])
+        self.assertEqual(vectors.shape, (3, 1536))
+        self.assertEqual(vectors[:, 0].tolist(), [1.0, 2.0, 1.0])
+        self.assertEqual([call["input"] for call in client.calls], [["one", "two"], ["three"]])
+        self.assertTrue(all(call["model"] == "text-embedding-3-small" for call in client.calls))
+        self.assertTrue(all(call["dimensions"] == 1536 for call in client.calls))
+        self.assertTrue(all(call["encoding_format"] == "float" for call in client.calls))
+        self.assertEqual(usage["request_count"], 2)
+        self.assertEqual(usage["provider_usage"], [{"total_tokens": 2}, {"total_tokens": 1}])
 
     def test_relation_mismatch_opens_review_and_blocks_publish(self) -> None:
         write_json(self.upstage_dir / "issuer__card.json", lane(self.document_id, "upstage", condition="daily", quote="카페 monthly daily 1% 할인"))
@@ -174,6 +310,9 @@ class IndexerTest(unittest.TestCase):
         invalid["facts"][0]["evidence"]["quote"] = "없는 근거"
         with self.assertRaisesRegex(ValueError, "grounded"):
             validate_lane("luna", invalid)
+        hallucinated = lane(self.document_id, "luna", value="캐시백", quote="카페 monthly % 할인")
+        with self.assertRaisesRegex(ValueError, "non-numeric value"):
+            validate_lane("luna", hallucinated)
 
     def test_field_and_critical_span_coverage_fail_closed(self) -> None:
         with self.assertRaisesRegex(ValueError, "condition"):
@@ -185,6 +324,54 @@ class IndexerTest(unittest.TestCase):
             validate_lane("luna", missing)
         zero = lane(self.document_id, "luna", value="0", quote="카페 monthly 0% 할인")
         self.assertEqual(len(validate_lane("luna", zero)), 1)
+        mislabeled = lane(self.document_id, "luna")
+        mislabeled["span_dispositions"][0]["kind"] = "fact"
+        with self.assertRaisesRegex(ValueError, "fact disposition"):
+            validate_lane("luna", mislabeled)
+
+    def test_ocr_comparison_and_chunk_profiles_are_explicit(self) -> None:
+        luna_payload = lane(self.document_id, "luna")
+        upstage_payload = lane(self.document_id, "upstage")
+        upstage_payload["pages"][0]["text"] += "\n추가 문구"
+        upstage_payload["span_dispositions"].append({"page": 1, "quote": "추가 문구", "kind": "ignore", "reason": "diagnostic"})
+        audit = compare_ocr_outputs(luna_payload, upstage_payload)
+        self.assertEqual(audit["purpose"], "diagnostic_only_not_a_correctness_or_selection_gate")
+        self.assertFalse(audit["all_normalized_text_equal"])
+
+        result = self.execute_indexer()
+        approved = [row for row in self.indexer.state.documents(result["run_id"]) if row["status"] == "canonical_approved"]
+        baseline, _ = self.indexer._chunks(result["run_id"], approved, "card_page_section_benefit")
+        experimental, _ = self.indexer._chunks(result["run_id"], approved, "parent_child_bundle")
+        self.assertEqual({row["level"] for row in baseline}, {"card", "page", "section", "benefit"})
+        self.assertEqual({row["level"] for row in experimental}, {"card", "bundle", "benefit"})
+        self.assertTrue(all(row["metadata"]["reranker_text"] for row in baseline + experimental))
+
+        alternate = self.indexer.run(
+            self.manifest,
+            self.luna_dir,
+            self.upstage_dir,
+            fake_vectors=True,
+            allow_partial=False,
+            config={"profile": "parent_child_bundle", "fake_vectors": True, "allow_partial": False},
+        )
+        self.assertNotEqual(alternate["run_id"], result["run_id"])
+        alternate_manifest = json.loads(
+            (
+                self.root
+                / "runtime/index-release"
+                / str(alternate["release_id"])
+                / "manifest.json"
+            ).read_text(encoding="utf-8")
+        )
+        self.assertEqual(alternate_manifest["strategy"], "parent_child_bundle")
+
+    def test_duplicate_ocr_page_numbers_fail_closed(self) -> None:
+        duplicated = lane(self.document_id, "luna")
+        duplicated["pages"].append(dict(duplicated["pages"][0]))
+        with self.assertRaisesRegex(ValueError, "duplicated"):
+            compare_ocr_outputs(duplicated, lane(self.document_id, "upstage"))
+        with self.assertRaisesRegex(ValueError, "duplicated"):
+            validate_lane("luna", duplicated)
 
     def test_identity_grounding_and_lane_mismatch_are_reviews(self) -> None:
         ungrounded = lane(self.document_id, "luna")
@@ -371,8 +558,8 @@ class IndexerTest(unittest.TestCase):
         serving = self.root / "runtime/serving" / result["release_id"] / manifest["chroma_tree_sha256"] / "chroma"
         self.assertNotEqual(serving.stat().st_mode & 0o200, 0)
         import chromadb
-        collection = chromadb.PersistentClient(path=str(serving)).get_collection("benefit_hierarchy")
-        self.assertEqual(len(collection.get(include=[])["ids"]), 1)
+        collection = chromadb.PersistentClient(path=str(serving)).get_collection("card_page_section_benefit")
+        self.assertEqual(len(collection.get(include=[])["ids"]), 4)
 
     def test_serving_version_is_revalidated_and_never_replaced(self) -> None:
         result = self.execute_indexer()
@@ -394,9 +581,14 @@ class IndexerTest(unittest.TestCase):
         version = self.root / "runtime/serving" / result["release_id"] / manifest["chroma_tree_sha256"]
         marker = version / "version.json"
         marker_before, inode_before = marker.read_bytes(), version.stat().st_ino
-        database = version / "chroma/chroma.sqlite3"
-        database.write_bytes(database.read_bytes() + b"tamper")
-        with self.assertRaisesRegex(RuntimeError, "content mismatch"):
+        import chromadb
+
+        client = chromadb.PersistentClient(path=str(version / "chroma"))
+        collection = client.get_collection(manifest["strategy"])
+        collection.delete(ids=[manifest["chunk_ids"][0]])
+        del collection, client
+        gc.collect()
+        with self.assertRaisesRegex(RuntimeError, "stored embedding identity mismatch|content mismatch"):
             self.execute_indexer()
         self.assertEqual((version.stat().st_ino, marker.read_bytes()), (inode_before, marker_before))
 
@@ -408,7 +600,10 @@ class IndexerTest(unittest.TestCase):
         version.rename(version.with_name("prior-fixture-version"))
         approved = [row for row in self.indexer.state.documents(result["run_id"]) if row["status"] == "canonical_approved"]
         chunks, _ = self.indexer._chunks(result["run_id"], approved)
-        embeddings = self.indexer._fake_embedding(chunks[0]["text"], manifest["embedding_dimension"]).reshape(1, -1)
+        embeddings = np.asarray(
+            [self.indexer._fake_embedding(chunk["text"], manifest["embedding_dimension"]) for chunk in chunks],
+            dtype=np.float32,
+        )
         with ThreadPoolExecutor(max_workers=2) as executor:
             paths = list(executor.map(lambda _: self.indexer._materialize_serving(release, manifest, chunks, embeddings), range(2)))
         self.assertEqual(paths, [version, version])

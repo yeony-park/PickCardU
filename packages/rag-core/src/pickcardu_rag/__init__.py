@@ -23,6 +23,9 @@ from .errors import (
 )
 from .retrieval import (
     BENEFIT_HIERARCHY,
+    CARD_PAGE_SECTION_BENEFIT,
+    CHUNKING_PROFILES,
+    PARENT_CHILD_BUNDLE,
     BM25,
     Candidate,
     Chunk,
@@ -46,6 +49,8 @@ from .retrieval import (
 __all__ = [
     "ANSWER_PAYLOAD_UNIT_LIMIT",
     "BENEFIT_HIERARCHY",
+    "CARD_PAGE_SECTION_BENEFIT",
+    "CHUNKING_PROFILES",
     "EMBEDDING_MODEL_CONTRACT",
     "LLM_MODEL_CONTRACT",
     "AnswerOutput",
@@ -63,6 +68,7 @@ __all__ = [
     "LlmUngrounded",
     "LocalReranker",
     "OpenAIService",
+    "PARENT_CHILD_BUNDLE",
     "RagError",
     "RagPipeline",
     "Recommendation",

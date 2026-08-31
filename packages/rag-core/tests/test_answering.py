@@ -53,6 +53,28 @@ class AnsweringTests(unittest.TestCase):
         })
         with self.assertRaises(ValueError):
             validate_grounding(wrong, self.evidence)
+        insufficient = AnswerOutput(
+            answer_status="insufficient_evidence",
+            answer_text="현재 등록된 카드 문서에서는 확인하기 어렵습니다.",
+        )
+        self.assertIs(validate_grounding(insufficient, self.evidence), insufficient)
+        with self.assertRaises(ValidationError):
+            AnswerOutput(answer_status="answered", answer_text="근거 없는 답")
+        with self.assertRaises(ValidationError):
+            AnswerOutput(
+                answer_status="insufficient_evidence",
+                answer_text="근거 부족",
+                claims=[{"card_key": "c1", "text": "x", "citations": ["k1"]}],
+            )
+        five = AnswerOutput(
+            answer_text="최대 다섯 장",
+            recommendations=[
+                {"card_key": "c1", "reason": f"근거 {index}", "citations": ["k1"]}
+                for index in range(5)
+            ],
+            claims=[{"card_key": "c1", "text": "혜택", "citations": ["k1"]}],
+        )
+        self.assertEqual(len(five.recommendations), 5)
 
     def test_answer_payload_and_eof_retry_parity(self) -> None:
         responses = FakeResponses(incomplete_json_error(), (self.answer(), {"output_tokens": 17}))
@@ -92,4 +114,3 @@ class AnsweringTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

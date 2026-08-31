@@ -1,20 +1,136 @@
 components:
   schemas:
-    AuthResponse:
+    AnswerResponse:
       properties:
-        profile_state:
-          enum:
-          - required
-          - complete
-          - skipped
-          title: Profile State
+        answer:
+          title: Answer
           type: string
-        user:
-          $ref: '#/components/schemas/UserResponse'
+        answer_status:
+          enum:
+          - answered
+          - insufficient_evidence
+          title: Answer Status
+          type: string
+        cards:
+          items:
+            $ref: '#/components/schemas/CardResult'
+          title: Cards
+          type: array
+        claims:
+          items:
+            $ref: '#/components/schemas/AtomicClaim'
+          title: Claims
+          type: array
+        evidence:
+          items:
+            $ref: '#/components/schemas/EvidenceResult'
+          title: Evidence
+          type: array
+        profile:
+          enum:
+          - card_page_section_benefit
+          - parent_child_bundle
+          title: Profile
+          type: string
+        query_type:
+          enum:
+          - proper_noun
+          - numeric_condition
+          - semantic
+          title: Query Type
+          type: string
+        recommendations:
+          items:
+            $ref: '#/components/schemas/Recommendation'
+          title: Recommendations
+          type: array
+        release_id:
+          title: Release Id
+          type: string
+        status:
+          const: completed
+          title: Status
+          type: string
+        usage:
+          $ref: '#/components/schemas/AnswerUsage'
       required:
-      - user
-      - profile_state
-      title: AuthResponse
+      - status
+      - answer_status
+      - release_id
+      - profile
+      - query_type
+      - cards
+      - answer
+      - recommendations
+      - claims
+      - evidence
+      - usage
+      title: AnswerResponse
+      type: object
+    AnswerUsage:
+      properties:
+        answer:
+          additionalProperties: true
+          title: Answer
+          type: object
+        embedding:
+          additionalProperties: true
+          title: Embedding
+          type: object
+      required:
+      - embedding
+      - answer
+      title: AnswerUsage
+      type: object
+    AtomicClaim:
+      additionalProperties: false
+      properties:
+        card_key:
+          maxLength: 64
+          minLength: 1
+          title: Card Key
+          type: string
+        citations:
+          items:
+            maxLength: 64
+            minLength: 1
+            type: string
+          maxItems: 2
+          minItems: 1
+          title: Citations
+          type: array
+        conditions:
+          items:
+            maxLength: 60
+            minLength: 1
+            type: string
+          maxItems: 2
+          title: Conditions
+          type: array
+        text:
+          maxLength: 120
+          minLength: 1
+          title: Text
+          type: string
+        unit:
+          anyOf:
+          - maxLength: 20
+            type: string
+          - type: 'null'
+          title: Unit
+        value:
+          anyOf:
+          - maxLength: 40
+            type: string
+          - type: number
+          - type: integer
+          - type: 'null'
+          title: Value
+      required:
+      - card_key
+      - text
+      - citations
+      title: AtomicClaim
       type: object
     CardResult:
       properties:
@@ -45,254 +161,7 @@ components:
       - evidence_count
       title: CardResult
       type: object
-    CatalogCard:
-      properties:
-        card_key:
-          title: Card Key
-          type: string
-        card_name:
-          title: Card Name
-          type: string
-        issuer:
-          title: Issuer
-          type: string
-      required:
-      - card_key
-      - card_name
-      - issuer
-      title: CatalogCard
-      type: object
-    CatalogResponse:
-      properties:
-        cards:
-          items:
-            $ref: '#/components/schemas/CatalogCard'
-          title: Cards
-          type: array
-        metadata:
-          additionalProperties: true
-          title: Metadata
-          type: object
-      required:
-      - cards
-      - metadata
-      title: CatalogResponse
-      type: object
-    ChatFailureResponse:
-      additionalProperties: false
-      properties:
-        code:
-          title: Code
-          type: string
-        message:
-          title: Message
-          type: string
-        request_id:
-          title: Request Id
-          type: string
-        retrieval_preview:
-          anyOf:
-          - $ref: '#/components/schemas/RetrievalPreview'
-          - type: 'null'
-        retryable:
-          title: Retryable
-          type: boolean
-        run_id:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Run Id
-      required:
-      - code
-      - message
-      - retryable
-      - request_id
-      title: ChatFailureResponse
-      type: object
-    ChatResponse:
-      properties:
-        answer:
-          title: Answer
-          type: string
-        assistant_message_id:
-          title: Assistant Message Id
-          type: string
-        cards:
-          items:
-            $ref: '#/components/schemas/CardResult'
-          title: Cards
-          type: array
-        citations_semantically_verified:
-          const: false
-          title: Citations Semantically Verified
-          type: boolean
-        claims:
-          items:
-            $ref: '#/components/schemas/ClaimResult'
-          title: Claims
-          type: array
-        conversation_id:
-          title: Conversation Id
-          type: string
-        evidence:
-          items:
-            $ref: '#/components/schemas/EvidenceResult'
-          title: Evidence
-          type: array
-        metadata:
-          additionalProperties: true
-          title: Metadata
-          type: object
-        query_type:
-          title: Query Type
-          type: string
-        recommendations:
-          items:
-            $ref: '#/components/schemas/RecommendationResult'
-          title: Recommendations
-          type: array
-        rewrite_status:
-          title: Rewrite Status
-          type: string
-        run_id:
-          title: Run Id
-          type: string
-        status:
-          const: completed
-          title: Status
-          type: string
-        user_message_id:
-          title: User Message Id
-          type: string
-      required:
-      - run_id
-      - conversation_id
-      - user_message_id
-      - assistant_message_id
-      - status
-      - rewrite_status
-      - cards
-      - answer
-      - recommendations
-      - claims
-      - evidence
-      - query_type
-      - citations_semantically_verified
-      - metadata
-      title: ChatResponse
-      type: object
-    ClaimResult:
-      properties:
-        card_key:
-          title: Card Key
-          type: string
-        citations:
-          items:
-            type: string
-          title: Citations
-          type: array
-        conditions:
-          items:
-            type: string
-          title: Conditions
-          type: array
-        text:
-          title: Text
-          type: string
-        unit:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Unit
-        value:
-          anyOf:
-          - type: string
-          - type: number
-          - type: integer
-          - type: 'null'
-          title: Value
-      required:
-      - card_key
-      - text
-      - value
-      - unit
-      - conditions
-      - citations
-      title: ClaimResult
-      type: object
-    ConversationCreate:
-      additionalProperties: false
-      properties:
-        title:
-          anyOf:
-          - maxLength: 100
-            type: string
-          - type: 'null'
-          title: Title
-      title: ConversationCreate
-      type: object
-    ConversationDetailResponse:
-      properties:
-        conversation:
-          $ref: '#/components/schemas/ConversationRecord'
-        messages:
-          items:
-            $ref: '#/components/schemas/MessageRecord'
-          title: Messages
-          type: array
-      required:
-      - conversation
-      - messages
-      title: ConversationDetailResponse
-      type: object
-    ConversationListResponse:
-      properties:
-        conversations:
-          items:
-            $ref: '#/components/schemas/ConversationRecord'
-          title: Conversations
-          type: array
-      required:
-      - conversations
-      title: ConversationListResponse
-      type: object
-    ConversationRecord:
-      properties:
-        created_at:
-          title: Created At
-          type: string
-        id:
-          title: Id
-          type: string
-        title:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Title
-        updated_at:
-          title: Updated At
-          type: string
-        user_id:
-          title: User Id
-          type: string
-      required:
-      - id
-      - user_id
-      - title
-      - created_at
-      - updated_at
-      title: ConversationRecord
-      type: object
-    ConversationResponse:
-      properties:
-        conversation:
-          $ref: '#/components/schemas/ConversationRecord'
-      required:
-      - conversation
-      title: ConversationResponse
-      type: object
     ErrorResponse:
-      additionalProperties: false
       properties:
         code:
           title: Code
@@ -306,11 +175,6 @@ components:
         retryable:
           title: Retryable
           type: boolean
-        run_id:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Run Id
       required:
       - code
       - message
@@ -365,59 +229,45 @@ components:
       - score
       title: EvidenceResult
       type: object
-    HTTPValidationError:
+    LiveResponse:
       properties:
-        detail:
-          items:
-            $ref: '#/components/schemas/ValidationError'
-          title: Detail
-          type: array
-      title: HTTPValidationError
+        status:
+          const: live
+          title: Status
+          type: string
+      required:
+      - status
+      title: LiveResponse
       type: object
-    LabConfig:
+    NotReadyResponse:
+      properties:
+        reason:
+          title: Reason
+          type: string
+        status:
+          const: not_ready
+          title: Status
+          type: string
+      required:
+      - status
+      - reason
+      title: NotReadyResponse
+      type: object
+    QueryRequest:
       additionalProperties: false
       properties:
-        candidate_depth:
-          default: 20
-          enum:
-          - 10
-          - 20
-          - 50
-          title: Candidate Depth
-          type: integer
-        component_depth:
-          const: 50
-          default: 50
-          title: Component Depth
-          type: integer
-        include_llm:
-          default: false
-          title: Include Llm
-          type: boolean
-        llm_model:
-          const: gpt-5.6-luna
-          default: gpt-5.6-luna
-          title: Llm Model
-          type: string
         profile:
-          const: benefit_hierarchy
-          default: benefit_hierarchy
+          anyOf:
+          - enum:
+            - card_page_section_benefit
+            - parent_child_bundle
+            type: string
+          - type: 'null'
           title: Profile
-          type: string
-        reranker:
-          default: bge
-          enum:
-          - 'off'
-          - bge
-          - gte
-          title: Reranker
-          type: string
-        reranker_route:
-          default: selective
-          enum:
-          - selective
-          - all
-          title: Reranker Route
+        query:
+          maxLength: 500
+          minLength: 1
+          title: Query
           type: string
         top_k:
           default: 3
@@ -427,194 +277,68 @@ components:
           - 5
           title: Top K
           type: integer
-        vector_weight:
-          default: 0.4
-          enum:
-          - 0.0
-          - 0.2
-          - 0.4
-          - 0.6
-          - 0.8
-          - 1.0
-          title: Vector Weight
-          type: number
-      title: LabConfig
-      type: object
-    LabRunRequest:
-      additionalProperties: false
-      properties:
-        config:
-          $ref: '#/components/schemas/LabConfig'
-        query:
-          maxLength: 500
-          minLength: 1
-          title: Query
-          type: string
       required:
       - query
-      title: LabRunRequest
+      title: QueryRequest
       type: object
-    LoginRequest:
-      additionalProperties: false
+    ReadyResponse:
       properties:
-        password:
-          maxLength: 1000
-          minLength: 1
-          title: Password
-          type: string
-        username:
-          maxLength: 100
-          minLength: 1
-          title: Username
-          type: string
-      required:
-      - username
-      - password
-      title: LoginRequest
-      type: object
-    MessageCreate:
-      additionalProperties: false
-      properties:
-        query:
-          maxLength: 500
-          minLength: 1
-          title: Query
-          type: string
-      required:
-      - query
-      title: MessageCreate
-      type: object
-    MessageRecord:
-      properties:
-        content:
-          title: Content
-          type: string
-        conversation_id:
-          title: Conversation Id
-          type: string
-        created_at:
-          title: Created At
-          type: string
-        id:
-          title: Id
-          type: string
-        metadata:
-          anyOf:
-          - additionalProperties: true
-            type: object
-          - type: 'null'
-          title: Metadata
-        result:
-          anyOf:
-          - additionalProperties: true
-            type: object
-          - type: 'null'
-          title: Result
-        role:
-          enum:
-          - user
-          - assistant
-          title: Role
-          type: string
-        user_id:
-          title: User Id
-          type: string
-      required:
-      - id
-      - conversation_id
-      - user_id
-      - role
-      - content
-      - created_at
-      title: MessageRecord
-      type: object
-    ProfileResponse:
-      properties:
+        chunk_count:
+          title: Chunk Count
+          type: integer
+        document_count:
+          title: Document Count
+          type: integer
         profile:
-          anyOf:
-          - additionalProperties: true
-            type: object
-          - type: 'null'
-          title: Profile
-        profile_state:
           enum:
-          - required
-          - complete
-          - skipped
-          title: Profile State
+          - card_page_section_benefit
+          - parent_child_bundle
+          title: Profile
+          type: string
+        release_id:
+          title: Release Id
+          type: string
+        status:
+          const: ready
+          title: Status
           type: string
       required:
+      - status
+      - release_id
       - profile
-      - profile_state
-      title: ProfileResponse
+      - document_count
+      - chunk_count
+      title: ReadyResponse
       type: object
-    ProfileUpdate:
+    Recommendation:
       additionalProperties: false
-      properties:
-        age_band:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Age Band
-        annual_fee_preference:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Annual Fee Preference
-        benefit_categories:
-          anyOf:
-          - items:
-              type: string
-            maxItems: 12
-            type: array
-          - type: 'null'
-          title: Benefit Categories
-        card_type_preference:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Card Type Preference
-        display_name:
-          anyOf:
-          - maxLength: 30
-            type: string
-          - type: 'null'
-          title: Display Name
-        monthly_spend_band:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Monthly Spend Band
-        owned_card_ids:
-          anyOf:
-          - items:
-              type: string
-            maxItems: 10
-            type: array
-          - type: 'null'
-          title: Owned Card Ids
-      title: ProfileUpdate
-      type: object
-    RecommendationResult:
       properties:
         card_key:
+          maxLength: 64
+          minLength: 1
           title: Card Key
           type: string
         citations:
           items:
+            maxLength: 64
+            minLength: 1
             type: string
+          maxItems: 2
+          minItems: 1
           title: Citations
           type: array
         reason:
+          maxLength: 100
+          minLength: 1
           title: Reason
           type: string
       required:
       - card_key
       - reason
       - citations
-      title: RecommendationResult
+      title: Recommendation
       type: object
-    RetrievalPreview:
+    SearchResponse:
       properties:
         cards:
           items:
@@ -626,237 +350,69 @@ components:
             $ref: '#/components/schemas/EvidenceResult'
           title: Evidence
           type: array
-        label:
-          title: Label
+        profile:
+          enum:
+          - card_page_section_benefit
+          - parent_child_bundle
+          title: Profile
           type: string
         query_type:
+          enum:
+          - proper_noun
+          - numeric_condition
+          - semantic
           title: Query Type
           type: string
-        rewrite_status:
-          title: Rewrite Status
-          type: string
-        run_id:
-          title: Run Id
+        release_id:
+          title: Release Id
           type: string
         status:
-          const: retrieval_only
+          const: completed
           title: Status
           type: string
+        usage:
+          $ref: '#/components/schemas/SearchUsage'
       required:
-      - run_id
       - status
-      - label
+      - release_id
+      - profile
+      - query_type
       - cards
       - evidence
-      - query_type
-      - rewrite_status
-      title: RetrievalPreview
+      - usage
+      title: SearchResponse
       type: object
-    UserResponse:
+    SearchUsage:
       properties:
-        active:
-          title: Active
-          type: integer
-        created_at:
-          title: Created At
-          type: string
-        id:
-          title: Id
-          type: string
-        onboarding_skipped_at:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Onboarding Skipped At
-        role:
-          enum:
-          - user
-          - developer
-          title: Role
-          type: string
-        updated_at:
-          title: Updated At
-          type: string
-        username:
-          title: Username
-          type: string
-      required:
-      - id
-      - username
-      - role
-      - active
-      - onboarding_skipped_at
-      - created_at
-      - updated_at
-      title: UserResponse
-      type: object
-    ValidationError:
-      properties:
-        ctx:
-          title: Context
+        embedding:
+          additionalProperties: true
+          title: Embedding
           type: object
-        input:
-          title: Input
-        loc:
-          items:
-            anyOf:
-            - type: string
-            - type: integer
-          title: Location
-          type: array
-        msg:
-          title: Message
-          type: string
-        type:
-          title: Error Type
-          type: string
       required:
-      - loc
-      - msg
-      - type
-      title: ValidationError
+      - embedding
+      title: SearchUsage
       type: object
 info:
   title: PickCardU RAG API
-  version: 1.0.0
+  version: 0.1.0
 openapi: 3.1.0
 paths:
-  /internal/v1/lab/options:
-    get:
-      operationId: lab_options_internal_v1_lab_options_get
-      parameters:
-      - in: cookie
-        name: pickcardu_session
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Pickcardu Session
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                additionalProperties: true
-                title: Response Lab Options Internal V1 Lab Options Get
-                type: object
-          description: Successful Response
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Forbidden
-        '422':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-          description: Validation Error
-        '503':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Service Unavailable
-      summary: Lab Options
-  /internal/v1/lab/runs:
-    get:
-      operationId: lab_history_internal_v1_lab_runs_get
-      parameters:
-      - in: cookie
-        name: pickcardu_session
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Pickcardu Session
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                additionalProperties: true
-                title: Response Lab History Internal V1 Lab Runs Get
-                type: object
-          description: Successful Response
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Forbidden
-        '422':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-          description: Validation Error
-        '503':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Service Unavailable
-      summary: Lab History
+  /v1/answer:
     post:
-      operationId: run_lab_internal_v1_lab_runs_post
-      parameters:
-      - in: cookie
-        name: pickcardu_session
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Pickcardu Session
+      operationId: answer_v1_answer_post
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/LabRunRequest'
+              $ref: '#/components/schemas/QueryRequest'
         required: true
       responses:
         '200':
           content:
             application/json:
               schema:
-                additionalProperties: true
-                title: Response Run Lab Internal V1 Lab Runs Post
-                type: object
+                $ref: '#/components/schemas/AnswerResponse'
           description: Successful Response
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Not Found
         '409':
           content:
             application/json:
@@ -875,562 +431,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: Service Unavailable
-      summary: Run Lab
-  /internal/v1/lab/runs/{run_id}:
-    delete:
-      operationId: delete_lab_internal_v1_lab_runs__run_id__delete
-      parameters:
-      - in: path
-        name: run_id
-        required: true
-        schema:
-          title: Run Id
-          type: string
-      - in: cookie
-        name: pickcardu_session
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Pickcardu Session
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                additionalProperties:
-                  type: boolean
-                title: Response Delete Lab Internal V1 Lab Runs  Run Id  Delete
-                type: object
-          description: Successful Response
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Not Found
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Conflict
-        '422':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-          description: Validation Error
-        '503':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Service Unavailable
-      summary: Delete Lab
-    get:
-      operationId: lab_detail_internal_v1_lab_runs__run_id__get
-      parameters:
-      - in: path
-        name: run_id
-        required: true
-        schema:
-          title: Run Id
-          type: string
-      - in: cookie
-        name: pickcardu_session
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Pickcardu Session
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                additionalProperties: true
-                title: Response Lab Detail Internal V1 Lab Runs  Run Id  Get
-                type: object
-          description: Successful Response
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Not Found
-        '422':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-          description: Validation Error
-        '503':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Service Unavailable
-      summary: Lab Detail
-  /v1/auth/login:
-    post:
-      operationId: login_v1_auth_login_post
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/LoginRequest'
-        required: true
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AuthResponse'
-          description: Successful Response
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Forbidden
-        '422':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Unprocessable Entity
-        '429':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Too Many Requests
-        '503':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Service Unavailable
-      summary: Login
-  /v1/auth/logout:
-    post:
-      operationId: logout_v1_auth_logout_post
-      parameters:
-      - in: cookie
-        name: pickcardu_session
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Pickcardu Session
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                additionalProperties:
-                  type: boolean
-                title: Response Logout V1 Auth Logout Post
-                type: object
-          description: Successful Response
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Forbidden
-        '422':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-          description: Validation Error
-        '503':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Service Unavailable
-      summary: Logout
-  /v1/auth/session:
-    get:
-      operationId: session_v1_auth_session_get
-      parameters:
-      - in: cookie
-        name: pickcardu_session
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Pickcardu Session
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AuthResponse'
-          description: Successful Response
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Unauthorized
-        '422':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-          description: Validation Error
-        '503':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Service Unavailable
-      summary: Session
-  /v1/catalog/cards:
-    get:
-      operationId: catalog_v1_catalog_cards_get
-      parameters:
-      - in: cookie
-        name: pickcardu_session
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Pickcardu Session
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CatalogResponse'
-          description: Successful Response
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Unauthorized
-        '422':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-          description: Validation Error
-        '503':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Service Unavailable
-      summary: Catalog
-  /v1/conversations:
-    get:
-      operationId: conversations_v1_conversations_get
-      parameters:
-      - in: cookie
-        name: pickcardu_session
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Pickcardu Session
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ConversationListResponse'
-          description: Successful Response
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Unauthorized
-        '422':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-          description: Validation Error
-        '503':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Service Unavailable
-      summary: Conversations
-    post:
-      operationId: create_conversation_v1_conversations_post
-      parameters:
-      - in: cookie
-        name: pickcardu_session
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Pickcardu Session
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ConversationCreate'
-        required: true
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ConversationResponse'
-          description: Successful Response
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Forbidden
-        '422':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Unprocessable Entity
-        '503':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Service Unavailable
-      summary: Create Conversation
-  /v1/conversations/{conversation_id}:
-    delete:
-      operationId: remove_conversation_v1_conversations__conversation_id__delete
-      parameters:
-      - in: path
-        name: conversation_id
-        required: true
-        schema:
-          title: Conversation Id
-          type: string
-      - in: cookie
-        name: pickcardu_session
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Pickcardu Session
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                additionalProperties:
-                  type: boolean
-                title: Response Remove Conversation V1 Conversations  Conversation Id  Delete
-                type: object
-          description: Successful Response
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Not Found
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Conflict
-        '422':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-          description: Validation Error
-        '503':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Service Unavailable
-      summary: Remove Conversation
-    get:
-      operationId: conversation_v1_conversations__conversation_id__get
-      parameters:
-      - in: path
-        name: conversation_id
-        required: true
-        schema:
-          title: Conversation Id
-          type: string
-      - in: cookie
-        name: pickcardu_session
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Pickcardu Session
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ConversationDetailResponse'
-          description: Successful Response
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Unauthorized
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Not Found
-        '422':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-          description: Validation Error
-        '503':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Service Unavailable
-      summary: Conversation
-  /v1/conversations/{conversation_id}/messages:
-    post:
-      operationId: chat_v1_conversations__conversation_id__messages_post
-      parameters:
-      - in: path
-        name: conversation_id
-        required: true
-        schema:
-          title: Conversation Id
-          type: string
-      - in: cookie
-        name: pickcardu_session
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Pickcardu Session
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/MessageCreate'
-        required: true
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ChatResponse'
-          description: Successful Response
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Not Found
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Conflict
-        '422':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Unprocessable Entity
-        '503':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ChatFailureResponse'
-          description: Service Unavailable
-      summary: Chat
+      summary: Answer
   /v1/health/live:
     get:
       operationId: live_v1_health_live_get
@@ -1439,9 +440,7 @@ paths:
           content:
             application/json:
               schema:
-                additionalProperties: true
-                title: Response Live V1 Health Live Get
-                type: object
+                $ref: '#/components/schemas/LiveResponse'
           description: Successful Response
       summary: Live
   /v1/health/ready:
@@ -1452,131 +451,37 @@ paths:
           content:
             application/json:
               schema:
-                additionalProperties: true
-                title: Response Ready V1 Health Ready Get
-                type: object
+                $ref: '#/components/schemas/ReadyResponse'
           description: Successful Response
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotReadyResponse'
+          description: Service Unavailable
       summary: Ready
-  /v1/profile:
-    delete:
-      operationId: remove_profile_v1_profile_delete
-      parameters:
-      - in: cookie
-        name: pickcardu_session
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Pickcardu Session
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                additionalProperties:
-                  type: boolean
-                title: Response Remove Profile V1 Profile Delete
-                type: object
-          description: Successful Response
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Forbidden
-        '422':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-          description: Validation Error
-        '503':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Service Unavailable
-      summary: Remove Profile
-    get:
-      operationId: get_profile_v1_profile_get
-      parameters:
-      - in: cookie
-        name: pickcardu_session
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Pickcardu Session
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ProfileResponse'
-          description: Successful Response
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Unauthorized
-        '422':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-          description: Validation Error
-        '503':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Service Unavailable
-      summary: Get Profile
-    put:
-      operationId: put_profile_v1_profile_put
-      parameters:
-      - in: cookie
-        name: pickcardu_session
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Pickcardu Session
+  /v1/search:
+    post:
+      operationId: search_v1_search_post
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ProfileUpdate'
+              $ref: '#/components/schemas/QueryRequest'
         required: true
       responses:
         '200':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProfileResponse'
+                $ref: '#/components/schemas/SearchResponse'
           description: Successful Response
-        '401':
+        '409':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Forbidden
+          description: Conflict
         '422':
           content:
             application/json:
@@ -1589,51 +494,4 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: Service Unavailable
-      summary: Put Profile
-  /v1/profile/skip:
-    post:
-      operationId: skip_profile_v1_profile_skip_post
-      parameters:
-      - in: cookie
-        name: pickcardu_session
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Pickcardu Session
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                additionalProperties:
-                  type: string
-                title: Response Skip Profile V1 Profile Skip Post
-                type: object
-          description: Successful Response
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Forbidden
-        '422':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-          description: Validation Error
-        '503':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Service Unavailable
-      summary: Skip Profile
+      summary: Search

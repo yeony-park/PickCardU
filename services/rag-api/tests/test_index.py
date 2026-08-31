@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import gc
 import os
 import sys
 import tempfile
@@ -36,15 +37,22 @@ class ActiveIndexTest(unittest.TestCase):
         self.temporary.cleanup()
 
     def test_loads_read_only_fts_and_fake_chroma(self) -> None:
-        serving = self.runtime / "serving/release_fixture" / self.manifest["chroma_tree_sha256"] / "chroma"
-        before = _tree_hash(serving)
         handle = self.loader.load()
         result = handle.search("카페 혜택", [0.0, 0.0], SearchConfig(reranker="off"))
         self.assertEqual(handle.release_id, "release_fixture")
         self.assertEqual(result["cards"][0]["card_key"], "issuer/card-a")
         self.assertEqual(result["evidence"][0]["page_num"], 2)
-        self.assertEqual(self.loader.load().manifest_hash, handle.manifest_hash)
-        self.assertEqual(_tree_hash(serving), before)
+        self.assertIs(self.loader.load(), handle)
+
+    def test_cached_handle_is_revalidated_only_after_pointer_change(self) -> None:
+        handle = self.loader.load()
+        with patch.object(self.loader, "_load_uncached", side_effect=AssertionError("unexpected reload")):
+            self.assertIs(self.loader.load(), handle)
+        pointer = self.runtime / "active-index.json"
+        pointer.write_bytes(pointer.read_bytes() + b" ")
+        with patch.object(self.loader, "_load_uncached", side_effect=RuntimeError("revalidation reached")):
+            with self.assertRaisesRegex(RuntimeError, "revalidation reached"):
+                self.loader.load()
 
     def test_pointer_manifest_dimension_and_tree_mismatch_fail_closed(self) -> None:
         cases = ("pointer", "dimension", "tree", "corpus", "chunks")
@@ -78,12 +86,22 @@ class ActiveIndexTest(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "read-only"):
             self.loader.load()
 
+    def test_modified_sqlite_corpus_is_rejected(self) -> None:
+        corpus = self.runtime / "index-release/release_fixture/corpus.sqlite"
+        os.chmod(corpus, 0o644)
+        corpus.write_bytes(corpus.read_bytes() + b"tampered")
+        os.chmod(corpus, 0o444)
+        with self.assertRaisesRegex(RuntimeError, "SQLite corpus hash mismatch"):
+            self.loader.load()
+
     def test_modified_serving_vector_tree_is_rejected(self) -> None:
         serving = self.runtime / "serving/release_fixture" / self.manifest["chroma_tree_sha256"] / "chroma"
-        target = next(path for path in serving.rglob("*") if path.is_file())
-        with target.open("ab") as stream:
-            stream.write(b"tamper")
-        with self.assertRaisesRegex(RuntimeError, "serving Chroma tree hash mismatch"):
+        client = chromadb.PersistentClient(path=str(serving))
+        collection = client.get_collection("card_page_section_benefit")
+        collection.delete(ids=["chunk-cafe"])
+        del collection, client
+        gc.collect()
+        with self.assertRaisesRegex(RuntimeError, "serving Chroma identity mismatch"):
             self.loader.load()
 
     def test_serving_descendant_symlink_is_rejected(self) -> None:
