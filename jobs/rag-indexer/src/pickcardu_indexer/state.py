@@ -167,6 +167,12 @@ class StateStore:
             raise RuntimeError(f"missing stored {kind}/{provider} artifact")
         return str(row["sha256"])
 
+    def artifact_path(self, run_id: str, document_id: str, kind: str, provider: str | None) -> Path:
+        row = self.connection.execute("SELECT path FROM artifacts WHERE run_id=? AND document_id=? AND kind=? AND provider IS ? ORDER BY artifact_id DESC LIMIT 1", (run_id, document_id, kind, provider)).fetchone()
+        if not row:
+            raise RuntimeError(f"missing stored {kind}/{provider} artifact")
+        return Path(str(row["path"]))
+
     def open_review(self, run_id: str, document_id: str, kind: str, signature: str, before: Any) -> int:
         with self.transaction() as connection:
             connection.execute(
@@ -246,6 +252,7 @@ class StateStore:
         return {
             "run": dict(run) if run else None,
             "documents": [dict(row) for row in self.documents(run_id)],
+            "stages": [dict(row) for row in self.connection.execute("SELECT * FROM stages WHERE run_id=? ORDER BY document_id,stage", (run_id,))],
             "reviews": [dict(row) for row in self.reviews(run_id)],
             "releases": [dict(row) for row in self.connection.execute("SELECT * FROM releases WHERE run_id=? ORDER BY created_at", (run_id,))],
         }

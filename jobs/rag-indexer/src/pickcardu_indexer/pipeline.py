@@ -12,17 +12,23 @@ import unicodedata
 import fcntl
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable, Protocol
+from typing import Any, Callable, Iterable, Protocol
 
 import numpy as np
 
 from .state import StateStore, canonical_json
+from .ocr import OcrProviderError, pages_text
 
 
 RELATION_FIELDS = ("target", "condition", "value", "unit", "cap", "frequency", "period", "exceptions")
 NUMBER = re.compile(r"\d+(?:[,.]\d+)?")
+RISKY_IGNORED_LINE = re.compile(r"할인|적립|캐시백|마일|포인트|연회비|실적|한도|제외|무료|면제|혜택|이용금액|건당|\d+(?:[,.]\d+)?\s*(?:%|원|회|개월|만원)")
 CHUNKING_PROFILES = {"card_page_section_benefit", "parent_child_bundle"}
 DEFAULT_CHUNKING_PROFILE = "card_page_section_benefit"
+
+
+class LaneRestructureRequired(ValueError):
+    pass
 
 
 def now() -> str:
@@ -39,6 +45,24 @@ def sha256_file(path: Path) -> str:
         for block in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def write_immutable(path: Path, value: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.exists():
+        if path.read_bytes() != value:
+            raise RuntimeError(f"immutable artifact changed: {path}")
+        return
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    temporary.write_bytes(value)
+    os.replace(temporary, path)
+
+
+def file_fingerprint(path: Path) -> str:
+    try:
+        return sha256_file(path)
+    except OSError as error:
+        return f"unreadable:{type(error).__name__}"
 
 
 def tree_hash(root: Path) -> str:
@@ -65,7 +89,7 @@ def input_fingerprint(source_manifest: Path, documents: list[dict[str, str]], lu
         }
     return sha256_bytes(canonical_json({
         "manifest": sha256_file(source_manifest),
-        "sources": {document["document_id"]: sha256_file(Path(document["source_pdf"])) for document in documents},
+        "sources": {document["document_id"]: file_fingerprint(Path(document["source_pdf"])) for document in documents},
         "lanes": lanes,
     }).encode())
 
@@ -319,10 +343,12 @@ def validate_lane(provider: str, payload: dict[str, Any]) -> list[dict[str, Any]
         item = (disposition.get("page"), normalized(disposition.get("quote", "")))
         if item not in lines:
             raise ValueError(f"{provider} disposition is not an exact page line")
+        if item in mapped:
+            raise ValueError(f"{provider} OCR line has duplicate dispositions")
         if disposition["kind"] == "ignore" and not normalized(disposition.get("reason", "")):
             raise ValueError(f"{provider} ignored span reason is required")
-        if disposition["kind"] == "ignore":
-            raise ValueError(f"{provider} ignored span requires review")
+        if disposition["kind"] == "ignore" and RISKY_IGNORED_LINE.search(item[1]):
+            raise LaneRestructureRequired(f"{provider} benefit-like ignored span requires a new structuring run")
         line = item[1]
         if disposition["kind"] == "fact" and not any(quote in line or line in quote for quote in covered):
             raise ValueError(f"{provider} fact disposition is not linked to a validated fact")
@@ -495,18 +521,42 @@ class Indexer:
         providers: dict[str, ProviderAdapter] | None = None,
         embedding_adapter: EmbeddingAdapter | None = None,
     ) -> dict[str, Any]:
-        if fake_vectors and embedding_adapter is not None:
-            raise ValueError("fake vectors and an embedding adapter are mutually exclusive")
+        prepared = self.ocr(
+            source_manifest,
+            luna_dir,
+            upstage_dir,
+            config=config,
+            providers=providers,
+        )
+        release_id = None
+        if fake_vectors or embedding_adapter is not None:
+            indexed = self.index(
+                prepared["run_id"],
+                allow_preview=allow_partial,
+                fake_vectors=fake_vectors,
+                profile=str(config.get("profile", config.get("strategy", DEFAULT_CHUNKING_PROFILE))),
+                embedding_adapter=embedding_adapter,
+            )
+            release_id = indexed["release_id"]
+        return {"run_id": prepared["run_id"], "release_id": release_id, "status": self.state.status(prepared["run_id"])}
+
+    def ocr(
+        self,
+        source_manifest: Path,
+        luna_dir: Path | None,
+        upstage_dir: Path | None,
+        *,
+        config: dict[str, Any],
+        providers: dict[str, ProviderAdapter] | Callable[[str, list[dict[str, str]]], dict[str, ProviderAdapter]] | None = None,
+    ) -> dict[str, Any]:
         documents = read_source_manifest(source_manifest)
-        profile = str(config.get("profile", config.get("strategy", DEFAULT_CHUNKING_PROFILE)))
-        if profile not in CHUNKING_PROFILES:
-            raise ValueError(f"unsupported chunking profile: {profile}")
         input_hash = input_fingerprint(source_manifest, documents, luna_dir, upstage_dir)
         config_hash = sha256_bytes(canonical_json(config).encode())
         run_id = "run_" + sha256_bytes(f"{input_hash}:{config_hash}".encode())[:16]
         run_id = self.state.find_or_create_run(run_id, input_hash, config_hash, now())
+        active_providers = providers(run_id, documents) if callable(providers) else providers
         for document in documents:
-            self._process_document(run_id, document, luna_dir, upstage_dir, providers)
+            self._process_document(run_id, document, luna_dir, upstage_dir, active_providers)
         document_statuses = {str(row["status"]) for row in self.state.documents(run_id)}
         if "review" in document_statuses:
             self.state.set_run_status(run_id, "review", now())
@@ -514,26 +564,80 @@ class Indexer:
             self.state.set_run_status(run_id, "blocked", now())
         elif document_statuses != {"canonical_approved"}:
             self.state.set_run_status(run_id, "failed", now())
-        release_id = None
-        if fake_vectors:
-            release_id = self.publish(run_id, allow_partial=allow_partial, fake_vectors=True, profile=profile)
-            self.state.set_run_status(run_id, "test_only_published", now())
-        elif embedding_adapter is not None:
-            release_id = self.publish(
-                run_id,
-                allow_partial=allow_partial,
-                fake_vectors=False,
-                profile=profile,
-                embedding_adapter=embedding_adapter,
-            )
-            self.state.set_run_status(run_id, "production_published", now())
         elif document_statuses == {"canonical_approved"}:
             self.state.set_run_status(run_id, "canonical_approved", now())
+        status = self.state.status(run_id)
+        differences = []
+        for stage in status["stages"]:
+            if stage["stage"] != "ocr_comparison":
+                continue
+            detail = json.loads(stage["detail_json"])
+            if not detail.get("page_count_equal") or not detail.get("all_normalized_text_equal"):
+                differences.append(stage["document_id"])
+        return {"run_id": run_id, "ocr_difference_documents": differences, "status": status}
+
+    def index(
+        self,
+        run_id: str,
+        *,
+        allow_preview: bool,
+        fake_vectors: bool,
+        profile: str = DEFAULT_CHUNKING_PROFILE,
+        embedding_adapter: EmbeddingAdapter | None = None,
+    ) -> dict[str, Any]:
+        release_id = self.publish(
+            run_id,
+            allow_partial=allow_preview,
+            fake_vectors=fake_vectors,
+            profile=profile,
+            embedding_adapter=embedding_adapter,
+        )
+        manifest = json.loads((Path(str(self.state.release(release_id)["path"])) / "manifest.json").read_text(encoding="utf-8"))
+        self.state.set_run_status(run_id, f"{manifest['release_status']}_published", now())
         return {"run_id": run_id, "release_id": release_id, "status": self.state.status(run_id)}
+
+    def _document_root(self, run_id: str, document_id: str) -> Path:
+        return self.runtime_root / "working" / run_id / "documents" / document_id.replace("/", "__")
+
+    def _record_json_artifact(self, run_id: str, document_id: str, kind: str, provider: str | None, path: Path, value: Any) -> Path:
+        encoded = (canonical_json(value) + "\n").encode()
+        write_immutable(path, encoded)
+        self.state.record_artifact(run_id, document_id, kind, provider, str(path), sha256_bytes(encoded), {})
+        return path
+
+    def _materialize_lane(self, run_id: str, document_id: str, provider: str, payload: dict[str, Any], adapter: ProviderAdapter) -> None:
+        root = self._document_root(run_id, document_id) / provider
+        pages = [{"page": row.get("page", row.get("number")), "text": row.get("text", "")} for row in payload.get("pages", [])]
+        self._record_json_artifact(run_id, document_id, "ocr_pages", provider, root / "pages.json", {"document_id": document_id, "provider": provider, "pages": pages})
+        text = pages_text(pages).encode("utf-8")
+        write_immutable(root / "ocr.txt", text)
+        self.state.record_artifact(run_id, document_id, "ocr_text", provider, str(root / "ocr.txt"), sha256_bytes(text), {})
+        self._record_json_artifact(run_id, document_id, "normalized_json", provider, root / "normalized.json", payload)
+        artifact_paths = getattr(adapter, "artifact_paths", None)
+        if callable(artifact_paths):
+            for kind, path in artifact_paths(document_id).items():
+                if path.is_file():
+                    self.state.record_artifact(run_id, document_id, kind, provider, str(path), sha256_file(path), {})
+
+    def _validation_artifact(self, run_id: str, document_id: str, name: str, value: Any) -> Path:
+        return self._record_json_artifact(
+            run_id,
+            document_id,
+            name,
+            None,
+            self._document_root(run_id, document_id) / "validation" / f"{name}.json",
+            value,
+        )
 
     def _process_document(self, run_id: str, document: dict[str, str], luna_dir: Path | None, upstage_dir: Path | None, providers: dict[str, ProviderAdapter] | None) -> None:
         document_id, source_path = document["document_id"], Path(document["source_pdf"])
-        source_hash = sha256_file(source_path)
+        try:
+            source_hash = sha256_file(source_path)
+        except OSError as error:
+            source_hash = f"unreadable:{type(error).__name__}"
+            self.state.upsert_document(run_id, document_id, str(source_path), source_hash, "blocked")
+            self.state.record_stage(run_id, document_id, "source", source_hash, "blocked", {"error": type(error).__name__}, now(), retryable=False)
+            return
         try:
             existing = self.state.document(run_id, document_id)
             if existing["source_hash"] == source_hash and existing["status"] == "canonical_approved":
@@ -542,6 +646,7 @@ class Indexer:
             pass
         self.state.upsert_document(run_id, document_id, str(source_path), source_hash, "running")
         self.state.record_stage(run_id, document_id, "source", source_hash, "completed", {"source_sha256": source_hash}, now())
+        self._record_json_artifact(run_id, document_id, "source", None, self._document_root(run_id, document_id) / "source.json", {"document_id": document_id, "source_pdf": str(source_path), "source_pdf_sha256": source_hash})
         if providers is None and (luna_dir is None or upstage_dir is None):
             self.state.set_document_status(run_id, document_id, "blocked")
             self.state.record_stage(run_id, document_id, "ocr", source_hash, "blocked", {"reason": "local dual OCR artifacts required; live adapters fail closed"}, now())
@@ -559,7 +664,10 @@ class Indexer:
             # Each lane is loaded and validated only from its own provider directory.
             self.state.record_artifact(run_id, document_id, "ocr_json", "luna", str(luna_path), sha256_file(luna_path), {"provider": "luna"})
             self.state.record_artifact(run_id, document_id, "ocr_json", "upstage", str(upstage_path), sha256_file(upstage_path), {"provider": "upstage"})
+            self._materialize_lane(run_id, document_id, "luna", luna_payload, adapters["luna"])
+            self._materialize_lane(run_id, document_id, "upstage", upstage_payload, adapters["upstage"])
             ocr_comparison = compare_ocr_outputs(luna_payload, upstage_payload)
+            self._validation_artifact(run_id, document_id, "ocr_comparison", ocr_comparison)
             self.state.record_stage(
                 run_id,
                 document_id,
@@ -570,16 +678,30 @@ class Indexer:
                 now(),
             )
             luna = validate_lane("luna", luna_payload)
+            self._validation_artifact(run_id, document_id, "luna_text_to_json", {"status": "pass", "facts": len(luna), "source_pdf_sha256": source_hash})
             upstage = validate_lane("upstage", upstage_payload)
+            self._validation_artifact(run_id, document_id, "upstage_text_to_json", {"status": "pass", "facts": len(upstage), "source_pdf_sha256": source_hash})
             self.state.record_stage(run_id, document_id, "structured", sha256_bytes(canonical_json([luna, upstage]).encode()), "completed", {"lanes": ["luna", "upstage"]}, now())
             self.state.record_stage(run_id, document_id, "grounding", sha256_bytes(canonical_json([luna, upstage]).encode()), "completed", {"lanes": ["luna", "upstage"]}, now())
+        except OcrProviderError as error:
+            self.state.set_document_status(run_id, document_id, "blocked")
+            self.state.record_stage(run_id, document_id, "ocr", source_hash, "blocked", {"error": str(error)}, now(), retryable=error.retryable)
+            return
+        except LaneRestructureRequired as error:
+            self.state.set_document_status(run_id, document_id, "blocked")
+            self._validation_artifact(run_id, document_id, "restructure_required", {"status": "blocked", "error": str(error)})
+            self.state.record_stage(run_id, document_id, "structured", source_hash, "blocked", {"error": str(error), "action": "new_structuring_run"}, now(), retryable=False)
+            return
         except (ValueError, FileNotFoundError) as error:
             signature = sha256_bytes(str(error).encode())
             self.state.open_review(run_id, document_id, "grounding_or_rule", signature, {"error": str(error)})
             self.state.set_document_status(run_id, document_id, "review")
+            self._validation_artifact(run_id, document_id, "grounding_failure", {"status": "review", "error": str(error)})
             self.state.record_stage(run_id, document_id, "grounding", source_hash, "review", {"error": str(error)}, now())
             return
         canonical, mismatch, identity_mismatch = canonical_from_lanes(luna, upstage, luna_payload, upstage_payload)
+        comparison = {"status": "review" if mismatch or identity_mismatch else "pass", "relation_mismatch": mismatch, "identity_mismatch": identity_mismatch}
+        self._validation_artifact(run_id, document_id, "normalized_json_comparison", comparison)
         if identity_mismatch:
             signature = sha256_bytes(canonical_json(identity_mismatch).encode())
             self.state.open_review(run_id, document_id, "identity_mismatch", signature, identity_mismatch)
@@ -609,13 +731,21 @@ class Indexer:
         self.state.approve_canonical(run_id, document_id, str(path), canonical_sha256, len(canonical), now())
         return path
 
-    def resolve_review(self, review_id: int, reviewer: str, reason: str, after_path: Path, luna_dir: Path, upstage_dir: Path) -> dict[str, Any]:
+    def resolve_review(self, review_id: int, reviewer: str, reason: str, after_path: Path, luna_dir: Path | None = None, upstage_dir: Path | None = None) -> dict[str, Any]:
         review = self.state.review(review_id)
         if review["status"] != "open":
             raise RuntimeError("review is not open")
         document = self.state.document(str(review["run_id"]), str(review["document_id"]))
-        luna_path, luna_payload = load_lane("luna", luna_dir, str(document["document_id"]))
-        upstage_path, upstage_payload = load_lane("upstage", upstage_dir, str(document["document_id"]))
+        if (luna_dir is None) != (upstage_dir is None):
+            raise ValueError("both local lane directories or neither are required")
+        if luna_dir is None:
+            luna_path = self.state.artifact_path(str(review["run_id"]), str(document["document_id"]), "ocr_json", "luna")
+            upstage_path = self.state.artifact_path(str(review["run_id"]), str(document["document_id"]), "ocr_json", "upstage")
+            luna_payload = json.loads(luna_path.read_text(encoding="utf-8"))
+            upstage_payload = json.loads(upstage_path.read_text(encoding="utf-8"))
+        else:
+            luna_path, luna_payload = load_lane("luna", luna_dir, str(document["document_id"]))
+            upstage_path, upstage_payload = load_lane("upstage", upstage_dir, str(document["document_id"]))
         if sha256_file(Path(str(document["source_path"]))) != document["source_hash"]:
             raise RuntimeError("stale source PDF")
         for provider, path, payload in (("luna", luna_path, luna_payload), ("upstage", upstage_path, upstage_payload)):
@@ -818,7 +948,7 @@ class Indexer:
             dimension = getattr(embedding_adapter, "dimension", 0)
             if not embedding_model or isinstance(dimension, bool) or not isinstance(dimension, int) or dimension < 1:
                 raise ValueError("embedding adapter model and dimension are required")
-            release_status = "production"
+            release_status = "preview" if omitted else "production"
             vector_mode = "approved_adapter"
         corpus_hash = sha256_bytes(canonical_json(chunks).encode())
         release_id = "release_" + sha256_bytes(

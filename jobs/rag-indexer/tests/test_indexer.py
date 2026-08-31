@@ -3,16 +3,17 @@ from __future__ import annotations
 import gc
 import json
 import hashlib
+import os
 import sqlite3
 import sys
 import tempfile
 import types
 import unittest
+from unittest import mock
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import numpy as np
-from fastapi.testclient import TestClient
 
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1] / "src"
@@ -31,9 +32,11 @@ from pickcardu_indexer.pipeline import (  # noqa: E402
     strict_resolution,
     validate_lane,
 )
+from pickcardu_indexer.__main__ import parser as cli_parser, run_ocr  # noqa: E402
+from pickcardu_indexer.ocr import LiveLaneAdapter, LunaFactStructurer, LunaOcrTranscriber, OcrProviderError, pages_text, upstage_pages  # noqa: E402
 from pickcardu_rag_api.config import Settings  # noqa: E402
 from pickcardu_rag_api.index import ActiveIndexLoader  # noqa: E402
-from pickcardu_rag_api.main import create_app  # noqa: E402
+from pickcardu_rag_api.main import QueryRequest, create_app  # noqa: E402
 
 
 def write_json(path: Path, value: object) -> None:
@@ -123,6 +126,20 @@ class FakeEmbeddingClient:
         return types.SimpleNamespace(data=list(reversed(rows)), usage=usage)
 
 
+class FakeResponsesClient:
+    def __init__(self, outputs: list[dict[str, object]]) -> None:
+        self.responses, self.outputs, self.calls = self, list(outputs), []
+
+    def create(self, **kwargs):
+        self.calls.append(kwargs)
+        output = self.outputs.pop(0)
+        raw = {
+            "id": f"response-{len(self.calls)}",
+            "output": [{"type": "message", "content": [{"type": "output_text", "text": json.dumps(output, ensure_ascii=False)}]}],
+        }
+        return types.SimpleNamespace(output_text=json.dumps(output, ensure_ascii=False), model_dump=lambda mode="json": raw)
+
+
 class QueryEmbeddingProvider:
     embedding_model = "text-embedding-3-small"
     llm_model = "gpt-5.6-luna"
@@ -134,6 +151,50 @@ class QueryEmbeddingProvider:
 class UnusedReranker:
     def score(self, _mode: str, _query: str, _documents: list[str]):
         raise AssertionError("numeric integration query must bypass the reranker")
+
+
+class FakeTranscriber:
+    def __init__(self, provider: str, *, extra_line: str = "") -> None:
+        self.provider, self.extra_line, self.calls = provider, extra_line, 0
+        self.config = {"endpoint": "fake", "model": f"{provider}-ocr"}
+
+    def request(self, _source: Path):
+        self.calls += 1
+        text = "Issuer Card\n상품 안내: 카페 monthly 1% 할인"
+        if self.extra_line:
+            text += f"\n{self.extra_line}"
+        return {"provider": self.provider, "request": self.calls, "pages": [{"page": 1, "text": text, "uncertain_spans": []}]}, 1
+
+    def parse(self, raw: dict[str, object], _expected_count: int):
+        return raw["pages"]
+
+
+class FakeStructurer:
+    def __init__(self, model: str = "shared-luna-structurer") -> None:
+        self.config = {"endpoint": "fake", "model": model}
+        self.calls: list[str] = []
+
+    def request(self, provider: str, pages: list[dict[str, object]]):
+        self.calls.append(provider)
+        dispositions = [
+            {"page": 1, "quote": "Issuer Card", "kind": "identity", "reason": "identity"},
+            {"page": 1, "quote": "상품 안내: 카페 monthly 1% 할인", "kind": "fact", "reason": "benefit"},
+        ]
+        if "추가 문구" in str(pages[0]["text"]):
+            dispositions.append({"page": 1, "quote": "추가 문구", "kind": "ignore", "reason": "non-benefit text"})
+        structured = {
+            "identity": {"issuer_name": "Issuer", "card_name": "Card", "issuer_evidence": {"page": 1, "quote": "Issuer"}, "card_evidence": {"page": 1, "quote": "Card"}},
+            "facts": [{"target": "카페", "condition": "monthly", "value": "1", "unit": "%", "cap": "", "frequency": "", "period": "", "exceptions": "", "evidence": {"page": 1, "quote": "카페 monthly 1% 할인"}}],
+            "span_dispositions": dispositions,
+        }
+        return {"provider": provider, "structured": structured}
+
+    def parse(self, raw: dict[str, object]):
+        return raw["structured"]
+
+    def structure(self, provider: str, pages: list[dict[str, object]]):
+        raw = self.request(provider, pages)
+        return raw, self.parse(raw)
 
 
 class IndexerTest(unittest.TestCase):
@@ -200,7 +261,7 @@ class IndexerTest(unittest.TestCase):
         self.assertEqual(resumed["run_id"], result["run_id"])
         self.assertEqual(resumed["release_id"], release_id)
 
-    def test_both_production_profiles_activate_and_reach_search_endpoint(self) -> None:
+    def test_both_production_profiles_activate_and_reach_search_handler(self) -> None:
         runtime = self.root / "runtime"
         for profile in ("card_page_section_benefit", "parent_child_bundle"):
             with self.subTest(profile=profile):
@@ -238,23 +299,19 @@ class IndexerTest(unittest.TestCase):
                     bge_path,
                 )
                 provider, reranker = QueryEmbeddingProvider(), UnusedReranker()
-                client = TestClient(
-                    create_app(
-                        settings,
-                        provider=provider,
-                        index_loader=ActiveIndexLoader(runtime, reranker=reranker),
-                        reranker=reranker,
-                    )
+                app = create_app(
+                    settings,
+                    provider=provider,
+                    index_loader=ActiveIndexLoader(runtime, reranker=reranker),
+                    reranker=reranker,
                 )
-                try:
-                    response = client.post(
-                        "/v1/search",
-                        json={"query": "Card 할인율은 얼마야?", "profile": profile},
-                    )
-                finally:
-                    client.close()
-                self.assertEqual(response.status_code, 200)
-                body = response.json()
+                route = next(
+                    route
+                    for route in app.routes
+                    if getattr(route, "path", None) == "/v1/search" and "POST" in getattr(route, "methods", set())
+                )
+                response = route.endpoint(QueryRequest(query="Card 할인율은 얼마야?", profile=profile))
+                body = response.model_dump()
                 self.assertEqual(body["profile"], profile)
                 self.assertEqual(body["cards"][0]["card_key"], self.document_id)
                 self.assertTrue(body["evidence"])
@@ -272,6 +329,225 @@ class IndexerTest(unittest.TestCase):
         self.assertTrue(all(call["encoding_format"] == "float" for call in client.calls))
         self.assertEqual(usage["request_count"], 2)
         self.assertEqual(usage["provider_usage"], [{"total_tokens": 2}, {"total_tokens": 1}])
+
+    def test_live_lane_artifacts_are_separate_resumable_and_auditable(self) -> None:
+        import pymupdf
+
+        source = self.root / "live-source.pdf"
+        pdf = pymupdf.open()
+        pdf.new_page().insert_text((72, 72), "Issuer Card")
+        pdf.save(source)
+        pdf.close()
+        manifest = self.root / "live-source-manifest.json"
+        write_json(manifest, {"documents": [{"document_id": self.document_id, "source_pdf": source.name}]})
+        structurer = FakeStructurer()
+        luna_ocr, upstage_ocr = FakeTranscriber("luna"), FakeTranscriber("upstage", extra_line="추가 문구")
+        sources = {self.document_id: source}
+        providers = {
+            "luna": LiveLaneAdapter("luna", sources, self.root / "live", luna_ocr, structurer),
+            "upstage": LiveLaneAdapter("upstage", sources, self.root / "live", upstage_ocr, structurer),
+        }
+        prepared = self.indexer.ocr(manifest, None, None, config={"mode": "live-fixture"}, providers=providers)
+        self.assertEqual(prepared["status"]["run"]["status"], "canonical_approved")
+        self.assertEqual(prepared["ocr_difference_documents"], [self.document_id])
+        self.assertEqual((luna_ocr.calls, upstage_ocr.calls), (1, 1))
+        self.assertEqual(structurer.calls, ["luna", "upstage"])
+        document_root = self.root / "runtime/working" / prepared["run_id"] / "documents/issuer__card"
+        for provider in ("luna", "upstage"):
+            self.assertTrue((document_root / provider / "ocr.txt").is_file())
+            self.assertTrue((document_root / provider / "pages.json").is_file())
+            self.assertTrue((document_root / provider / "normalized.json").is_file())
+        comparison = json.loads((document_root / "validation/ocr_comparison.json").read_text(encoding="utf-8"))
+        self.assertFalse(comparison["all_normalized_text_equal"])
+        self.assertEqual(json.loads((document_root / "validation/normalized_json_comparison.json").read_text())["status"], "pass")
+        normalized = providers["luna"].artifact_paths(self.document_id)["normalized"]
+        normalized.unlink()
+        providers["luna"].load(self.document_id)
+        self.assertEqual(structurer.calls, ["luna", "upstage"])
+        resumed = self.indexer.ocr(manifest, None, None, config={"mode": "live-fixture"}, providers=providers)
+        self.assertEqual(resumed["run_id"], prepared["run_id"])
+        self.assertEqual((luna_ocr.calls, upstage_ocr.calls), (1, 1))
+
+    def test_new_structure_config_reuses_ocr_cache(self) -> None:
+        import pymupdf
+
+        source = self.root / "restructure.pdf"
+        pdf = pymupdf.open()
+        pdf.new_page().insert_text((72, 72), "Issuer Card")
+        pdf.save(source)
+        pdf.close()
+        sources = {self.document_id: source}
+        first_ocr, first_structure = FakeTranscriber("luna"), FakeStructurer("structure-v1")
+        first = LiveLaneAdapter("luna", sources, self.root / "shared-ocr-cache", first_ocr, first_structure)
+        first_path, _payload = first.load(self.document_id)
+
+        second_ocr, second_structure = FakeTranscriber("luna"), FakeStructurer("structure-v2")
+        second = LiveLaneAdapter("luna", sources, self.root / "shared-ocr-cache", second_ocr, second_structure)
+        second_path, _payload = second.load(self.document_id)
+
+        self.assertNotEqual(first_path, second_path)
+        self.assertEqual(first_ocr.calls, 1)
+        self.assertEqual(second_ocr.calls, 0)
+        self.assertEqual(second_structure.calls, ["luna"])
+
+    def test_live_provider_normalizers_and_openai_boundaries_are_explicit(self) -> None:
+        import pymupdf
+
+        pdf = self.root / "valid.pdf"
+        document = pymupdf.open()
+        document.new_page().insert_text((72, 72), "Issuer Card")
+        document.save(pdf)
+        document.close()
+        ocr_client = FakeResponsesClient([{"pages": [{"page": 1, "text": "Issuer Card", "uncertain_spans": []}]}])
+        raw, pages, provenance = LunaOcrTranscriber("secret", client=ocr_client).transcribe(pdf)
+        self.assertEqual(raw["id"], "response-1")
+        self.assertEqual(pages_text(pages), "=== PAGE 1 ===\nIssuer Card\n")
+        self.assertEqual(provenance["endpoint"], "openai.responses")
+        self.assertFalse(ocr_client.calls[0]["store"])
+        self.assertEqual(ocr_client.calls[0]["text"]["format"]["name"], "ocr_pages")
+
+        structured = FakeStructurer().structure("luna", [{"page": 1, "text": "Issuer Card\n상품 안내: 카페 monthly 1% 할인"}])[1]
+        structure_client = FakeResponsesClient([structured])
+        _, output = LunaFactStructurer("secret", client=structure_client).structure("luna", pages)
+        self.assertEqual(output["identity"]["card_name"], "Card")
+        self.assertEqual(structure_client.calls[0]["text"]["format"]["name"], "card_facts")
+        self.assertNotIn("upstage", structure_client.calls[0]["input"][0]["content"][0]["text"].casefold())
+
+        normalized = upstage_pages({"elements": [{"page": 1, "content": {"markdown": "Issuer Card"}}]}, 1)
+        self.assertEqual(normalized[0]["text"], "Issuer Card")
+
+    def test_upstage_multi_page_grounding_requires_explicit_complete_pages(self) -> None:
+        valid = upstage_pages(
+            {"usage": {"pages": 2}, "elements": [
+                {"page": 1, "content": {"markdown": "첫 페이지"}},
+                {"page": 2, "content": {"markdown": "둘째 페이지"}},
+            ]},
+            2,
+        )
+        self.assertEqual([row["text"] for row in valid], ["첫 페이지", "둘째 페이지"])
+        with self.assertRaisesRegex(ValueError, "page number is required"):
+            upstage_pages({"elements": [{"content": {"markdown": "페이지 미상"}}]}, 2)
+        with self.assertRaisesRegex(ValueError, "outside"):
+            upstage_pages({"elements": [{"page": 3, "content": {"markdown": "범위 밖"}}]}, 2)
+        with self.assertRaisesRegex(ValueError, "no text"):
+            upstage_pages({"elements": [{"page": 1, "content": {"markdown": "첫 페이지만"}}]}, 2)
+
+    def test_cached_raw_response_prevents_paid_retry_after_parse_failure(self) -> None:
+        import pymupdf
+
+        source = self.root / "parse-failure.pdf"
+        pdf = pymupdf.open()
+        pdf.new_page().insert_text((72, 72), "Issuer Card")
+        pdf.save(source)
+        pdf.close()
+
+        class ParseFailure(FakeTranscriber):
+            def parse(self, _raw, _expected_count):
+                raise ValueError("invalid provider payload")
+
+        transcriber = ParseFailure("luna")
+        adapter = LiveLaneAdapter("luna", {self.document_id: source}, self.root / "retry", transcriber, FakeStructurer())
+        for _attempt in range(2):
+            with self.assertRaisesRegex(OcrProviderError, "response validation failed"):
+                adapter.load(self.document_id)
+        self.assertEqual(transcriber.calls, 1)
+
+    def test_cached_structure_response_prevents_paid_retry_after_parse_failure(self) -> None:
+        import pymupdf
+
+        source = self.root / "structure-failure.pdf"
+        pdf = pymupdf.open()
+        pdf.new_page().insert_text((72, 72), "Issuer Card")
+        pdf.save(source)
+        pdf.close()
+
+        class StructureFailure(FakeStructurer):
+            def parse(self, _raw):
+                raise OcrProviderError("invalid structured payload")
+
+        transcriber, structurer = FakeTranscriber("luna"), StructureFailure()
+        adapter = LiveLaneAdapter("luna", {self.document_id: source}, self.root / "structure-retry", transcriber, structurer)
+        for _attempt in range(2):
+            with self.assertRaisesRegex(OcrProviderError, "structured response validation failed"):
+                adapter.load(self.document_id)
+        self.assertEqual(transcriber.calls, 1)
+        self.assertEqual(structurer.calls, ["luna"])
+
+    def test_bad_pdf_isolated_from_next_document(self) -> None:
+        import pymupdf
+
+        bad, good = self.root / "bad.pdf", self.root / "good.pdf"
+        bad.write_bytes(b"not-a-pdf")
+        pdf = pymupdf.open()
+        pdf.new_page().insert_text((72, 72), "Issuer Card")
+        pdf.save(good)
+        pdf.close()
+        manifest = self.root / "batch-manifest.json"
+        write_json(manifest, {"documents": [
+            {"document_id": "a/bad", "source_pdf": bad.name},
+            {"document_id": "z/good", "source_pdf": good.name},
+        ]})
+        sources = {"a/bad": bad, "z/good": good}
+        structurer = FakeStructurer()
+        luna, upstage = FakeTranscriber("luna"), FakeTranscriber("upstage")
+        providers = {
+            "luna": LiveLaneAdapter("luna", sources, self.root / "batch", luna, structurer),
+            "upstage": LiveLaneAdapter("upstage", sources, self.root / "batch", upstage, structurer),
+        }
+        result = self.indexer.ocr(manifest, None, None, config={"mode": "batch-isolation"}, providers=providers)
+        statuses = {row["document_id"]: row["status"] for row in result["status"]["documents"]}
+        self.assertEqual(statuses, {"a/bad": "blocked", "z/good": "canonical_approved"})
+        self.assertEqual((luna.calls, upstage.calls), (1, 1))
+
+    def test_risky_ignore_and_duplicate_disposition_fail_closed(self) -> None:
+        risky = lane(self.document_id, "luna")
+        risky["pages"][0]["text"] += "\n카페 10% 할인"
+        risky["span_dispositions"].append({"page": 1, "quote": "카페 10% 할인", "kind": "ignore", "reason": "omitted"})
+        with self.assertRaisesRegex(ValueError, "benefit-like"):
+            validate_lane("luna", risky)
+        duplicate = lane(self.document_id, "luna")
+        duplicate["span_dispositions"].append(dict(duplicate["span_dispositions"][0]))
+        with self.assertRaisesRegex(ValueError, "duplicate"):
+            validate_lane("luna", duplicate)
+
+    def test_risky_ignore_is_non_resolvable_restructure_block(self) -> None:
+        for provider, root in (("luna", self.luna_dir), ("upstage", self.upstage_dir)):
+            payload = lane(self.document_id, provider)
+            payload["pages"][0]["text"] += "\n카페 10% 할인"
+            payload["span_dispositions"].append({"page": 1, "quote": "카페 10% 할인", "kind": "ignore", "reason": "omitted"})
+            write_json(root / "issuer__card.json", payload)
+        result = self.indexer.ocr(self.manifest, self.luna_dir, self.upstage_dir, config={"mode": "risky-ignore"})
+        self.assertEqual(result["status"]["documents"][0]["status"], "blocked")
+        self.assertEqual(result["status"]["reviews"], [])
+        stage = next(row for row in result["status"]["stages"] if row["stage"] == "structured")
+        self.assertEqual(json.loads(stage["detail_json"])["action"], "new_structuring_run")
+
+    def test_cli_live_ocr_approval_is_fail_closed(self) -> None:
+        one_flag = cli_parser().parse_args(["ocr", "--source-manifest", str(self.manifest), "--confirm-luna"])
+        with self.assertRaisesRegex(RuntimeError, "both --confirm"):
+            run_ocr(self.indexer, one_flag)
+        both_flags = cli_parser().parse_args(["ocr", "--source-manifest", str(self.manifest), "--confirm-luna", "--confirm-upstage"])
+        with mock.patch.dict(os.environ, {}, clear=True), self.assertRaisesRegex(RuntimeError, "API_KEY"):
+            run_ocr(self.indexer, both_flags)
+        mixed = cli_parser().parse_args([
+            "ocr", "--source-manifest", str(self.manifest), "--luna-json-dir", str(self.luna_dir),
+            "--upstage-json-dir", str(self.upstage_dir), "--confirm-luna", "--confirm-upstage",
+        ])
+        with self.assertRaisesRegex(RuntimeError, "mutually exclusive"):
+            run_ocr(self.indexer, mixed)
+
+    def test_two_phase_index_and_partial_real_release_is_preview_only(self) -> None:
+        prepared = self.indexer.ocr(self.manifest, self.luna_dir, self.upstage_dir, config={"mode": "local-fixture"})
+        self.assertEqual(prepared["status"]["releases"], [])
+        self.indexer.state.upsert_document(prepared["run_id"], "issuer/unapproved", str(self.source), SOURCE_SHA, "review")
+        adapter = DeterministicEmbeddingAdapter()
+        indexed = self.indexer.index(prepared["run_id"], allow_preview=True, fake_vectors=False, embedding_adapter=adapter)
+        release_id = indexed["release_id"]
+        manifest = json.loads((self.root / "runtime/index-release" / release_id / "manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(manifest["release_status"], "preview")
+        self.assertEqual(manifest["coverage"]["omitted_document_ids"], ["issuer/unapproved"])
+        with self.assertRaisesRegex(RuntimeError, "production"):
+            self.indexer.activate(release_id)
 
     def test_relation_mismatch_opens_review_and_blocks_publish(self) -> None:
         write_json(self.upstage_dir / "issuer__card.json", lane(self.document_id, "upstage", condition="daily", quote="카페 monthly daily 1% 할인"))
