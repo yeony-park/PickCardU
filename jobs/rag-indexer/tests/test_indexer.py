@@ -519,10 +519,11 @@ class IndexerTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "benefit-like"):
             validate_lane("luna", risky)
         safe = lane(self.document_id, "luna")
-        safe["pages"][0]["text"] += "\n청구할인 서비스\n연체이자율 최대 3%"
+        safe["pages"][0]["text"] += "\n청구할인 서비스\n연체이자율 최대 3%\n카드 신규 출시 이후 할인혜택 유지"
         safe["span_dispositions"].extend([
             {"page": 1, "quote": "청구할인 서비스", "kind": "ignore", "reason": "섹션 제목"},
             {"page": 1, "quote": "연체이자율 최대 3%", "kind": "ignore", "reason": "연체이자율 안내"},
+            {"page": 1, "quote": "카드 신규 출시 이후 할인혜택 유지", "kind": "ignore", "reason": "부가서비스 유지 고지"},
         ])
         self.assertEqual(len(validate_lane("luna", safe)), 1)
         duplicate = lane(self.document_id, "luna")

@@ -25,12 +25,12 @@ from .structural import STRUCTURAL_CONTRACT, build_structural_chunks, render_pag
 RELATION_FIELDS = ("target", "condition", "value", "unit", "cap", "frequency", "period", "exceptions")
 NUMBER = re.compile(r"\d+(?:[,.]\d+)?")
 RISKY_IGNORED_LINE = re.compile(r"할인|적립|캐시백|마일|포인트|무료|면제|혜택")
-NON_BENEFIT_IGNORED_LINE = re.compile(r"연회비|연체|수수료|신용평점|카드 발급|부가서비스.*(?:유지|변경)")
+NON_BENEFIT_IGNORED_LINE = re.compile(r"연회비|연체|수수료|신용평점|카드 발급|카드 신규 출시|부가서비스.*(?:유지|변경)")
 LAYOUT_REASON = re.compile(r"제목|머리글|열(?:\s+)?제목")
 MARKUP_PREFIX = re.compile(r"^(?:[#>*•-]+\s*)+")
 CHUNKING_PROFILES = {"card_page_section_benefit", "parent_child_bundle"}
 DEFAULT_CHUNKING_PROFILE = "card_page_section_benefit"
-OCR_PIPELINE_CONTRACT = "dual-lane-grounded-v3"
+OCR_PIPELINE_CONTRACT = "dual-lane-grounded-v4"
 
 
 class LaneRestructureRequired(ValueError):
