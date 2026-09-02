@@ -27,7 +27,7 @@ def parser() -> argparse.ArgumentParser:
     ocr.add_argument("--source-manifest", type=Path, required=True)
     ocr.add_argument("--luna-json-dir", type=Path)
     ocr.add_argument("--upstage-json-dir", type=Path)
-    ocr.add_argument("--confirm-luna", action="store_true", help="allow 200 DPI PDF page images and both OCR texts to be sent to OpenAI")
+    ocr.add_argument("--confirm-luna", action="store_true", help="allow source PDFs and both OCR texts to be sent to OpenAI")
     ocr.add_argument("--confirm-upstage", action="store_true", help="allow source PDFs to be sent to Upstage")
     ocr.add_argument("--luna-model", default="gpt-5.6-luna")
     ocr.add_argument("--luna-reasoning", default="max")

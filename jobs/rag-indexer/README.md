@@ -13,9 +13,9 @@ OCR 검증은 서로 다른 목적의 세 단계입니다.
 - `card_page_section_benefit`: card/page/section/benefit을 만들고 section·benefit을 검색합니다. 현재 canonical fixture에는 원문 heading tree가 없으므로 section 이름은 fact의 `target`을 사용합니다. 실제 heading을 복원한 완성형은 아닙니다.
 - `parent_child_bundle`: 검증된 OCR 원문의 Markdown H1~H6를 계층으로 만들고 각 노드의 직접 본문만 최대 4,000자, overlap 없이 검색합니다. 검색문은 `발급사 + 카드명 + 전체 제목 경로 + 직접 본문`입니다. D20 이후 같은 카드의 결정론적 1-hop 근거를 최대 5개 묶어 모든 질의에 BGE를 적용합니다. 과거 `STRUCT-D20-K3` 개발 후보를 재현하지만 production 승격을 뜻하지 않습니다. 제목이 하나도 없는 OCR lane은 구조 손실로 보고 release를 차단합니다.
 
-live OCR은 과거 전수 처리 계약대로 원본 PDF를 PyMuPDF 200 DPI PNG로 렌더링해 최대 6페이지씩 Luna에 전송하고, 원본 PDF는 Upstage에 전송합니다. Luna 배치 응답은 즉시 별도 체크포인트로 저장되므로 중단 후에는 완료된 배치를 재사용합니다. 두 OCR 텍스트는 서로 섞지 않은 별도 요청으로 같은 Luna 구조화 모델에 전송합니다. 외부 호출은 두 provider 승인 플래그와 API key가 모두 있어야 시작합니다. provider raw와 parsed structure를 각각 불변 체크포인트로 저장하므로 후속 parsing이 실패해도 같은 성공 응답을 재사용합니다. 손상 PDF는 해당 문서만 blocked로 기록하고 다음 문서를 계속 처리합니다. 106-card 전체 실행은 전송 범위와 비용 승인 전에는 실행하지 않습니다. 기존 개발 corpus/chunks/index와 notebook은 runtime 입력이 아닙니다.
+live OCR은 비교 실험에서 선택한 조건대로 원본 PDF를 OpenAI Responses API의 Luna에 `detail=high`로 직접 전송하고, 같은 원본 PDF를 Upstage에 전송합니다. 두 OCR 텍스트는 서로 섞지 않은 별도 요청으로 같은 Luna 구조화 모델에 전송합니다. 외부 호출은 두 provider 승인 플래그와 API key가 모두 있어야 시작합니다. provider raw와 parsed structure를 각각 불변 체크포인트로 저장하므로 후속 parsing이 실패해도 같은 성공 응답을 재사용합니다. 손상 PDF는 해당 문서만 blocked로 기록하고 다음 문서를 계속 처리합니다. 106-card 전체 실행은 전송 범위와 비용 승인 전에는 실행하지 않습니다. 기존 개발 corpus/chunks/index와 notebook은 runtime 입력이 아닙니다.
 
-Luna OCR·구조화의 요청별 출력 한도는 reasoning `max`가 JSON을 만들기 전에 작은 고정 한도를 모두 쓰는 일을 막기 위해 모델 상한인 128,000토큰으로 둡니다. 상한 전체가 아니라 실제 사용량만 과금됩니다.
+Luna OCR 요청에는 선택 실험과 동일하게 별도의 작은 출력 한도를 강제하지 않습니다. 후속 구조화 요청은 reasoning `max`가 JSON을 만들기 전에 작은 고정 한도를 모두 쓰는 일을 막기 위해 모델 상한인 128,000토큰으로 둡니다. 상한 전체가 아니라 실제 사용량만 과금됩니다.
 
 ## Install and use
 
@@ -32,7 +32,7 @@ conda run -n skn25 pickcardu-indexer index \
   --fake-vectors
 ```
 
-live OCR은 `OPENAI_API_KEY`, `UPSTAGE_API_KEY`를 환경 변수로 제공하고 아래처럼 실행합니다. `--confirm-luna`는 원본 PDF를 렌더링한 200 DPI 페이지 이미지와 두 OCR 텍스트의 OpenAI 전송, `--confirm-upstage`는 원본 PDF의 Upstage 전송을 승인합니다. 불변 provider 원응답과 단계별 checkpoint는 `data/rag/runtime/ocr-cache/`, run별 OCR text·JSON·검증 view는 `data/rag/runtime/working/<run-id>/` 아래에 남고 Git에는 포함하지 않습니다. OCR cache key와 구조화 cache key는 분리되어 구조화 설정만 바꾼 새 run이 원본 PDF OCR을 다시 호출하지 않습니다.
+live OCR은 `OPENAI_API_KEY`, `UPSTAGE_API_KEY`를 환경 변수로 제공하고 아래처럼 실행합니다. `--confirm-luna`는 원본 PDF와 두 OCR 텍스트의 OpenAI 전송, `--confirm-upstage`는 원본 PDF의 Upstage 전송을 승인합니다. 불변 provider 원응답과 단계별 checkpoint는 `data/rag/runtime/ocr-cache/`, run별 OCR text·JSON·검증 view는 `data/rag/runtime/working/<run-id>/` 아래에 남고 Git에는 포함하지 않습니다. OCR cache key와 구조화 cache key는 분리되어 구조화 설정만 바꾼 새 run이 원본 PDF OCR을 다시 호출하지 않습니다.
 
 ```bash
 conda run -n skn25 pickcardu-indexer ocr \

@@ -407,13 +407,15 @@ class IndexerTest(unittest.TestCase):
         document.close()
         ocr_client = FakeResponsesClient([{"pages": [{"page": 1, "text": "Issuer Card", "uncertain_spans": []}]}])
         raw, pages, provenance = LunaOcrTranscriber("secret", client=ocr_client).transcribe(pdf)
-        self.assertEqual(raw["batch_responses"][0]["response"]["id"], "response-1")
+        self.assertEqual(raw["id"], "response-1")
         self.assertEqual(pages_text(pages), "=== PAGE 1 ===\nIssuer Card\n")
         self.assertEqual(provenance["endpoint"], "openai.responses")
         self.assertFalse(ocr_client.calls[0]["store"])
         self.assertEqual(ocr_client.calls[0]["text"]["format"]["name"], "ocr_pages")
-        self.assertEqual(ocr_client.calls[0]["max_output_tokens"], 128_000)
-        self.assertEqual([item["type"] for item in ocr_client.calls[0]["input"][0]["content"]], ["input_text", "input_image"])
+        self.assertNotIn("max_output_tokens", ocr_client.calls[0])
+        content = ocr_client.calls[0]["input"][0]["content"]
+        self.assertEqual([item["type"] for item in content], ["input_file", "input_text"])
+        self.assertEqual(content[0]["detail"], "high")
 
         structured = FakeStructurer().structure("luna", [{"page": 1, "text": "Issuer Card\n상품 안내: 카페 monthly 1% 할인"}])[1]
         structure_client = FakeResponsesClient([structured])
@@ -425,23 +427,6 @@ class IndexerTest(unittest.TestCase):
 
         normalized = upstage_pages({"elements": [{"page": 1, "content": {"markdown": "Issuer Card"}}]}, 1)
         self.assertEqual(normalized[0]["text"], "Issuer Card")
-
-    def test_luna_ocr_uses_six_page_image_batches(self) -> None:
-        import pymupdf
-
-        pdf = self.root / "seven-pages.pdf"
-        document = pymupdf.open()
-        for page_number in range(1, 8):
-            document.new_page().insert_text((72, 72), f"Page {page_number}")
-        document.save(pdf)
-        document.close()
-        client = FakeResponsesClient([
-            {"pages": [{"page": page, "text": f"Page {page}", "uncertain_spans": []} for page in range(1, 7)]},
-            {"pages": [{"page": 7, "text": "Page 7", "uncertain_spans": []}]},
-        ])
-        _raw, pages, _provenance = LunaOcrTranscriber("secret", client=client).transcribe(pdf)
-        self.assertEqual([page["page"] for page in pages], list(range(1, 8)))
-        self.assertEqual([len(call["input"][0]["content"]) for call in client.calls], [7, 2])
 
     def test_upstage_multi_page_grounding_requires_explicit_complete_pages(self) -> None:
         valid = upstage_pages(
