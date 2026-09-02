@@ -33,7 +33,7 @@ from pickcardu_indexer.pipeline import (  # noqa: E402
     validate_lane,
 )
 from pickcardu_indexer.__main__ import parser as cli_parser, run_ocr  # noqa: E402
-from pickcardu_indexer.ocr import LiveLaneAdapter, LunaFactStructurer, LunaOcrTranscriber, OcrProviderError, page_scaled_output_tokens, pages_text, upstage_pages  # noqa: E402
+from pickcardu_indexer.ocr import LiveLaneAdapter, LunaFactStructurer, LunaOcrTranscriber, OcrProviderError, pages_text, upstage_pages  # noqa: E402
 from pickcardu_indexer.structural import build_structural_chunks  # noqa: E402
 from pickcardu_rag_api.config import Settings  # noqa: E402
 from pickcardu_rag_api.index import ActiveIndexLoader  # noqa: E402
@@ -407,24 +407,41 @@ class IndexerTest(unittest.TestCase):
         document.close()
         ocr_client = FakeResponsesClient([{"pages": [{"page": 1, "text": "Issuer Card", "uncertain_spans": []}]}])
         raw, pages, provenance = LunaOcrTranscriber("secret", client=ocr_client).transcribe(pdf)
-        self.assertEqual(raw["id"], "response-1")
+        self.assertEqual(raw["batch_responses"][0]["response"]["id"], "response-1")
         self.assertEqual(pages_text(pages), "=== PAGE 1 ===\nIssuer Card\n")
         self.assertEqual(provenance["endpoint"], "openai.responses")
         self.assertFalse(ocr_client.calls[0]["store"])
         self.assertEqual(ocr_client.calls[0]["text"]["format"]["name"], "ocr_pages")
-        self.assertEqual(ocr_client.calls[0]["max_output_tokens"], 12_000)
+        self.assertEqual(ocr_client.calls[0]["max_output_tokens"], 128_000)
+        self.assertEqual([item["type"] for item in ocr_client.calls[0]["input"][0]["content"]], ["input_text", "input_image"])
 
         structured = FakeStructurer().structure("luna", [{"page": 1, "text": "Issuer Card\n상품 안내: 카페 monthly 1% 할인"}])[1]
         structure_client = FakeResponsesClient([structured])
         _, output = LunaFactStructurer("secret", client=structure_client).structure("luna", pages)
         self.assertEqual(output["identity"]["card_name"], "Card")
         self.assertEqual(structure_client.calls[0]["text"]["format"]["name"], "card_facts")
-        self.assertEqual(structure_client.calls[0]["max_output_tokens"], 16_000)
+        self.assertEqual(structure_client.calls[0]["max_output_tokens"], 128_000)
         self.assertNotIn("upstage", structure_client.calls[0]["input"][0]["content"][0]["text"].casefold())
 
         normalized = upstage_pages({"elements": [{"page": 1, "content": {"markdown": "Issuer Card"}}]}, 1)
         self.assertEqual(normalized[0]["text"], "Issuer Card")
-        self.assertEqual(page_scaled_output_tokens(48, floor=12_000), 128_000)
+
+    def test_luna_ocr_uses_six_page_image_batches(self) -> None:
+        import pymupdf
+
+        pdf = self.root / "seven-pages.pdf"
+        document = pymupdf.open()
+        for page_number in range(1, 8):
+            document.new_page().insert_text((72, 72), f"Page {page_number}")
+        document.save(pdf)
+        document.close()
+        client = FakeResponsesClient([
+            {"pages": [{"page": page, "text": f"Page {page}", "uncertain_spans": []} for page in range(1, 7)]},
+            {"pages": [{"page": 7, "text": "Page 7", "uncertain_spans": []}]},
+        ])
+        _raw, pages, _provenance = LunaOcrTranscriber("secret", client=client).transcribe(pdf)
+        self.assertEqual([page["page"] for page in pages], list(range(1, 8)))
+        self.assertEqual([len(call["input"][0]["content"]) for call in client.calls], [7, 2])
 
     def test_upstage_multi_page_grounding_requires_explicit_complete_pages(self) -> None:
         valid = upstage_pages(

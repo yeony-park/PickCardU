@@ -19,7 +19,8 @@ STRUCTURE_REASONING = "max"
 UPSTAGE_ENDPOINT = "https://api.upstage.ai/v1/document-digitization"
 UPSTAGE_MODEL = "document-parse"
 MAX_MODEL_OUTPUT_TOKENS = 128_000
-OUTPUT_TOKENS_PER_PAGE = 4_000
+LUNA_OCR_BATCH_PAGES = 6
+LUNA_OCR_DPI = 200
 
 OCR_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -150,12 +151,6 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def page_scaled_output_tokens(page_count: int, *, floor: int) -> int:
-    if isinstance(page_count, bool) or not isinstance(page_count, int) or page_count < 1 or floor < 1:
-        raise ValueError("output token policy requires positive page count and floor")
-    return min(MAX_MODEL_OUTPUT_TOKENS, max(floor, page_count * OUTPUT_TOKENS_PER_PAGE))
-
-
 def _write_once(path: Path, value: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists():
@@ -215,7 +210,7 @@ def pdf_page_count(path: Path) -> int:
         return document.page_count
 
 
-def validate_pages(value: Any, expected_count: int) -> list[dict[str, Any]]:
+def validate_pages(value: Any, expected_count: int, *, expected_start: int = 1) -> list[dict[str, Any]]:
     if not isinstance(value, list):
         raise ValueError("OCR pages must be an array")
     pages: list[dict[str, Any]] = []
@@ -229,7 +224,7 @@ def validate_pages(value: Any, expected_count: int) -> list[dict[str, Any]]:
             raise ValueError("OCR page fields are invalid")
         pages.append({"page": page, "text": text, "uncertain_spans": uncertain})
     pages.sort(key=lambda row: row["page"])
-    expected = list(range(1, expected_count + 1))
+    expected = list(range(expected_start, expected_start + expected_count))
     if [row["page"] for row in pages] != expected:
         raise ValueError("OCR pages are missing, duplicated, or out of range")
     return pages
@@ -237,6 +232,23 @@ def validate_pages(value: Any, expected_count: int) -> list[dict[str, Any]]:
 
 def pages_text(pages: list[dict[str, Any]]) -> str:
     return "\n\n".join(f"=== PAGE {row['page']} ===\n{row['text']}" for row in pages).rstrip() + "\n"
+
+
+def _render_pdf_images(source: Path) -> list[bytes]:
+    import pymupdf
+
+    with pymupdf.open(source) as document:
+        if document.page_count < 1:
+            raise ValueError("source PDF has no pages")
+        return [page.get_pixmap(dpi=LUNA_OCR_DPI, alpha=False).tobytes("png") for page in document]
+
+
+def _batch_prompt(page_start: int, page_end: int) -> str:
+    return (
+        f"{OCR_PROMPT}\n"
+        f"첨부 이미지는 원본 PDF의 {page_start}페이지부터 {page_end}페이지까지 순서대로입니다. "
+        f"pages 배열에는 실제 페이지 번호 {page_start}부터 {page_end}까지 정확히 한 번씩 포함하세요."
+    )
 
 
 def _element_text(element: dict[str, Any]) -> str:
@@ -294,34 +306,67 @@ class LunaOcrTranscriber:
 
     @property
     def config(self) -> dict[str, Any]:
-        return {"endpoint": "openai.responses", "model": self.model, "reasoning": self.reasoning, "prompt_sha256": _sha256(OCR_PROMPT.encode()), "schema_sha256": _sha256(_json_bytes(OCR_SCHEMA)), "max_output_policy": "page_scaled_4000_floor_12000_cap_128000"}
+        return {"endpoint": "openai.responses", "model": self.model, "reasoning": self.reasoning, "input": "pymupdf_png", "dpi": LUNA_OCR_DPI, "batch_pages": LUNA_OCR_BATCH_PAGES, "prompt_sha256": _sha256(OCR_PROMPT.encode()), "schema_sha256": _sha256(_json_bytes(OCR_SCHEMA)), "max_output_tokens": MAX_MODEL_OUTPUT_TOKENS}
 
-    def request(self, source: Path) -> tuple[dict[str, Any], int]:
+    def _request_batch(self, images: list[bytes], page_start: int) -> dict[str, Any]:
         if self._client is None:
             from openai import OpenAI
 
             self._client = OpenAI(api_key=self.api_key, max_retries=0)
+        page_end = page_start + len(images) - 1
         try:
-            count = pdf_page_count(source)
-            encoded = base64.b64encode(source.read_bytes()).decode("ascii")
             response = self._client.responses.create(
                 model=self.model,
                 reasoning={"effort": self.reasoning},
                 input=[{"role": "user", "content": [
-                    {"type": "input_file", "filename": source.name, "file_data": f"data:application/pdf;base64,{encoded}"},
-                    {"type": "input_text", "text": f"{OCR_PROMPT}\nPDF page count: {count}"},
+                    {"type": "input_text", "text": _batch_prompt(page_start, page_end)},
+                    *[
+                        {"type": "input_image", "image_url": f"data:image/png;base64,{base64.b64encode(image).decode('ascii')}", "detail": "high"}
+                        for image in images
+                    ],
                 ]}],
                 text={"format": {"type": "json_schema", "name": "ocr_pages", "strict": True, "schema": OCR_SCHEMA}},
                 store=False,
-                max_output_tokens=page_scaled_output_tokens(count, floor=12_000),
+                max_output_tokens=MAX_MODEL_OUTPUT_TOKENS,
                 timeout=900.0,
             )
         except Exception as error:
             retryable = not isinstance(error, (OSError, ValueError))
             raise OcrProviderError(f"Luna OCR failed: {type(error).__name__}: {error}", retryable=retryable) from error
-        return _response_dict(response), count
+        return _response_dict(response)
+
+    def request(self, source: Path, cache_root: Path | None = None) -> tuple[dict[str, Any], int]:
+        images = _render_pdf_images(source)
+        batches = []
+        for offset in range(0, len(images), LUNA_OCR_BATCH_PAGES):
+            page_start = offset + 1
+            page_end = min(offset + LUNA_OCR_BATCH_PAGES, len(images))
+            cached_path = cache_root / f"batch_response.pages_{page_start:04d}_{page_end:04d}.json" if cache_root else None
+            if cached_path is not None and cached_path.is_file():
+                raw = json.loads(cached_path.read_text(encoding="utf-8"))
+            else:
+                raw = self._request_batch(images[offset:page_end], page_start)
+                parsed = _output_json(None, raw)
+                validate_pages(parsed.get("pages"), page_end - page_start + 1, expected_start=page_start)
+                if cached_path is not None:
+                    _write_once(cached_path, _json_bytes(raw))
+            batches.append({"page_start": page_start, "page_end": page_end, "response": raw})
+        return {"batch_responses": batches}, len(images)
+
+    def request_cached(self, source: Path, cache_root: Path) -> tuple[dict[str, Any], int]:
+        return self.request(source, cache_root)
 
     def parse(self, raw: dict[str, Any], expected_count: int) -> list[dict[str, Any]]:
+        batches = raw.get("batch_responses")
+        if isinstance(batches, list):
+            pages = []
+            for batch in batches:
+                page_start, page_end = batch.get("page_start"), batch.get("page_end")
+                if not isinstance(page_start, int) or not isinstance(page_end, int) or page_end < page_start:
+                    raise ValueError("Luna OCR batch page range is invalid")
+                output = _output_json(None, batch.get("response"))
+                pages.extend(validate_pages(output.get("pages"), page_end - page_start + 1, expected_start=page_start))
+            return validate_pages(pages, expected_count)
         output = _output_json(None, raw)
         return validate_pages(output.get("pages"), expected_count)
 
@@ -386,7 +431,7 @@ class LunaFactStructurer:
 
     @property
     def config(self) -> dict[str, Any]:
-        return {"endpoint": "openai.responses", "model": self.model, "reasoning": self.reasoning, "prompt_sha256": _sha256(STRUCTURE_PROMPT.encode()), "schema_sha256": _sha256(_json_bytes(STRUCTURE_SCHEMA)), "max_output_policy": "page_scaled_4000_floor_16000_cap_128000"}
+        return {"endpoint": "openai.responses", "model": self.model, "reasoning": self.reasoning, "prompt_sha256": _sha256(STRUCTURE_PROMPT.encode()), "schema_sha256": _sha256(_json_bytes(STRUCTURE_SCHEMA)), "max_output_tokens": MAX_MODEL_OUTPUT_TOKENS}
 
     def request(self, provider: str, pages: list[dict[str, Any]]) -> dict[str, Any]:
         if self._client is None:
@@ -401,7 +446,7 @@ class LunaFactStructurer:
                 input=[{"role": "user", "content": [{"type": "input_text", "text": f"{STRUCTURE_PROMPT}\nLane: {provider}\nOCR pages JSON:\n{source}"}]}],
                 text={"format": {"type": "json_schema", "name": "card_facts", "strict": True, "schema": STRUCTURE_SCHEMA}},
                 store=False,
-                max_output_tokens=page_scaled_output_tokens(len(pages), floor=16_000),
+                max_output_tokens=MAX_MODEL_OUTPUT_TOKENS,
                 timeout=900.0,
             )
         except Exception as error:
@@ -456,7 +501,8 @@ class LiveLaneAdapter:
         else:
             raw = _cached_json(root, "raw_response.*.json")
             if raw is None:
-                raw, reported_count = self.transcriber.request(source)
+                request_cached = getattr(self.transcriber, "request_cached", None)
+                raw, reported_count = request_cached(source, root) if callable(request_cached) else self.transcriber.request(source)
                 if reported_count != expected_count:
                     raise OcrProviderError("OCR page count changed during provider request")
                 raw_bytes = _json_bytes(raw)
