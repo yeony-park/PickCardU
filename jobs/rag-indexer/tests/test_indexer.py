@@ -33,7 +33,7 @@ from pickcardu_indexer.pipeline import (  # noqa: E402
     validate_lane,
 )
 from pickcardu_indexer.__main__ import parser as cli_parser, run_ocr  # noqa: E402
-from pickcardu_indexer.ocr import STRUCTURE_PROMPT, LiveLaneAdapter, LunaFactStructurer, LunaOcrTranscriber, OcrProviderError, pages_text, upstage_pages  # noqa: E402
+from pickcardu_indexer.ocr import STRUCTURE_PROMPT, LiveLaneAdapter, LunaFactStructurer, LunaOcrTranscriber, OcrProviderError, UpstageOcrTranscriber, pages_text, upstage_pages  # noqa: E402
 from pickcardu_indexer.structural import build_structural_chunks  # noqa: E402
 from pickcardu_rag_api.config import Settings  # noqa: E402
 from pickcardu_rag_api.index import ActiveIndexLoader  # noqa: E402
@@ -596,6 +596,99 @@ class IndexerTest(unittest.TestCase):
             upstage_pages({"elements": [{"page": 3, "content": {"markdown": "범위 밖"}}]}, 2)
         with self.assertRaisesRegex(ValueError, "no text"):
             upstage_pages({"elements": [{"page": 1, "content": {"markdown": "첫 페이지만"}}]}, 2)
+
+    def test_upstage_allows_missing_elements_only_for_visually_blank_source_pages(self) -> None:
+        import pymupdf
+
+        blank_source = self.root / "blank-second-page.pdf"
+        document = pymupdf.open()
+        document.new_page().insert_text((72, 72), "첫 페이지")
+        document.new_page().insert_text((300, 800), "2")
+        document.save(blank_source)
+        document.close()
+        raw = {"usage": {"pages": 2}, "elements": [{"page": 1, "content": {"markdown": "첫 페이지"}}]}
+
+        parsed = UpstageOcrTranscriber("fixture").parse_source(raw, 2, blank_source)
+        self.assertEqual([(row["page"], row["text"]) for row in parsed], [(1, "첫 페이지"), (2, "")])
+
+        content_source = self.root / "content-second-page.pdf"
+        document = pymupdf.open()
+        document.new_page().insert_text((72, 72), "첫 페이지")
+        document.new_page().insert_text((72, 72), "둘째 페이지의 실제 내용")
+        document.save(content_source)
+        document.close()
+        with self.assertRaisesRegex(ValueError, r"source pages: \[2\]"):
+            UpstageOcrTranscriber("fixture").parse_source(raw, 2, content_source)
+
+        sparse_image_source = self.root / "sparse-image-second-page.pdf"
+        document = pymupdf.open()
+        document.new_page().insert_text((72, 72), "첫 페이지")
+        page = document.new_page()
+        pixmap = pymupdf.Pixmap(pymupdf.csRGB, pymupdf.IRect(0, 0, 10, 10), False)
+        pixmap.clear_with(0)
+        page.insert_image(pymupdf.Rect(72, 72, 82, 82), pixmap=pixmap)
+        document.save(sparse_image_source)
+        document.close()
+        with self.assertRaisesRegex(ValueError, r"source pages: \[2\]"):
+            UpstageOcrTranscriber("fixture").parse_source(raw, 2, sparse_image_source)
+
+        sparse_vector_source = self.root / "sparse-vector-second-page.pdf"
+        document = pymupdf.open()
+        document.new_page().insert_text((72, 72), "첫 페이지")
+        document.new_page().draw_rect(pymupdf.Rect(72, 72, 82, 82), color=None, fill=(0, 0, 0))
+        document.save(sparse_vector_source)
+        document.close()
+        with self.assertRaisesRegex(ValueError, r"source pages: \[2\]"):
+            UpstageOcrTranscriber("fixture").parse_source(raw, 2, sparse_vector_source)
+
+        annotation_source = self.root / "annotation-second-page.pdf"
+        document = pymupdf.open()
+        document.new_page().insert_text((72, 72), "첫 페이지")
+        annotation = document.new_page().add_rect_annot(pymupdf.Rect(72, 72, 82, 82))
+        annotation.update()
+        document.save(annotation_source)
+        document.close()
+        with self.assertRaisesRegex(ValueError, r"source pages: \[2\]"):
+            UpstageOcrTranscriber("fixture").parse_source(raw, 2, annotation_source)
+
+    def test_upstage_parse_policy_reuses_immutable_provider_raw_response(self) -> None:
+        import pymupdf
+
+        source = self.root / "blank-page-cache.pdf"
+        document = pymupdf.open()
+        document.new_page().insert_text((72, 72), "첫 페이지")
+        document.new_page()
+        document.save(source)
+        document.close()
+        raw = {"usage": {"pages": 2}, "elements": [{"page": 1, "content": {"markdown": "첫 페이지"}}]}
+
+        class RecordingUpstage(UpstageOcrTranscriber):
+            def __init__(self, policy: str) -> None:
+                super().__init__("fixture")
+                self.policy, self.calls = policy, 0
+
+            @property
+            def parse_config(self):
+                return {**super().parse_config, "test_policy": self.policy}
+
+            def request(self, _source: Path):
+                self.calls += 1
+                return raw, 2
+
+        sources = {self.document_id: source}
+        first = RecordingUpstage("v1")
+        first_adapter = LiveLaneAdapter("upstage", sources, self.root / "parse-policy-cache", first, FakeStructurer())
+        first_path, first_envelope = first_adapter.extract(self.document_id)
+        self.assertEqual(first.calls, 1)
+
+        second = RecordingUpstage("v2")
+        second_adapter = LiveLaneAdapter("upstage", sources, self.root / "parse-policy-cache", second, FakeStructurer())
+        second_path, second_envelope = second_adapter.extract(self.document_id)
+        self.assertEqual(second.calls, 0)
+        self.assertNotEqual(first_path, second_path)
+        self.assertNotEqual(first_envelope["parse_config_hash"], second_envelope["parse_config_hash"])
+        request_root = second_adapter._root(self.document_id, second_envelope["source_pdf_sha256"])
+        self.assertEqual(len(list(request_root.glob("raw_response.*.json"))), 1)
 
     def test_cached_raw_response_prevents_paid_retry_after_parse_failure(self) -> None:
         import pymupdf
