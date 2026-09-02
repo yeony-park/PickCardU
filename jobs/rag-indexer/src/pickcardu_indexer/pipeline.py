@@ -23,7 +23,9 @@ from .structural import STRUCTURAL_CONTRACT, build_structural_chunks, render_pag
 
 RELATION_FIELDS = ("target", "condition", "value", "unit", "cap", "frequency", "period", "exceptions")
 NUMBER = re.compile(r"\d+(?:[,.]\d+)?")
-RISKY_IGNORED_LINE = re.compile(r"할인|적립|캐시백|마일|포인트|연회비|실적|한도|제외|무료|면제|혜택|이용금액|건당|\d+(?:[,.]\d+)?\s*(?:%|원|회|개월|만원)")
+RISKY_IGNORED_LINE = re.compile(r"할인|적립|캐시백|마일|포인트|무료|면제|혜택")
+NON_BENEFIT_IGNORED_LINE = re.compile(r"연회비|연체|수수료|신용평점|카드 발급|부가서비스.*(?:유지|변경)")
+LAYOUT_REASON = re.compile(r"제목|머리글|열(?:\s+)?제목")
 CHUNKING_PROFILES = {"card_page_section_benefit", "parent_child_bundle"}
 DEFAULT_CHUNKING_PROFILE = "card_page_section_benefit"
 
@@ -348,7 +350,13 @@ def validate_lane(provider: str, payload: dict[str, Any]) -> list[dict[str, Any]
             raise ValueError(f"{provider} OCR line has duplicate dispositions")
         if disposition["kind"] == "ignore" and not normalized(disposition.get("reason", "")):
             raise ValueError(f"{provider} ignored span reason is required")
-        if disposition["kind"] == "ignore" and RISKY_IGNORED_LINE.search(item[1]):
+        ignore_reason = normalized(disposition.get("reason", ""))
+        if (
+            disposition["kind"] == "ignore"
+            and RISKY_IGNORED_LINE.search(item[1])
+            and not NON_BENEFIT_IGNORED_LINE.search(item[1])
+            and not LAYOUT_REASON.search(ignore_reason)
+        ):
             raise LaneRestructureRequired(f"{provider} benefit-like ignored span requires a new structuring run")
         line = item[1]
         if disposition["kind"] == "fact" and not any(quote in line or line in quote for quote in covered):

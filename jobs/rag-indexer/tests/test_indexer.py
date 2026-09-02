@@ -518,6 +518,13 @@ class IndexerTest(unittest.TestCase):
         risky["span_dispositions"].append({"page": 1, "quote": "카페 10% 할인", "kind": "ignore", "reason": "omitted"})
         with self.assertRaisesRegex(ValueError, "benefit-like"):
             validate_lane("luna", risky)
+        safe = lane(self.document_id, "luna")
+        safe["pages"][0]["text"] += "\n청구할인 서비스\n연체이자율 최대 3%"
+        safe["span_dispositions"].extend([
+            {"page": 1, "quote": "청구할인 서비스", "kind": "ignore", "reason": "섹션 제목"},
+            {"page": 1, "quote": "연체이자율 최대 3%", "kind": "ignore", "reason": "연체이자율 안내"},
+        ])
+        self.assertEqual(len(validate_lane("luna", safe)), 1)
         duplicate = lane(self.document_id, "luna")
         duplicate["span_dispositions"].append(dict(duplicate["span_dispositions"][0]))
         with self.assertRaisesRegex(ValueError, "duplicate"):
