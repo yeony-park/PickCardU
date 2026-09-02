@@ -529,6 +529,10 @@ class IndexerTest(unittest.TestCase):
         duplicate["span_dispositions"].append(dict(duplicate["span_dispositions"][0]))
         with self.assertRaisesRegex(ValueError, "duplicate"):
             validate_lane("luna", duplicate)
+        repeated = lane(self.document_id, "luna")
+        repeated["pages"][0]["text"] = repeated["pages"][0]["text"].replace("Issuer Card", "Issuer Card\nIssuer Card")
+        repeated["span_dispositions"].append(dict(repeated["span_dispositions"][0]))
+        self.assertEqual(len(validate_lane("luna", repeated)), 1)
 
     def test_risky_ignore_is_non_resolvable_restructure_block(self) -> None:
         for provider, root in (("luna", self.luna_dir), ("upstage", self.upstage_dir)):

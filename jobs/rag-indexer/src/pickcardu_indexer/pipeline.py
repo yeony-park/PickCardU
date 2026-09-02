@@ -10,6 +10,7 @@ import sqlite3
 import tempfile
 import unicodedata
 import fcntl
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterable, Protocol
@@ -28,6 +29,7 @@ NON_BENEFIT_IGNORED_LINE = re.compile(r"연회비|연체|수수료|신용평점|
 LAYOUT_REASON = re.compile(r"제목|머리글|열(?:\s+)?제목")
 CHUNKING_PROFILES = {"card_page_section_benefit", "parent_child_bundle"}
 DEFAULT_CHUNKING_PROFILE = "card_page_section_benefit"
+OCR_PIPELINE_CONTRACT = "dual-lane-grounded-v2"
 
 
 class LaneRestructureRequired(ValueError):
@@ -338,7 +340,9 @@ def validate_lane(provider: str, payload: dict[str, Any]) -> list[dict[str, Any]
     dispositions = payload.get("span_dispositions")
     if not isinstance(dispositions, list):
         raise ValueError(f"{provider} span_dispositions is required")
-    lines = {(page, normalized(line)) for page, text in pages.items() for line in text.splitlines() if normalized(line)}
+    line_counts = Counter((page, normalized(line)) for page, text in pages.items() for line in text.splitlines() if normalized(line))
+    lines = set(line_counts)
+    disposition_counts: Counter[tuple[int, str]] = Counter()
     mapped: set[tuple[int, str]] = set()
     for disposition in dispositions:
         if not isinstance(disposition, dict) or disposition.get("kind") not in {"fact", "identity", "ignore"}:
@@ -346,7 +350,8 @@ def validate_lane(provider: str, payload: dict[str, Any]) -> list[dict[str, Any]
         item = (disposition.get("page"), normalized(disposition.get("quote", "")))
         if item not in lines:
             raise ValueError(f"{provider} disposition is not an exact page line")
-        if item in mapped:
+        disposition_counts[item] += 1
+        if disposition_counts[item] > line_counts[item]:
             raise ValueError(f"{provider} OCR line has duplicate dispositions")
         if disposition["kind"] == "ignore" and not normalized(disposition.get("reason", "")):
             raise ValueError(f"{provider} ignored span reason is required")
@@ -568,7 +573,8 @@ class Indexer:
     ) -> dict[str, Any]:
         documents = read_source_manifest(source_manifest)
         input_hash = input_fingerprint(source_manifest, documents, luna_dir, upstage_dir)
-        config_hash = sha256_bytes(canonical_json(config).encode())
+        effective_config = {**config, "pipeline_contract": OCR_PIPELINE_CONTRACT}
+        config_hash = sha256_bytes(canonical_json(effective_config).encode())
         run_id = "run_" + sha256_bytes(f"{input_hash}:{config_hash}".encode())[:16]
         run_id = self.state.find_or_create_run(run_id, input_hash, config_hash, now())
         active_providers = providers(run_id, documents) if callable(providers) else providers
