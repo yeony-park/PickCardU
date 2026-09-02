@@ -591,6 +591,10 @@ class IndexerTest(unittest.TestCase):
     def test_rule_and_grounding_failures_are_not_silenced(self) -> None:
         with self.assertRaisesRegex(ValueError, "missing"):
             normalise_fact({"target": "x", "value": "", "unit": "원"})
+        self.assertEqual(
+            normalise_fact({"target": "온라인 예매", "exceptions": "제외"})["exceptions"],
+            "제외",
+        )
         with self.assertRaisesRegex(ValueError, "dash"):
             normalise_fact({"target": "x", "value": "-", "unit": "원"})
         with self.assertRaisesRegex(ValueError, "linked"):

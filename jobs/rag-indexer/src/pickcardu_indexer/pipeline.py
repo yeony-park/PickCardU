@@ -105,10 +105,10 @@ def relation_tuple(fact: dict[str, str]) -> tuple[str, ...]:
 
 def normalise_fact(raw: dict[str, Any]) -> dict[str, str]:
     fact = {field: normalized(raw.get(field, "")) for field in RELATION_FIELDS}
-    required = ("target", "value", "unit")
-    missing = [field for field in required if not fact[field]]
-    if missing:
-        raise ValueError(f"required fact fields missing: {','.join(missing)}")
+    if not fact["target"]:
+        raise ValueError("required fact field missing: target")
+    if not any(fact[field] for field in ("condition", "value", "cap", "frequency", "period", "exceptions")):
+        raise ValueError("required fact content is missing")
     if fact["value"] in {"-", "—"}:
         raise ValueError("blank or dash value is a rule failure")
     return fact
