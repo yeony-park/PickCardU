@@ -424,7 +424,7 @@ class LiveLaneAdapter:
     def _structure_root(self, document_id: str, source_hash: str) -> Path:
         return self._root(document_id, source_hash) / "structure" / self.structure_config_hash
 
-    def load(self, document_id: str) -> tuple[Path, dict[str, Any]]:
+    def _context(self, document_id: str) -> tuple[Path, str, int, Path, Path]:
         source = self.sources[document_id]
         try:
             source_hash = _sha256_file(source)
@@ -432,39 +432,45 @@ class LiveLaneAdapter:
         except Exception as error:
             raise OcrProviderError(f"source PDF preflight failed: {type(error).__name__}: {error}") from error
         root = self._root(document_id, source_hash)
-        structure_root = self._structure_root(document_id, source_hash)
-        normalized_path = structure_root / "normalized.json"
-        if normalized_path.is_file():
-            payload = json.loads(normalized_path.read_text(encoding="utf-8"))
-            if payload.get("provider") != self.provider or payload.get("source_pdf_sha256") != source_hash or payload.get("provenance", {}).get("config_hash") != self.config_hash:
-                raise RuntimeError("cached live OCR artifact provenance mismatch")
-            return normalized_path, payload
+        return source, source_hash, expected_count, root, self._structure_root(document_id, source_hash)
 
+    def read_extracted(self, document_id: str) -> tuple[str, list[dict[str, Any]], dict[str, Any], Path, Path]:
+        _source, source_hash, expected_count, root, structure_root = self._context(document_id)
+        pages_path = root / "pages.json"
+        if not pages_path.is_file():
+            raise FileNotFoundError(f"{self.provider} OCR extraction is missing; run extract first")
+        envelope = json.loads(pages_path.read_text(encoding="utf-8"))
+        if envelope.get("source_pdf_sha256") != source_hash or envelope.get("ocr_config_hash") != self.ocr_config_hash:
+            raise RuntimeError("cached OCR pages provenance mismatch")
+        pages = validate_pages(envelope.get("pages"), expected_count)
+        return source_hash, pages, envelope, root, structure_root
+
+    def extract(self, document_id: str) -> tuple[Path, dict[str, Any]]:
+        source, source_hash, expected_count, root, _structure_root = self._context(document_id)
         pages_path = root / "pages.json"
         if pages_path.is_file():
-            envelope = json.loads(pages_path.read_text(encoding="utf-8"))
-            if envelope.get("source_pdf_sha256") != source_hash or envelope.get("ocr_config_hash") != self.ocr_config_hash:
-                raise RuntimeError("cached OCR pages provenance mismatch")
-            pages = validate_pages(envelope.get("pages"), expected_count)
+            _source_hash, _pages, envelope, _root, _structure_root = self.read_extracted(document_id)
+            return pages_path, envelope
+        raw = _cached_json(root, "raw_response.*.json")
+        if raw is None:
+            raw, reported_count = self.transcriber.request(source)
+            if reported_count != expected_count:
+                raise OcrProviderError("OCR page count changed during provider request")
+            raw_bytes = _json_bytes(raw)
+            _write_once(root / f"raw_response.{_sha256(raw_bytes)}.json", raw_bytes)
         else:
-            raw = _cached_json(root, "raw_response.*.json")
-            if raw is None:
-                raw, reported_count = self.transcriber.request(source)
-                if reported_count != expected_count:
-                    raise OcrProviderError("OCR page count changed during provider request")
-                raw_bytes = _json_bytes(raw)
-                _write_once(root / f"raw_response.{_sha256(raw_bytes)}.json", raw_bytes)
-            else:
-                raw_bytes = _json_bytes(raw)
-            try:
-                pages = self.transcriber.parse(raw, expected_count)
-            except (ValueError, OcrProviderError) as error:
-                raise OcrProviderError(f"{self.provider} OCR response validation failed: {error}") from error
-            ocr_provenance = self.transcriber.config
-            envelope = {"document_id": document_id, "provider": self.provider, "source_pdf_sha256": source_hash, "ocr_config_hash": self.ocr_config_hash, "ocr_provenance": ocr_provenance, "raw_response_sha256": _sha256(raw_bytes), "pages": pages}
-            _write_once(pages_path, _json_bytes(envelope))
+            raw_bytes = _json_bytes(raw)
+        try:
+            pages = self.transcriber.parse(raw, expected_count)
+        except (ValueError, OcrProviderError) as error:
+            raise OcrProviderError(f"{self.provider} OCR response validation failed: {error}") from error
+        envelope = {"document_id": document_id, "provider": self.provider, "source_pdf_sha256": source_hash, "ocr_config_hash": self.ocr_config_hash, "ocr_provenance": self.transcriber.config, "raw_response_sha256": _sha256(raw_bytes), "pages": pages}
+        _write_once(pages_path, _json_bytes(envelope))
         _write_once(root / "ocr.txt", pages_text(pages).encode("utf-8"))
+        return pages_path, envelope
 
+    def structure(self, document_id: str) -> tuple[Path, dict[str, Any]]:
+        source_hash, pages, _envelope, _root, structure_root = self.read_extracted(document_id)
         structured_path = structure_root / "structured.json"
         if structured_path.is_file():
             structured_envelope = json.loads(structured_path.read_text(encoding="utf-8"))
@@ -485,6 +491,25 @@ class LiveLaneAdapter:
                 raise OcrProviderError(f"{self.provider} structured response validation failed: {error}") from error
             structured_envelope = {"document_id": document_id, "provider": self.provider, "source_pdf_sha256": source_hash, "ocr_config_hash": self.ocr_config_hash, "structure_config_hash": self.structure_config_hash, "structured": structured}
             _write_once(structured_path, _json_bytes(structured_envelope))
+        return structured_path, structured_envelope
+
+    def read_structured(self, document_id: str) -> tuple[Path, dict[str, Any]]:
+        source_hash, _pages, _envelope, _root, structure_root = self.read_extracted(document_id)
+        structured_path = structure_root / "structured.json"
+        if not structured_path.is_file():
+            raise FileNotFoundError(f"{self.provider} structure is missing; run structure first")
+        structured_envelope = json.loads(structured_path.read_text(encoding="utf-8"))
+        if structured_envelope.get("source_pdf_sha256") != source_hash or structured_envelope.get("ocr_config_hash") != self.ocr_config_hash or structured_envelope.get("structure_config_hash") != self.structure_config_hash:
+            raise RuntimeError("cached structured OCR provenance mismatch")
+        if not isinstance(structured_envelope.get("structured"), dict):
+            raise RuntimeError("cached structured OCR output is invalid")
+        return structured_path, structured_envelope
+
+    def normalize(self, document_id: str) -> tuple[Path, dict[str, Any]]:
+        source_hash, pages, envelope, _root, structure_root = self.read_extracted(document_id)
+        _structured_path, structured_envelope = self.read_structured(document_id)
+        structured = structured_envelope.get("structured")
+        normalized_path = structure_root / "normalized.json"
         payload = {
             "document_id": document_id,
             "provider": self.provider,
@@ -498,6 +523,22 @@ class LiveLaneAdapter:
         }
         _write_once(normalized_path, _json_bytes(payload))
         return normalized_path, payload
+
+    def read_normalized(self, document_id: str) -> tuple[Path, dict[str, Any]]:
+        _source, source_hash, _expected_count, _root, structure_root = self._context(document_id)
+        normalized_path = structure_root / "normalized.json"
+        if not normalized_path.is_file():
+            raise FileNotFoundError(f"{self.provider} normalized JSON is missing; run normalize first")
+        payload = json.loads(normalized_path.read_text(encoding="utf-8"))
+        if payload.get("provider") != self.provider or payload.get("source_pdf_sha256") != source_hash or payload.get("provenance", {}).get("config_hash") != self.config_hash:
+            raise RuntimeError("cached live OCR artifact provenance mismatch")
+        return normalized_path, payload
+
+    def load(self, document_id: str) -> tuple[Path, dict[str, Any]]:
+        self.extract(document_id)
+        self.structure(document_id)
+        self.normalize(document_id)
+        return self.read_normalized(document_id)
 
     def artifact_paths(self, document_id: str) -> dict[str, Path]:
         source = self.sources[document_id]

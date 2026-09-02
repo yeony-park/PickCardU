@@ -1,6 +1,13 @@
 # RAG Indexer
 
-인덱스 준비 파이프라인은 두 명령으로 분리합니다. `ocr`은 source manifest → 독립 Luna/Upstage OCR → 공통 Luna 구조화 → 검증 → provider-neutral canonical facts까지 수행하고, `index`는 승인된 canonical facts → 청킹 → immutable SQLite FTS5+Chroma release를 만듭니다. OCR 차이는 구조화를 막지 않고 결과의 `ocr_difference_documents`와 검증 artifact에 남깁니다. 숫자·조건·identity·근거 또는 두 구조화 JSON의 관계가 다르면 review resolution 전까지 production release를 막습니다.
+인덱스 준비 파이프라인은 `ocr`과 `index`로 나뉩니다. live `ocr`은 `extract → structure → normalize → validate` 네 단계를 각각 실행할 수 있습니다. `ocr run`은 같은 네 단계를 전체 corpus 단위 장벽으로 묶습니다. 즉 모든 문서의 현재 단계가 성공해야 다음 단계를 시작합니다. `index`는 승인된 canonical facts → 청킹 → immutable SQLite FTS5+Chroma release를 만듭니다. 숫자·조건·identity·근거 또는 두 구조화 JSON의 관계가 다르면 review resolution 전까지 production release를 막습니다.
+
+네 단계의 산출물과 책임은 다음과 같습니다.
+
+1. `extract`: 모든 PDF를 Luna와 Upstage가 독립 OCR하고 provider 원응답, `pages.json`, `ocr.txt`를 저장합니다. 구조화 API는 호출하지 않습니다.
+2. `structure`: 모든 OCR text가 준비된 경우에만 각 lane을 Luna로 구조화하고 원응답과 `structured.json`을 저장합니다. PDF OCR은 호출하지 않습니다.
+3. `normalize`: 모든 구조화 응답을 provenance가 포함된 비교용 `normalized.json`으로 결정론적으로 변환합니다. 외부 API를 호출하지 않습니다.
+4. `validate`: OCR 비교, 각 OCR과 자체 JSON의 근거 검사, 두 JSON 비교를 수행합니다. 외부 API를 호출하지 않습니다.
 
 OCR 검증은 서로 다른 목적의 세 단계입니다.
 
@@ -13,7 +20,7 @@ OCR 검증은 서로 다른 목적의 세 단계입니다.
 - `card_page_section_benefit`: card/page/section/benefit을 만들고 section·benefit을 검색합니다. 현재 canonical fixture에는 원문 heading tree가 없으므로 section 이름은 fact의 `target`을 사용합니다. 실제 heading을 복원한 완성형은 아닙니다.
 - `parent_child_bundle`: 검증된 OCR 원문의 Markdown H1~H6를 계층으로 만들고 각 노드의 직접 본문만 최대 4,000자, overlap 없이 검색합니다. 검색문은 `발급사 + 카드명 + 전체 제목 경로 + 직접 본문`입니다. D20 이후 같은 카드의 결정론적 1-hop 근거를 최대 5개 묶어 모든 질의에 BGE를 적용합니다. 과거 `STRUCT-D20-K3` 개발 후보를 재현하지만 production 승격을 뜻하지 않습니다. 제목이 하나도 없는 OCR lane은 구조 손실로 보고 release를 차단합니다.
 
-live OCR은 비교 실험에서 선택한 조건대로 원본 PDF를 OpenAI Responses API의 Luna에 `detail=high`로 직접 전송하고, 같은 원본 PDF를 Upstage에 전송합니다. 두 OCR 텍스트는 서로 섞지 않은 별도 요청으로 같은 Luna 구조화 모델에 전송합니다. 외부 호출은 두 provider 승인 플래그와 API key가 모두 있어야 시작합니다. provider raw와 parsed structure를 각각 불변 체크포인트로 저장하므로 후속 parsing이 실패해도 같은 성공 응답을 재사용합니다. 손상 PDF는 해당 문서만 blocked로 기록하고 다음 문서를 계속 처리합니다. 106-card 전체 실행은 전송 범위와 비용 승인 전에는 실행하지 않습니다. 기존 개발 corpus/chunks/index와 notebook은 runtime 입력이 아닙니다.
+live OCR은 비교 실험에서 선택한 조건대로 원본 PDF를 OpenAI Responses API의 Luna에 `detail=high`로 직접 전송하고, 같은 원본 PDF를 Upstage에 전송합니다. 두 OCR 텍스트는 서로 섞지 않은 별도 요청으로 같은 Luna 구조화 모델에 전송합니다. `extract`는 두 provider 승인 플래그와 두 API key가 모두 있어야 시작하고, `structure`는 Luna 승인 플래그와 OpenAI API key가 있어야 시작합니다. `normalize`와 `validate`에는 승인 플래그나 API key가 필요하지 않습니다. provider raw와 parsed structure를 각각 불변 체크포인트로 저장하므로 후속 parsing이 실패해도 같은 성공 응답을 재사용합니다. 손상 PDF는 해당 문서만 blocked로 기록하고 다음 문서를 계속 처리합니다. 106-card 전체 실행은 전송 범위와 비용 승인 전에는 실행하지 않습니다. 기존 개발 corpus/chunks/index와 notebook은 runtime 입력이 아닙니다.
 
 Luna OCR 요청에는 선택 실험과 동일하게 별도의 작은 출력 한도를 강제하지 않습니다. 후속 구조화 요청은 reasoning `max`가 JSON을 만들기 전에 작은 고정 한도를 모두 쓰는 일을 막기 위해 모델 상한인 128,000토큰으로 둡니다. 상한 전체가 아니라 실제 사용량만 과금됩니다.
 
@@ -32,10 +39,26 @@ conda run -n skn25 pickcardu-indexer index \
   --fake-vectors
 ```
 
-live OCR은 `OPENAI_API_KEY`, `UPSTAGE_API_KEY`를 환경 변수로 제공하고 아래처럼 실행합니다. `--confirm-luna`는 원본 PDF와 두 OCR 텍스트의 OpenAI 전송, `--confirm-upstage`는 원본 PDF의 Upstage 전송을 승인합니다. 불변 provider 원응답과 단계별 checkpoint는 `data/rag/runtime/ocr-cache/`, run별 OCR text·JSON·검증 view는 `data/rag/runtime/working/<run-id>/` 아래에 남고 Git에는 포함하지 않습니다. OCR cache key와 구조화 cache key는 분리되어 구조화 설정만 바꾼 새 run이 원본 PDF OCR을 다시 호출하지 않습니다.
+live OCR은 `OPENAI_API_KEY`, `UPSTAGE_API_KEY`를 환경 변수로 제공합니다. `extract`의 `--confirm-luna`와 `--confirm-upstage`는 원본 PDF 외부 전송 승인이고, `structure`의 `--confirm-luna`는 두 OCR 텍스트의 OpenAI 전송 승인입니다. `normalize`와 `validate`는 외부 전송이 없습니다. 불변 provider 원응답과 단계별 checkpoint는 `data/rag/runtime/ocr-cache/`, run별 OCR text·JSON·검증 view는 `data/rag/runtime/working/<run-id>/` 아래에 남고 Git에는 포함하지 않습니다.
 
 ```bash
-conda run -n skn25 pickcardu-indexer ocr \
+conda run -n skn25 pickcardu-indexer ocr extract \
+  --source-manifest fixtures/source-manifest.json \
+  --confirm-luna \
+  --confirm-upstage
+
+conda run -n skn25 pickcardu-indexer ocr structure \
+  --source-manifest fixtures/source-manifest.json \
+  --confirm-luna
+
+conda run -n skn25 pickcardu-indexer ocr normalize \
+  --source-manifest fixtures/source-manifest.json
+
+conda run -n skn25 pickcardu-indexer ocr validate \
+  --source-manifest fixtures/source-manifest.json
+
+# 구조가 안정된 뒤 네 단계를 장벽 방식으로 한 번에 실행
+conda run -n skn25 pickcardu-indexer ocr run \
   --source-manifest fixtures/source-manifest.json \
   --confirm-luna \
   --confirm-upstage
@@ -49,10 +72,21 @@ conda run -n skn25 pickcardu-indexer index \
 106개 source는 기존 `data/rag/manifest.json`을 직접 사용할 수 있습니다. 외부 OCR·구조화와 embedding 전송 승인을 각각 받은 뒤에만 실행합니다.
 
 ```bash
-conda run -n skn25 pickcardu-indexer ocr \
+conda run -n skn25 pickcardu-indexer ocr extract \
   --source-manifest data/rag/manifest.json \
   --confirm-luna \
   --confirm-upstage
+
+# extract 106개가 모두 성공한 뒤에만 실행
+conda run -n skn25 pickcardu-indexer ocr structure \
+  --source-manifest data/rag/manifest.json \
+  --confirm-luna
+
+conda run -n skn25 pickcardu-indexer ocr normalize \
+  --source-manifest data/rag/manifest.json
+
+conda run -n skn25 pickcardu-indexer ocr validate \
+  --source-manifest data/rag/manifest.json
 
 conda run -n skn25 pickcardu-indexer index \
   --run-id <run-id> \

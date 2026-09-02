@@ -429,6 +429,158 @@ class IndexerTest(unittest.TestCase):
         normalized = upstage_pages({"elements": [{"page": 1, "content": {"markdown": "Issuer Card"}}]}, 1)
         self.assertEqual(normalized[0]["text"], "Issuer Card")
 
+    def test_live_ocr_stages_are_independent_and_barriered(self) -> None:
+        import pymupdf
+
+        document = pymupdf.open()
+        document.new_page().insert_text((72, 72), "Issuer Card")
+        document.save(self.source)
+        document.close()
+        sources = {self.document_id: self.source}
+        luna_ocr, upstage_ocr, structurer = FakeTranscriber("luna"), FakeTranscriber("upstage"), FakeStructurer()
+        adapters = {
+            "luna": LiveLaneAdapter("luna", sources, self.root / "stage-cache", luna_ocr, structurer),
+            "upstage": LiveLaneAdapter("upstage", sources, self.root / "stage-cache", upstage_ocr, structurer),
+        }
+        config = {"mode": "staged-test", "luna": luna_ocr.config, "upstage": upstage_ocr.config, "structure": structurer.config}
+
+        extracted = self.indexer.staged_ocr(self.manifest, config=config, providers=adapters, stage="extract")
+        self.assertEqual(extracted["status"]["run"]["status"], "ocr_extracted")
+        self.assertEqual((luna_ocr.calls, upstage_ocr.calls), (1, 1))
+        self.assertEqual(structurer.calls, [])
+
+        structured = self.indexer.staged_ocr(self.manifest, config=config, providers=adapters, stage="structure")
+        self.assertEqual(structured["status"]["run"]["status"], "structured")
+        self.assertEqual((luna_ocr.calls, upstage_ocr.calls), (1, 1))
+        self.assertEqual(structurer.calls, ["luna", "upstage"])
+
+        normalized = self.indexer.staged_ocr(self.manifest, config=config, providers=adapters, stage="normalize")
+        self.assertEqual(normalized["status"]["run"]["status"], "normalized")
+        validated = self.indexer.staged_ocr(self.manifest, config=config, providers=adapters, stage="validate")
+        self.assertEqual(validated["status"]["run"]["status"], "canonical_approved")
+
+        empty_structurer = FakeStructurer()
+        empty_adapters = {
+            "luna": LiveLaneAdapter("luna", sources, self.root / "empty-stage-cache", FakeTranscriber("luna"), empty_structurer),
+            "upstage": LiveLaneAdapter("upstage", sources, self.root / "empty-stage-cache", FakeTranscriber("upstage"), empty_structurer),
+        }
+        blocked = self.indexer.staged_ocr(self.manifest, config={**config, "mode": "missing-extract"}, providers=empty_adapters, stage="structure")
+        self.assertEqual(blocked["status"]["run"]["status"], "blocked")
+        self.assertEqual(empty_structurer.calls, [])
+
+        parsed = cli_parser().parse_args(["ocr", "extract", "--source-manifest", str(self.manifest), "--confirm-luna", "--confirm-upstage"])
+        self.assertEqual(parsed.ocr_stage, "extract")
+
+    def test_ocr_orchestrator_stops_before_structure_when_any_extraction_fails(self) -> None:
+        import pymupdf
+
+        second_source = self.root / "second.pdf"
+        third_source = self.root / "third.pdf"
+        for path in (self.source, second_source, third_source):
+            document = pymupdf.open()
+            document.new_page().insert_text((72, 72), path.stem)
+            document.save(path)
+            document.close()
+        manifest = self.root / "three-documents.json"
+        write_json(manifest, {"documents": [
+            {"document_id": self.document_id, "source_pdf": str(self.source)},
+            {"document_id": "issuer/second", "source_pdf": str(second_source)},
+            {"document_id": "issuer/third", "source_pdf": str(third_source)},
+        ]})
+
+        class FailingTranscriber(FakeTranscriber):
+            def __init__(self, provider: str) -> None:
+                super().__init__(provider)
+                self.attempted: list[Path] = []
+
+            def request(self, source: Path):
+                self.attempted.append(source)
+                if source == second_source:
+                    raise OcrProviderError("fixture extraction failure")
+                return super().request(source)
+
+        sources = {self.document_id: self.source, "issuer/second": second_source, "issuer/third": third_source}
+        luna_ocr, upstage_ocr, structurer = FailingTranscriber("luna"), FakeTranscriber("upstage"), FakeStructurer()
+        adapters = {
+            "luna": LiveLaneAdapter("luna", sources, self.root / "barrier-cache", luna_ocr, structurer),
+            "upstage": LiveLaneAdapter("upstage", sources, self.root / "barrier-cache", upstage_ocr, structurer),
+        }
+        config = {"mode": "barrier-test", "luna": luna_ocr.config, "upstage": upstage_ocr.config, "structure": structurer.config}
+        result = self.indexer.orchestrated_ocr(manifest, config=config, providers=adapters)
+        self.assertEqual(result["completed_stages"], ["extract"])
+        self.assertEqual(result["stopped_before"], "structure")
+        self.assertEqual(result["status"]["run"]["status"], "blocked")
+        self.assertEqual(structurer.calls, [])
+        self.assertEqual(luna_ocr.attempted, [self.source, second_source, third_source])
+        self.assertEqual(upstage_ocr.calls, 3)
+        statuses = {row["document_id"]: row["status"] for row in result["status"]["documents"]}
+        self.assertEqual(statuses, {
+            self.document_id: "ocr_extracted",
+            "issuer/second": "blocked",
+            "issuer/third": "ocr_extracted",
+        })
+
+    def test_ocr_orchestrator_stops_before_normalize_when_structure_fails(self) -> None:
+        import pymupdf
+
+        document = pymupdf.open()
+        document.new_page().insert_text((72, 72), "Issuer Card")
+        document.save(self.source)
+        document.close()
+
+        class FailingStructurer(FakeStructurer):
+            def request(self, provider: str, pages: list[dict[str, object]]):
+                if provider == "luna":
+                    self.calls.append(provider)
+                    raise OcrProviderError("fixture structure failure")
+                return super().request(provider, pages)
+
+        sources = {self.document_id: self.source}
+        luna_ocr, upstage_ocr, structurer = FakeTranscriber("luna"), FakeTranscriber("upstage"), FailingStructurer()
+        adapters = {
+            "luna": LiveLaneAdapter("luna", sources, self.root / "structure-barrier-cache", luna_ocr, structurer),
+            "upstage": LiveLaneAdapter("upstage", sources, self.root / "structure-barrier-cache", upstage_ocr, structurer),
+        }
+        config = {"mode": "structure-barrier-test", "luna": luna_ocr.config, "upstage": upstage_ocr.config, "structure": structurer.config}
+
+        result = self.indexer.orchestrated_ocr(self.manifest, config=config, providers=adapters)
+
+        self.assertEqual(result["completed_stages"], ["extract", "structure"])
+        self.assertEqual(result["stopped_before"], "normalize")
+        self.assertEqual(result["status"]["run"]["status"], "blocked")
+        self.assertEqual(structurer.calls, ["luna", "upstage"])
+        self.assertFalse(any(row["stage"] == "normalize" for row in result["status"]["stages"]))
+
+    def test_ocr_orchestrator_stops_before_validate_when_normalize_fails(self) -> None:
+        import pymupdf
+
+        document = pymupdf.open()
+        document.new_page().insert_text((72, 72), "Issuer Card")
+        document.save(self.source)
+        document.close()
+
+        class FailingNormalizeAdapter(LiveLaneAdapter):
+            def normalize(self, document_id: str):
+                if self.provider == "luna":
+                    raise ValueError("fixture normalize failure")
+                return super().normalize(document_id)
+
+        sources = {self.document_id: self.source}
+        luna_ocr, upstage_ocr, structurer = FakeTranscriber("luna"), FakeTranscriber("upstage"), FakeStructurer()
+        adapters = {
+            "luna": FailingNormalizeAdapter("luna", sources, self.root / "normalize-barrier-cache", luna_ocr, structurer),
+            "upstage": FailingNormalizeAdapter("upstage", sources, self.root / "normalize-barrier-cache", upstage_ocr, structurer),
+        }
+        config = {"mode": "normalize-barrier-test", "luna": luna_ocr.config, "upstage": upstage_ocr.config, "structure": structurer.config}
+
+        result = self.indexer.orchestrated_ocr(self.manifest, config=config, providers=adapters)
+
+        self.assertEqual(result["completed_stages"], ["extract", "structure", "normalize"])
+        self.assertEqual(result["stopped_before"], "validate")
+        self.assertEqual(result["status"]["run"]["status"], "blocked")
+        validation_stages = {"ocr_comparison", "grounding", "structured", "relation"}
+        self.assertFalse(any(row["stage"] in validation_stages for row in result["status"]["stages"]))
+
     def test_upstage_multi_page_grounding_requires_explicit_complete_pages(self) -> None:
         valid = upstage_pages(
             {"usage": {"pages": 2}, "elements": [
@@ -564,6 +716,44 @@ class IndexerTest(unittest.TestCase):
         ])
         with self.assertRaisesRegex(RuntimeError, "mutually exclusive"):
             run_ocr(self.indexer, mixed)
+
+    def test_cli_stage_approval_boundaries(self) -> None:
+        structure_without_approval = cli_parser().parse_args([
+            "ocr", "structure", "--source-manifest", str(self.manifest),
+        ])
+        with mock.patch.dict(os.environ, {"OPENAI_API_KEY": "fixture"}, clear=True), self.assertRaisesRegex(
+            RuntimeError, "--confirm-luna"
+        ):
+            run_ocr(self.indexer, structure_without_approval)
+
+        structure_without_key = cli_parser().parse_args([
+            "ocr", "structure", "--source-manifest", str(self.manifest), "--confirm-luna",
+        ])
+        with mock.patch.dict(os.environ, {}, clear=True), self.assertRaisesRegex(RuntimeError, "OPENAI_API_KEY"):
+            run_ocr(self.indexer, structure_without_key)
+
+        fake_luna, fake_upstage, fake_structurer = FakeTranscriber("luna"), FakeTranscriber("upstage"), FakeStructurer()
+        constructors = (
+            mock.patch("pickcardu_indexer.__main__.LunaOcrTranscriber", return_value=fake_luna),
+            mock.patch("pickcardu_indexer.__main__.UpstageOcrTranscriber", return_value=fake_upstage),
+            mock.patch("pickcardu_indexer.__main__.LunaFactStructurer", return_value=fake_structurer),
+        )
+        with constructors[0], constructors[1], constructors[2], mock.patch.object(
+            self.indexer, "staged_ocr", return_value={"run_id": "fixture"}
+        ) as staged:
+            structure = cli_parser().parse_args([
+                "ocr", "structure", "--source-manifest", str(self.manifest), "--confirm-luna",
+            ])
+            with mock.patch.dict(os.environ, {"OPENAI_API_KEY": "fixture"}, clear=True):
+                run_ocr(self.indexer, structure)
+            self.assertEqual(staged.call_args.kwargs["stage"], "structure")
+
+            for stage in ("normalize", "validate"):
+                staged.reset_mock()
+                arguments = cli_parser().parse_args(["ocr", stage, "--source-manifest", str(self.manifest)])
+                with mock.patch.dict(os.environ, {}, clear=True):
+                    run_ocr(self.indexer, arguments)
+                self.assertEqual(staged.call_args.kwargs["stage"], stage)
 
     def test_two_phase_index_and_partial_real_release_is_preview_only(self) -> None:
         prepared = self.indexer.ocr(self.manifest, self.luna_dir, self.upstage_dir, config={"mode": "local-fixture"})

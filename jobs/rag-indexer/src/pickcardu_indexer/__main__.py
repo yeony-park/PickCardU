@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .ocr import LiveLaneAdapter, LunaFactStructurer, LunaOcrTranscriber, UpstageOcrTranscriber
-from .pipeline import Indexer, OpenAIEmbeddingAdapter
+from .pipeline import Indexer, OpenAIEmbeddingAdapter, read_source_manifest
 
 
 def json_output(value: Any) -> None:
@@ -23,12 +23,13 @@ def parser() -> argparse.ArgumentParser:
     command.add_argument("--runtime-root", type=Path, default=Path("data/rag/runtime"))
     subcommands = command.add_subparsers(dest="command", required=True)
 
-    ocr = subcommands.add_parser("ocr", help="run or import dual OCR, structure both lanes, and validate")
+    ocr = subcommands.add_parser("ocr", help="run one OCR stage or the barriered end-to-end workflow")
+    ocr.add_argument("ocr_stage", nargs="?", choices=("extract", "structure", "normalize", "validate", "run"), default="run")
     ocr.add_argument("--source-manifest", type=Path, required=True)
     ocr.add_argument("--luna-json-dir", type=Path)
     ocr.add_argument("--upstage-json-dir", type=Path)
-    ocr.add_argument("--confirm-luna", action="store_true", help="allow source PDFs and both OCR texts to be sent to OpenAI")
-    ocr.add_argument("--confirm-upstage", action="store_true", help="allow source PDFs to be sent to Upstage")
+    ocr.add_argument("--confirm-luna", action="store_true", help="allow extract PDFs or structure OCR texts to be sent to OpenAI")
+    ocr.add_argument("--confirm-upstage", action="store_true", help="allow extract PDFs to be sent to Upstage")
     ocr.add_argument("--luna-model", default="gpt-5.6-luna")
     ocr.add_argument("--luna-reasoning", default="max")
     ocr.add_argument("--structure-model", default="gpt-5.6-luna")
@@ -86,33 +87,40 @@ def embedding_adapter(arguments: argparse.Namespace) -> OpenAIEmbeddingAdapter |
 
 
 def run_ocr(indexer: Indexer, arguments: argparse.Namespace) -> dict[str, Any]:
+    stage = arguments.ocr_stage
     local = bool(arguments.luna_json_dir or arguments.upstage_json_dir)
     live = bool(arguments.confirm_luna or arguments.confirm_upstage)
     if local and live:
         raise RuntimeError("local OCR artifacts and live OCR approvals are mutually exclusive")
     if local:
+        if stage != "run":
+            raise RuntimeError("local fixture import supports only the complete run")
         if not (arguments.luna_json_dir and arguments.upstage_json_dir):
             raise RuntimeError("both local Luna and Upstage directories are required")
         return indexer.ocr(arguments.source_manifest, arguments.luna_json_dir, arguments.upstage_json_dir, config={"mode": "local_dual_lane_v1"})
-    if not (arguments.confirm_luna and arguments.confirm_upstage):
-        raise RuntimeError("live OCR requires both --confirm-luna and --confirm-upstage")
-    openai_key, upstage_key = os.environ.get("OPENAI_API_KEY"), os.environ.get("UPSTAGE_API_KEY")
-    if not openai_key or not upstage_key:
-        raise RuntimeError("OPENAI_API_KEY and UPSTAGE_API_KEY are required for approved live OCR")
+    openai_key, upstage_key = os.environ.get("OPENAI_API_KEY", ""), os.environ.get("UPSTAGE_API_KEY", "")
+    if stage in {"extract", "run"} and not (arguments.confirm_luna and arguments.confirm_upstage):
+        raise RuntimeError("OCR extraction requires both --confirm-luna and --confirm-upstage")
+    if stage in {"extract", "run"} and (not openai_key or not upstage_key):
+        raise RuntimeError("OPENAI_API_KEY and UPSTAGE_API_KEY are required for approved OCR extraction")
+    if stage == "structure" and not arguments.confirm_luna:
+        raise RuntimeError("OCR structuring requires --confirm-luna")
+    if stage == "structure" and not openai_key:
+        raise RuntimeError("OPENAI_API_KEY is required for approved OCR structuring")
     luna = LunaOcrTranscriber(openai_key, model=arguments.luna_model, reasoning=arguments.luna_reasoning)
     upstage = UpstageOcrTranscriber(upstage_key)
     structurer = LunaFactStructurer(openai_key, model=arguments.structure_model, reasoning=arguments.structure_reasoning)
     config = {"mode": "live_dual_ocr_v1", "luna": luna.config, "upstage": upstage.config, "structure": structurer.config}
 
-    def providers(_run_id: str, documents: list[dict[str, str]]):
-        sources = {row["document_id"]: Path(row["source_pdf"]) for row in documents}
-        root = arguments.runtime_root / "ocr-cache"
-        return {
-            "luna": LiveLaneAdapter("luna", sources, root, luna, structurer),
-            "upstage": LiveLaneAdapter("upstage", sources, root, upstage, structurer),
-        }
-
-    return indexer.ocr(arguments.source_manifest, None, None, config=config, providers=providers)
+    sources = {row["document_id"]: Path(row["source_pdf"]) for row in read_source_manifest(arguments.source_manifest)}
+    root = arguments.runtime_root / "ocr-cache"
+    providers = {
+        "luna": LiveLaneAdapter("luna", sources, root, luna, structurer),
+        "upstage": LiveLaneAdapter("upstage", sources, root, upstage, structurer),
+    }
+    if stage != "run":
+        return indexer.staged_ocr(arguments.source_manifest, config=config, providers=providers, stage=stage)
+    return indexer.orchestrated_ocr(arguments.source_manifest, config=config, providers=providers)
 
 
 def main(argv: list[str] | None = None) -> int:

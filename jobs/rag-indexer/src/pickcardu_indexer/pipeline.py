@@ -18,7 +18,7 @@ from typing import Any, Callable, Iterable, Protocol
 import numpy as np
 
 from .state import StateStore, canonical_json
-from .ocr import OcrProviderError, pages_text
+from .ocr import LiveLaneAdapter, OcrProviderError, pages_text
 from .structural import STRUCTURAL_CONTRACT, build_structural_chunks, render_pages
 
 
@@ -605,6 +605,211 @@ class Indexer:
             if not detail.get("page_count_equal") or not detail.get("all_normalized_text_equal"):
                 differences.append(stage["document_id"])
         return {"run_id": run_id, "ocr_difference_documents": differences, "status": status}
+
+    def staged_ocr(
+        self,
+        source_manifest: Path,
+        *,
+        config: dict[str, Any],
+        providers: dict[str, LiveLaneAdapter],
+        stage: str,
+    ) -> dict[str, Any]:
+        if stage not in {"extract", "structure", "normalize", "validate"}:
+            raise ValueError("OCR stage must be extract, structure, normalize, or validate")
+        documents = read_source_manifest(source_manifest)
+        input_hash = input_fingerprint(source_manifest, documents, None, None)
+        effective_config = {**config, "pipeline_contract": OCR_PIPELINE_CONTRACT}
+        config_hash = sha256_bytes(canonical_json(effective_config).encode())
+        run_id = "run_" + sha256_bytes(f"{input_hash}:{config_hash}".encode())[:16]
+        run_id = self.state.find_or_create_run(run_id, input_hash, config_hash, now())
+        if set(providers) != {"luna", "upstage"} or any(providers[name].provider != name for name in providers):
+            raise ValueError("exactly independent Luna and Upstage live adapters are required")
+
+        source_hashes: dict[str, str] = {}
+        preflight_failed = False
+        for document in documents:
+            document_id, source_path = document["document_id"], Path(document["source_pdf"])
+            try:
+                source_hash = sha256_file(source_path)
+            except OSError as error:
+                source_hash = f"unreadable:{type(error).__name__}"
+                self.state.upsert_document(run_id, document_id, str(source_path), source_hash, "blocked")
+                self.state.record_stage(run_id, document_id, "source", source_hash, "blocked", {"error": type(error).__name__}, now())
+                preflight_failed = True
+                continue
+            source_hashes[document_id] = source_hash
+            self.state.upsert_document(run_id, document_id, str(source_path), source_hash, "running")
+            self.state.record_stage(run_id, document_id, "source", source_hash, "completed", {"source_sha256": source_hash}, now())
+            self._record_json_artifact(run_id, document_id, "source", None, self._document_root(run_id, document_id) / "source.json", {"document_id": document_id, "source_pdf": str(source_path), "source_pdf_sha256": source_hash})
+        if preflight_failed:
+            self.state.set_run_status(run_id, "blocked", now())
+            return {"run_id": run_id, "stage": stage, "status": self.state.status(run_id)}
+
+        prerequisite = {"structure": "read_extracted", "normalize": "read_structured", "validate": "read_normalized"}.get(stage)
+        if prerequisite:
+            missing: list[tuple[str, str, str]] = []
+            for document in documents:
+                for provider, adapter in providers.items():
+                    try:
+                        getattr(adapter, prerequisite)(document["document_id"])
+                    except (FileNotFoundError, RuntimeError, OcrProviderError) as error:
+                        missing.append((document["document_id"], provider, str(error)))
+            if missing:
+                for document_id, provider, error in missing:
+                    self.state.set_document_status(run_id, document_id, "blocked")
+                    self.state.record_stage(run_id, document_id, stage, source_hashes[document_id], "blocked", {"provider": provider, "error": error, "action": f"complete previous stage before {stage}"}, now())
+                self.state.set_run_status(run_id, "blocked", now())
+                return {"run_id": run_id, "stage": stage, "status": self.state.status(run_id)}
+
+        for document in documents:
+            document_id = document["document_id"]
+            source_hash = source_hashes[document_id]
+            if stage in {"extract", "structure", "normalize"}:
+                errors = []
+                for provider, adapter in providers.items():
+                    try:
+                        if stage == "extract":
+                            _path, envelope = adapter.extract(document_id)
+                            self._materialize_extracted(run_id, document_id, provider, envelope, adapter)
+                        elif stage == "structure":
+                            _path, envelope = adapter.structure(document_id)
+                            self._materialize_structured(run_id, document_id, provider, envelope, adapter)
+                        else:
+                            _path, payload = adapter.normalize(document_id)
+                            self._materialize_lane(run_id, document_id, provider, payload, adapter)
+                    except (OcrProviderError, FileNotFoundError, RuntimeError, ValueError) as error:
+                        errors.append({"provider": provider, "error": str(error), "retryable": isinstance(error, OcrProviderError) and error.retryable})
+                if errors:
+                    self.state.set_document_status(run_id, document_id, "blocked")
+                    self.state.record_stage(run_id, document_id, stage, source_hash, "blocked", {"errors": errors}, now(), retryable=any(row["retryable"] for row in errors))
+                elif stage == "extract":
+                    self.state.set_document_status(run_id, document_id, "ocr_extracted")
+                    self.state.record_stage(run_id, document_id, "ocr_extract", source_hash, "completed", {"providers": ["luna", "upstage"]}, now())
+                elif stage == "structure":
+                    self.state.set_document_status(run_id, document_id, "structured")
+                    self.state.record_stage(run_id, document_id, "structure", source_hash, "completed", {"providers": ["luna", "upstage"]}, now())
+                else:
+                    self.state.set_document_status(run_id, document_id, "normalized")
+                    self.state.record_stage(run_id, document_id, "normalize", source_hash, "completed", {"providers": ["luna", "upstage"]}, now())
+            else:
+                try:
+                    luna_path, luna_payload = providers["luna"].read_normalized(document_id)
+                    upstage_path, upstage_payload = providers["upstage"].read_normalized(document_id)
+                    self._validate_staged_document(run_id, document_id, source_hash, luna_path, luna_payload, upstage_path, upstage_payload)
+                except (OcrProviderError, FileNotFoundError, RuntimeError, ValueError) as error:
+                    self.state.set_document_status(run_id, document_id, "blocked")
+                    retryable = isinstance(error, OcrProviderError) and error.retryable
+                    self.state.record_stage(run_id, document_id, stage, source_hash, "blocked", {"error": str(error)}, now(), retryable=retryable)
+
+        expected = {"extract": "ocr_extracted", "structure": "structured", "normalize": "normalized"}.get(stage)
+        statuses = {str(row["status"]) for row in self.state.documents(run_id)}
+        if "blocked" in statuses:
+            run_status = "blocked"
+        elif "review" in statuses:
+            run_status = "review"
+        elif statuses == {"canonical_approved"}:
+            run_status = "canonical_approved"
+        elif expected and statuses == {expected}:
+            run_status = expected
+        else:
+            run_status = "failed"
+        self.state.set_run_status(run_id, run_status, now())
+        return {"run_id": run_id, "stage": stage, "status": self.state.status(run_id)}
+
+    def orchestrated_ocr(
+        self,
+        source_manifest: Path,
+        *,
+        config: dict[str, Any],
+        providers: dict[str, LiveLaneAdapter],
+    ) -> dict[str, Any]:
+        completed = []
+        result: dict[str, Any] = {}
+        expected = {"extract": "ocr_extracted", "structure": "structured", "normalize": "normalized"}
+        next_stage = {"extract": "structure", "structure": "normalize", "normalize": "validate"}
+        for stage in ("extract", "structure", "normalize", "validate"):
+            result = self.staged_ocr(source_manifest, config=config, providers=providers, stage=stage)
+            completed.append(stage)
+            if stage != "validate" and result["status"]["run"]["status"] != expected[stage]:
+                return {**result, "completed_stages": completed, "stopped_before": next_stage[stage]}
+        return {**result, "completed_stages": completed}
+
+    def _record_adapter_artifacts(self, run_id: str, document_id: str, provider: str, adapter: LiveLaneAdapter) -> None:
+        for kind, path in adapter.artifact_paths(document_id).items():
+            if path.is_file():
+                self.state.record_artifact(run_id, document_id, kind, provider, str(path), sha256_file(path), {})
+
+    def _materialize_extracted(self, run_id: str, document_id: str, provider: str, envelope: dict[str, Any], adapter: LiveLaneAdapter) -> None:
+        root = self._document_root(run_id, document_id) / provider
+        pages = [{"page": row["page"], "text": row["text"]} for row in envelope["pages"]]
+        self._record_json_artifact(run_id, document_id, "ocr_pages", provider, root / "pages.json", {"document_id": document_id, "provider": provider, "pages": pages})
+        text = pages_text(pages).encode("utf-8")
+        write_immutable(root / "ocr.txt", text)
+        self.state.record_artifact(run_id, document_id, "ocr_text", provider, str(root / "ocr.txt"), sha256_bytes(text), {})
+        self._record_adapter_artifacts(run_id, document_id, provider, adapter)
+
+    def _materialize_structured(self, run_id: str, document_id: str, provider: str, envelope: dict[str, Any], adapter: LiveLaneAdapter) -> None:
+        root = self._document_root(run_id, document_id) / provider
+        self._record_json_artifact(run_id, document_id, "structured_json", provider, root / "structured.json", envelope)
+        self._record_adapter_artifacts(run_id, document_id, provider, adapter)
+
+    def _validate_staged_document(
+        self,
+        run_id: str,
+        document_id: str,
+        source_hash: str,
+        luna_path: Path,
+        luna_payload: dict[str, Any],
+        upstage_path: Path,
+        upstage_payload: dict[str, Any],
+    ) -> None:
+        try:
+            if luna_path.resolve() == upstage_path.resolve() or sha256_file(luna_path) == sha256_file(upstage_path):
+                raise ValueError("provider artifacts must be distinct")
+            if luna_payload.get("source_pdf_sha256") != source_hash or upstage_payload.get("source_pdf_sha256") != source_hash:
+                raise ValueError("provider artifact source hash mismatch")
+            ocr_comparison = compare_ocr_outputs(luna_payload, upstage_payload)
+            self._validation_artifact(run_id, document_id, "ocr_comparison", ocr_comparison)
+            self.state.record_stage(run_id, document_id, "ocr_comparison", sha256_bytes(canonical_json(ocr_comparison).encode()), "completed", ocr_comparison, now())
+            luna = validate_lane("luna", luna_payload)
+            self._validation_artifact(run_id, document_id, "luna_text_to_json", {"status": "pass", "facts": len(luna), "source_pdf_sha256": source_hash})
+            upstage = validate_lane("upstage", upstage_payload)
+            self._validation_artifact(run_id, document_id, "upstage_text_to_json", {"status": "pass", "facts": len(upstage), "source_pdf_sha256": source_hash})
+            self.state.record_stage(run_id, document_id, "grounding", sha256_bytes(canonical_json([luna, upstage]).encode()), "completed", {"lanes": ["luna", "upstage"]}, now())
+        except LaneRestructureRequired as error:
+            self.state.set_document_status(run_id, document_id, "blocked")
+            self._validation_artifact(run_id, document_id, "restructure_required", {"status": "blocked", "error": str(error)})
+            self.state.record_stage(run_id, document_id, "validate", source_hash, "blocked", {"error": str(error), "action": "new structuring run"}, now())
+            return
+        except (ValueError, FileNotFoundError) as error:
+            signature = sha256_bytes(str(error).encode())
+            self.state.open_review(run_id, document_id, "grounding_or_rule", signature, {"error": str(error)})
+            self.state.set_document_status(run_id, document_id, "review")
+            self._validation_artifact(run_id, document_id, "grounding_failure", {"status": "review", "error": str(error)})
+            self.state.record_stage(run_id, document_id, "validate", source_hash, "review", {"error": str(error)}, now())
+            return
+        canonical, mismatch, identity_mismatch = canonical_from_lanes(luna, upstage, luna_payload, upstage_payload)
+        comparison = {"status": "review" if mismatch or identity_mismatch else "pass", "relation_mismatch": mismatch, "identity_mismatch": identity_mismatch}
+        self._validation_artifact(run_id, document_id, "normalized_json_comparison", comparison)
+        if identity_mismatch:
+            signature = sha256_bytes(canonical_json(identity_mismatch).encode())
+            self.state.open_review(run_id, document_id, "identity_mismatch", signature, identity_mismatch)
+            self.state.set_document_status(run_id, document_id, "review")
+            self.state.record_stage(run_id, document_id, "validate", signature, "review", identity_mismatch, now())
+            return
+        if mismatch:
+            signature = sha256_bytes(canonical_json(mismatch).encode())
+            self.state.open_review(run_id, document_id, "relation_mismatch", signature, mismatch)
+            self.state.set_document_status(run_id, document_id, "review")
+            self.state.record_stage(run_id, document_id, "validate", signature, "review", mismatch, now())
+            return
+        self._write_canonical(
+            run_id,
+            document_id,
+            canonical,
+            {"issuer_name": normalized(luna_payload["identity"]["issuer_name"]), "card_name": normalized(luna_payload["identity"]["card_name"]), "evidence_refs": {"luna": luna_payload["identity"], "upstage": upstage_payload["identity"]}},
+            structure_provider="upstage",
+        )
 
     def index(
         self,
