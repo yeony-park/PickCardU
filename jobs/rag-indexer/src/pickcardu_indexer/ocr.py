@@ -18,6 +18,8 @@ STRUCTURE_MODEL = "gpt-5.6-luna"
 STRUCTURE_REASONING = "max"
 UPSTAGE_ENDPOINT = "https://api.upstage.ai/v1/document-digitization"
 UPSTAGE_MODEL = "document-parse"
+MAX_MODEL_OUTPUT_TOKENS = 128_000
+OUTPUT_TOKENS_PER_PAGE = 4_000
 
 OCR_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -146,6 +148,12 @@ def _sha256_file(path: Path) -> str:
         for block in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def page_scaled_output_tokens(page_count: int, *, floor: int) -> int:
+    if isinstance(page_count, bool) or not isinstance(page_count, int) or page_count < 1 or floor < 1:
+        raise ValueError("output token policy requires positive page count and floor")
+    return min(MAX_MODEL_OUTPUT_TOKENS, max(floor, page_count * OUTPUT_TOKENS_PER_PAGE))
 
 
 def _write_once(path: Path, value: bytes) -> None:
@@ -286,7 +294,7 @@ class LunaOcrTranscriber:
 
     @property
     def config(self) -> dict[str, Any]:
-        return {"endpoint": "openai.responses", "model": self.model, "reasoning": self.reasoning, "prompt_sha256": _sha256(OCR_PROMPT.encode()), "schema_sha256": _sha256(_json_bytes(OCR_SCHEMA))}
+        return {"endpoint": "openai.responses", "model": self.model, "reasoning": self.reasoning, "prompt_sha256": _sha256(OCR_PROMPT.encode()), "schema_sha256": _sha256(_json_bytes(OCR_SCHEMA)), "max_output_policy": "page_scaled_4000_floor_12000_cap_128000"}
 
     def request(self, source: Path) -> tuple[dict[str, Any], int]:
         if self._client is None:
@@ -305,7 +313,7 @@ class LunaOcrTranscriber:
                 ]}],
                 text={"format": {"type": "json_schema", "name": "ocr_pages", "strict": True, "schema": OCR_SCHEMA}},
                 store=False,
-                max_output_tokens=12000,
+                max_output_tokens=page_scaled_output_tokens(count, floor=12_000),
                 timeout=900.0,
             )
         except Exception as error:
@@ -378,7 +386,7 @@ class LunaFactStructurer:
 
     @property
     def config(self) -> dict[str, Any]:
-        return {"endpoint": "openai.responses", "model": self.model, "reasoning": self.reasoning, "prompt_sha256": _sha256(STRUCTURE_PROMPT.encode()), "schema_sha256": _sha256(_json_bytes(STRUCTURE_SCHEMA))}
+        return {"endpoint": "openai.responses", "model": self.model, "reasoning": self.reasoning, "prompt_sha256": _sha256(STRUCTURE_PROMPT.encode()), "schema_sha256": _sha256(_json_bytes(STRUCTURE_SCHEMA)), "max_output_policy": "page_scaled_4000_floor_16000_cap_128000"}
 
     def request(self, provider: str, pages: list[dict[str, Any]]) -> dict[str, Any]:
         if self._client is None:
@@ -393,7 +401,7 @@ class LunaFactStructurer:
                 input=[{"role": "user", "content": [{"type": "input_text", "text": f"{STRUCTURE_PROMPT}\nLane: {provider}\nOCR pages JSON:\n{source}"}]}],
                 text={"format": {"type": "json_schema", "name": "card_facts", "strict": True, "schema": STRUCTURE_SCHEMA}},
                 store=False,
-                max_output_tokens=16000,
+                max_output_tokens=page_scaled_output_tokens(len(pages), floor=16_000),
                 timeout=900.0,
             )
         except Exception as error:

@@ -15,6 +15,8 @@ OCR 검증은 서로 다른 목적의 세 단계입니다.
 
 live OCR은 원본 PDF를 Luna와 Upstage에 각각 전송하고, 두 OCR 텍스트를 서로 섞지 않은 별도 요청으로 같은 Luna 구조화 모델에 전송합니다. 외부 호출은 두 provider 승인 플래그와 API key가 모두 있어야 시작합니다. provider raw와 parsed structure를 각각 불변 체크포인트로 저장하므로 후속 parsing이 실패해도 같은 성공 응답을 재사용합니다. 손상 PDF는 해당 문서만 blocked로 기록하고 다음 문서를 계속 처리합니다. 106-card 전체 실행은 전송 범위와 비용 승인 전에는 실행하지 않습니다. 기존 개발 corpus/chunks/index와 notebook은 runtime 입력이 아닙니다.
 
+Luna의 출력 한도는 문서 페이지 수에 따라 페이지당 4,000토큰으로 늘리되 OCR은 최소 12,000, 구조화는 최소 16,000, 둘 다 최대 128,000토큰으로 제한합니다. 이는 최대 48페이지인 현재 manifest에서 긴 문서가 고정된 작은 출력 한도로 잘리는 것을 방지하기 위한 상한이며 실제 사용량만 과금됩니다.
+
 ## Install and use
 
 ```bash

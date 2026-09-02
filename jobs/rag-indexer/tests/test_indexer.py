@@ -33,7 +33,7 @@ from pickcardu_indexer.pipeline import (  # noqa: E402
     validate_lane,
 )
 from pickcardu_indexer.__main__ import parser as cli_parser, run_ocr  # noqa: E402
-from pickcardu_indexer.ocr import LiveLaneAdapter, LunaFactStructurer, LunaOcrTranscriber, OcrProviderError, pages_text, upstage_pages  # noqa: E402
+from pickcardu_indexer.ocr import LiveLaneAdapter, LunaFactStructurer, LunaOcrTranscriber, OcrProviderError, page_scaled_output_tokens, pages_text, upstage_pages  # noqa: E402
 from pickcardu_indexer.structural import build_structural_chunks  # noqa: E402
 from pickcardu_rag_api.config import Settings  # noqa: E402
 from pickcardu_rag_api.index import ActiveIndexLoader  # noqa: E402
@@ -412,16 +412,19 @@ class IndexerTest(unittest.TestCase):
         self.assertEqual(provenance["endpoint"], "openai.responses")
         self.assertFalse(ocr_client.calls[0]["store"])
         self.assertEqual(ocr_client.calls[0]["text"]["format"]["name"], "ocr_pages")
+        self.assertEqual(ocr_client.calls[0]["max_output_tokens"], 12_000)
 
         structured = FakeStructurer().structure("luna", [{"page": 1, "text": "Issuer Card\n상품 안내: 카페 monthly 1% 할인"}])[1]
         structure_client = FakeResponsesClient([structured])
         _, output = LunaFactStructurer("secret", client=structure_client).structure("luna", pages)
         self.assertEqual(output["identity"]["card_name"], "Card")
         self.assertEqual(structure_client.calls[0]["text"]["format"]["name"], "card_facts")
+        self.assertEqual(structure_client.calls[0]["max_output_tokens"], 16_000)
         self.assertNotIn("upstage", structure_client.calls[0]["input"][0]["content"][0]["text"].casefold())
 
         normalized = upstage_pages({"elements": [{"page": 1, "content": {"markdown": "Issuer Card"}}]}, 1)
         self.assertEqual(normalized[0]["text"], "Issuer Card")
+        self.assertEqual(page_scaled_output_tokens(48, floor=12_000), 128_000)
 
     def test_upstage_multi_page_grounding_requires_explicit_complete_pages(self) -> None:
         valid = upstage_pages(
