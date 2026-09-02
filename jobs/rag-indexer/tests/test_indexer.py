@@ -33,7 +33,7 @@ from pickcardu_indexer.pipeline import (  # noqa: E402
     validate_lane,
 )
 from pickcardu_indexer.__main__ import parser as cli_parser, run_ocr  # noqa: E402
-from pickcardu_indexer.ocr import LiveLaneAdapter, LunaFactStructurer, LunaOcrTranscriber, OcrProviderError, pages_text, upstage_pages  # noqa: E402
+from pickcardu_indexer.ocr import STRUCTURE_PROMPT, LiveLaneAdapter, LunaFactStructurer, LunaOcrTranscriber, OcrProviderError, pages_text, upstage_pages  # noqa: E402
 from pickcardu_indexer.structural import build_structural_chunks  # noqa: E402
 from pickcardu_rag_api.config import Settings  # noqa: E402
 from pickcardu_rag_api.index import ActiveIndexLoader  # noqa: E402
@@ -424,6 +424,7 @@ class IndexerTest(unittest.TestCase):
         self.assertEqual(structure_client.calls[0]["text"]["format"]["name"], "card_facts")
         self.assertEqual(structure_client.calls[0]["max_output_tokens"], 128_000)
         self.assertNotIn("upstage", structure_client.calls[0]["input"][0]["content"][0]["text"].casefold())
+        self.assertIn("모든 필드는 같은 evidence.quote", STRUCTURE_PROMPT)
 
         normalized = upstage_pages({"elements": [{"page": 1, "content": {"markdown": "Issuer Card"}}]}, 1)
         self.assertEqual(normalized[0]["text"], "Issuer Card")

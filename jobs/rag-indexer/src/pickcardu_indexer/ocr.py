@@ -123,6 +123,7 @@ OCR_PROMPT = """원본 카드 상품안내서의 모든 페이지를 순서대�
 STRUCTURE_PROMPT = """주어진 단일 OCR lane만 사용해 카드 혜택을 구조화하세요. 다른 OCR 결과를 추측하거나 보완하지 마세요.
 issuer_name과 card_name을 추출하고, 혜택별 target, condition, value, unit, cap, frequency, period, exceptions를 문자열로 기록하세요.
 각 identity와 fact의 quote는 해당 page OCR 본문에 실제로 존재하는 정확한 연속 인용문이어야 합니다.
+한 fact의 비어 있지 않은 모든 필드는 같은 evidence.quote 안에서 문자 그대로 확인되어야 합니다. 다른 줄이나 문단의 조건·예외를 합치지 말고 그 문구 자체를 evidence.quote로 갖는 별도 fact로 작성하세요.
 OCR의 모든 비어 있지 않은 줄을 span_dispositions에 정확히 한 번 기록하고, fact/identity가 아닌 줄은 ignore와 구체적인 reason을 사용하세요.
 숫자, 단위, 조건과 예외를 정규화하거나 확대 해석하지 말고 지정된 JSON 형식만 반환하세요."""
 
