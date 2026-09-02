@@ -27,9 +27,10 @@ NUMBER = re.compile(r"\d+(?:[,.]\d+)?")
 RISKY_IGNORED_LINE = re.compile(r"할인|적립|캐시백|마일|포인트|무료|면제|혜택")
 NON_BENEFIT_IGNORED_LINE = re.compile(r"연회비|연체|수수료|신용평점|카드 발급|부가서비스.*(?:유지|변경)")
 LAYOUT_REASON = re.compile(r"제목|머리글|열(?:\s+)?제목")
+MARKUP_PREFIX = re.compile(r"^(?:[#>*•-]+\s*)+")
 CHUNKING_PROFILES = {"card_page_section_benefit", "parent_child_bundle"}
 DEFAULT_CHUNKING_PROFILE = "card_page_section_benefit"
-OCR_PIPELINE_CONTRACT = "dual-lane-grounded-v2"
+OCR_PIPELINE_CONTRACT = "dual-lane-grounded-v3"
 
 
 class LaneRestructureRequired(ValueError):
@@ -101,6 +102,12 @@ def input_fingerprint(source_manifest: Path, documents: list[dict[str, str]], lu
 
 def normalized(value: object) -> str:
     return " ".join(unicodedata.normalize("NFKC", str(value)).split())
+
+
+def spans_link(left: str, right: str) -> bool:
+    left_content = MARKUP_PREFIX.sub("", normalized(left))
+    right_content = MARKUP_PREFIX.sub("", normalized(right))
+    return bool(left_content and right_content and (left_content in right_content or right_content in left_content))
 
 
 def relation_tuple(fact: dict[str, str]) -> tuple[str, ...]:
@@ -364,18 +371,18 @@ def validate_lane(provider: str, payload: dict[str, Any]) -> list[dict[str, Any]
         ):
             raise LaneRestructureRequired(f"{provider} benefit-like ignored span requires a new structuring run")
         line = item[1]
-        if disposition["kind"] == "fact" and not any(quote in line or line in quote for quote in covered):
+        if disposition["kind"] == "fact" and not any(spans_link(quote, line) for quote in covered):
             raise ValueError(f"{provider} fact disposition is not linked to a validated fact")
-        if disposition["kind"] == "identity" and not any(quote in line or line in quote for quote in identity_quotes):
+        if disposition["kind"] == "identity" and not any(spans_link(quote, line) for quote in identity_quotes):
             raise ValueError(f"{provider} identity disposition is not linked to validated identity")
         mapped.add(item)
     if mapped != lines:
         raise ValueError(f"{provider} OCR line lacks explicit disposition")
     fact_lines = {normalized(row.get("quote", "")) for row in dispositions if row.get("kind") == "fact"}
     identity_lines = {normalized(row.get("quote", "")) for row in dispositions if row.get("kind") == "identity"}
-    if any(not any(quote in line or line in quote for line in fact_lines) for quote in covered):
+    if any(not any(spans_link(quote, line) for line in fact_lines) for quote in covered):
         raise ValueError(f"{provider} validated fact lacks a fact disposition")
-    if any(not any(quote in line or line in quote for line in identity_lines) for quote in identity_quotes):
+    if any(not any(spans_link(quote, line) for line in identity_lines) for quote in identity_quotes):
         raise ValueError(f"{provider} validated identity lacks an identity disposition")
     return validated
 

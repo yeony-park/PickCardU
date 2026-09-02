@@ -533,6 +533,10 @@ class IndexerTest(unittest.TestCase):
         repeated["pages"][0]["text"] = repeated["pages"][0]["text"].replace("Issuer Card", "Issuer Card\nIssuer Card")
         repeated["span_dispositions"].append(dict(repeated["span_dispositions"][0]))
         self.assertEqual(len(validate_lane("luna", repeated)), 1)
+        markdown_identity = lane(self.document_id, "luna")
+        markdown_identity["pages"][0]["text"] = markdown_identity["pages"][0]["text"].replace("Issuer Card", "# Issuer Card")
+        markdown_identity["span_dispositions"][0]["quote"] = "# Issuer Card"
+        self.assertEqual(len(validate_lane("luna", markdown_identity)), 1)
 
     def test_risky_ignore_is_non_resolvable_restructure_block(self) -> None:
         for provider, root in (("luna", self.luna_dir), ("upstage", self.upstage_dir)):
