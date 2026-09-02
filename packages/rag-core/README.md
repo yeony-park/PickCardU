@@ -24,8 +24,8 @@ corpus 파일 경로나 snapshot loader를 제공하지 않습니다. `LocalRera
 서비스 런타임의 lexical search는 메모리 BM25가 아니라 active release에 포함된 SQLite
 FTS5 `bm25()`를 사용합니다. 검색 프로필은 `card_page_section_benefit`과
 `parent_child_bundle`을 명시적으로 구분하며, 하나의 요청에서 서로 다른 프로필의 청크를
-섞지 않습니다. 기본 검색은 Vector:FTS5 BM25 `0.4:0.6`, 각 component Top50, reranker
-후보 20개, 사용자 출력 Top3입니다. 출력 Top5도 계약상 허용하지만 제품 기본값은 Top3입니다.
-section 또는 bundle 부모가 선택되면 답변 직전에 연결된 benefit 자식으로 hydration한 뒤
-카드별 근거를 구성합니다. 따라서 상위 청크의 검색 범위는 활용하되, LLM citation은 실제
-혜택 leaf의 text와 page provenance를 사용합니다.
+섞지 않습니다. 기본 검색은 Vector:FTS5 BM25 `0.4:0.6`, 각 component Top50, 후보 D20,
+사용자 출력 Top3입니다. 출력 Top5도 계약상 허용하지만 제품 기본값은 Top3입니다.
+benefit 프로필은 의미 질의에만 BGE를 적용하고 section을 benefit 근거로 펼칩니다.
+parent-child 프로필은 D20을 카드별로 모아 같은 카드의 결정론적 1-hop 근거를 최대 5개까지
+먼저 구성하고, 그 묶음 전체를 모든 질의에서 BGE로 평가합니다.

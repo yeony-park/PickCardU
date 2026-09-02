@@ -51,6 +51,11 @@ class Chunk:
     reranker_text: str | None = None
     parent_id: str | None = None
     child_ids: tuple[str, ...] = ()
+    node_id: str | None = None
+    heading_path: tuple[str, ...] = ()
+    part_index: int = 1
+    related_chunk_ids: tuple[str, ...] = ()
+    optional_parent_heading: str | None = None
 
     def __post_init__(self) -> None:
         for name in ("chunk_id", "text", "card_key", "card_name", "issuer", "level"):
@@ -69,6 +74,16 @@ class Chunk:
             not isinstance(child_id, str) or not child_id.strip() for child_id in self.child_ids
         ):
             raise ValueError("child_ids must be a tuple of non-empty strings")
+        if self.node_id is not None and (not isinstance(self.node_id, str) or not self.node_id.strip()):
+            raise ValueError("node_id must be a non-empty string or None")
+        if not isinstance(self.heading_path, tuple) or any(not isinstance(item, str) or not item.strip() for item in self.heading_path):
+            raise ValueError("heading_path must contain non-empty strings")
+        if isinstance(self.part_index, bool) or not isinstance(self.part_index, int) or self.part_index < 1:
+            raise ValueError("part_index must be positive")
+        if not isinstance(self.related_chunk_ids, tuple) or any(not isinstance(item, str) or not item.strip() for item in self.related_chunk_ids):
+            raise ValueError("related_chunk_ids must contain non-empty strings")
+        if self.optional_parent_heading is not None and (not isinstance(self.optional_parent_heading, str) or not self.optional_parent_heading.strip()):
+            raise ValueError("optional_parent_heading must be a non-empty string or None")
 
 
 @dataclass(frozen=True)
@@ -104,7 +119,7 @@ CARD_PAGE_SECTION_BENEFIT = ChunkingProfile(
     "card_page_section_benefit", frozenset({"section", "benefit"})
 )
 PARENT_CHILD_BUNDLE = ChunkingProfile(
-    "parent_child_bundle", frozenset({"bundle", "benefit"})
+    "parent_child_bundle", frozenset({"structural"})
 )
 # Historical import alias. New manifests and API requests use the explicit name.
 BENEFIT_HIERARCHY = CARD_PAGE_SECTION_BENEFIT
@@ -356,6 +371,77 @@ def _candidate_dict(row: Candidate) -> dict[str, Any]:
     return result
 
 
+def parent_child_bundles(
+    rows: Sequence[Candidate], chunks: Mapping[str, Chunk], *, max_chunks: int = 5
+) -> list[dict[str, Any]]:
+    """Build notebook 26's deterministic same-card 1-hop BGE inputs."""
+    if max_chunks < 1:
+        raise ValueError("parent-child bundle size must be positive")
+    by_card: dict[str, list[Candidate]] = {}
+    for row in rows:
+        chunk = chunks[row.chunk_id]
+        if chunk.level != "structural" or chunk.node_id is None:
+            raise ValueError("parent-child candidates must be structural chunks")
+        by_card.setdefault(chunk.card_key, []).append(row)
+
+    bundles: list[dict[str, Any]] = []
+    ordered_cards = sorted(by_card, key=lambda card_key: (by_card[card_key][0].rank, card_key))
+    for card_key in ordered_cards:
+        seeds = by_card[card_key]
+        seed_row, seed = seeds[0], chunks[seeds[0].chunk_id]
+        selected: list[str] = []
+
+        def add(chunk_id: str) -> None:
+            candidate = chunks.get(chunk_id)
+            if (
+                len(selected) < max_chunks
+                and chunk_id not in selected
+                and candidate is not None
+                and candidate.card_key == card_key
+                and candidate.level == "structural"
+            ):
+                selected.append(chunk_id)
+
+        add(seed.chunk_id)
+        for chunk_id in seed.related_chunk_ids:
+            add(chunk_id)
+        for row in seeds[1:]:
+            add(row.chunk_id)
+        if not selected:
+            raise RuntimeError("parent-child bundle has no evidence")
+
+        sections = [f"[카드]\n{seed.issuer} > {seed.card_name}"]
+        if seed.optional_parent_heading:
+            sections.append(f"[상위 제목]\n{seed.optional_parent_heading}")
+        for index, chunk_id in enumerate(selected, 1):
+            chunk = chunks[chunk_id]
+            path = " > ".join(chunk.heading_path) or "(root content)"
+            sections.append(f"[근거 {index} 경로]\n{path}\n[근거 {index} 본문]\n{chunk.text}")
+        text = "\n\n".join(sections)
+        bundles.append({
+            "card_key": card_key,
+            "seed": seed_row,
+            "selected_chunk_ids": selected,
+            "text": text,
+            "bundle_sha256": hashlib.sha256(text.encode()).hexdigest(),
+        })
+    return bundles
+
+
+def _rank_parent_child_bundles(
+    query: str,
+    bundles: list[dict[str, Any]],
+    reranker: Reranker,
+    mode: str,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    scores, trace = reranker.score(mode, query, [bundle["text"] for bundle in bundles])
+    if len(scores) != len(bundles) or not np.isfinite(np.asarray(scores, dtype=np.float64)).all():
+        raise RerankerUnavailable("reranker score count or finiteness mismatch")
+    ranked = [{**bundle, "score": float(scores[index])} for index, bundle in enumerate(bundles)]
+    ranked.sort(key=lambda item: (-item["score"], item["seed"].rank, item["card_key"]))
+    return ranked, trace
+
+
 class RagPipeline:
     def __init__(
         self,
@@ -396,28 +482,65 @@ class RagPipeline:
         leaf = [row for row in fused if self.chunks[row.chunk_id].level in self.profile.eligible_levels][
             : config.candidate_depth
         ]
-        should_rerank = config.reranker != "off" and (
-            config.reranker_route == "all" or query_type == "semantic"
-        )
         reranker_trace = None
-        reranked = leaf
-        if should_rerank:
+        bundle_trace: list[dict[str, Any]] = []
+        if self.profile.identifier == "parent_child_bundle":
+            if config.reranker != "bge" or config.reranker_route != "all":
+                raise ValueError("parent-child profile requires all-query BGE reranking")
             if self.reranker is None:
                 raise RerankerUnavailable("reranker is unavailable")
-            scores, reranker_trace = self.reranker.score(
-                config.reranker,
-                query,
-                [self.chunks[row.chunk_id].reranker_text or self.chunks[row.chunk_id].text for row in leaf],
+            bundles = parent_child_bundles(leaf, self.chunks)
+            ranked_bundles, reranker_trace = _rank_parent_child_bundles(query, bundles, self.reranker, "bge")
+            hydrated = []
+            reranked = []
+            for bundle_rank, bundle in enumerate(ranked_bundles, 1):
+                seed = bundle["seed"]
+                reranked.append(Candidate(
+                    seed.chunk_id,
+                    bundle["score"],
+                    bundle_rank,
+                    seed.component_ranks,
+                    seed.rank,
+                ))
+                bundle_trace.append({
+                    "rank": bundle_rank,
+                    "card_key": bundle["card_key"],
+                    "seed_chunk_id": seed.chunk_id,
+                    "selected_chunk_ids": list(bundle["selected_chunk_ids"]),
+                    "bundle_sha256": bundle["bundle_sha256"],
+                    "score": bundle["score"],
+                })
+                for chunk_id in bundle["selected_chunk_ids"]:
+                    hydrated.append(Candidate(
+                        chunk_id,
+                        bundle["score"],
+                        len(hydrated) + 1,
+                        seed.component_ranks,
+                        seed.rank,
+                    ))
+            should_rerank = True
+        else:
+            should_rerank = config.reranker != "off" and (
+                config.reranker_route == "all" or query_type == "semantic"
             )
-            if len(scores) != len(leaf) or not np.isfinite(np.asarray(scores, dtype=np.float64)).all():
-                raise RerankerUnavailable("reranker score count or finiteness mismatch")
-            reranked = [
-                Candidate(**{**row.__dict__, "score": float(scores[index]), "prior_rank": row.rank})
-                for index, row in enumerate(leaf)
-            ]
-            reranked.sort(key=lambda row: (-row.score, row.prior_rank or row.rank, row.chunk_id))
-            reranked = [Candidate(**{**row.__dict__, "rank": rank}) for rank, row in enumerate(reranked, 1)]
-        hydrated = hydrate_evidence_rows(reranked, self.chunks)
+            reranked = leaf
+            if should_rerank:
+                if self.reranker is None:
+                    raise RerankerUnavailable("reranker is unavailable")
+                scores, reranker_trace = self.reranker.score(
+                    config.reranker,
+                    query,
+                    [self.chunks[row.chunk_id].reranker_text or self.chunks[row.chunk_id].text for row in leaf],
+                )
+                if len(scores) != len(leaf) or not np.isfinite(np.asarray(scores, dtype=np.float64)).all():
+                    raise RerankerUnavailable("reranker score count or finiteness mismatch")
+                reranked = [
+                    Candidate(**{**row.__dict__, "score": float(scores[index]), "prior_rank": row.rank})
+                    for index, row in enumerate(leaf)
+                ]
+                reranked.sort(key=lambda row: (-row.score, row.prior_rank or row.rank, row.chunk_id))
+                reranked = [Candidate(**{**row.__dict__, "rank": rank}) for rank, row in enumerate(reranked, 1)]
+            hydrated = hydrate_evidence_rows(reranked, self.chunks)
         cards, evidence, budget = collapse_cards(
             hydrated, self.chunks, top_k=config.top_k, standalone_query=query
         )
@@ -432,6 +555,7 @@ class RagPipeline:
                 "leaf": [_candidate_dict(row) for row in leaf],
                 "rerank": [_candidate_dict(row) for row in reranked] if should_rerank else [],
                 "evidence_hydration": [_candidate_dict(row) for row in hydrated],
+                "bundles": bundle_trace,
                 "reranker": reranker_trace,
                 "card": cards,
                 "evidence_budget": budget,

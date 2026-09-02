@@ -18,6 +18,7 @@ import numpy as np
 
 from .state import StateStore, canonical_json
 from .ocr import OcrProviderError, pages_text
+from .structural import STRUCTURAL_CONTRACT, build_structural_chunks, render_pages
 
 
 RELATION_FIELDS = ("target", "condition", "value", "unit", "cap", "frequency", "period", "exceptions")
@@ -488,13 +489,21 @@ def read_source_manifest(path: Path) -> list[dict[str, str]]:
         raise ValueError("source manifest must be a non-empty document list or object.documents")
     result = []
     for row in documents:
-        if not isinstance(row, dict) or not isinstance(row.get("document_id"), str) or not isinstance(row.get("source_pdf"), str):
-            raise ValueError("source manifest document requires document_id and source_pdf")
-        source = Path(row["source_pdf"])
+        source_value = row.get("source_pdf", row.get("path")) if isinstance(row, dict) else None
+        if not isinstance(row, dict) or not isinstance(row.get("document_id"), str) or not isinstance(source_value, str):
+            raise ValueError("source manifest document requires document_id and source_pdf/path")
+        source = Path(source_value)
         if not source.is_absolute():
-            source = (path.parent / source).resolve()
+            candidates = [(parent / source).resolve() for parent in (path.parent, *path.parents)]
+            matches = list(dict.fromkeys(candidate for candidate in candidates if candidate.is_file()))
+            if len(matches) != 1:
+                raise ValueError(f"source PDF path is missing or ambiguous: {source}")
+            source = matches[0]
         if not source.is_file() or source.suffix.lower() != ".pdf":
             raise ValueError(f"source PDF unavailable: {source}")
+        expected_hash = row.get("sha256")
+        if expected_hash is not None and (not isinstance(expected_hash, str) or sha256_file(source) != expected_hash):
+            raise ValueError(f"source PDF hash mismatch: {source}")
         result.append({"document_id": row["document_id"], "source_pdf": str(source)})
     if len({row["document_id"] for row in result}) != len(result):
         raise ValueError("source manifest document IDs must be unique")
@@ -713,10 +722,26 @@ class Indexer:
             self.state.set_document_status(run_id, document_id, "review")
             self.state.record_stage(run_id, document_id, "relation", signature, "review", mismatch, now())
             return
-        self._write_canonical(run_id, document_id, canonical, {"issuer_name": normalized(luna_payload["identity"]["issuer_name"]), "card_name": normalized(luna_payload["identity"]["card_name"]), "evidence_refs": {"luna": luna_payload["identity"], "upstage": upstage_payload["identity"]}})
+        self._write_canonical(
+            run_id,
+            document_id,
+            canonical,
+            {"issuer_name": normalized(luna_payload["identity"]["issuer_name"]), "card_name": normalized(luna_payload["identity"]["card_name"]), "evidence_refs": {"luna": luna_payload["identity"], "upstage": upstage_payload["identity"]}},
+            structure_provider="upstage",
+        )
 
-    def _write_canonical(self, run_id: str, document_id: str, canonical: list[dict[str, Any]], identity: dict[str, Any] | None = None) -> Path:
-        encoded = (canonical_json({"document_id": document_id, "identity": identity or {}, "facts": canonical}) + "\n").encode()
+    def _write_canonical(
+        self,
+        run_id: str,
+        document_id: str,
+        canonical: list[dict[str, Any]],
+        identity: dict[str, Any] | None = None,
+        *,
+        structure_provider: str,
+    ) -> Path:
+        if structure_provider not in {"luna", "upstage"}:
+            raise ValueError("canonical structure provider is invalid")
+        encoded = (canonical_json({"document_id": document_id, "identity": identity or {}, "facts": canonical, "structure_provider": structure_provider}) + "\n").encode()
         canonical_sha256 = sha256_bytes(encoded)
         root = self.runtime_root / "working" / run_id / "canonical" / document_id.replace("/", "__")
         root.mkdir(parents=True, exist_ok=True)
@@ -755,7 +780,8 @@ class Indexer:
                 raise RuntimeError(f"stale {provider} payload source hash")
         resolution = json.loads(after_path.read_text(encoding="utf-8"))
         canonical, identity, audit = strict_resolution(resolution, luna_payload, upstage_payload)
-        encoded = (canonical_json({"document_id": document["document_id"], "identity": identity, "facts": canonical}) + "\n").encode()
+        structure_provider = audit["resolution"]["selected_provider"]
+        encoded = (canonical_json({"document_id": document["document_id"], "identity": identity, "facts": canonical, "structure_provider": structure_provider}) + "\n").encode()
         canonical_sha256 = sha256_bytes(encoded)
         root = self.runtime_root / "working" / str(review["run_id"]) / "canonical" / str(document["document_id"]).replace("/", "__")
         root.mkdir(parents=True, exist_ok=True)
@@ -807,6 +833,7 @@ class Indexer:
                 "retrieval_text": augmented_text,
                 "reranker_text": augmented_text,
                 "evidence_refs": evidence_refs,
+                "related_chunk_ids": [],
             },
         }
 
@@ -830,6 +857,25 @@ class Indexer:
             document_ids.append(document_id)
             facts = list(payload["facts"])
             if not facts:
+                continue
+            if profile == "parent_child_bundle":
+                provider = payload.get("structure_provider")
+                if provider not in {"luna", "upstage"}:
+                    raise RuntimeError("parent-child release requires an approved structure provider")
+                lane_path = self.state.artifact_path(run_id, document_id, "normalized_json", provider)
+                if sha256_file(lane_path) != self.state.artifact_hash(run_id, document_id, "normalized_json", provider):
+                    raise RuntimeError("parent-child structure source hash mismatch")
+                lane = json.loads(lane_path.read_text(encoding="utf-8"))
+                raw = render_pages(lane.get("pages", []))
+                structural, _hierarchy, audit = build_structural_chunks(
+                    raw,
+                    document_id=document_id,
+                    issuer=str(identity.get("issuer_name", "")),
+                    card_name=str(identity.get("card_name", "")),
+                )
+                if audit["heading_lines"] < 1:
+                    raise RuntimeError("parent-child structure source has no Markdown headings")
+                chunks.extend(structural)
                 continue
             card_text = " ".join(value for value in (identity.get("issuer_name"), identity.get("card_name")) if value)
             chunks.append(
@@ -890,27 +936,6 @@ class Indexer:
                     for index, item, text in rows:
                         chunks.append(self._chunk_record(
                             document_id, identity, "benefit", str(index), text, item["evidence_refs"], section=section, parent_id=section_record["chunk_id"]
-                        ))
-            else:
-                for section, rows in grouped.items():
-                    child_ids = [
-                        sha256_bytes(f"{document_id}:benefit:{index}:{text}".encode())[:32]
-                        for index, _item, text in rows
-                    ]
-                    bundle = self._chunk_record(
-                        document_id,
-                        identity,
-                        "bundle",
-                        section,
-                        "\n".join(row[2] for row in rows),
-                        [row[1]["evidence_refs"] for row in rows],
-                        section=section,
-                        child_ids=child_ids,
-                    )
-                    chunks.append(bundle)
-                    for index, item, text in rows:
-                        chunks.append(self._chunk_record(
-                            document_id, identity, "benefit", str(index), text, item["evidence_refs"], section=section, parent_id=bundle["chunk_id"]
                         ))
         return sorted(chunks, key=lambda item: item["chunk_id"]), sorted(document_ids)
 
@@ -1002,6 +1027,7 @@ class Indexer:
                 "release_id": release_id,
                 "run_id": run_id,
                 "strategy": profile,
+                "chunking_contract": STRUCTURAL_CONTRACT if profile == "parent_child_bundle" else "card_page_section_benefit_v1",
                 "vector_mode": vector_mode,
                 "release_status": release_status,
                 "distance_contract": "squared_l2",

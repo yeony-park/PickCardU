@@ -16,6 +16,7 @@ from pickcardu_rag import (
     InMemoryBM25Searcher,
     InMemorySquaredL2Searcher,
     LocalReranker,
+    PARENT_CHILD_BUNDLE,
     RagPipeline,
     SearchConfig,
     classify_query,
@@ -53,9 +54,11 @@ class RecordingVector:
 class FixedReranker:
     def __init__(self) -> None:
         self.calls = 0
+        self.documents: list[list[str]] = []
 
     def score(self, mode: str, query: str, documents: list[str]):
         self.calls += 1
+        self.documents.append(list(documents))
         return list(reversed(range(len(documents)))), {"mode": mode}
 
 
@@ -199,6 +202,40 @@ class RetrievalTests(unittest.TestCase):
         self.assertEqual([card["card_key"] for card in cards], ["c1", "c2"])
         self.assertEqual([item["page_num"] for item in evidence], [1, 2])
         self.assertLessEqual(budget["payload_size"], budget["payload_unit_limit"])
+
+    def test_parent_child_bundles_are_built_before_all_query_bge(self) -> None:
+        chunks = [
+            Chunk("a", "생활 > 통신\n통신비 10% 할인", "c1", "카드1", "발급사", "structural", 1,
+                  node_id="c1::n1", heading_path=("생활", "통신"), related_chunk_ids=("b",)),
+            Chunk("b", "생활 > 통신 조건\n전월 실적 40만원", "c1", "카드1", "발급사", "structural", 2,
+                  node_id="c1::n2", heading_path=("생활", "통신 조건")),
+            Chunk("c", "생활 > 카페\n카페 할인", "c2", "카드2", "발급사", "structural", 1,
+                  node_id="c2::n1", heading_path=("생활", "카페")),
+        ]
+        lexical = RecordingLexical([Candidate("a", 3, 1), Candidate("c", 2, 2)])
+        reranker = FixedReranker()
+        pipeline = RagPipeline(chunks, lexical, reranker=reranker, profile=PARENT_CHILD_BUNDLE)
+        result = pipeline.search(
+            "할인율은 얼마야?",
+            config=SearchConfig(
+                profile="parent_child_bundle",
+                vector_weight=0,
+                reranker="bge",
+                reranker_route="all",
+                top_k=2,
+            ),
+        )
+        self.assertEqual(reranker.calls, 1)
+        self.assertIn("통신비 10% 할인", reranker.documents[0][0])
+        self.assertIn("전월 실적 40만원", reranker.documents[0][0])
+        self.assertEqual(result["query_type"], "numeric_condition")
+        self.assertTrue(result["trace"]["bundles"])
+        self.assertIn("b", [row["chunk_id"] for row in result["evidence"]])
+        with self.assertRaisesRegex(ValueError, "all-query BGE"):
+            pipeline.search(
+                "질문",
+                config=SearchConfig(profile="parent_child_bundle", vector_weight=0, reranker="bge", reranker_route="selective"),
+            )
 
     def test_artifact_fingerprint_is_content_bound_and_rejects_symlink(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

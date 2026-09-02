@@ -34,6 +34,7 @@ from pickcardu_indexer.pipeline import (  # noqa: E402
 )
 from pickcardu_indexer.__main__ import parser as cli_parser, run_ocr  # noqa: E402
 from pickcardu_indexer.ocr import LiveLaneAdapter, LunaFactStructurer, LunaOcrTranscriber, OcrProviderError, pages_text, upstage_pages  # noqa: E402
+from pickcardu_indexer.structural import build_structural_chunks  # noqa: E402
 from pickcardu_rag_api.config import Settings  # noqa: E402
 from pickcardu_rag_api.index import ActiveIndexLoader  # noqa: E402
 from pickcardu_rag_api.main import QueryRequest, create_app  # noqa: E402
@@ -55,8 +56,8 @@ def lane(document_id: str, provider: str, *, condition: str = "monthly", value: 
         "source_pdf_sha256": SOURCE_SHA,
         "provenance": {"endpoint": "local-fixture", "model": f"{provider}-fixture", "config_hash": "fixture-v1"},
         "identity": {"issuer_name": "Issuer", "card_name": "Card", "issuer_evidence": {"page": 1, "quote": "Issuer"}, "card_evidence": {"page": 1, "quote": "Card"}},
-        "pages": [{"page": 1, "text": f"Issuer Card\n상품 안내: {quote}"}],
-        "span_dispositions": [{"page": 1, "quote": "Issuer Card", "kind": "identity"}, {"page": 1, "quote": f"상품 안내: {quote}", "kind": "fact"}],
+        "pages": [{"page": 1, "text": f"Issuer Card\n### 상품 안내\n상품 안내: {quote}"}],
+        "span_dispositions": [{"page": 1, "quote": "Issuer Card", "kind": "identity"}, {"page": 1, "quote": "### 상품 안내", "kind": "ignore", "reason": "heading"}, {"page": 1, "quote": f"상품 안내: {quote}", "kind": "fact"}],
         "facts": [{"target": "카페", "condition": condition, "value": value, "unit": "%", "cap": "", "frequency": "", "period": "", "exceptions": "", "evidence": {"page": 1, "quote": quote}}],
     }
 
@@ -148,9 +149,13 @@ class QueryEmbeddingProvider:
         return Indexer._fake_embedding(query, 16), {"provider_called": False}
 
 
-class UnusedReranker:
+class RecordingReranker:
+    def __init__(self) -> None:
+        self.calls = 0
+
     def score(self, _mode: str, _query: str, _documents: list[str]):
-        raise AssertionError("numeric integration query must bypass the reranker")
+        self.calls += 1
+        return [float(len(_documents) - index) for index in range(len(_documents))], {"fixture": True}
 
 
 class FakeTranscriber:
@@ -298,7 +303,7 @@ class IndexerTest(unittest.TestCase):
                     "gpt-5.6-luna",
                     bge_path,
                 )
-                provider, reranker = QueryEmbeddingProvider(), UnusedReranker()
+                provider, reranker = QueryEmbeddingProvider(), RecordingReranker()
                 app = create_app(
                     settings,
                     provider=provider,
@@ -315,7 +320,9 @@ class IndexerTest(unittest.TestCase):
                 self.assertEqual(body["profile"], profile)
                 self.assertEqual(body["cards"][0]["card_key"], self.document_id)
                 self.assertTrue(body["evidence"])
-                self.assertTrue(all(row["level"] == "benefit" for row in body["evidence"]))
+                expected_level = "structural" if profile == "parent_child_bundle" else "benefit"
+                self.assertTrue(all(row["level"] == expected_level for row in body["evidence"]))
+                self.assertEqual(reranker.calls, 1 if profile == "parent_child_bundle" else 0)
 
     def test_openai_embedding_adapter_batches_and_restores_response_order(self) -> None:
         client = FakeEmbeddingClient()
@@ -619,7 +626,7 @@ class IndexerTest(unittest.TestCase):
         baseline, _ = self.indexer._chunks(result["run_id"], approved, "card_page_section_benefit")
         experimental, _ = self.indexer._chunks(result["run_id"], approved, "parent_child_bundle")
         self.assertEqual({row["level"] for row in baseline}, {"card", "page", "section", "benefit"})
-        self.assertEqual({row["level"] for row in experimental}, {"card", "bundle", "benefit"})
+        self.assertEqual({row["level"] for row in experimental}, {"structural"})
         self.assertTrue(all(row["metadata"]["reranker_text"] for row in baseline + experimental))
 
         alternate = self.indexer.run(
@@ -640,6 +647,23 @@ class IndexerTest(unittest.TestCase):
             ).read_text(encoding="utf-8")
         )
         self.assertEqual(alternate_manifest["strategy"], "parent_child_bundle")
+
+    def test_historical_parent_child_chunks_reproduce_all_ten_cards(self) -> None:
+        root = PROJECT_ROOT / "data/ocr_benchmark/gold/raw"
+        chunks, nodes = [], []
+        for path in sorted(root.glob("*/*.txt")):
+            produced, hierarchy, _audit = build_structural_chunks(
+                path.read_text(encoding="utf-8"),
+                document_id=f"{path.parent.name}/{path.stem}",
+                issuer=path.parent.name,
+                card_name=path.stem,
+                source_sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
+            )
+            chunks.extend(produced)
+            nodes.extend(hierarchy)
+        ids = "\n".join(sorted(row["chunk_id"] for row in chunks)) + "\n"
+        self.assertEqual((len(chunks), len(nodes)), (147, 172))
+        self.assertEqual(hashlib.sha256(ids.encode()).hexdigest(), "65e83ae1f328a340bcd9e14290545e7ba12e2d2dcccb186ccbb379f0325038e0")
 
     def test_duplicate_ocr_page_numbers_fail_closed(self) -> None:
         duplicated = lane(self.document_id, "luna")

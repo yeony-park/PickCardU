@@ -55,7 +55,7 @@ class ActiveIndexTest(unittest.TestCase):
                 self.loader.load()
 
     def test_pointer_manifest_dimension_and_tree_mismatch_fail_closed(self) -> None:
-        cases = ("pointer", "dimension", "tree", "corpus", "chunks")
+        cases = ("pointer", "dimension", "tree", "corpus", "chunks", "chunking_contract")
         for case in cases:
             with self.subTest(case=case):
                 self.tearDown(); self.setUp()
@@ -72,6 +72,8 @@ class ActiveIndexTest(unittest.TestCase):
                         manifest["chroma_tree_sha256"] = "0" * 64
                     elif case == "corpus":
                         manifest["corpus_hash"] = "0" * 64
+                    elif case == "chunking_contract":
+                        manifest["chunking_contract"] = "wrong_contract"
                     else:
                         manifest["chunk_ids"] = ["wrong"]
                     (release / "manifest.json").write_text(_canonical(manifest) + "\n")

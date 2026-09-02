@@ -156,7 +156,7 @@ def _search(
             candidate_depth=20,
             top_k=payload.top_k,
             reranker="bge",
-            reranker_route="selective",
+            reranker_route="all" if profile == "parent_child_bundle" else "selective",
         ),
     )
     return handle, result, embedding_usage

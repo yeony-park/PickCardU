@@ -26,14 +26,14 @@ def build_release(runtime: Path) -> dict[str, Any]:
             "document_id": "issuer/card-a",
             "level": "benefit",
             "text": "카페 10% 할인",
-            "metadata": {"document_id": "issuer/card-a", "level": "benefit", "issuer_name": "Issuer", "card_name": "Card A", "section": "카페", "parent_id": None, "child_ids": [], "source_pages": [2], "retrieval_text": "Issuer | Card A | 카페\n카페 10% 할인", "reranker_text": "Issuer | Card A | 카페\n카페 10% 할인", "evidence_refs": {"luna": {"provider": "luna", "page": 2, "quote": "카페 10% 할인"}, "upstage": {"provider": "upstage", "page": 2, "quote": "카페 10% 할인"}}},
+            "metadata": {"document_id": "issuer/card-a", "level": "benefit", "issuer_name": "Issuer", "card_name": "Card A", "section": "카페", "parent_id": None, "child_ids": [], "related_chunk_ids": [], "source_pages": [2], "retrieval_text": "Issuer | Card A | 카페\n카페 10% 할인", "reranker_text": "Issuer | Card A | 카페\n카페 10% 할인", "evidence_refs": {"luna": {"provider": "luna", "page": 2, "quote": "카페 10% 할인"}, "upstage": {"provider": "upstage", "page": 2, "quote": "카페 10% 할인"}}},
         },
         {
             "chunk_id": "chunk-fuel",
             "document_id": "issuer/card-b",
             "level": "benefit",
             "text": "주유 리터당 100원 할인",
-            "metadata": {"document_id": "issuer/card-b", "level": "benefit", "issuer_name": "Issuer", "card_name": "Card B", "section": "주유", "parent_id": None, "child_ids": [], "source_pages": [3], "retrieval_text": "Issuer | Card B | 주유\n주유 리터당 100원 할인", "reranker_text": "Issuer | Card B | 주유\n주유 리터당 100원 할인", "evidence_refs": {"luna": {"provider": "luna", "page": 3, "quote": "주유 리터당 100원 할인"}, "upstage": {"provider": "upstage", "page": 3, "quote": "주유 리터당 100원 할인"}}},
+            "metadata": {"document_id": "issuer/card-b", "level": "benefit", "issuer_name": "Issuer", "card_name": "Card B", "section": "주유", "parent_id": None, "child_ids": [], "related_chunk_ids": [], "source_pages": [3], "retrieval_text": "Issuer | Card B | 주유\n주유 리터당 100원 할인", "reranker_text": "Issuer | Card B | 주유\n주유 리터당 100원 할인", "evidence_refs": {"luna": {"provider": "luna", "page": 3, "quote": "주유 리터당 100원 할인"}, "upstage": {"provider": "upstage", "page": 3, "quote": "주유 리터당 100원 할인"}}},
         },
     ]
     import sqlite3
@@ -58,6 +58,7 @@ def build_release(runtime: Path) -> dict[str, Any]:
         "schema_version": "rag_index_release_v1",
         "release_id": release_id,
         "strategy": "card_page_section_benefit",
+        "chunking_contract": "card_page_section_benefit_v1",
         "release_status": "production",
         "distance_contract": "squared_l2",
         "embedding_model": "text-embedding-3-small",

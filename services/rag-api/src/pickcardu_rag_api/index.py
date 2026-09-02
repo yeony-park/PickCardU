@@ -17,6 +17,12 @@ import numpy as np
 from pickcardu_rag import CHUNKING_PROFILES, Candidate, Chunk, RagPipeline, SearchConfig, normalized_tokens
 
 
+CHUNKING_CONTRACTS = {
+    "card_page_section_benefit": "card_page_section_benefit_v1",
+    "parent_child_bundle": "structural_heading_parent_child_v1",
+}
+
+
 def _canonical(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
@@ -186,9 +192,11 @@ class ActiveIndexLoader:
         if manifest_hash != pointer["manifest_sha256"]:
             raise RuntimeError("active pointer manifest hash mismatch")
         manifest = json.loads(manifest_bytes)
-        required = {"release_id", "strategy", "release_status", "distance_contract", "corpus_hash", "corpus_sqlite_sha256", "chunk_ids", "document_ids", "catalog", "embedding_dimension", "embedding_model", "embedding_sha256", "chroma_tree_sha256"}
+        required = {"release_id", "strategy", "chunking_contract", "release_status", "distance_contract", "corpus_hash", "corpus_sqlite_sha256", "chunk_ids", "document_ids", "catalog", "embedding_dimension", "embedding_model", "embedding_sha256", "chroma_tree_sha256"}
         if not required <= set(manifest) or manifest.get("schema_version") != "rag_index_release_v1" or manifest["release_id"] != release_id or manifest["strategy"] not in CHUNKING_PROFILES or manifest["release_status"] not in self.allowed_release_statuses or manifest["distance_contract"] != "squared_l2":
             raise RuntimeError("active release manifest contract mismatch")
+        if manifest["chunking_contract"] != CHUNKING_CONTRACTS[manifest["strategy"]]:
+            raise RuntimeError("active release chunking contract mismatch")
         if not isinstance(manifest["embedding_dimension"], int) or manifest["embedding_dimension"] < 1 or not isinstance(manifest["embedding_model"], str) or not manifest["embedding_model"] or not isinstance(manifest["embedding_sha256"], str) or not re.fullmatch(r"[0-9a-f]{64}", manifest["embedding_sha256"]):
             raise RuntimeError("active embedding contract is invalid")
         if not isinstance(manifest["corpus_sqlite_sha256"], str) or not re.fullmatch(r"[0-9a-f]{64}", manifest["corpus_sqlite_sha256"]) or _sha256(corpus_path) != manifest["corpus_sqlite_sha256"]:
@@ -219,6 +227,8 @@ class ActiveIndexLoader:
             card = catalog_by_key.get(record["document_id"])
             pages = metadata.get("source_pages") if isinstance(metadata, dict) else None
             child_ids = metadata.get("child_ids") if isinstance(metadata, dict) else None
+            related_ids = metadata.get("related_chunk_ids") if isinstance(metadata, dict) else None
+            heading_path = metadata.get("heading_path") if isinstance(metadata, dict) else None
             retrieval_text = metadata.get("retrieval_text") if isinstance(metadata, dict) else None
             reranker_text = metadata.get("reranker_text") if isinstance(metadata, dict) else None
             if (
@@ -228,6 +238,8 @@ class ActiveIndexLoader:
                 or any(isinstance(page, bool) or not isinstance(page, int) or page < 1 for page in pages)
                 or not isinstance(child_ids, list)
                 or any(not isinstance(child_id, str) or not child_id for child_id in child_ids)
+                or not isinstance(related_ids, list)
+                or any(not isinstance(chunk_id, str) or not chunk_id for chunk_id in related_ids)
                 or not isinstance(retrieval_text, str)
                 or not retrieval_text.strip()
                 or not isinstance(reranker_text, str)
@@ -246,13 +258,24 @@ class ActiveIndexLoader:
                 reranker_text,
                 metadata.get("parent_id"),
                 tuple(child_ids),
+                metadata.get("node_id"),
+                tuple(heading_path or ()),
+                metadata.get("part_index", 1),
+                tuple(related_ids),
+                metadata.get("optional_parent_heading"),
             ))
         chunks_by_id = {chunk.chunk_id: chunk for chunk in chunks}
         if len(chunks_by_id) != len(chunks):
             raise RuntimeError("chunk IDs are duplicated")
         child_owners: dict[str, str] = {}
-        expected_aggregate_level = "section" if manifest["strategy"] == "card_page_section_benefit" else "bundle"
+        expected_aggregate_level = "section"
         for chunk in chunks:
+            if manifest["strategy"] == "parent_child_bundle":
+                if chunk.level != "structural" or chunk.node_id is None or chunk.child_ids:
+                    raise RuntimeError("parent-child structural chunk contract mismatch")
+                if len(set(chunk.related_chunk_ids)) != len(chunk.related_chunk_ids) or chunk.chunk_id in chunk.related_chunk_ids:
+                    raise RuntimeError("parent-child related chunk list is invalid")
+                continue
             if chunk.level in {"section", "bundle"}:
                 if chunk.level != expected_aggregate_level:
                     raise RuntimeError("aggregate level does not match the chunking profile")
@@ -278,6 +301,13 @@ class ActiveIndexLoader:
         for chunk in chunks:
             if chunk.level == "benefit" and chunk.parent_id is not None and child_owners.get(chunk.chunk_id) != chunk.parent_id:
                 raise RuntimeError("benefit is missing from its parent's child graph")
+            if manifest["strategy"] == "parent_child_bundle" and any(
+                related not in chunks_by_id
+                or chunks_by_id[related].card_key != chunk.card_key
+                or chunks_by_id[related].level != "structural"
+                for related in chunk.related_chunk_ids
+            ):
+                raise RuntimeError("parent-child related chunk graph mismatch")
 
         serving_root = self.runtime_root / "serving" / release_id / tree_hash
         marker_path, chroma_root = serving_root / "version.json", serving_root / "chroma"
