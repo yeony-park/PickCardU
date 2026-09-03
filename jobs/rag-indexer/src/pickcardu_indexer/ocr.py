@@ -20,8 +20,9 @@ STRUCTURE_REASONING = "max"
 UPSTAGE_ENDPOINT = "https://api.upstage.ai/v1/document-digitization"
 UPSTAGE_MODEL = "document-parse"
 MAX_MODEL_OUTPUT_TOKENS = 128_000
-UPSTAGE_EMPTY_PAGE_POLICY = "pdf-structural-blank-v1"
+UPSTAGE_EMPTY_PAGE_POLICY = "pdf-structural-blank-v2"
 UPSTAGE_BLANK_DOMINANT_COLOR_RATIO = 0.985
+UPSTAGE_DECORATIVE_BACKGROUND_MIN_RATIO = 0.75
 
 OCR_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -248,6 +249,7 @@ def visually_blank_pages(
     candidates: set[int],
     *,
     dominant_color_ratio: float = UPSTAGE_BLANK_DOMINANT_COLOR_RATIO,
+    decorative_background_min_ratio: float = UPSTAGE_DECORATIVE_BACKGROUND_MIN_RATIO,
 ) -> set[int]:
     import pymupdf
 
@@ -270,16 +272,18 @@ def visually_blank_pages(
                 continue
             drawings = page.get_drawings()
             if drawings:
-                if len(drawings) != 1:
+                fills = [drawing for drawing in drawings if drawing.get("type") == "f"]
+                if len(drawings) > 3 or len(fills) != 1 or any(drawing.get("type") not in {"f", "s"} for drawing in drawings):
                     continue
-                drawing = drawings[0]
+                drawing = fills[0]
                 items = drawing.get("items", [])
-                if drawing.get("type") != "f" or len(items) != 1 or items[0][0] != "re":
+                if len(items) != 1 or items[0][0] != "re":
                     continue
                 page_area = page.rect.get_area()
                 covered_area = (items[0][1] & page.rect).get_area()
-                if not page_area or covered_area / page_area < 0.999:
-                    continue
+                if page_area and covered_area / page_area >= decorative_background_min_ratio:
+                    blank.add(page_number)
+                continue
             pixmap = page.get_pixmap(matrix=pymupdf.Matrix(0.5, 0.5), colorspace=pymupdf.csGRAY, alpha=False)
             top_ratio, _color = pixmap.color_topusage()
             if top_ratio >= dominant_color_ratio:
@@ -398,7 +402,11 @@ class UpstageOcrTranscriber:
 
     @property
     def parse_config(self) -> dict[str, Any]:
-        return {"empty_page_policy": UPSTAGE_EMPTY_PAGE_POLICY, "dominant_color_ratio": UPSTAGE_BLANK_DOMINANT_COLOR_RATIO}
+        return {
+            "empty_page_policy": UPSTAGE_EMPTY_PAGE_POLICY,
+            "dominant_color_ratio": UPSTAGE_BLANK_DOMINANT_COLOR_RATIO,
+            "decorative_background_min_ratio": UPSTAGE_DECORATIVE_BACKGROUND_MIN_RATIO,
+        }
 
     def request(self, source: Path) -> tuple[dict[str, Any], int]:
         try:

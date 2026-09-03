@@ -611,6 +611,18 @@ class IndexerTest(unittest.TestCase):
         parsed = UpstageOcrTranscriber("fixture").parse_source(raw, 2, blank_source)
         self.assertEqual([(row["page"], row["text"]) for row in parsed], [(1, "첫 페이지"), (2, "")])
 
+        decorative_source = self.root / "decorative-second-page.pdf"
+        document = pymupdf.open()
+        document.new_page().insert_text((72, 72), "첫 페이지")
+        page = document.new_page()
+        page.draw_rect(pymupdf.Rect(20, 20, page.rect.width - 20, page.rect.height - 20), color=None, fill=(0, 0.2, 0.4))
+        page.draw_line((0, 10), (10, 10))
+        page.draw_line((page.rect.width - 10, page.rect.height - 10), (page.rect.width, page.rect.height - 10))
+        document.save(decorative_source)
+        document.close()
+        parsed = UpstageOcrTranscriber("fixture").parse_source(raw, 2, decorative_source)
+        self.assertEqual([(row["page"], row["text"]) for row in parsed], [(1, "첫 페이지"), (2, "")])
+
         content_source = self.root / "content-second-page.pdf"
         document = pymupdf.open()
         document.new_page().insert_text((72, 72), "첫 페이지")
