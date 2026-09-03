@@ -25,6 +25,7 @@ UPSTAGE_EMPTY_PAGE_POLICY = "pdf-structural-blank-v2"
 UPSTAGE_BLANK_DOMINANT_COLOR_RATIO = 0.985
 UPSTAGE_DECORATIVE_BACKGROUND_MIN_RATIO = 0.75
 PROVIDER_MAX_ATTEMPTS = 2
+LUNA_PAGE_FALLBACK_DPI = 200
 
 OCR_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -146,6 +147,14 @@ OCR_PROMPT = """원본 카드 상품안내서의 내용을 정확하게 전사�
 모든 페이지를 빠짐없이 page_num 순서로 반환하고, 누락이나 중복이 없는지 확인하세요.
 해설이나 코드 블록 없이 지정된 JSON 형식만 반환하세요."""
 
+OCR_PAGE_FALLBACK_PROMPT = """이 이미지는 원본 카드 상품안내서에서 별도로 렌더링한 단일 페이지입니다.
+이미지에 실제로 보이는 문자만 정확하게 전사하고 요약, 교정 또는 추측하지 마세요.
+표는 Markdown 표로 보존하고 숫자, 단위, 기호와 읽기 순서를 유지하세요.
+로고만 있는 페이지도 식별 가능한 브랜드명을 markdown에 기록하고 status를 success로 반환하세요.
+완전히 빈 페이지도 markdown을 빈 문자열로 두고 status를 success로 반환하세요.
+이미지 자체를 확인할 수 없을 때만 status를 failed로 반환하세요.
+pages 배열에는 지정된 page_num의 항목 하나만 반환하세요."""
+
 STRUCTURE_PROMPT = """주어진 단일 OCR lane만 사용해 카드 혜택을 구조화하세요. 다른 OCR 결과를 추측하거나 보완하지 마세요.
 issuer_name과 card_name을 추출하고, 혜택별 target, condition, value, unit, cap, frequency, period, exceptions를 문자열로 기록하세요.
 각 identity와 fact의 quote는 해당 page OCR 본문에 실제로 존재하는 정확한 연속 인용문이어야 합니다.
@@ -158,6 +167,10 @@ class OcrProviderError(RuntimeError):
     def __init__(self, message: str, *, retryable: bool = False) -> None:
         super().__init__(message)
         self.retryable = retryable
+
+
+class PageFallbackError(OcrProviderError):
+    pass
 
 
 def _json_bytes(value: Any) -> bytes:
@@ -458,28 +471,37 @@ class LunaOcrTranscriber:
     def config(self) -> dict[str, Any]:
         return {"endpoint": "openai.responses", "model": self.model, "reasoning": self.reasoning, "input": "pdf", "detail": "high", "prompt_sha256": _sha256(OCR_PROMPT.encode()), "schema_sha256": _sha256(_json_bytes(OCR_SCHEMA)), "output_limit": "provider_default", "max_attempts": self.max_attempts, "validation_max_attempts": self.validation_max_attempts}
 
-    def request(self, source: Path) -> tuple[dict[str, Any], int]:
+    @property
+    def page_fallback_config(self) -> dict[str, Any]:
+        return {
+            "input": "rendered_page_png",
+            "dpi": LUNA_PAGE_FALLBACK_DPI,
+            "detail": "high",
+            "prompt_sha256": _sha256(OCR_PAGE_FALLBACK_PROMPT.encode()),
+            "schema_sha256": _sha256(_json_bytes(OCR_SCHEMA)),
+        }
+
+    def _client_instance(self) -> Any:
         if self._client is None:
             from openai import OpenAI
 
             self._client = OpenAI(api_key=self.api_key, max_retries=0)
-        count = pdf_page_count(source)
-        encoded = base64.b64encode(source.read_bytes()).decode("ascii")
+        return self._client
+
+    def _request(self, content: list[dict[str, Any]], schema_name: str) -> dict[str, Any]:
+        client = self._client_instance()
         last_error: Exception | None = None
         for attempt in range(1, self.max_attempts + 1):
             try:
-                response = self._client.responses.create(
+                response = client.responses.create(
                     model=self.model,
                     reasoning={"effort": self.reasoning},
-                    input=[{"role": "user", "content": [
-                        {"type": "input_file", "filename": source.name, "file_data": f"data:application/pdf;base64,{encoded}", "detail": "high"},
-                        {"type": "input_text", "text": f"{OCR_PROMPT}\nPDF page count: {count}"},
-                    ]}],
-                    text={"format": {"type": "json_schema", "name": "ocr_pages", "strict": True, "schema": OCR_SCHEMA}},
+                    input=[{"role": "user", "content": content}],
+                    text={"format": {"type": "json_schema", "name": schema_name, "strict": True, "schema": OCR_SCHEMA}},
                     store=False,
                     timeout=900.0,
                 )
-                return _response_dict(response), count
+                return _response_dict(response)
             except Exception as error:
                 last_error = error
                 retryable = _retryable_openai_error(error)
@@ -487,6 +509,77 @@ class LunaOcrTranscriber:
                     raise OcrProviderError(f"Luna OCR failed: {type(error).__name__}: {error}", retryable=retryable) from error
                 self._sleep(min(30.0, 2**attempt))
         raise OcrProviderError(f"Luna OCR failed: {last_error}", retryable=True)
+
+    def request(self, source: Path) -> tuple[dict[str, Any], int]:
+        count = pdf_page_count(source)
+        encoded = base64.b64encode(source.read_bytes()).decode("ascii")
+        raw = self._request([
+            {"type": "input_file", "filename": source.name, "file_data": f"data:application/pdf;base64,{encoded}", "detail": "high"},
+            {"type": "input_text", "text": f"{OCR_PROMPT}\nPDF page count: {count}"},
+        ], "ocr_pages")
+        return raw, count
+
+    def request_page(self, source: Path, page_number: int) -> dict[str, Any]:
+        import pymupdf
+
+        with pymupdf.open(source) as document:
+            if page_number < 1 or page_number > document.page_count:
+                raise ValueError("page fallback is outside the source PDF")
+            png = document[page_number - 1].get_pixmap(dpi=LUNA_PAGE_FALLBACK_DPI, alpha=False).tobytes("png")
+        encoded = base64.b64encode(png).decode("ascii")
+        return self._request([
+            {"type": "input_image", "image_url": f"data:image/png;base64,{encoded}", "detail": "high"},
+            {"type": "input_text", "text": f"{OCR_PAGE_FALLBACK_PROMPT}\nRequired page_num: {page_number}"},
+        ], "ocr_page_fallback")
+
+    def fallback_page_numbers(self, raw: dict[str, Any], expected_count: int) -> list[int]:
+        value = _output_json(None, raw).get("pages")
+        if not isinstance(value, list):
+            return []
+        counts: dict[int, int] = {}
+        failed: set[int] = set()
+        for row in value:
+            if not isinstance(row, dict):
+                continue
+            page = row.get("page_num", row.get("page"))
+            if isinstance(page, bool) or not isinstance(page, int) or page < 1 or page > expected_count:
+                continue
+            counts[page] = counts.get(page, 0) + 1
+            if row.get("status", "success") != "success":
+                failed.add(page)
+        return sorted(failed | {page for page in range(1, expected_count + 1) if counts.get(page) != 1})
+
+    def parse_with_page_fallbacks(
+        self,
+        raw: dict[str, Any],
+        fallback_raws: dict[int, dict[str, Any]],
+        expected_count: int,
+        source: Path,
+    ) -> list[dict[str, Any]]:
+        value = _output_json(None, raw).get("pages")
+        if not isinstance(value, list):
+            raise ValueError("OCR pages must be an array")
+        recovered = set(fallback_raws)
+        merged = [row for row in value if isinstance(row, dict) and row.get("page_num", row.get("page")) not in recovered]
+        for page_number, fallback_raw in sorted(fallback_raws.items()):
+            fallback_pages = _output_json(None, fallback_raw).get("pages")
+            if not isinstance(fallback_pages, list) or len(fallback_pages) != 1:
+                raise ValueError(f"Luna page fallback {page_number} must return exactly one page")
+            row = fallback_pages[0]
+            if not isinstance(row, dict) or row.get("page_num", row.get("page")) != page_number:
+                raise ValueError(f"Luna page fallback returned the wrong page for {page_number}")
+            merged.append(row)
+        pages = validate_pages(merged, expected_count)
+        empty_pages = {row["page"] for row in pages if not row["text"].strip()}
+        blank_pages = visually_blank_pages(source, empty_pages)
+        unexpected = sorted(empty_pages - blank_pages)
+        if unexpected:
+            raise ValueError(f"Luna response has no text for source pages: {unexpected}")
+        for page in pages:
+            page["is_blank"] = page["page"] in blank_pages
+            if page["page"] in recovered:
+                page["recovered_from"] = f"rendered_page_png_{LUNA_PAGE_FALLBACK_DPI}dpi"
+        return pages
 
     def parse(self, raw: dict[str, Any], expected_count: int) -> list[dict[str, Any]]:
         output = _output_json(None, raw)
@@ -505,7 +598,15 @@ class LunaOcrTranscriber:
 
     def transcribe(self, source: Path) -> tuple[dict[str, Any], list[dict[str, Any]], dict[str, Any]]:
         raw, count = self.request(source)
-        return raw, self.parse_source(raw, count, source), self.config
+        try:
+            pages = self.parse_source(raw, count, source)
+        except (ValueError, OcrProviderError):
+            page_numbers = self.fallback_page_numbers(raw, count)
+            if not page_numbers:
+                raise
+            fallback_raws = {page: self.request_page(source, page) for page in page_numbers}
+            pages = self.parse_with_page_fallbacks(raw, fallback_raws, count, source)
+        return raw, pages, {**self.config, "page_fallback": self.page_fallback_config}
 
 
 def _multipart_body(source: Path) -> tuple[bytes, str]:
@@ -637,10 +738,14 @@ class LiveLaneAdapter:
         self.ocr_config_hash = _sha256(_json_bytes(transcriber.config))
         self.parse_config = getattr(transcriber, "parse_config", {})
         self.parse_config_hash = _sha256(_json_bytes(self.parse_config)) if self.parse_config else None
+        self.page_fallback_config = getattr(transcriber, "page_fallback_config", {})
+        self.page_fallback_config_hash = _sha256(_json_bytes(self.page_fallback_config)) if self.page_fallback_config else None
         self.structure_config_hash = _sha256(_json_bytes(structurer.config))
         config = {"ocr": transcriber.config, "structure": structurer.config}
         if self.parse_config:
             config["ocr_parse"] = self.parse_config
+        if self.page_fallback_config:
+            config["page_fallback"] = self.page_fallback_config
         self.config_hash = _sha256(_json_bytes(config))
 
     def _root(self, document_id: str, source_hash: str) -> Path:
@@ -648,7 +753,11 @@ class LiveLaneAdapter:
 
     def _pages_root(self, document_id: str, source_hash: str) -> Path:
         root = self._root(document_id, source_hash)
-        return root / "parse" / self.parse_config_hash if self.parse_config_hash else root
+        if self.parse_config_hash:
+            root = root / "parse" / self.parse_config_hash
+        if self.page_fallback_config_hash:
+            root = root / "page-fallback" / self.page_fallback_config_hash
+        return root
 
     def _structure_root(self, document_id: str, source_hash: str) -> Path:
         return self._pages_root(document_id, source_hash) / "structure" / self.structure_config_hash
@@ -670,10 +779,53 @@ class LiveLaneAdapter:
         if not pages_path.is_file():
             raise FileNotFoundError(f"{self.provider} OCR extraction is missing; run extract first")
         envelope = json.loads(pages_path.read_text(encoding="utf-8"))
-        if envelope.get("source_pdf_sha256") != source_hash or envelope.get("ocr_config_hash") != self.ocr_config_hash or envelope.get("parse_config_hash") != self.parse_config_hash:
+        if envelope.get("source_pdf_sha256") != source_hash or envelope.get("ocr_config_hash") != self.ocr_config_hash or envelope.get("parse_config_hash") != self.parse_config_hash or envelope.get("page_fallback_config_hash") != self.page_fallback_config_hash:
             raise RuntimeError("cached OCR pages provenance mismatch")
         pages = validate_pages(envelope.get("pages"), expected_count)
         return source_hash, pages, envelope, pages_root, structure_root
+
+    def _parse_with_page_fallback(
+        self,
+        raw: dict[str, Any],
+        expected_count: int,
+        source: Path,
+        request_root: Path,
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        parse_source = getattr(self.transcriber, "parse_source", None)
+        try:
+            pages = parse_source(raw, expected_count, source) if parse_source else self.transcriber.parse(raw, expected_count)
+            return validate_pages(pages, expected_count), []
+        except (ValueError, OcrProviderError):
+            candidates = getattr(self.transcriber, "fallback_page_numbers", None)
+            request_page = getattr(self.transcriber, "request_page", None)
+            parse_fallbacks = getattr(self.transcriber, "parse_with_page_fallbacks", None)
+            if not all(callable(item) for item in (candidates, request_page, parse_fallbacks)):
+                raise
+            page_numbers = candidates(raw, expected_count)
+            if not page_numbers:
+                raise
+            fallback_raws: dict[int, dict[str, Any]] = {}
+            metadata: list[dict[str, Any]] = []
+            try:
+                for page_number in page_numbers:
+                    fallback_root = request_root / "page_fallbacks" / str(self.page_fallback_config_hash) / f"page-{page_number:04d}"
+                    fallback_raw = _cached_json(fallback_root, "raw_response.*.json")
+                    if fallback_raw is None:
+                        fallback_raw = request_page(source, page_number)
+                        fallback_bytes = _json_bytes(fallback_raw)
+                        _write_once(fallback_root / f"raw_response.{_sha256(fallback_bytes)}.json", fallback_bytes)
+                    else:
+                        fallback_bytes = _json_bytes(fallback_raw)
+                    fallback_raws[page_number] = fallback_raw
+                    metadata.append({
+                        "page": page_number,
+                        "raw_response_sha256": _sha256(fallback_bytes),
+                        "provider_response_metadata": {key: fallback_raw[key] for key in ("id", "model", "usage") if key in fallback_raw},
+                    })
+                pages = parse_fallbacks(raw, fallback_raws, expected_count, source)
+            except (ValueError, OcrProviderError) as error:
+                raise PageFallbackError(f"{self.provider} page image fallback failed: {error}", retryable=getattr(error, "retryable", False)) from error
+            return validate_pages(pages, expected_count), metadata
 
     def extract(self, document_id: str) -> tuple[Path, dict[str, Any]]:
         source, source_hash, expected_count, request_root, pages_root, _structure_root = self._context(document_id)
@@ -682,13 +834,12 @@ class LiveLaneAdapter:
             _source_hash, _pages, envelope, _pages_root, _structure_root = self.read_extracted(document_id)
             return pages_path, envelope
         raw = _cached_json(request_root, "raw_response.*.json")
-        parse_source = getattr(self.transcriber, "parse_source", None)
         validation_attempts = 0
+        page_fallbacks: list[dict[str, Any]] = []
         if raw is not None:
             raw_bytes = _json_bytes(raw)
             try:
-                pages = parse_source(raw, expected_count, source) if parse_source else self.transcriber.parse(raw, expected_count)
-                pages = validate_pages(pages, expected_count)
+                pages, page_fallbacks = self._parse_with_page_fallback(raw, expected_count, source, request_root)
             except (ValueError, OcrProviderError) as error:
                 raise OcrProviderError(f"{self.provider} OCR response validation failed: {error}") from error
         else:
@@ -699,7 +850,10 @@ class LiveLaneAdapter:
                 try:
                     if reported_count != expected_count:
                         raise ValueError("OCR page count changed during provider request")
-                    pages = parse_source(raw, expected_count, source) if parse_source else self.transcriber.parse(raw, expected_count)
+                    pages, page_fallbacks = self._parse_with_page_fallback(raw, expected_count, source, request_root)
+                except PageFallbackError:
+                    _write_once(request_root / f"raw_response.{_sha256(raw_bytes)}.json", raw_bytes)
+                    raise
                 except (ValueError, OcrProviderError) as error:
                     failure_root = request_root / "failed_attempts" / f"attempt-{validation_attempts:02d}"
                     _write_once(failure_root / f"raw_response.{_sha256(raw_bytes)}.json", raw_bytes)
@@ -708,11 +862,10 @@ class LiveLaneAdapter:
                         continue
                     _write_once(request_root / f"raw_response.{_sha256(raw_bytes)}.json", raw_bytes)
                     raise OcrProviderError(f"{self.provider} OCR response validation failed: {error}") from error
-                pages = validate_pages(pages, expected_count)
                 _write_once(request_root / f"raw_response.{_sha256(raw_bytes)}.json", raw_bytes)
                 break
         response_metadata = {key: raw[key] for key in ("id", "api", "model", "usage") if key in raw}
-        envelope = {"document_id": document_id, "provider": self.provider, "source_pdf_sha256": source_hash, "ocr_config_hash": self.ocr_config_hash, "parse_config_hash": self.parse_config_hash, "ocr_provenance": self.transcriber.config, "ocr_parse_provenance": self.parse_config, "raw_response_sha256": _sha256(raw_bytes), "provider_response_metadata": response_metadata, "pages": pages}
+        envelope = {"document_id": document_id, "provider": self.provider, "source_pdf_sha256": source_hash, "ocr_config_hash": self.ocr_config_hash, "parse_config_hash": self.parse_config_hash, "page_fallback_config_hash": self.page_fallback_config_hash, "ocr_provenance": self.transcriber.config, "ocr_parse_provenance": self.parse_config, "page_fallback_provenance": self.page_fallback_config, "raw_response_sha256": _sha256(raw_bytes), "provider_response_metadata": response_metadata, "page_fallbacks": page_fallbacks, "pages": pages}
         if validation_attempts:
             envelope["validation_attempts"] = validation_attempts
         _write_once(pages_path, _json_bytes(envelope))
@@ -808,4 +961,7 @@ class LiveLaneAdapter:
             result[f"failed_raw_response_{path.parent.name}"] = path
         for path in sorted(request_root.glob("failed_attempts/attempt-*/error.json")):
             result[f"validation_error_{path.parent.name}"] = path
+        fallback_pattern = f"page_fallbacks/{self.page_fallback_config_hash}/page-*/raw_response.*.json"
+        for path in sorted(request_root.glob(fallback_pattern)) if self.page_fallback_config_hash else []:
+            result[f"page_fallback_{path.parent.name}"] = path
         return result

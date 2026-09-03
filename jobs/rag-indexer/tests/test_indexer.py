@@ -432,6 +432,83 @@ class IndexerTest(unittest.TestCase):
         normalized = upstage_pages({"elements": [{"page": 1, "content": {"markdown": "Issuer Card"}}]}, 1)
         self.assertEqual(normalized[0]["text"], "Issuer Card")
 
+    def test_luna_recovers_only_failed_page_from_200dpi_image(self) -> None:
+        import pymupdf
+
+        source = self.root / "page-fallback.pdf"
+        document = pymupdf.open()
+        document.new_page().insert_text((72, 72), "Issuer Card")
+        document.new_page().insert_text((72, 72), "IBK기업은행")
+        document.save(source)
+        document.close()
+        client = FakeResponsesClient([
+            {"pages": [
+                {"page_num": 1, "status": "success", "markdown": "Issuer Card", "uncertain_spans": []},
+                {"page_num": 2, "status": "failed", "markdown": "", "uncertain_spans": [{"text": "page 2", "reason": "missing image"}]},
+            ]},
+            {"pages": [{"page_num": 2, "status": "success", "markdown": "IBK기업은행", "uncertain_spans": []}]},
+        ])
+        transcriber = LunaOcrTranscriber("secret", client=client, max_attempts=1)
+        adapter = LiveLaneAdapter(
+            "luna",
+            {self.document_id: source},
+            self.root / "page-fallback-cache",
+            transcriber,
+            FakeStructurer(),
+        )
+
+        path, envelope = adapter.extract(self.document_id)
+
+        self.assertTrue(path.is_file())
+        self.assertEqual(len(client.calls), 2)
+        self.assertEqual([item["type"] for item in client.calls[0]["input"][0]["content"]], ["input_file", "input_text"])
+        self.assertEqual([item["type"] for item in client.calls[1]["input"][0]["content"]], ["input_image", "input_text"])
+        self.assertTrue(client.calls[1]["input"][0]["content"][0]["image_url"].startswith("data:image/png;base64,"))
+        self.assertIn("Required page_num: 2", client.calls[1]["input"][0]["content"][1]["text"])
+        self.assertEqual([(row["page"], row["text"]) for row in envelope["pages"]], [(1, "Issuer Card"), (2, "IBK기업은행")])
+        self.assertEqual(envelope["pages"][1]["recovered_from"], "rendered_page_png_200dpi")
+        self.assertEqual([row["page"] for row in envelope["page_fallbacks"]], [2])
+        self.assertEqual(len(list(adapter._root(self.document_id, envelope["source_pdf_sha256"]).glob("page_fallbacks/*/page-0002/raw_response.*.json"))), 1)
+
+    def test_failed_page_fallback_never_resends_the_full_pdf(self) -> None:
+        import pymupdf
+
+        source = self.root / "failed-page-fallback.pdf"
+        document = pymupdf.open()
+        document.new_page().insert_text((72, 72), "Issuer Card")
+        document.new_page().insert_text((72, 72), "IBK기업은행")
+        document.save(source)
+        document.close()
+
+        class FailingPageClient(FakeResponsesClient):
+            def create(self, **kwargs):
+                if self.calls:
+                    self.calls.append(kwargs)
+                    raise RuntimeError("page request failed")
+                return super().create(**kwargs)
+
+        client = FailingPageClient([{"pages": [
+            {"page_num": 1, "status": "success", "markdown": "Issuer Card", "uncertain_spans": []},
+            {"page_num": 2, "status": "failed", "markdown": "", "uncertain_spans": [{"text": "page 2", "reason": "missing image"}]},
+        ]}])
+        transcriber = LunaOcrTranscriber("secret", client=client, max_attempts=1)
+        adapter = LiveLaneAdapter(
+            "luna",
+            {self.document_id: source},
+            self.root / "failed-page-fallback-cache",
+            transcriber,
+            FakeStructurer(),
+        )
+
+        with self.assertRaisesRegex(OcrProviderError, "page image fallback failed"):
+            adapter.extract(self.document_id)
+
+        self.assertEqual(len(client.calls), 2)
+        self.assertEqual(client.calls[0]["input"][0]["content"][0]["type"], "input_file")
+        self.assertEqual(client.calls[1]["input"][0]["content"][0]["type"], "input_image")
+        request_root = adapter._root(self.document_id, hashlib.sha256(source.read_bytes()).hexdigest())
+        self.assertEqual(len(list(request_root.glob("raw_response.*.json"))), 1)
+
     def test_provider_transport_retries_are_bounded(self) -> None:
         import httpx
         import openai
