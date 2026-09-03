@@ -33,7 +33,7 @@ from pickcardu_indexer.pipeline import (  # noqa: E402
     validate_lane,
 )
 from pickcardu_indexer.__main__ import parser as cli_parser, run_ocr  # noqa: E402
-from pickcardu_indexer.ocr import STRUCTURE_PROMPT, LiveLaneAdapter, LunaFactStructurer, LunaOcrTranscriber, OcrProviderError, UpstageOcrTranscriber, pages_text, upstage_pages  # noqa: E402
+from pickcardu_indexer.ocr import OCR_PROMPT, OCR_SCHEMA, STRUCTURE_PROMPT, LiveLaneAdapter, LunaFactStructurer, LunaOcrTranscriber, OcrProviderError, UpstageOcrTranscriber, pages_text, upstage_pages  # noqa: E402
 from pickcardu_indexer.structural import build_structural_chunks  # noqa: E402
 from pickcardu_rag_api.config import Settings  # noqa: E402
 from pickcardu_rag_api.index import ActiveIndexLoader  # noqa: E402
@@ -405,7 +405,7 @@ class IndexerTest(unittest.TestCase):
         document.new_page().insert_text((72, 72), "Issuer Card")
         document.save(pdf)
         document.close()
-        ocr_client = FakeResponsesClient([{"pages": [{"page": 1, "text": "Issuer Card", "uncertain_spans": []}]}])
+        ocr_client = FakeResponsesClient([{"pages": [{"page_num": 1, "status": "success", "markdown": "Issuer Card", "uncertain_spans": []}]}])
         raw, pages, provenance = LunaOcrTranscriber("secret", client=ocr_client).transcribe(pdf)
         self.assertEqual(raw["id"], "response-1")
         self.assertEqual(pages_text(pages), "=== PAGE 1 ===\nIssuer Card\n")
@@ -416,6 +416,9 @@ class IndexerTest(unittest.TestCase):
         content = ocr_client.calls[0]["input"][0]["content"]
         self.assertEqual([item["type"] for item in content], ["input_file", "input_text"])
         self.assertEqual(content[0]["detail"], "high")
+        self.assertEqual(OCR_SCHEMA["properties"]["pages"]["items"]["required"], ["page_num", "status", "markdown", "uncertain_spans"])
+        self.assertIn("병합된 셀", OCR_PROMPT)
+        self.assertIn("로고만 있는 페이지", OCR_PROMPT)
 
         structured = FakeStructurer().structure("luna", [{"page": 1, "text": "Issuer Card\n상품 안내: 카페 monthly 1% 할인"}])[1]
         structure_client = FakeResponsesClient([structured])
@@ -428,6 +431,105 @@ class IndexerTest(unittest.TestCase):
 
         normalized = upstage_pages({"elements": [{"page": 1, "content": {"markdown": "Issuer Card"}}]}, 1)
         self.assertEqual(normalized[0]["text"], "Issuer Card")
+
+    def test_provider_transport_retries_are_bounded(self) -> None:
+        import httpx
+        import openai
+        import pymupdf
+
+        pdf = self.root / "retry.pdf"
+        document = pymupdf.open()
+        document.new_page().insert_text((72, 72), "Issuer Card")
+        document.save(pdf)
+        document.close()
+
+        class FlakyResponses(FakeResponsesClient):
+            def create(self, **kwargs):
+                if not self.calls:
+                    self.calls.append(kwargs)
+                    raise openai.APITimeoutError(request=httpx.Request("POST", "https://api.openai.com/v1/responses"))
+                return super().create(**kwargs)
+
+        luna_client = FlakyResponses([{"pages": [{"page_num": 1, "status": "success", "markdown": "Issuer Card", "uncertain_spans": []}]}])
+        raw, count = LunaOcrTranscriber("secret", client=luna_client, sleeper=lambda _seconds: None).request(pdf)
+        self.assertEqual((raw["id"], count, len(luna_client.calls)), ("response-2", 1, 2))
+
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self):
+                return json.dumps({"usage": {"pages": 1}, "elements": [{"page": 1, "content": {"markdown": "Issuer Card"}}]}).encode()
+
+        calls = []
+
+        def opener(_request, timeout):
+            calls.append(timeout)
+            if len(calls) == 1:
+                raise TimeoutError("temporary")
+            return Response()
+
+        raw, count = UpstageOcrTranscriber("secret", opener=opener, sleeper=lambda _seconds: None).request(pdf)
+        self.assertEqual((raw["usage"]["pages"], count, len(calls)), (1, 1, 2))
+
+        class BadRequest(FakeResponsesClient):
+            def create(self, **kwargs):
+                self.calls.append(kwargs)
+                error = RuntimeError("bad request")
+                error.status_code = 400
+                raise error
+
+        bad_client = BadRequest([])
+        with self.assertRaisesRegex(OcrProviderError, "bad request"):
+            LunaOcrTranscriber("secret", client=bad_client, sleeper=lambda _seconds: None).request(pdf)
+        self.assertEqual(len(bad_client.calls), 1)
+
+    def test_upstage_normalization_preserves_layout_and_tables(self) -> None:
+        pages = upstage_pages(
+            {"usage": {"pages": 1}, "elements": [
+                {"id": 1, "page": 1, "category": "heading1", "content": {"markdown": "# 혜택"}, "coordinates": [{"x": 0.1, "y": 0.1}, {"x": 0.8, "y": 0.2}]},
+                {"id": 2, "page": 1, "category": "table", "content": {"markdown": "| 혜택 | 할인 |\n|---|---|\n| 편의점 | 10% |"}, "coordinates": [{"x": 0.1, "y": 0.3}, {"x": 0.9, "y": 0.8}]},
+            ]},
+            1,
+        )
+        self.assertEqual([block["reading_order"] for block in pages[0]["blocks"]], [1, 2])
+        self.assertEqual(pages[0]["blocks"][1]["type"], "table")
+        self.assertEqual(pages[0]["tables"][0]["table_id"], "2")
+        self.assertEqual(pages[0]["coordinate_space"], "normalized_0_1")
+
+    def test_upstage_layout_survives_staged_normalization(self) -> None:
+        import pymupdf
+
+        document = pymupdf.open()
+        document.new_page().insert_text((72, 72), "Issuer Card")
+        document.save(self.source)
+        document.close()
+        raw = {"api": "2.0", "model": "document-parse-test", "usage": {"pages": 1}, "elements": [
+            {"id": 7, "page": 1, "category": "table", "content": {"markdown": "Issuer Card\n상품 안내: 카페 monthly 1% 할인"}, "coordinates": [{"x": 0.1, "y": 0.2}, {"x": 0.9, "y": 0.8}]},
+        ]}
+
+        class LayoutUpstage(UpstageOcrTranscriber):
+            def request(self, _source):
+                return raw, 1
+
+        sources = {self.document_id: self.source}
+        luna, upstage, structurer = FakeTranscriber("luna"), LayoutUpstage("unused"), FakeStructurer()
+        adapters = {
+            "luna": LiveLaneAdapter("luna", sources, self.root / "layout-cache", luna, structurer),
+            "upstage": LiveLaneAdapter("upstage", sources, self.root / "layout-cache", upstage, structurer),
+        }
+        config = {"mode": "layout-test", "luna": luna.config, "upstage": upstage.config, "upstage_parse": upstage.parse_config, "structure": structurer.config}
+        for stage in ("extract", "structure", "normalize"):
+            result = self.indexer.staged_ocr(self.manifest, config=config, providers=adapters, stage=stage)
+        self.assertEqual(result["status"]["run"]["status"], "normalized")
+        working = self.root / "runtime/working" / result["run_id"] / "documents/issuer__card/upstage"
+        materialized = json.loads((working / "pages.json").read_text())
+        normalized = json.loads((working / "normalized.json").read_text())
+        self.assertEqual(materialized["pages"][0]["blocks"][0]["table_id"], "7")
+        self.assertEqual(normalized["pages"][0]["tables"][0]["table_id"], "7")
 
     def test_live_ocr_stages_are_independent_and_barriered(self) -> None:
         import pymupdf
@@ -721,6 +823,79 @@ class IndexerTest(unittest.TestCase):
             with self.assertRaisesRegex(OcrProviderError, "response validation failed"):
                 adapter.load(self.document_id)
         self.assertEqual(transcriber.calls, 1)
+
+    def test_luna_validation_failure_retries_once_and_preserves_failed_raw(self) -> None:
+        import pymupdf
+
+        source = self.root / "validation-retry.pdf"
+        pdf = pymupdf.open()
+        pdf.new_page().insert_text((72, 72), "Issuer Card")
+        pdf.save(source)
+        pdf.close()
+
+        class RecoveringTranscriber(FakeTranscriber):
+            validation_max_attempts = 2
+
+            def parse(self, raw, _expected_count):
+                if raw["request"] == 1:
+                    raise ValueError("missing page")
+                return raw["pages"]
+
+        transcriber = RecoveringTranscriber("luna")
+        adapter = LiveLaneAdapter("luna", {self.document_id: source}, self.root / "validation-retry", transcriber, FakeStructurer())
+        _path, envelope = adapter.extract(self.document_id)
+
+        self.assertEqual(transcriber.calls, 2)
+        self.assertEqual(envelope["validation_attempts"], 2)
+        request_root = adapter._root(self.document_id, envelope["source_pdf_sha256"])
+        self.assertEqual(len(list((request_root / "failed_attempts").glob("*/raw_response.*.json"))), 1)
+        self.assertEqual(len(list(request_root.glob("raw_response.*.json"))), 1)
+
+    def test_legacy_ocr_records_failed_provider_attempts_in_state(self) -> None:
+        import pymupdf
+
+        pdf = pymupdf.open()
+        pdf.new_page().insert_text((72, 72), "Issuer Card")
+        pdf.save(self.source)
+        pdf.close()
+
+        class InvalidTranscriber(FakeTranscriber):
+            validation_max_attempts = 2
+
+            def parse(self, _raw, _expected_count):
+                raise ValueError("invalid provider payload")
+
+        sources = {self.document_id: self.source}
+        luna = InvalidTranscriber("luna")
+        adapters = {
+            "luna": LiveLaneAdapter("luna", sources, self.root / "legacy-failure", luna, FakeStructurer()),
+            "upstage": LiveLaneAdapter("upstage", sources, self.root / "legacy-failure", FakeTranscriber("upstage"), FakeStructurer()),
+        }
+
+        result = self.indexer.ocr(
+            self.manifest,
+            None,
+            None,
+            config={"mode": "legacy-failure-test"},
+            providers=adapters,
+        )
+
+        self.assertEqual(result["status"]["run"]["status"], "blocked")
+        self.assertEqual(luna.calls, 2)
+        kinds = {
+            row["kind"]
+            for row in self.indexer.state.connection.execute(
+                "SELECT kind FROM artifacts WHERE run_id=? AND document_id=? AND provider='luna'",
+                (result["run_id"], self.document_id),
+            )
+        }
+        self.assertTrue({
+            "raw_response",
+            "failed_raw_response_attempt-01",
+            "failed_raw_response_attempt-02",
+            "validation_error_attempt-01",
+            "validation_error_attempt-02",
+        }.issubset(kinds))
 
     def test_cached_structure_response_prevents_paid_retry_after_parse_failure(self) -> None:
         import pymupdf

@@ -678,6 +678,7 @@ class Indexer:
                             _path, payload = adapter.normalize(document_id)
                             self._materialize_lane(run_id, document_id, provider, payload, adapter)
                     except (OcrProviderError, FileNotFoundError, RuntimeError, ValueError) as error:
+                        self._record_adapter_artifacts(run_id, document_id, provider, adapter)
                         errors.append({"provider": provider, "error": str(error), "retryable": isinstance(error, OcrProviderError) and error.retryable})
                 if errors:
                     self.state.set_document_status(run_id, document_id, "blocked")
@@ -741,7 +742,7 @@ class Indexer:
 
     def _materialize_extracted(self, run_id: str, document_id: str, provider: str, envelope: dict[str, Any], adapter: LiveLaneAdapter) -> None:
         root = self._document_root(run_id, document_id) / provider
-        pages = [{"page": row["page"], "text": row["text"]} for row in envelope["pages"]]
+        pages = [dict(row) for row in envelope["pages"]]
         self._record_json_artifact(run_id, document_id, "ocr_pages", provider, root / "pages.json", {"document_id": document_id, "provider": provider, "pages": pages})
         text = pages_text(pages).encode("utf-8")
         write_immutable(root / "ocr.txt", text)
@@ -842,7 +843,7 @@ class Indexer:
 
     def _materialize_lane(self, run_id: str, document_id: str, provider: str, payload: dict[str, Any], adapter: ProviderAdapter) -> None:
         root = self._document_root(run_id, document_id) / provider
-        pages = [{"page": row.get("page", row.get("number")), "text": row.get("text", "")} for row in payload.get("pages", [])]
+        pages = [dict(row) for row in payload.get("pages", [])]
         self._record_json_artifact(run_id, document_id, "ocr_pages", provider, root / "pages.json", {"document_id": document_id, "provider": provider, "pages": pages})
         text = pages_text(pages).encode("utf-8")
         write_immutable(root / "ocr.txt", text)
@@ -886,8 +887,8 @@ class Indexer:
             self.state.set_document_status(run_id, document_id, "blocked")
             self.state.record_stage(run_id, document_id, "ocr", source_hash, "blocked", {"reason": "local dual OCR artifacts required; live adapters fail closed"}, now())
             return
+        adapters = providers or {"luna": LocalJsonAdapter("luna", luna_dir), "upstage": LocalJsonAdapter("upstage", upstage_dir)}
         try:
-            adapters = providers or {"luna": LocalJsonAdapter("luna", luna_dir), "upstage": LocalJsonAdapter("upstage", upstage_dir)}
             if set(adapters) != {"luna", "upstage"} or adapters["luna"].provider != "luna" or adapters["upstage"].provider != "upstage":
                 raise ValueError("exactly independent luna and upstage adapters are required")
             luna_path, luna_payload = adapters["luna"].load(document_id)
@@ -919,6 +920,8 @@ class Indexer:
             self.state.record_stage(run_id, document_id, "structured", sha256_bytes(canonical_json([luna, upstage]).encode()), "completed", {"lanes": ["luna", "upstage"]}, now())
             self.state.record_stage(run_id, document_id, "grounding", sha256_bytes(canonical_json([luna, upstage]).encode()), "completed", {"lanes": ["luna", "upstage"]}, now())
         except OcrProviderError as error:
+            for provider, adapter in adapters.items():
+                self._record_adapter_artifacts(run_id, document_id, provider, adapter)
             self.state.set_document_status(run_id, document_id, "blocked")
             self.state.record_stage(run_id, document_id, "ocr", source_hash, "blocked", {"error": str(error)}, now(), retryable=error.retryable)
             return

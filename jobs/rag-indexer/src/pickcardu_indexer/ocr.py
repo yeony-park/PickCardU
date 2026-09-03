@@ -6,6 +6,7 @@ import json
 import mimetypes
 import os
 import re
+import time
 import urllib.error
 import urllib.request
 import uuid
@@ -23,6 +24,7 @@ MAX_MODEL_OUTPUT_TOKENS = 128_000
 UPSTAGE_EMPTY_PAGE_POLICY = "pdf-structural-blank-v2"
 UPSTAGE_BLANK_DOMINANT_COLOR_RATIO = 0.985
 UPSTAGE_DECORATIVE_BACKGROUND_MIN_RATIO = 0.75
+PROVIDER_MAX_ATTEMPTS = 2
 
 OCR_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -34,10 +36,11 @@ OCR_SCHEMA: dict[str, Any] = {
             "items": {
                 "type": "object",
                 "additionalProperties": False,
-                "required": ["page", "text", "uncertain_spans"],
+                "required": ["page_num", "status", "markdown", "uncertain_spans"],
                 "properties": {
-                    "page": {"type": "integer", "minimum": 1},
-                    "text": {"type": "string"},
+                    "page_num": {"type": "integer", "minimum": 1},
+                    "status": {"type": "string", "enum": ["success", "failed"]},
+                    "markdown": {"type": "string"},
                     "uncertain_spans": {
                         "type": "array",
                         "items": {
@@ -120,9 +123,28 @@ STRUCTURE_SCHEMA: dict[str, Any] = {
     },
 }
 
-OCR_PROMPT = """원본 카드 상품안내서의 모든 페이지를 순서대로 정확히 전사하세요.
-보이는 문자만 기록하고 요약, 교정, 추측, 보완하지 마세요. 숫자, 단위, 기호, 표, 각주와 제외 조건을 보이는 그대로 유지하세요.
-판독할 수 없는 문자는 �로 기록하고 uncertain_spans에 이유를 남기세요. 지정된 JSON 형식만 반환하세요."""
+OCR_PROMPT = """원본 카드 상품안내서의 내용을 정확하게 전사하세요.
+
+목표:
+- 문서에 실제로 보이는 문자만 전사하세요.
+- 내용을 요약하거나 설명하지 마세요.
+- 맞춤법, 띄어쓰기, 숫자, 상품명과 오탈자를 임의로 교정하지 마세요.
+- 문맥상 그럴듯한 표현으로 추측하거나 원문에 없는 값을 만들지 마세요.
+
+전사 규칙:
+1. 제목, 본문, 목록, 각주와 표를 원문의 읽기 순서대로 기록하세요.
+2. 숫자, 단위, 기호와 글머리표를 원문 그대로 보존하세요.
+3. 표는 Markdown 표로 변환하세요.
+4. 병합된 셀은 적용되는 각 열에 값을 반복하세요.
+5. 한 셀 안의 줄바꿈은 ` / `로 표시하세요.
+6. 로고는 식별 가능한 브랜드명만 기록하세요.
+7. 판독할 수 없는 문자는 추측하지 말고 �로 기록하고 uncertain_spans에 이유를 남기세요.
+8. 이미지에 없는 Markdown 제목이나 설명을 추가하지 마세요.
+9. 표지, 뒷표지, 로고만 있는 페이지와 빈 페이지도 pages 배열에 포함하세요.
+10. 각 페이지를 완전히 전사했으면 status를 success로, 처리하지 못했으면 failed로 기록하세요.
+
+모든 페이지를 빠짐없이 page_num 순서로 반환하고, 누락이나 중복이 없는지 확인하세요.
+해설이나 코드 블록 없이 지정된 JSON 형식만 반환하세요."""
 
 STRUCTURE_PROMPT = """주어진 단일 OCR lane만 사용해 카드 혜택을 구조화하세요. 다른 OCR 결과를 추측하거나 보완하지 마세요.
 issuer_name과 card_name을 추출하고, 혜택별 target, condition, value, unit, cap, frequency, period, exceptions를 문자열로 기록하세요.
@@ -171,6 +193,17 @@ def _response_dict(response: Any) -> dict[str, Any]:
     if isinstance(response, dict):
         return response
     raise OcrProviderError("provider response is not serializable")
+
+
+def _retryable_openai_error(error: Exception) -> bool:
+    status = getattr(error, "status_code", None)
+    if status in {408, 409, 429} or isinstance(status, int) and status >= 500:
+        return True
+    try:
+        from openai import APIConnectionError
+    except ImportError:
+        return isinstance(error, (TimeoutError, ConnectionError))
+    return isinstance(error, (TimeoutError, ConnectionError, APIConnectionError))
 
 
 def _output_json(response: Any, raw: dict[str, Any]) -> dict[str, Any]:
@@ -222,10 +255,32 @@ def validate_pages(value: Any, expected_count: int) -> list[dict[str, Any]]:
             raise ValueError("OCR page must be an object")
         page = row.get("page", row.get("page_num"))
         text = row.get("text", row.get("markdown"))
+        status = row.get("status", "success")
         uncertain = row.get("uncertain_spans", [])
-        if isinstance(page, bool) or not isinstance(page, int) or not isinstance(text, str) or not isinstance(uncertain, list):
+        is_blank = row.get("is_blank", False)
+        if (
+            isinstance(page, bool)
+            or not isinstance(page, int)
+            or not isinstance(text, str)
+            or status not in {"success", "failed"}
+            or not isinstance(uncertain, list)
+            or not isinstance(is_blank, bool)
+        ):
             raise ValueError("OCR page fields are invalid")
-        pages.append({"page": page, "text": text, "uncertain_spans": uncertain})
+        if status != "success":
+            raise ValueError(f"OCR page {page} has failed status")
+        if any(
+            not isinstance(span, dict)
+            or not isinstance(span.get("text"), str)
+            or not isinstance(span.get("reason"), str)
+            for span in uncertain
+        ):
+            raise ValueError(f"OCR page {page} has invalid uncertain_spans")
+        normalized_row = dict(row)
+        normalized_row.pop("page_num", None)
+        normalized_row.pop("markdown", None)
+        normalized_row.update({"page": page, "text": text, "status": status, "is_blank": is_blank, "uncertain_spans": uncertain})
+        pages.append(normalized_row)
     pages.sort(key=lambda row: row["page"])
     expected = list(range(1, expected_count + 1))
     if [row["page"] for row in pages] != expected:
@@ -242,6 +297,36 @@ def _element_text(element: dict[str, Any]) -> str:
     if isinstance(content, dict):
         return str(content.get("markdown") or content.get("html") or content.get("text") or "").strip()
     return str(content or element.get("markdown") or element.get("html") or element.get("text") or "").strip()
+
+
+def _upstage_elements(raw: dict[str, Any]) -> list[dict[str, Any]]:
+    elements = raw.get("elements")
+    if not isinstance(elements, list) and isinstance(raw.get("content"), dict):
+        elements = raw["content"].get("elements")
+    return elements if isinstance(elements, list) else []
+
+
+def _bbox(value: Any) -> dict[str, float] | None:
+    if isinstance(value, dict) and "x" in value and "y" in value:
+        x, y = float(value["x"]), float(value["y"])
+        return {"x1": x, "y1": y, "x2": x, "y2": y}
+    if isinstance(value, dict):
+        for key in ("points", "vertices", "coordinates"):
+            if key in value:
+                return _bbox(value[key])
+    if isinstance(value, list):
+        points = [point for point in value if isinstance(point, dict) and "x" in point and "y" in point]
+        if points:
+            xs, ys = [float(point["x"]) for point in points], [float(point["y"]) for point in points]
+            return {"x1": min(xs), "y1": min(ys), "x2": max(xs), "y2": max(ys)}
+    return None
+
+
+def _coordinate_space(blocks: list[dict[str, Any]]) -> str:
+    boxes = [block["bbox"] for block in blocks if block.get("bbox") is not None]
+    if boxes and all(0.0 <= box[key] <= 1.01 for box in boxes for key in ("x1", "y1", "x2", "y2")):
+        return "normalized_0_1"
+    return "provider_coordinates"
 
 
 def visually_blank_pages(
@@ -292,16 +377,12 @@ def visually_blank_pages(
 
 
 def upstage_pages(raw: dict[str, Any], expected_count: int, *, allowed_empty_pages: set[int] | None = None) -> list[dict[str, Any]]:
-    elements = raw.get("elements")
-    if not isinstance(elements, list) and isinstance(raw.get("content"), dict):
-        elements = raw["content"].get("elements")
-    if not isinstance(elements, list):
-        elements = []
+    elements = _upstage_elements(raw)
     usage = raw.get("usage")
     if isinstance(usage, dict) and usage.get("pages") != expected_count:
         raise ValueError("Upstage reported page count does not match the source PDF")
-    grouped: dict[int, list[str]] = {page: [] for page in range(1, expected_count + 1)}
-    for element in elements:
+    grouped = {page: {"blocks": [], "tables": []} for page in range(1, expected_count + 1)}
+    for reading_order, element in enumerate(elements, start=1):
         if not isinstance(element, dict):
             raise ValueError("Upstage element must be an object")
         raw_page = element.get("page", element.get("page_number"))
@@ -313,66 +394,118 @@ def upstage_pages(raw: dict[str, Any], expected_count: int, *, allowed_empty_pag
             raise ValueError("Upstage element page number is invalid") from error
         if page not in grouped:
             raise ValueError("Upstage element page is outside the source PDF")
-        text = _element_text(element)
-        if text:
-            grouped[page].append(text)
-    if expected_count == 1 and not grouped[1]:
+        text, block_type = _element_text(element), str(element.get("category") or element.get("type") or "unknown").lower()
+        box = _bbox(element.get("coordinates") or element.get("bounding_box") or element.get("bbox"))
+        block = {
+            "block_id": f"p{page}_b{len(grouped[page]['blocks']) + 1:04d}",
+            "reading_order": reading_order,
+            "type": block_type,
+            "text": text,
+            "bbox": box,
+            "source_id": element.get("id"),
+        }
+        if block_type == "table":
+            table_id = str(element.get("id") or f"p{page}_t{len(grouped[page]['tables']) + 1:03d}")
+            block["table_id"] = table_id
+            grouped[page]["tables"].append({"table_id": table_id, "format": "markdown" if "|" in text else "html", "content": text, "bbox": box, "source_id": element.get("id")})
+        grouped[page]["blocks"].append(block)
+    if expected_count == 1 and not any(block["text"] for block in grouped[1]["blocks"]):
         content = raw.get("content")
         if isinstance(content, dict):
             fallback = str(content.get("markdown") or content.get("text") or "").strip()
             if fallback:
-                grouped[1].append(fallback)
+                grouped[1]["blocks"].append({"block_id": "p1_b0001", "reading_order": 1, "type": "unknown", "text": fallback, "bbox": None, "source_id": None})
     allowed_empty_pages = allowed_empty_pages or set()
-    empty_pages = [page for page, rows in grouped.items() if not rows and page not in allowed_empty_pages]
+    page_text = {page: "\n".join(block["text"] for block in value["blocks"] if block["text"]) for page, value in grouped.items()}
+    empty_pages = [page for page, text in page_text.items() if not text and page not in allowed_empty_pages]
     if empty_pages:
         raise ValueError(f"Upstage response has no text for source pages: {empty_pages}")
-    return validate_pages(
-        [{"page": page, "text": "\n".join(grouped[page]), "uncertain_spans": []} for page in grouped],
-        expected_count,
-    )
+    return [
+        {
+            "page": page,
+            "text": page_text[page],
+            "status": "success",
+            "is_blank": page in allowed_empty_pages,
+            "uncertain_spans": [],
+            "blocks": value["blocks"],
+            "tables": value["tables"],
+            "coordinate_space": _coordinate_space(value["blocks"]),
+        }
+        for page, value in grouped.items()
+    ]
 
 
 class LunaOcrTranscriber:
     provider = "luna"
+    validation_max_attempts = 2
 
-    def __init__(self, api_key: str, *, model: str = LUNA_OCR_MODEL, reasoning: str = LUNA_REASONING, client: Any = None) -> None:
+    def __init__(
+        self,
+        api_key: str,
+        *,
+        model: str = LUNA_OCR_MODEL,
+        reasoning: str = LUNA_REASONING,
+        client: Any = None,
+        max_attempts: int = PROVIDER_MAX_ATTEMPTS,
+        sleeper: Any = time.sleep,
+    ) -> None:
+        if max_attempts < 1:
+            raise ValueError("max_attempts must be positive")
         self.api_key, self.model, self.reasoning, self._client = api_key, model, reasoning, client
+        self.max_attempts, self._sleep = max_attempts, sleeper
 
     @property
     def config(self) -> dict[str, Any]:
-        return {"endpoint": "openai.responses", "model": self.model, "reasoning": self.reasoning, "input": "pdf", "detail": "high", "prompt_sha256": _sha256(OCR_PROMPT.encode()), "schema_sha256": _sha256(_json_bytes(OCR_SCHEMA)), "output_limit": "provider_default"}
+        return {"endpoint": "openai.responses", "model": self.model, "reasoning": self.reasoning, "input": "pdf", "detail": "high", "prompt_sha256": _sha256(OCR_PROMPT.encode()), "schema_sha256": _sha256(_json_bytes(OCR_SCHEMA)), "output_limit": "provider_default", "max_attempts": self.max_attempts, "validation_max_attempts": self.validation_max_attempts}
 
     def request(self, source: Path) -> tuple[dict[str, Any], int]:
         if self._client is None:
             from openai import OpenAI
 
             self._client = OpenAI(api_key=self.api_key, max_retries=0)
-        try:
-            count = pdf_page_count(source)
-            encoded = base64.b64encode(source.read_bytes()).decode("ascii")
-            response = self._client.responses.create(
-                model=self.model,
-                reasoning={"effort": self.reasoning},
-                input=[{"role": "user", "content": [
-                    {"type": "input_file", "filename": source.name, "file_data": f"data:application/pdf;base64,{encoded}", "detail": "high"},
-                    {"type": "input_text", "text": f"{OCR_PROMPT}\nPDF page count: {count}"},
-                ]}],
-                text={"format": {"type": "json_schema", "name": "ocr_pages", "strict": True, "schema": OCR_SCHEMA}},
-                store=False,
-                timeout=900.0,
-            )
-        except Exception as error:
-            retryable = not isinstance(error, (OSError, ValueError))
-            raise OcrProviderError(f"Luna OCR failed: {type(error).__name__}: {error}", retryable=retryable) from error
-        return _response_dict(response), count
+        count = pdf_page_count(source)
+        encoded = base64.b64encode(source.read_bytes()).decode("ascii")
+        last_error: Exception | None = None
+        for attempt in range(1, self.max_attempts + 1):
+            try:
+                response = self._client.responses.create(
+                    model=self.model,
+                    reasoning={"effort": self.reasoning},
+                    input=[{"role": "user", "content": [
+                        {"type": "input_file", "filename": source.name, "file_data": f"data:application/pdf;base64,{encoded}", "detail": "high"},
+                        {"type": "input_text", "text": f"{OCR_PROMPT}\nPDF page count: {count}"},
+                    ]}],
+                    text={"format": {"type": "json_schema", "name": "ocr_pages", "strict": True, "schema": OCR_SCHEMA}},
+                    store=False,
+                    timeout=900.0,
+                )
+                return _response_dict(response), count
+            except Exception as error:
+                last_error = error
+                retryable = _retryable_openai_error(error)
+                if not retryable or attempt == self.max_attempts:
+                    raise OcrProviderError(f"Luna OCR failed: {type(error).__name__}: {error}", retryable=retryable) from error
+                self._sleep(min(30.0, 2**attempt))
+        raise OcrProviderError(f"Luna OCR failed: {last_error}", retryable=True)
 
     def parse(self, raw: dict[str, Any], expected_count: int) -> list[dict[str, Any]]:
         output = _output_json(None, raw)
         return validate_pages(output.get("pages"), expected_count)
 
+    def parse_source(self, raw: dict[str, Any], expected_count: int, source: Path) -> list[dict[str, Any]]:
+        pages = self.parse(raw, expected_count)
+        empty_pages = {row["page"] for row in pages if not row["text"].strip()}
+        blank_pages = visually_blank_pages(source, empty_pages)
+        unexpected = sorted(empty_pages - blank_pages)
+        if unexpected:
+            raise ValueError(f"Luna response has no text for source pages: {unexpected}")
+        for page in pages:
+            page["is_blank"] = page["page"] in blank_pages
+        return pages
+
     def transcribe(self, source: Path) -> tuple[dict[str, Any], list[dict[str, Any]], dict[str, Any]]:
         raw, count = self.request(source)
-        return raw, self.parse(raw, count), self.config
+        return raw, self.parse_source(raw, count, source), self.config
 
 
 def _multipart_body(source: Path) -> tuple[bytes, str]:
@@ -393,8 +526,11 @@ def _multipart_body(source: Path) -> tuple[bytes, str]:
 class UpstageOcrTranscriber:
     provider = "upstage"
 
-    def __init__(self, api_key: str, *, opener: Any = None) -> None:
+    def __init__(self, api_key: str, *, opener: Any = None, max_attempts: int = PROVIDER_MAX_ATTEMPTS, sleeper: Any = time.sleep) -> None:
+        if max_attempts < 1:
+            raise ValueError("max_attempts must be positive")
         self.api_key, self._opener = api_key, opener or urllib.request.urlopen
+        self.max_attempts, self._sleep = max_attempts, sleeper
 
     @property
     def config(self) -> dict[str, Any]:
@@ -406,21 +542,36 @@ class UpstageOcrTranscriber:
             "empty_page_policy": UPSTAGE_EMPTY_PAGE_POLICY,
             "dominant_color_ratio": UPSTAGE_BLANK_DOMINANT_COLOR_RATIO,
             "decorative_background_min_ratio": UPSTAGE_DECORATIVE_BACKGROUND_MIN_RATIO,
+            "normalizer": "layout-blocks-v1",
+            "max_attempts": self.max_attempts,
         }
 
     def request(self, source: Path) -> tuple[dict[str, Any], int]:
-        try:
-            count = pdf_page_count(source)
-            body, boundary = _multipart_body(source)
-            request = urllib.request.Request(UPSTAGE_ENDPOINT, data=body, headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": f"multipart/form-data; boundary={boundary}"}, method="POST")
-            with self._opener(request, timeout=900) as response:
-                raw = json.loads(response.read().decode("utf-8"))
-        except urllib.error.HTTPError as error:
-            detail = error.read().decode("utf-8", errors="replace")
-            raise OcrProviderError(f"Upstage OCR HTTP {error.code}: {detail[-1000:]}", retryable=error.code == 429 or error.code >= 500) from error
-        except Exception as error:
-            retryable = not isinstance(error, (OSError, ValueError))
-            raise OcrProviderError(f"Upstage OCR failed: {type(error).__name__}: {error}", retryable=retryable) from error
+        count = pdf_page_count(source)
+        body, boundary = _multipart_body(source)
+        request = urllib.request.Request(UPSTAGE_ENDPOINT, data=body, headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": f"multipart/form-data; boundary={boundary}"}, method="POST")
+        for attempt in range(1, self.max_attempts + 1):
+            try:
+                with self._opener(request, timeout=900) as response:
+                    raw = json.loads(response.read().decode("utf-8"))
+                break
+            except urllib.error.HTTPError as error:
+                detail = error.read().decode("utf-8", errors="replace")
+                retryable = error.code in {408, 429} or error.code >= 500
+                if not retryable or attempt == self.max_attempts:
+                    raise OcrProviderError(f"Upstage OCR HTTP {error.code}: {detail[-1000:]}", retryable=retryable) from error
+                retry_after = error.headers.get("Retry-After") if error.headers else None
+                try:
+                    delay = float(retry_after) if retry_after is not None else 0.0
+                except ValueError:
+                    delay = 0.0
+                self._sleep(max(delay, min(30.0, 2**attempt)))
+            except (urllib.error.URLError, TimeoutError, ConnectionError) as error:
+                if attempt == self.max_attempts:
+                    raise OcrProviderError(f"Upstage OCR failed: {type(error).__name__}: {error}", retryable=True) from error
+                self._sleep(min(30.0, 2**attempt))
+            except Exception as error:
+                raise OcrProviderError(f"Upstage OCR failed: {type(error).__name__}: {error}") from error
         if not isinstance(raw, dict):
             raise OcrProviderError("Upstage response must be an object")
         return raw, count
@@ -531,20 +682,39 @@ class LiveLaneAdapter:
             _source_hash, _pages, envelope, _pages_root, _structure_root = self.read_extracted(document_id)
             return pages_path, envelope
         raw = _cached_json(request_root, "raw_response.*.json")
-        if raw is None:
-            raw, reported_count = self.transcriber.request(source)
-            if reported_count != expected_count:
-                raise OcrProviderError("OCR page count changed during provider request")
+        parse_source = getattr(self.transcriber, "parse_source", None)
+        validation_attempts = 0
+        if raw is not None:
             raw_bytes = _json_bytes(raw)
-            _write_once(request_root / f"raw_response.{_sha256(raw_bytes)}.json", raw_bytes)
+            try:
+                pages = parse_source(raw, expected_count, source) if parse_source else self.transcriber.parse(raw, expected_count)
+                pages = validate_pages(pages, expected_count)
+            except (ValueError, OcrProviderError) as error:
+                raise OcrProviderError(f"{self.provider} OCR response validation failed: {error}") from error
         else:
-            raw_bytes = _json_bytes(raw)
-        try:
-            parse_source = getattr(self.transcriber, "parse_source", None)
-            pages = parse_source(raw, expected_count, source) if parse_source else self.transcriber.parse(raw, expected_count)
-        except (ValueError, OcrProviderError) as error:
-            raise OcrProviderError(f"{self.provider} OCR response validation failed: {error}") from error
-        envelope = {"document_id": document_id, "provider": self.provider, "source_pdf_sha256": source_hash, "ocr_config_hash": self.ocr_config_hash, "parse_config_hash": self.parse_config_hash, "ocr_provenance": self.transcriber.config, "ocr_parse_provenance": self.parse_config, "raw_response_sha256": _sha256(raw_bytes), "pages": pages}
+            max_attempts = max(1, int(getattr(self.transcriber, "validation_max_attempts", 1)))
+            for validation_attempts in range(1, max_attempts + 1):
+                raw, reported_count = self.transcriber.request(source)
+                raw_bytes = _json_bytes(raw)
+                try:
+                    if reported_count != expected_count:
+                        raise ValueError("OCR page count changed during provider request")
+                    pages = parse_source(raw, expected_count, source) if parse_source else self.transcriber.parse(raw, expected_count)
+                except (ValueError, OcrProviderError) as error:
+                    failure_root = request_root / "failed_attempts" / f"attempt-{validation_attempts:02d}"
+                    _write_once(failure_root / f"raw_response.{_sha256(raw_bytes)}.json", raw_bytes)
+                    _write_once(failure_root / "error.json", _json_bytes({"error": str(error)}))
+                    if validation_attempts < max_attempts:
+                        continue
+                    _write_once(request_root / f"raw_response.{_sha256(raw_bytes)}.json", raw_bytes)
+                    raise OcrProviderError(f"{self.provider} OCR response validation failed: {error}") from error
+                pages = validate_pages(pages, expected_count)
+                _write_once(request_root / f"raw_response.{_sha256(raw_bytes)}.json", raw_bytes)
+                break
+        response_metadata = {key: raw[key] for key in ("id", "api", "model", "usage") if key in raw}
+        envelope = {"document_id": document_id, "provider": self.provider, "source_pdf_sha256": source_hash, "ocr_config_hash": self.ocr_config_hash, "parse_config_hash": self.parse_config_hash, "ocr_provenance": self.transcriber.config, "ocr_parse_provenance": self.parse_config, "raw_response_sha256": _sha256(raw_bytes), "provider_response_metadata": response_metadata, "pages": pages}
+        if validation_attempts:
+            envelope["validation_attempts"] = validation_attempts
         _write_once(pages_path, _json_bytes(envelope))
         _write_once(pages_root / "ocr.txt", pages_text(pages).encode("utf-8"))
         return pages_path, envelope
@@ -598,7 +768,7 @@ class LiveLaneAdapter:
             "ocr_provenance": envelope["ocr_provenance"],
             "ocr_parse_provenance": envelope["ocr_parse_provenance"],
             "identity": structured.get("identity"),
-            "pages": [{"page": row["page"], "text": row["text"]} for row in pages],
+            "pages": [dict(row) for row in pages],
             "span_dispositions": structured.get("span_dispositions"),
             "facts": structured.get("facts"),
         }
@@ -634,4 +804,8 @@ class LiveLaneAdapter:
             result["raw_response"] = raw[-1]
         if structure_raw:
             result["structure_raw_response"] = structure_raw[-1]
+        for path in sorted(request_root.glob("failed_attempts/attempt-*/raw_response.*.json")):
+            result[f"failed_raw_response_{path.parent.name}"] = path
+        for path in sorted(request_root.glob("failed_attempts/attempt-*/error.json")):
+            result[f"validation_error_{path.parent.name}"] = path
         return result
