@@ -110,7 +110,14 @@ def run_ocr(indexer: Indexer, arguments: argparse.Namespace) -> dict[str, Any]:
     luna = LunaOcrTranscriber(openai_key, model=arguments.luna_model, reasoning=arguments.luna_reasoning)
     upstage = UpstageOcrTranscriber(upstage_key)
     structurer = LunaFactStructurer(openai_key, model=arguments.structure_model, reasoning=arguments.structure_reasoning)
-    config = {"mode": "live_dual_ocr_v1", "luna": luna.config, "upstage": upstage.config, "upstage_parse": getattr(upstage, "parse_config", {}), "structure": structurer.config}
+    config = {
+        "mode": "live_dual_ocr_v1",
+        "luna": luna.config,
+        "luna_page_fallback": getattr(luna, "page_fallback_config", {}),
+        "upstage": upstage.config,
+        "upstage_parse": getattr(upstage, "parse_config", {}),
+        "structure": structurer.config,
+    }
 
     sources = {row["document_id"]: Path(row["source_pdf"]) for row in read_source_manifest(arguments.source_manifest)}
     root = arguments.runtime_root / "ocr-cache"

@@ -438,7 +438,7 @@ def upstage_pages(raw: dict[str, Any], expected_count: int, *, allowed_empty_pag
             "page": page,
             "text": page_text[page],
             "status": "success",
-            "is_blank": page in allowed_empty_pages,
+            "is_blank": not page_text[page] and page in allowed_empty_pages,
             "uncertain_spans": [],
             "blocks": value["blocks"],
             "tables": value["tables"],
@@ -477,6 +477,7 @@ class LunaOcrTranscriber:
             "input": "rendered_page_png",
             "dpi": LUNA_PAGE_FALLBACK_DPI,
             "detail": "high",
+            "candidate_policy": "missing-failed-or-nonblank-empty-and-source-blank-v3",
             "prompt_sha256": _sha256(OCR_PAGE_FALLBACK_PROMPT.encode()),
             "schema_sha256": _sha256(_json_bytes(OCR_SCHEMA)),
         }
@@ -532,12 +533,13 @@ class LunaOcrTranscriber:
             {"type": "input_text", "text": f"{OCR_PAGE_FALLBACK_PROMPT}\nRequired page_num: {page_number}"},
         ], "ocr_page_fallback")
 
-    def fallback_page_numbers(self, raw: dict[str, Any], expected_count: int) -> list[int]:
+    def fallback_page_numbers(self, raw: dict[str, Any], expected_count: int, source: Path) -> list[int]:
         value = _output_json(None, raw).get("pages")
         if not isinstance(value, list):
             return []
         counts: dict[int, int] = {}
         failed: set[int] = set()
+        empty: set[int] = set()
         for row in value:
             if not isinstance(row, dict):
                 continue
@@ -547,7 +549,11 @@ class LunaOcrTranscriber:
             counts[page] = counts.get(page, 0) + 1
             if row.get("status", "success") != "success":
                 failed.add(page)
-        return sorted(failed | {page for page in range(1, expected_count + 1) if counts.get(page) != 1})
+            text = row.get("markdown", row.get("text"))
+            if isinstance(text, str) and not text.strip():
+                empty.add(page)
+        empty -= visually_blank_pages(source, empty)
+        return sorted(failed | empty | {page for page in range(1, expected_count + 1) if counts.get(page) != 1})
 
     def parse_with_page_fallbacks(
         self,
@@ -571,12 +577,14 @@ class LunaOcrTranscriber:
             merged.append(row)
         pages = validate_pages(merged, expected_count)
         empty_pages = {row["page"] for row in pages if not row["text"].strip()}
-        blank_pages = visually_blank_pages(source, empty_pages)
+        blank_pages = visually_blank_pages(source, set(range(1, expected_count + 1)))
         unexpected = sorted(empty_pages - blank_pages)
         if unexpected:
             raise ValueError(f"Luna response has no text for source pages: {unexpected}")
         for page in pages:
             page["is_blank"] = page["page"] in blank_pages
+            if page["is_blank"]:
+                page["text"] = ""
             if page["page"] in recovered:
                 page["recovered_from"] = f"rendered_page_png_{LUNA_PAGE_FALLBACK_DPI}dpi"
         return pages
@@ -588,12 +596,14 @@ class LunaOcrTranscriber:
     def parse_source(self, raw: dict[str, Any], expected_count: int, source: Path) -> list[dict[str, Any]]:
         pages = self.parse(raw, expected_count)
         empty_pages = {row["page"] for row in pages if not row["text"].strip()}
-        blank_pages = visually_blank_pages(source, empty_pages)
+        blank_pages = visually_blank_pages(source, set(range(1, expected_count + 1)))
         unexpected = sorted(empty_pages - blank_pages)
         if unexpected:
             raise ValueError(f"Luna response has no text for source pages: {unexpected}")
         for page in pages:
             page["is_blank"] = page["page"] in blank_pages
+            if page["is_blank"]:
+                page["text"] = ""
         return pages
 
     def transcribe(self, source: Path) -> tuple[dict[str, Any], list[dict[str, Any]], dict[str, Any]]:
@@ -601,7 +611,7 @@ class LunaOcrTranscriber:
         try:
             pages = self.parse_source(raw, count, source)
         except (ValueError, OcrProviderError):
-            page_numbers = self.fallback_page_numbers(raw, count)
+            page_numbers = self.fallback_page_numbers(raw, count, source)
             if not page_numbers:
                 raise
             fallback_raws = {page: self.request_page(source, page) for page in page_numbers}
@@ -644,6 +654,7 @@ class UpstageOcrTranscriber:
             "dominant_color_ratio": UPSTAGE_BLANK_DOMINANT_COLOR_RATIO,
             "decorative_background_min_ratio": UPSTAGE_DECORATIVE_BACKGROUND_MIN_RATIO,
             "normalizer": "layout-blocks-v1",
+            "blank_labeling": "empty-pages-only-v2",
             "max_attempts": self.max_attempts,
         }
 
@@ -801,7 +812,7 @@ class LiveLaneAdapter:
             parse_fallbacks = getattr(self.transcriber, "parse_with_page_fallbacks", None)
             if not all(callable(item) for item in (candidates, request_page, parse_fallbacks)):
                 raise
-            page_numbers = candidates(raw, expected_count)
+            page_numbers = candidates(raw, expected_count, source)
             if not page_numbers:
                 raise
             fallback_raws: dict[int, dict[str, Any]] = {}

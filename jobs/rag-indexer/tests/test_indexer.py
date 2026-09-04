@@ -410,6 +410,8 @@ class IndexerTest(unittest.TestCase):
         self.assertEqual(raw["id"], "response-1")
         self.assertEqual(pages_text(pages), "=== PAGE 1 ===\nIssuer Card\n")
         self.assertEqual(provenance["endpoint"], "openai.responses")
+        self.assertEqual(provenance["page_fallback"]["candidate_policy"], "missing-failed-or-nonblank-empty-and-source-blank-v3")
+        self.assertEqual(UpstageOcrTranscriber("fixture").parse_config["blank_labeling"], "empty-pages-only-v2")
         self.assertFalse(ocr_client.calls[0]["store"])
         self.assertEqual(ocr_client.calls[0]["text"]["format"]["name"], "ocr_pages")
         self.assertNotIn("max_output_tokens", ocr_client.calls[0])
@@ -469,6 +471,107 @@ class IndexerTest(unittest.TestCase):
         self.assertEqual(envelope["pages"][1]["recovered_from"], "rendered_page_png_200dpi")
         self.assertEqual([row["page"] for row in envelope["page_fallbacks"]], [2])
         self.assertEqual(len(list(adapter._root(self.document_id, envelope["source_pdf_sha256"]).glob("page_fallbacks/*/page-0002/raw_response.*.json"))), 1)
+
+    def test_luna_recovers_success_page_with_empty_text_when_source_is_not_blank(self) -> None:
+        import pymupdf
+
+        source = self.root / "empty-text-fallback.pdf"
+        document = pymupdf.open()
+        document.new_page().insert_text((72, 72), "Issuer Card")
+        document.save(source)
+        document.close()
+        client = FakeResponsesClient([
+            {"pages": [{"page_num": 1, "status": "success", "markdown": "", "uncertain_spans": []}]},
+            {"pages": [{"page_num": 1, "status": "success", "markdown": "Issuer Card", "uncertain_spans": []}]},
+        ])
+
+        _, pages, _ = LunaOcrTranscriber("secret", client=client, max_attempts=1).transcribe(source)
+
+        self.assertEqual(len(client.calls), 2)
+        self.assertEqual(client.calls[1]["input"][0]["content"][0]["type"], "input_image")
+        self.assertEqual(pages[0]["text"], "Issuer Card")
+        self.assertEqual(pages[0]["recovered_from"], "rendered_page_png_200dpi")
+
+    def test_luna_adapter_recovers_cached_success_page_with_empty_text(self) -> None:
+        import pymupdf
+
+        source = self.root / "cached-empty-text-fallback.pdf"
+        document = pymupdf.open()
+        document.new_page().insert_text((72, 72), "Issuer Card")
+        document.save(source)
+        document.close()
+        client = FakeResponsesClient([
+            {"pages": [{"page_num": 1, "status": "success", "markdown": "Issuer Card", "uncertain_spans": []}]},
+        ])
+        transcriber = LunaOcrTranscriber("secret", client=client, max_attempts=1)
+        adapter = LiveLaneAdapter(
+            "luna",
+            {self.document_id: source},
+            self.root / "cached-empty-text-fallback-cache",
+            transcriber,
+            FakeStructurer(),
+        )
+        source_hash = adapter._context(self.document_id)[1]
+        write_json(
+            adapter._root(self.document_id, source_hash) / "raw_response.fixture.json",
+            {
+                "output": [{
+                    "type": "message",
+                    "content": [{
+                        "type": "output_text",
+                        "text": json.dumps({
+                            "pages": [{"page_num": 1, "status": "success", "markdown": "", "uncertain_spans": []}],
+                        }),
+                    }],
+                }],
+            },
+        )
+
+        _, envelope = adapter.extract(self.document_id)
+
+        self.assertEqual(len(client.calls), 1)
+        self.assertEqual(client.calls[0]["input"][0]["content"][0]["type"], "input_image")
+        self.assertEqual(envelope["pages"][0]["text"], "Issuer Card")
+        self.assertEqual(envelope["pages"][0]["recovered_from"], "rendered_page_png_200dpi")
+        fallback_root = adapter._root(self.document_id, source_hash) / "page_fallbacks" / str(adapter.page_fallback_config_hash)
+        self.assertEqual(len(list(fallback_root.glob("page-0001/raw_response.*.json"))), 1)
+
+    def test_luna_does_not_fallback_for_visually_blank_page(self) -> None:
+        import pymupdf
+
+        source = self.root / "blank-page.pdf"
+        document = pymupdf.open()
+        document.new_page()
+        document.save(source)
+        document.close()
+        client = FakeResponsesClient([
+            {"pages": [{"page_num": 1, "status": "success", "markdown": "", "uncertain_spans": []}]},
+        ])
+
+        _, pages, _ = LunaOcrTranscriber("secret", client=client, max_attempts=1).transcribe(source)
+
+        self.assertEqual(len(client.calls), 1)
+        self.assertEqual(client.calls[0]["input"][0]["content"][0]["type"], "input_file")
+        self.assertTrue(pages[0]["is_blank"])
+
+    def test_luna_discards_hallucinated_text_on_visually_blank_page(self) -> None:
+        import pymupdf
+
+        source = self.root / "blank-page-with-hallucinated-text.pdf"
+        document = pymupdf.open()
+        page = document.new_page()
+        page.draw_rect(page.rect, fill=(0.5, 0.5, 0.5), color=None)
+        document.save(source)
+        document.close()
+        client = FakeResponsesClient([
+            {"pages": [{"page_num": 1, "status": "success", "markdown": "2", "uncertain_spans": []}]},
+        ])
+
+        _, pages, _ = LunaOcrTranscriber("secret", client=client, max_attempts=1).transcribe(source)
+
+        self.assertEqual(len(client.calls), 1)
+        self.assertTrue(pages[0]["is_blank"])
+        self.assertEqual(pages[0]["text"], "")
 
     def test_failed_page_fallback_never_resends_the_full_pdf(self) -> None:
         import pymupdf
@@ -789,6 +892,7 @@ class IndexerTest(unittest.TestCase):
 
         parsed = UpstageOcrTranscriber("fixture").parse_source(raw, 2, blank_source)
         self.assertEqual([(row["page"], row["text"]) for row in parsed], [(1, "첫 페이지"), (2, "")])
+        self.assertEqual([row["is_blank"] for row in parsed], [False, True])
 
         decorative_source = self.root / "decorative-second-page.pdf"
         document = pymupdf.open()
@@ -801,6 +905,7 @@ class IndexerTest(unittest.TestCase):
         document.close()
         parsed = UpstageOcrTranscriber("fixture").parse_source(raw, 2, decorative_source)
         self.assertEqual([(row["page"], row["text"]) for row in parsed], [(1, "첫 페이지"), (2, "")])
+        self.assertEqual([row["is_blank"] for row in parsed], [False, True])
 
         content_source = self.root / "content-second-page.pdf"
         document = pymupdf.open()
@@ -1104,6 +1209,7 @@ class IndexerTest(unittest.TestCase):
             with mock.patch.dict(os.environ, {"OPENAI_API_KEY": "fixture"}, clear=True):
                 run_ocr(self.indexer, structure)
             self.assertEqual(staged.call_args.kwargs["stage"], "structure")
+            self.assertEqual(staged.call_args.kwargs["config"]["luna_page_fallback"], {})
 
             for stage in ("normalize", "validate"):
                 staged.reset_mock()
