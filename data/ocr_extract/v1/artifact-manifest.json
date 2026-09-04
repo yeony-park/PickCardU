@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0",
+  "artifact_version": "ocr-extract-v1",
+  "created_at": "2026-09-04T14:18:09+09:00",
+  "source_manifest_sha256": "94f248ee6157b26d1987cd4670b1ab829acf8287486ee06cd8423b187ab35a8f",
+  "official_extract_run_id": "run_33624601532b06bc",
+  "document_count": 106,
+  "page_count": 617,
+  "providers": {
+    "luna": {
+      "ocr_config_sha256": "ca0bc6020f061e3a2385c5a2510d052adcc5e13d71be9d4a13ce9b7c3378b584",
+      "page_fallback_config_sha256": "2b0a0536684ed7146e8f40ea8796bb3ef5541e64d8b3e99307167a935528975b"
+    },
+    "upstage": {
+      "ocr_config_sha256": "37a7853a5267b9184052579779e7bc6953d49a270fff2c87f25f8a9e3abf0c82",
+      "parse_config_sha256": "b6d15ec43f279249fd1d0cfc5fad155524815fb80c7a69f0206f2875064b870a"
+    }
+  },
+  "ocr_artifact_file_count": 424,
+  "ocr_artifact_bytes": 11901618,
+  "included": [
+    "luna/pages.json",
+    "luna/ocr.txt",
+    "upstage/pages.json",
+    "upstage/ocr.txt"
+  ],
+  "excluded": [
+    "provider raw responses",
+    "failed and redundant attempts",
+    "SQLite execution state",
+    "working directories",
+    "structure and later-stage outputs"
+  ]
+}
