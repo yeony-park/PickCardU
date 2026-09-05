@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "purpose": "structure-v5 five-document smoke evaluation",
+  "documents": [
+    {
+      "document_id": "BC/BC_Baro_Clear_Plus",
+      "path": "data/raw/BC/BC_Baro_Clear_Plus.pdf",
+      "sha256": "4ccb996117c9cf592d4110525a0084a0859caeffdb243bf66dd1f67aef173c8b"
+    },
+    {
+      "document_id": "BC/BC_Baro_KaPick",
+      "path": "data/raw/BC/BC_Baro_KaPick.pdf",
+      "sha256": "523ab63a4c0511f8dccdfc020e684d43d15871d9b9d0c5d6b4ac3b99df6fad67"
+    },
+    {
+      "document_id": "BC/BC_KBank_SIMPLE",
+      "path": "data/raw/BC/BC_KBank_SIMPLE.pdf",
+      "sha256": "7c582cacfe1e2b88889ad4939e05f0285d04521097623a88d53ec237000ade47"
+    },
+    {
+      "document_id": "hana/Hana_Travellog",
+      "path": "data/raw/hana/Hana_Travellog.pdf",
+      "sha256": "73e6c8840e32a964e8f8fc7b9102a4fa8c0194375594c52803b9e85451ad6fc5"
+    },
+    {
+      "document_id": "kookmin/Kookmin_AlphaOne_20210923",
+      "path": "data/raw/kookmin/Kookmin_AlphaOne_20210923.pdf",
+      "sha256": "cc74010ae40acc9771a019eb06992b5574fb92a124f7b308b509be9e57ad65c7"
+    }
+  ]
+}

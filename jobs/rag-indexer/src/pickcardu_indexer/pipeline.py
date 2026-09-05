@@ -18,19 +18,24 @@ from typing import Any, Callable, Iterable, Protocol
 import numpy as np
 
 from .state import StateStore, canonical_json
-from .ocr import LiveLaneAdapter, OcrProviderError, pages_text
+from .ocr import LiveLaneAdapter, OcrProviderError, numbered_ocr_pages, pages_text
 from .structural import STRUCTURAL_CONTRACT, build_structural_chunks, render_pages
 
 
 RELATION_FIELDS = ("target", "condition", "value", "unit", "cap", "frequency", "period", "exceptions")
 NUMBER = re.compile(r"\d+(?:[,.]\d+)?")
 RISKY_IGNORED_LINE = re.compile(r"할인|적립|캐시백|마일|포인트|무료|면제|혜택")
-NON_BENEFIT_IGNORED_LINE = re.compile(r"연회비|연체|수수료|신용평점|카드 발급|카드 신규 출시|부가서비스.*(?:유지|변경)")
-LAYOUT_REASON = re.compile(r"제목|머리글|열(?:\s+)?제목")
+NON_BENEFIT_IGNORED_LINE = re.compile(r"연체|신용평점|카드 발급|카드 신규 출시|부가서비스.*(?:유지|변경|소요된 비용)")
+LAYOUT_REASON = re.compile(r"제목|머리글|헤더|열(?:\s+)?제목")
 MARKUP_PREFIX = re.compile(r"^(?:[#>*•-]+\s*)+")
+GENERIC_LAYOUT_LABELS = {
+    "구분", "대상", "서비스", "서비스 안내", "혜택", "혜택 안내", "할인", "할인 서비스",
+    "할인율", "할인률", "적립", "적립 서비스", "적립율", "적립률", "업종", "영역",
+    "가맹점", "조건", "한도", "전월실적", "기준", "부가서비스 안내", "청구할인 서비스",
+}
 CHUNKING_PROFILES = {"card_page_section_benefit", "parent_child_bundle"}
 DEFAULT_CHUNKING_PROFILE = "card_page_section_benefit"
-OCR_PIPELINE_CONTRACT = "dual-lane-grounded-v4"
+OCR_PIPELINE_CONTRACT = "dual-lane-grounded-v5"
 
 
 class LaneRestructureRequired(ValueError):
@@ -102,6 +107,18 @@ def input_fingerprint(source_manifest: Path, documents: list[dict[str, str]], lu
 
 def normalized(value: object) -> str:
     return " ".join(unicodedata.normalize("NFKC", str(value)).split())
+
+
+def approved_layout_ignore(line: str, reason: str) -> bool:
+    if not LAYOUT_REASON.search(reason):
+        return False
+    content = MARKUP_PREFIX.sub("", normalized(line)).strip()
+    if content in GENERIC_LAYOUT_LABELS:
+        return True
+    if content.startswith("|") and content.endswith("|"):
+        cells = [cell.strip() for cell in content.strip("|").split("|") if cell.strip()]
+        return len(cells) >= 2 and all(cell in GENERIC_LAYOUT_LABELS for cell in cells)
+    return False
 
 
 def spans_link(left: str, right: str) -> bool:
@@ -301,6 +318,47 @@ def load_lane(provider: str, root: Path, document_id: str) -> tuple[Path, dict[s
     return LocalJsonAdapter(provider, root).load(document_id)
 
 
+def _line_registry(pages: dict[int, str]) -> dict[str, tuple[int, str]]:
+    numbered = numbered_ocr_pages([{"page": page, "text": text} for page, text in sorted(pages.items())])
+    return {
+        row["line_id"]: (page["page"], normalized(row["text"]))
+        for page in numbered
+        for row in page["lines"]
+    }
+
+
+def _resolve_evidence(
+    provider: str,
+    context: str,
+    evidence: Any,
+    pages: dict[int, str],
+    registry: dict[str, tuple[int, str]],
+) -> dict[str, Any]:
+    if not isinstance(evidence, dict):
+        raise ValueError(f"{provider} {context} evidence is required")
+    if "line_ids" in evidence:
+        line_ids = evidence["line_ids"]
+        if not isinstance(line_ids, list) or not line_ids or not all(isinstance(line_id, str) and line_id in registry for line_id in line_ids):
+            raise ValueError(f"{provider} {context} evidence line_ids are invalid")
+        if len(set(line_ids)) != len(line_ids):
+            raise ValueError(f"{provider} {context} evidence line_ids are duplicated")
+        order = {line_id: ordinal for ordinal, line_id in enumerate(registry)}
+        line_ids = sorted(line_ids, key=order.__getitem__)
+        spans = [{"page": registry[line_id][0], "line_id": line_id, "quote": registry[line_id][1]} for line_id in line_ids]
+        return {
+            "provider": provider,
+            "page": spans[0]["page"],
+            "quote": normalized(" ".join(span["quote"] for span in spans)),
+            "line_ids": line_ids,
+            "spans": spans,
+        }
+    page = evidence.get("page")
+    quote = normalized(evidence.get("quote", evidence.get("text", "")))
+    if page not in pages or not quote or quote not in normalized(pages[page]):
+        raise ValueError(f"{provider} {context} evidence is not grounded in its own OCR text")
+    return {"provider": provider, "page": page, "quote": quote}
+
+
 def validate_lane(provider: str, payload: dict[str, Any]) -> list[dict[str, Any]]:
     if payload.get("provider") != provider or not isinstance(payload.get("source_pdf_sha256"), str):
         raise ValueError(f"{provider} provenance is invalid")
@@ -318,32 +376,58 @@ def validate_lane(provider: str, payload: dict[str, Any]) -> list[dict[str, Any]
         pages[page_number] = text
     if not pages:
         raise ValueError(f"{provider} has no pages")
+    registry = _line_registry(pages)
     identity = payload.get("identity")
     if not isinstance(identity, dict) or not all(isinstance(identity.get(key), str) and normalized(identity[key]) for key in ("issuer_name", "card_name")):
         raise ValueError(f"{provider} identity is required")
+    identity_evidence: dict[str, dict[str, Any]] = {}
     for key, label in (("issuer", "issuer_name"), ("card", "card_name")):
-        evidence = identity.get(f"{key}_evidence")
-        if not isinstance(evidence, dict):
-            raise ValueError(f"{provider} {key} identity evidence is required")
-        page, quote = evidence.get("page"), normalized(evidence.get("quote", ""))
-        if page not in pages or not quote or quote not in normalized(pages[page]) or normalized(identity[label]) not in quote:
+        try:
+            resolved = _resolve_evidence(provider, f"{key} identity", identity.get(f"{key}_evidence"), pages, registry)
+        except ValueError as error:
+            raise ValueError(f"{provider} {key} identity is not grounded") from error
+        if normalized(identity[label]) not in resolved["quote"]:
             raise ValueError(f"{provider} {key} identity is not grounded")
+        identity_evidence[key] = resolved
     validated: list[dict[str, Any]] = []
     for ordinal, raw_fact in enumerate(payload["facts"]):
         if not isinstance(raw_fact, dict):
             raise ValueError(f"{provider} fact {ordinal} is not an object")
         fact = normalise_fact(raw_fact)
-        evidence = raw_fact.get("evidence")
-        if not isinstance(evidence, dict):
-            raise ValueError(f"{provider} fact {ordinal} has no evidence")
-        page = evidence.get("page")
-        quote = normalized(evidence.get("quote", evidence.get("text", "")))
-        if page not in pages or not quote or quote not in normalized(pages[page]):
-            raise ValueError(f"{provider} fact {ordinal} evidence is not grounded in its own OCR text")
-        validate_fact_evidence(fact, quote, f"{provider} fact {ordinal}")
-        validated.append({"fact": fact, "evidence": {"provider": provider, "page": page, "quote": quote}})
+        evidence = _resolve_evidence(provider, f"fact {ordinal}", raw_fact.get("evidence"), pages, registry)
+        validate_fact_evidence(fact, evidence["quote"], f"{provider} fact {ordinal}")
+        validated.append({"fact": fact, "evidence": evidence})
     covered = {item["evidence"]["quote"] for item in validated}
-    identity_quotes = {normalized(identity[f"{key}_evidence"]["quote"]) for key in ("issuer", "card")}
+    covered_line_ids = {line_id for item in validated for line_id in item["evidence"].get("line_ids", [])}
+    identity_quotes = {item["quote"] for item in identity_evidence.values()}
+    identity_line_ids = {line_id for item in identity_evidence.values() for line_id in item.get("line_ids", [])}
+    if "ignored_risky_lines" in payload:
+        ignored = payload["ignored_risky_lines"]
+        if not isinstance(ignored, list):
+            raise ValueError(f"{provider} ignored_risky_lines is required")
+        referenced = covered_line_ids | identity_line_ids
+        ignored_ids: set[str] = set()
+        for item in ignored:
+            if not isinstance(item, dict):
+                raise ValueError(f"{provider} ignored risky line is invalid")
+            line_id = item.get("line_id")
+            reason = normalized(item.get("reason", ""))
+            if not isinstance(line_id, str) or line_id not in registry or line_id in ignored_ids or line_id in referenced or not reason:
+                raise ValueError(f"{provider} ignored risky line is invalid")
+            ignored_ids.add(line_id)
+            line = registry[line_id][1]
+            if not RISKY_IGNORED_LINE.search(line):
+                raise ValueError(f"{provider} ignored risky line has no risky keyword")
+            if not NON_BENEFIT_IGNORED_LINE.search(line) and not approved_layout_ignore(line, reason):
+                raise LaneRestructureRequired(f"{provider} benefit-like ignored span requires a new structuring run")
+        risky_unreferenced = {
+            line_id
+            for line_id, (_page, line) in registry.items()
+            if line_id not in referenced and RISKY_IGNORED_LINE.search(line)
+        }
+        if risky_unreferenced != ignored_ids:
+            raise LaneRestructureRequired(f"{provider} benefit-like OCR line lacks fact evidence or an approved ignore reason")
+        return validated
     dispositions = payload.get("span_dispositions")
     if not isinstance(dispositions, list):
         raise ValueError(f"{provider} span_dispositions is required")
@@ -367,7 +451,7 @@ def validate_lane(provider: str, payload: dict[str, Any]) -> list[dict[str, Any]
             disposition["kind"] == "ignore"
             and RISKY_IGNORED_LINE.search(item[1])
             and not NON_BENEFIT_IGNORED_LINE.search(item[1])
-            and not LAYOUT_REASON.search(ignore_reason)
+            and not approved_layout_ignore(item[1], ignore_reason)
         ):
             raise LaneRestructureRequired(f"{provider} benefit-like ignored span requires a new structuring run")
         line = item[1]
@@ -385,6 +469,43 @@ def validate_lane(provider: str, payload: dict[str, Any]) -> list[dict[str, Any]
     if any(not any(spans_link(quote, line) for line in identity_lines) for quote in identity_quotes):
         raise ValueError(f"{provider} validated identity lacks an identity disposition")
     return validated
+
+
+def validate_lanes_independently(payloads: dict[str, dict[str, Any]]) -> tuple[dict[str, list[dict[str, Any]]], dict[str, dict[str, str]]]:
+    validated: dict[str, list[dict[str, Any]]] = {}
+    errors: dict[str, dict[str, str]] = {}
+    for provider in ("luna", "upstage"):
+        try:
+            validated[provider] = validate_lane(provider, payloads[provider])
+        except LaneRestructureRequired as error:
+            errors[provider] = {"status": "blocked", "error": str(error)}
+        except (ValueError, FileNotFoundError) as error:
+            errors[provider] = {"status": "review", "error": str(error)}
+    return validated, errors
+
+
+def diagnostic_json_comparison(luna_payload: dict[str, Any], upstage_payload: dict[str, Any]) -> dict[str, Any]:
+    def relations(payload: dict[str, Any]) -> set[tuple[str, ...]]:
+        return {
+            tuple(normalized(fact.get(field, "")) for field in RELATION_FIELDS)
+            for fact in payload.get("facts", [])
+            if isinstance(fact, dict)
+        }
+
+    luna_relations, upstage_relations = relations(luna_payload), relations(upstage_payload)
+    return {
+        "purpose": "diagnostic_only_invalid_lanes_are_not_approval_eligible",
+        "luna_only": sorted(luna_relations - upstage_relations),
+        "upstage_only": sorted(upstage_relations - luna_relations),
+        "shared_relation_count": len(luna_relations & upstage_relations),
+        "identity": {
+            provider: {
+                key: normalized(payload.get("identity", {}).get(key, ""))
+                for key in ("issuer_name", "card_name")
+            }
+            for provider, payload in (("luna", luna_payload), ("upstage", upstage_payload))
+        },
+    }
 
 
 def canonical_from_lanes(luna: list[dict[str, Any]], upstage: list[dict[str, Any]], luna_payload: dict[str, Any], upstage_payload: dict[str, Any]) -> tuple[list[dict[str, Any]] | None, dict[str, Any] | None, dict[str, Any] | None]:
@@ -408,13 +529,22 @@ def canonical_from_lanes(luna: list[dict[str, Any]], upstage: list[dict[str, Any
 
 def _identity_evidence(provider: str, payload: dict[str, Any]) -> dict[str, Any]:
     identity = payload["identity"]
+    pages = {row["page"]: row["text"] for row in payload["pages"]}
+    registry = _line_registry(pages)
     return {
-        key: {
-            "provider": provider,
-            "page": identity[f"{key}_evidence"]["page"],
-            "quote": normalized(identity[f"{key}_evidence"]["quote"]),
-        }
+        key: _resolve_evidence(provider, f"{key} identity", identity[f"{key}_evidence"], pages, registry)
         for key in ("issuer", "card")
+    }
+
+
+def _canonical_identity(luna_payload: dict[str, Any], upstage_payload: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "issuer_name": normalized(luna_payload["identity"]["issuer_name"]),
+        "card_name": normalized(luna_payload["identity"]["card_name"]),
+        "evidence_refs": {
+            "luna": _identity_evidence("luna", luna_payload),
+            "upstage": _identity_evidence("upstage", upstage_payload),
+        },
     }
 
 
@@ -446,7 +576,7 @@ def strict_resolution(value: Any, luna_payload: dict[str, Any], upstage_payload:
             supported = key in candidates
             if supplied["supports_selected"] is not supported:
                 raise ValueError("false supports_selected provenance")
-            evidence = {k: supplied.get(k) for k in ("provider", "page", "quote")}
+            evidence = {key: value for key, value in supplied.items() if key != "supports_selected"}
             expected = candidates[key] if supported else next((candidate for candidate in candidates.values() if candidate["evidence"] == evidence), None)
             if expected is None or expected["evidence"] != evidence:
                 raise ValueError("lane evidence is not an exact validated lane evidence")
@@ -772,10 +902,26 @@ class Indexer:
             ocr_comparison = compare_ocr_outputs(luna_payload, upstage_payload)
             self._validation_artifact(run_id, document_id, "ocr_comparison", ocr_comparison)
             self.state.record_stage(run_id, document_id, "ocr_comparison", sha256_bytes(canonical_json(ocr_comparison).encode()), "completed", ocr_comparison, now())
-            luna = validate_lane("luna", luna_payload)
-            self._validation_artifact(run_id, document_id, "luna_text_to_json", {"status": "pass", "facts": len(luna), "source_pdf_sha256": source_hash})
-            upstage = validate_lane("upstage", upstage_payload)
-            self._validation_artifact(run_id, document_id, "upstage_text_to_json", {"status": "pass", "facts": len(upstage), "source_pdf_sha256": source_hash})
+            diagnostic = diagnostic_json_comparison(luna_payload, upstage_payload)
+            self._validation_artifact(run_id, document_id, "normalized_json_diagnostic_comparison", diagnostic)
+            lanes, errors = validate_lanes_independently({"luna": luna_payload, "upstage": upstage_payload})
+            for provider in ("luna", "upstage"):
+                result = errors.get(provider) or {"status": "pass", "facts": len(lanes[provider])}
+                self._validation_artifact(run_id, document_id, f"{provider}_text_to_json", {**result, "source_pdf_sha256": source_hash})
+            if errors:
+                detail = {"lanes": errors}
+                if any(error["status"] == "blocked" for error in errors.values()):
+                    self.state.set_document_status(run_id, document_id, "blocked")
+                    self._validation_artifact(run_id, document_id, "restructure_required", {"status": "blocked", **detail})
+                    self.state.record_stage(run_id, document_id, "validate", source_hash, "blocked", {**detail, "action": "new structuring run"}, now())
+                else:
+                    signature = sha256_bytes(canonical_json(detail).encode())
+                    self.state.open_review(run_id, document_id, "grounding_or_rule", signature, detail)
+                    self.state.set_document_status(run_id, document_id, "review")
+                    self._validation_artifact(run_id, document_id, "grounding_failure", {"status": "review", **detail})
+                    self.state.record_stage(run_id, document_id, "validate", source_hash, "review", detail, now())
+                return
+            luna, upstage = lanes["luna"], lanes["upstage"]
             self.state.record_stage(run_id, document_id, "grounding", sha256_bytes(canonical_json([luna, upstage]).encode()), "completed", {"lanes": ["luna", "upstage"]}, now())
         except LaneRestructureRequired as error:
             self.state.set_document_status(run_id, document_id, "blocked")
@@ -808,7 +954,7 @@ class Indexer:
             run_id,
             document_id,
             canonical,
-            {"issuer_name": normalized(luna_payload["identity"]["issuer_name"]), "card_name": normalized(luna_payload["identity"]["card_name"]), "evidence_refs": {"luna": luna_payload["identity"], "upstage": upstage_payload["identity"]}},
+            _canonical_identity(luna_payload, upstage_payload),
             structure_provider="upstage",
         )
 
@@ -913,10 +1059,26 @@ class Indexer:
                 ocr_comparison,
                 now(),
             )
-            luna = validate_lane("luna", luna_payload)
-            self._validation_artifact(run_id, document_id, "luna_text_to_json", {"status": "pass", "facts": len(luna), "source_pdf_sha256": source_hash})
-            upstage = validate_lane("upstage", upstage_payload)
-            self._validation_artifact(run_id, document_id, "upstage_text_to_json", {"status": "pass", "facts": len(upstage), "source_pdf_sha256": source_hash})
+            diagnostic = diagnostic_json_comparison(luna_payload, upstage_payload)
+            self._validation_artifact(run_id, document_id, "normalized_json_diagnostic_comparison", diagnostic)
+            lanes, errors = validate_lanes_independently({"luna": luna_payload, "upstage": upstage_payload})
+            for provider in ("luna", "upstage"):
+                result = errors.get(provider) or {"status": "pass", "facts": len(lanes[provider])}
+                self._validation_artifact(run_id, document_id, f"{provider}_text_to_json", {**result, "source_pdf_sha256": source_hash})
+            if errors:
+                detail = {"lanes": errors}
+                if any(error["status"] == "blocked" for error in errors.values()):
+                    self.state.set_document_status(run_id, document_id, "blocked")
+                    self._validation_artifact(run_id, document_id, "restructure_required", {"status": "blocked", **detail})
+                    self.state.record_stage(run_id, document_id, "structured", source_hash, "blocked", {**detail, "action": "new_structuring_run"}, now(), retryable=False)
+                else:
+                    signature = sha256_bytes(canonical_json(detail).encode())
+                    self.state.open_review(run_id, document_id, "grounding_or_rule", signature, detail)
+                    self.state.set_document_status(run_id, document_id, "review")
+                    self._validation_artifact(run_id, document_id, "grounding_failure", {"status": "review", **detail})
+                    self.state.record_stage(run_id, document_id, "grounding", source_hash, "review", detail, now())
+                return
+            luna, upstage = lanes["luna"], lanes["upstage"]
             self.state.record_stage(run_id, document_id, "structured", sha256_bytes(canonical_json([luna, upstage]).encode()), "completed", {"lanes": ["luna", "upstage"]}, now())
             self.state.record_stage(run_id, document_id, "grounding", sha256_bytes(canonical_json([luna, upstage]).encode()), "completed", {"lanes": ["luna", "upstage"]}, now())
         except OcrProviderError as error:
@@ -955,7 +1117,7 @@ class Indexer:
             run_id,
             document_id,
             canonical,
-            {"issuer_name": normalized(luna_payload["identity"]["issuer_name"]), "card_name": normalized(luna_payload["identity"]["card_name"]), "evidence_refs": {"luna": luna_payload["identity"], "upstage": upstage_payload["identity"]}},
+            _canonical_identity(luna_payload, upstage_payload),
             structure_provider="upstage",
         )
 

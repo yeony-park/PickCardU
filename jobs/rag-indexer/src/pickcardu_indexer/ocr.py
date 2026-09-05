@@ -64,10 +64,21 @@ _FACT_PROPERTIES = {
     field: {"type": "string"}
     for field in ("target", "condition", "value", "unit", "cap", "frequency", "period", "exceptions")
 }
+_LINE_EVIDENCE = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["line_ids"],
+    "properties": {
+        "line_ids": {
+            "type": "array",
+            "items": {"type": "string"},
+        }
+    },
+}
 STRUCTURE_SCHEMA: dict[str, Any] = {
     "type": "object",
     "additionalProperties": False,
-    "required": ["identity", "facts", "span_dispositions"],
+    "required": ["identity", "facts", "ignored_risky_lines"],
     "properties": {
         "identity": {
             "type": "object",
@@ -76,18 +87,8 @@ STRUCTURE_SCHEMA: dict[str, Any] = {
             "properties": {
                 "issuer_name": {"type": "string"},
                 "card_name": {"type": "string"},
-                "issuer_evidence": {
-                    "type": "object",
-                    "additionalProperties": False,
-                    "required": ["page", "quote"],
-                    "properties": {"page": {"type": "integer", "minimum": 1}, "quote": {"type": "string"}},
-                },
-                "card_evidence": {
-                    "type": "object",
-                    "additionalProperties": False,
-                    "required": ["page", "quote"],
-                    "properties": {"page": {"type": "integer", "minimum": 1}, "quote": {"type": "string"}},
-                },
+                "issuer_evidence": _LINE_EVIDENCE,
+                "card_evidence": _LINE_EVIDENCE,
             },
         },
         "facts": {
@@ -98,25 +99,18 @@ STRUCTURE_SCHEMA: dict[str, Any] = {
                 "required": [*_FACT_PROPERTIES, "evidence"],
                 "properties": {
                     **_FACT_PROPERTIES,
-                    "evidence": {
-                        "type": "object",
-                        "additionalProperties": False,
-                        "required": ["page", "quote"],
-                        "properties": {"page": {"type": "integer", "minimum": 1}, "quote": {"type": "string"}},
-                    },
+                    "evidence": _LINE_EVIDENCE,
                 },
             },
         },
-        "span_dispositions": {
+        "ignored_risky_lines": {
             "type": "array",
             "items": {
                 "type": "object",
                 "additionalProperties": False,
-                "required": ["page", "quote", "kind", "reason"],
+                "required": ["line_id", "reason"],
                 "properties": {
-                    "page": {"type": "integer", "minimum": 1},
-                    "quote": {"type": "string"},
-                    "kind": {"type": "string", "enum": ["fact", "identity", "ignore"]},
+                    "line_id": {"type": "string"},
                     "reason": {"type": "string"},
                 },
             },
@@ -156,11 +150,27 @@ OCR_PAGE_FALLBACK_PROMPT = """이 이미지는 원본 카드 상품안내서에�
 pages 배열에는 지정된 page_num의 항목 하나만 반환하세요."""
 
 STRUCTURE_PROMPT = """주어진 단일 OCR lane만 사용해 카드 혜택을 구조화하세요. 다른 OCR 결과를 추측하거나 보완하지 마세요.
-issuer_name과 card_name을 추출하고, 혜택별 target, condition, value, unit, cap, frequency, period, exceptions를 문자열로 기록하세요.
-각 identity와 fact의 quote는 해당 page OCR 본문에 실제로 존재하는 정확한 연속 인용문이어야 합니다.
-한 fact의 비어 있지 않은 모든 필드는 같은 evidence.quote 안에서 문자 그대로 확인되어야 합니다. 다른 줄이나 문단의 조건·예외를 합치지 말고 그 문구 자체를 evidence.quote로 갖는 별도 fact로 작성하세요.
-OCR의 모든 비어 있지 않은 줄을 span_dispositions에 정확히 한 번 기록하고, fact/identity가 아닌 줄은 ignore와 구체적인 reason을 사용하세요.
+입력의 각 OCR 줄에는 고유한 line_id가 있습니다. 원문 문장을 다시 쓰지 말고 근거에는 line_id만 사용하세요.
+issuer_name과 card_name은 evidence.line_ids가 가리키는 원문에 있는 표기와 띄어쓰기를 그대로 복사하세요. 실제 혜택마다 target, condition, value, unit, cap, frequency, period, exceptions를 문자열로 기록하세요.
+제목, 혜택 값, 조건, 한도와 예외가 인접한 여러 줄이나 같은 표 행·열에 나뉘어 있어도 같은 혜택 블록이면 하나의 fact로 묶고, 사용한 모든 줄을 evidence.line_ids에 기록하세요.
+서로 다른 혜택·표·섹션의 줄을 한 fact로 합치지 마세요. 제목이나 법정·일반 안내만으로는 fact를 만들지 말고 관련 혜택 fact의 근거 또는 ignore로 분류하세요.
+모든 fact에는 비어 있지 않은 target과 condition/value/cap/frequency/period/exceptions 중 하나 이상이 있어야 합니다. 비어 있지 않은 각 필드는 evidence.line_ids가 가리키는 원문에서 문자 그대로 확인되어야 합니다.
+할인, 적립, 캐시백, 마일, 포인트, 무료, 면제, 혜택 표현이 있는 줄은 관련 fact의 evidence에 포함하세요. 법정 안내나 표 머리글이라 fact에 포함하지 않는 경우에만 ignored_risky_lines에 line_id와 구체적인 reason을 기록하세요. 그 밖의 미사용 줄은 출력하지 마세요.
 숫자, 단위, 조건과 예외를 정규화하거나 확대 해석하지 말고 지정된 JSON 형식만 반환하세요."""
+
+
+def numbered_ocr_pages(pages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        {
+            "page": row["page"],
+            "lines": [
+                {"line_id": f"P{row['page']:04d}-L{line_number:04d}", "text": line}
+                for line_number, line in enumerate(row["text"].splitlines(), start=1)
+                if line.strip()
+            ],
+        }
+        for row in pages
+    ]
 
 
 class OcrProviderError(RuntimeError):
@@ -718,7 +728,7 @@ class LunaFactStructurer:
             from openai import OpenAI
 
             self._client = OpenAI(api_key=self.api_key, max_retries=0)
-        source = json.dumps([{"page": row["page"], "text": row["text"]} for row in pages], ensure_ascii=False)
+        source = json.dumps(numbered_ocr_pages(pages), ensure_ascii=False)
         try:
             response = self._client.responses.create(
                 model=self.model,
@@ -933,9 +943,12 @@ class LiveLaneAdapter:
             "ocr_parse_provenance": envelope["ocr_parse_provenance"],
             "identity": structured.get("identity"),
             "pages": [dict(row) for row in pages],
-            "span_dispositions": structured.get("span_dispositions"),
             "facts": structured.get("facts"),
         }
+        if "span_dispositions" in structured:
+            payload["span_dispositions"] = structured["span_dispositions"]
+        if "ignored_risky_lines" in structured:
+            payload["ignored_risky_lines"] = structured["ignored_risky_lines"]
         _write_once(normalized_path, _json_bytes(payload))
         return normalized_path, payload
 

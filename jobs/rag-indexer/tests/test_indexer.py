@@ -31,6 +31,7 @@ from pickcardu_indexer.pipeline import (  # noqa: E402
     normalise_fact,
     strict_resolution,
     validate_lane,
+    validate_lanes_independently,
 )
 from pickcardu_indexer.__main__ import parser as cli_parser, run_ocr  # noqa: E402
 from pickcardu_indexer.ocr import OCR_PROMPT, OCR_SCHEMA, STRUCTURE_PROMPT, LiveLaneAdapter, LunaFactStructurer, LunaOcrTranscriber, OcrProviderError, UpstageOcrTranscriber, pages_text, upstage_pages  # noqa: E402
@@ -59,6 +60,35 @@ def lane(document_id: str, provider: str, *, condition: str = "monthly", value: 
         "pages": [{"page": 1, "text": f"Issuer Card\n### 상품 안내\n상품 안내: {quote}"}],
         "span_dispositions": [{"page": 1, "quote": "Issuer Card", "kind": "identity"}, {"page": 1, "quote": "### 상품 안내", "kind": "ignore", "reason": "heading"}, {"page": 1, "quote": f"상품 안내: {quote}", "kind": "fact"}],
         "facts": [{"target": "카페", "condition": condition, "value": value, "unit": "%", "cap": "", "frequency": "", "period": "", "exceptions": "", "evidence": {"page": 1, "quote": quote}}],
+    }
+
+
+def line_id_lane(document_id: str, provider: str, *, condition: str = "monthly") -> dict[str, object]:
+    quote = f"카페 {condition} 1% 할인"
+    return {
+        "document_id": document_id,
+        "provider": provider,
+        "source_pdf_sha256": SOURCE_SHA,
+        "provenance": {"endpoint": "local-fixture", "model": f"{provider}-fixture", "config_hash": "fixture-v2"},
+        "identity": {
+            "issuer_name": "Issuer",
+            "card_name": "Card",
+            "issuer_evidence": {"line_ids": ["P0001-L0001"]},
+            "card_evidence": {"line_ids": ["P0001-L0001"]},
+        },
+        "pages": [{"page": 1, "text": f"Issuer Card\n{quote}"}],
+        "facts": [{
+            "target": "카페",
+            "condition": condition,
+            "value": "1",
+            "unit": "%",
+            "cap": "",
+            "frequency": "",
+            "period": "",
+            "exceptions": "",
+            "evidence": {"line_ids": ["P0001-L0002"]},
+        }],
+        "ignored_risky_lines": [],
     }
 
 
@@ -429,7 +459,8 @@ class IndexerTest(unittest.TestCase):
         self.assertEqual(structure_client.calls[0]["text"]["format"]["name"], "card_facts")
         self.assertEqual(structure_client.calls[0]["max_output_tokens"], 128_000)
         self.assertNotIn("upstage", structure_client.calls[0]["input"][0]["content"][0]["text"].casefold())
-        self.assertIn("모든 필드는 같은 evidence.quote", STRUCTURE_PROMPT)
+        self.assertIn("같은 혜택 블록이면 하나의 fact", STRUCTURE_PROMPT)
+        self.assertIn("P0001-L0001", structure_client.calls[0]["input"][0]["content"][0]["text"])
 
         normalized = upstage_pages({"elements": [{"page": 1, "content": {"markdown": "Issuer Card"}}]}, 1)
         self.assertEqual(normalized[0]["text"], "Issuer Card")
@@ -1133,11 +1164,13 @@ class IndexerTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "benefit-like"):
             validate_lane("luna", risky)
         safe = lane(self.document_id, "luna")
-        safe["pages"][0]["text"] += "\n청구할인 서비스\n연체이자율 최대 3%\n카드 신규 출시 이후 할인혜택 유지"
+        safe["pages"][0]["text"] += "\n청구할인 서비스\n연체이자율 최대 3%\n카드 신규 출시 이후 할인혜택 유지\n카드 이용 시 제공되는 추가적인 혜택 등 부가서비스 제공에 소요된 비용\n| 대상 | 적립율 |"
         safe["span_dispositions"].extend([
             {"page": 1, "quote": "청구할인 서비스", "kind": "ignore", "reason": "섹션 제목"},
             {"page": 1, "quote": "연체이자율 최대 3%", "kind": "ignore", "reason": "연체이자율 안내"},
             {"page": 1, "quote": "카드 신규 출시 이후 할인혜택 유지", "kind": "ignore", "reason": "부가서비스 유지 고지"},
+            {"page": 1, "quote": "카드 이용 시 제공되는 추가적인 혜택 등 부가서비스 제공에 소요된 비용", "kind": "ignore", "reason": "법정 안내"},
+            {"page": 1, "quote": "| 대상 | 적립율 |", "kind": "ignore", "reason": "표 헤더"},
         ])
         self.assertEqual(len(validate_lane("luna", safe)), 1)
         duplicate = lane(self.document_id, "luna")
@@ -1275,6 +1308,108 @@ class IndexerTest(unittest.TestCase):
         hallucinated = lane(self.document_id, "luna", value="캐시백", quote="카페 monthly % 할인")
         with self.assertRaisesRegex(ValueError, "non-numeric value"):
             validate_lane("luna", hallucinated)
+
+    def test_line_id_evidence_groups_one_benefit_and_lanes_validate_independently(self) -> None:
+        payload = {
+            "document_id": self.document_id,
+            "provider": "luna",
+            "source_pdf_sha256": SOURCE_SHA,
+            "provenance": {"endpoint": "fixture", "model": "fixture", "config_hash": "fixture-v2"},
+            "identity": {
+                "issuer_name": "Issuer",
+                "card_name": "Card",
+                "issuer_evidence": {"line_ids": ["P0001-L0001"]},
+                "card_evidence": {"line_ids": ["P0001-L0001"]},
+            },
+            "pages": [{"page": 1, "text": "Issuer Card\n편의점 할인\n10%\n전월 실적 30만원"}],
+            "facts": [{
+                "target": "편의점",
+                "condition": "전월 실적 30만원",
+                "value": "10",
+                "unit": "%",
+                "cap": "",
+                "frequency": "",
+                "period": "",
+                "exceptions": "",
+                "evidence": {"line_ids": ["P0001-L0002", "P0001-L0003", "P0001-L0004"]},
+            }],
+            "ignored_risky_lines": [],
+        }
+        self.assertEqual(len(validate_lane("luna", payload)), 1)
+        broken = json.loads(json.dumps(payload))
+        broken["provider"] = "upstage"
+        broken["facts"][0]["target"] = ""
+        validated, errors = validate_lanes_independently({"luna": payload, "upstage": broken})
+        self.assertEqual(len(validated["luna"]), 1)
+        self.assertIn("upstage", errors)
+        omitted = json.loads(json.dumps(payload))
+        omitted["pages"][0]["text"] += "\n주유 5% 할인"
+        with self.assertRaisesRegex(ValueError, "lacks fact evidence"):
+            validate_lane("luna", omitted)
+        spoofed = json.loads(json.dumps(omitted))
+        spoofed["ignored_risky_lines"] = [{"line_id": "P0001-L0005", "reason": "표 헤더"}]
+        with self.assertRaisesRegex(ValueError, "benefit-like"):
+            validate_lane("luna", spoofed)
+        waiver = json.loads(json.dumps(payload))
+        waiver["pages"][0]["text"] += "\n연회비 면제"
+        waiver["ignored_risky_lines"] = [{"line_id": "P0001-L0005", "reason": "연회비 안내"}]
+        with self.assertRaisesRegex(ValueError, "benefit-like"):
+            validate_lane("luna", waiver)
+
+    def test_line_id_lanes_auto_publish_and_review_resolution_preserves_evidence(self) -> None:
+        luna = line_id_lane(self.document_id, "luna")
+        upstage = line_id_lane(self.document_id, "upstage")
+        write_json(self.luna_dir / "issuer__card.json", luna)
+        write_json(self.upstage_dir / "issuer__card.json", upstage)
+        result = self.execute_indexer()
+        self.assertEqual(result["status"]["run"]["status"], "test_only_published")
+
+        upstage = line_id_lane(self.document_id, "upstage", condition="daily")
+        luna_fact = validate_lane("luna", luna)[0]
+        upstage_fact = validate_lane("upstage", upstage)[0]
+        identity_evidence = {
+            provider: {
+                key: {
+                    "provider": provider,
+                    "page": 1,
+                    "quote": "Issuer Card",
+                    "line_ids": ["P0001-L0001"],
+                    "spans": [{"page": 1, "line_id": "P0001-L0001", "quote": "Issuer Card"}],
+                }
+                for key in ("issuer", "card")
+            }
+            for provider in ("luna", "upstage")
+        }
+        resolution = {
+            "resolution": {
+                "selected_provider": "luna",
+                "selected_identity_provider": "luna",
+                "reason": "monthly relation selected",
+                "rejected_relations": [{
+                    "provider": "upstage",
+                    "tuple": ["카페", "daily", "1", "%", "", "", "", ""],
+                    "reason": "different grounded relation",
+                }],
+            },
+            "identity": {
+                "issuer_name": "Issuer",
+                "card_name": "Card",
+                "evidence_refs": {
+                    provider: {**evidence, "supports_selected": True}
+                    for provider, evidence in identity_evidence.items()
+                },
+            },
+            "canonical": [{
+                "fact": luna_fact["fact"],
+                "evidence_refs": {
+                    "luna": {**luna_fact["evidence"], "supports_selected": True},
+                    "upstage": {**upstage_fact["evidence"], "supports_selected": False},
+                },
+            }],
+        }
+        canonical, identity, _audit = strict_resolution(resolution, luna, upstage)
+        self.assertEqual(canonical[0]["evidence_refs"]["luna"]["line_ids"], ["P0001-L0002"])
+        self.assertEqual(identity["evidence_refs"]["upstage"]["card"]["page"], 1)
 
     def test_field_and_critical_span_coverage_fail_closed(self) -> None:
         with self.assertRaisesRegex(ValueError, "condition"):
