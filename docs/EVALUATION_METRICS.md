@@ -17,3 +17,29 @@
 - **통과 기준:** 단독 통과 기준으로 사용하지 않는다. 숫자 차이가 큰 문서를 검수 대상으로 찾는 지표다.
 - **예시:** Upstage가 `전월 30만원, 월 1만원`을 읽고 Luna도 `30`, `1`을 읽으면 100%다.
 - **한계:** Upstage가 휴대전화 화면, 마스킹 카드번호 또는 장식 숫자를 잘못 읽으면 Luna가 정확해도 낮아질 수 있다. Upstage는 gold가 아니다.
+
+## 구조화·근거 검증 지표
+
+### Grounding pass — 자체 OCR 근거 연결 통과율
+
+- **계산 대상과 분모:** 구조화 대상 문서 수를 분모로 하고, Luna와 Upstage 두 lane 모두에서 identity·fact·evidence quote·span disposition 검증을 전부 통과한 문서 수를 분자로 사용한다.
+- **방향:** 높을수록 좋다.
+- **통과 기준:** 문서의 두 lane이 모두 자기 OCR 원문에 근거해야 해당 문서를 통과로 센다. 하나의 필드나 줄 분류라도 위반하면 통과하지 않는다.
+- **예시:** `편의점 10% 할인` fact의 target, value, unit과 인용문이 같은 lane OCR에서 확인되고 해당 OCR 줄도 fact로 분류되면 근거 연결 조건을 만족한다.
+- **한계:** OCR과 의미가 맞더라도 target이 바로 위 제목에만 있고 단일 인용문 안에는 없으면 현재의 엄격한 문자 연결 규칙에서 실패할 수 있다. 따라서 실패가 곧 사실 오류를 뜻하지는 않는다.
+
+### Relation match — 두 구조화 JSON의 fact 관계 일치율
+
+- **계산 대상과 분모:** Grounding pass를 통과한 문서를 분모로 하고, Luna와 Upstage의 identity와 전체 fact tuple이 모두 일치한 문서를 분자로 사용한다.
+- **방향:** 높을수록 좋다.
+- **통과 기준:** 두 lane의 카드 identity와 모든 `target·condition·value·unit·cap·frequency·period·exceptions` 관계가 같아야 통과한다.
+- **예시:** 양쪽 JSON이 모두 `편의점 / 전월 30만원 / 10 / % / 월 5천원` 관계를 만들면 해당 fact는 일치한다.
+- **한계:** 두 OCR과 두 구조화 모델이 같은 오류를 만들면 일치율은 높아도 정확하지 않을 수 있다. 반대로 표현만 다르고 의미는 같은 fact도 exact tuple 비교에서는 불일치할 수 있다. 분모가 0이면 0%가 아니라 `미측정`으로 보고한다.
+
+### Automatic canonicalization — 자동 canonical JSON 생성률
+
+- **계산 대상과 분모:** 전체 구조화 대상 문서 수를 분모로 하고, Grounding pass와 Relation match를 모두 통과해 자동 canonical JSON이 생성된 문서 수를 분자로 사용한다.
+- **방향:** 높을수록 좋다.
+- **통과 기준:** 두 lane의 근거 연결과 관계 일치를 모두 통과해야 한다.
+- **예시:** Luna와 Upstage가 같은 카드명과 편의점 할인 관계를 각자 자기 OCR 근거로 뒷받침하면 두 근거를 가진 canonical fact를 생성한다.
+- **한계:** 자동 생성률이 낮다고 OCR 품질이 반드시 낮은 것은 아니다. 구조화 프롬프트와 검증 규칙이 지나치게 엄격하거나 서로 맞지 않아도 낮아질 수 있다.
