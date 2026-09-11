@@ -26,8 +26,8 @@ from pickcardu_rag import (
     squared_l2_rank,
     weighted_rrf,
 )
-from pickcardu_rag.errors import RerankerUnavailable
-from pickcardu_rag.retrieval import _scores_from_logits, fingerprint_local_artifact
+from pickcardu_rag.errors import EvidencePackageTooLarge, RerankerUnavailable
+from pickcardu_rag.retrieval import _scores_from_logits, fingerprint_local_artifact, lexical_terms
 
 
 class RecordingLexical:
@@ -56,7 +56,7 @@ class FixedReranker:
         self.calls = 0
         self.documents: list[list[str]] = []
 
-    def score(self, mode: str, query: str, documents: list[str]):
+    def score(self, mode: str, query: str, documents: list[str], *, document_token_limit=None):
         self.calls += 1
         self.documents.append(list(documents))
         return list(reversed(range(len(documents)))), {"mode": mode}
@@ -66,7 +66,7 @@ class FakeTokenizer:
     model_max_length = 8
 
     def __call__(self, pairs, **kwargs):
-        lengths = [len(document) + 2 for _, document in pairs]
+        lengths = [len(pair[1]) + 2 if isinstance(pair, list) else len(pair) for pair in pairs]
         if not kwargs.get("return_tensors"):
             return {"input_ids": [list(range(length)) for length in lengths]}
         return {"input_ids": torch.ones((len(pairs), min(max(lengths), kwargs["max_length"])), dtype=torch.long)}
@@ -120,7 +120,7 @@ class RetrievalTests(unittest.TestCase):
 
     def test_normalization_bm25_l2_rrf_and_classifier_parity(self) -> None:
         self.assertEqual(normalize_text("  ＡBC\t카드  "), "abc 카드")
-        self.assertEqual(normalized_tokens("할인 10%"), ["할인", "10%"])
+        self.assertIn("percent_10", normalized_tokens("할인 10%"))
         bm25 = BM25(["카페 할인", "항공 마일리지"])
         self.assertGreater(bm25.scores(["카페"])[0], bm25.scores(["카페"])[1])
         ranked = squared_l2_rank(np.zeros(2, dtype=np.float32), self.embeddings[:2], ["a", "b"])
@@ -165,8 +165,9 @@ class RetrievalTests(unittest.TestCase):
         self.assertEqual(vector.calls, [50])
         self.assertEqual(reranker.calls, 1)
         self.assertNotIn("a", [item["chunk_id"] for item in result["evidence"]])
-        self.assertNotIn("c", [item["chunk_id"] for item in result["evidence"]])
-        self.assertIn("e", [item["chunk_id"] for item in result["evidence"]])
+        self.assertIn("c", [item["chunk_id"] for item in result["evidence"]])
+        self.assertNotIn("e", [item["chunk_id"] for item in result["evidence"]])
+        self.assertEqual(next(item["text"] for item in result["evidence"] if item["chunk_id"] == "c"), self.chunks[2].text)
         self.assertTrue(all(isinstance(item["page_num"], int) for item in result["evidence"]))
         self.assertEqual(result["trace"]["profile"], "card_page_section_benefit")
         with self.assertRaises(ValueError):
@@ -206,7 +207,7 @@ class RetrievalTests(unittest.TestCase):
     def test_parent_child_bundles_are_built_before_all_query_bge(self) -> None:
         chunks = [
             Chunk("a", "생활 > 통신\n통신비 10% 할인", "c1", "카드1", "발급사", "structural", 1,
-                  node_id="c1::n1", heading_path=("생활", "통신"), related_chunk_ids=("b",)),
+                  node_id="c1::n1", heading_path=("생활", "통신"), related_chunk_ids=("b",), optional_parent_heading="생활"),
             Chunk("b", "생활 > 통신 조건\n전월 실적 40만원", "c1", "카드1", "발급사", "structural", 2,
                   node_id="c1::n2", heading_path=("생활", "통신 조건")),
             Chunk("c", "생활 > 카페\n카페 할인", "c2", "카드2", "발급사", "structural", 1,
@@ -231,6 +232,11 @@ class RetrievalTests(unittest.TestCase):
         self.assertEqual(result["query_type"], "numeric_condition")
         self.assertTrue(result["trace"]["bundles"])
         self.assertIn("b", [row["chunk_id"] for row in result["evidence"]])
+        from pickcardu_rag.answering import build_answer_payload
+        answer_evidence = build_answer_payload("질문", result["evidence"])["evidence"]
+        for card_key, document in zip(("c1", "c2"), reranker.documents[0]):
+            self.assertEqual("\n\n".join(row["text"] for row in answer_evidence if row["card_key"] == card_key), document)
+        self.assertEqual(pipeline.chunks["a"].text, chunks[0].text)
         with self.assertRaisesRegex(ValueError, "all-query BGE"):
             pipeline.search(
                 "질문",
@@ -262,13 +268,60 @@ class RetrievalTests(unittest.TestCase):
             model = FakeModel()
             LocalReranker._models[key] = (FakeTokenizer(), model, "cpu", "float32", 4)
             try:
-                scores, trace = reranker.score("bge", "q", ["a", "bb", "ccc", "dddd", "eeeee"])
+                with self.assertRaisesRegex(RerankerUnavailable, "truncation forbidden"):
+                    reranker.score("bge", "q", ["a", "bb", "ccc"])
+                self.assertEqual(model.batch_sizes, [])
+                scores, trace = reranker.score("bge", "q", ["a", "bb", "a", "bb", "a"])
+                with self.assertRaisesRegex(RerankerUnavailable, "bundle token limit"):
+                    reranker.score("bge", "q", ["bb"], document_token_limit=1)
             finally:
                 LocalReranker._models.pop(key, None)
         self.assertEqual(scores, [0.0, 1.0, 0.0, 1.0, 0.0])
         self.assertEqual(model.batch_sizes, [2, 2, 1])
         self.assertEqual(trace["batch_count"], 3)
-        self.assertEqual(trace["truncated_count"], 3)
+        self.assertEqual(trace["truncated_count"], 0)
+
+    def test_search_aliases_and_conservative_query_rules(self) -> None:
+        for text in ("30만원", "300,000원", "300000원"):
+            self.assertIn("money_krw_300000", normalized_tokens(text))
+        self.assertIn("money_krw_12000", normalized_tokens("1만 2천원"))
+        self.assertIn("percent_1.5", normalized_tokens("1.50%"))
+        self.assertIn("period_월_2_회", normalized_tokens("월 2회"))
+        self.assertIn("ko4_전월실적", normalized_tokens("전월 실적"))
+        self.assertTrue(all(term.isalnum() and term.isascii() for term in lexical_terms("30만원 할인 1.5%")))
+        cases = {
+            "이 카드의 이용 기간?": "numeric_condition",
+            "포인트 몇 포인트?": "numeric_condition",
+            "얼마나 적립해?": "numeric_condition",
+            "IBK포인트3.8 어느 은행?": "proper_noun",
+            "카드 발행사는?": "proper_noun",
+            "통신비와 편의점 혜택을 모두 주는 카드 추천": "semantic",
+            "연회비 면제 조건": "semantic",
+            "30만원 쓰는데 어떤 카드가 좋아?": "semantic",
+        }
+        for query, expected in cases.items():
+            with self.subTest(query=query):
+                self.assertEqual(classify_query(query), expected)
+
+    def test_fused_top50_precedes_eligible_filter(self) -> None:
+        chunks = [Chunk(str(i), "표지", str(i), "카드", "발급사", "card", 1) for i in range(50)]
+        chunks.append(Chunk("last", "편의점 할인", "last", "카드", "발급사", "benefit", 1))
+        shared = [Candidate(str(i), 0, i + 1) for i in range(49)]
+        lexical = RecordingLexical([*shared, Candidate("49", 0, 50)])
+        vector = RecordingVector([*shared, Candidate("last", 0, 50)])
+        result = RagPipeline(chunks, lexical, vector).search("q", np.zeros(2), SearchConfig(reranker="off"))
+        self.assertEqual(result["evidence"], [])
+
+    def test_rrf_ties_use_best_component_rank_before_id(self) -> None:
+        result = weighted_rrf({"a": [Candidate("z", 0, 1)], "b": [Candidate("a", 0, 62)]}, {"a": 1, "b": 2})
+        self.assertEqual([row.chunk_id for row in result], ["z", "a"])
+
+    def test_evidence_budget_failure_does_not_substitute_or_partially_emit(self) -> None:
+        chunks = {chunk.chunk_id: chunk for chunk in self.chunks}
+        with self.assertRaises(EvidencePackageTooLarge):
+            collapse_cards([Candidate("b", 2, 1), Candidate("c", 1, 2)], chunks, top_k=2, max_payload_size=1)
+        cards, evidence, _ = collapse_cards([Candidate("b", 2, 1), Candidate("b", 1, 2)], chunks, top_k=3)
+        self.assertEqual((len(cards), len(evidence)), (1, 1))
 
     def test_runtime_source_has_no_service_or_legacy_path_dependencies(self) -> None:
         source_root = Path(__file__).parents[1] / "src" / "pickcardu_rag"

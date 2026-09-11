@@ -7,7 +7,7 @@ import json
 from dataclasses import asdict, dataclass
 from typing import Any
 
-from .retrieval import GTE_REVISION, SearchConfig, normalize_text
+from .retrieval import FUSED_WORKLIST_DEPTH, GTE_REVISION, LEXICAL_CONTRACT, QUERY_CLASSIFIER_CONTRACT, SearchConfig, normalize_text
 
 
 LAB_LABEL = "development retrieval diagnostics; not a product success criterion."
@@ -43,6 +43,10 @@ def comparison_config(
         "distance": "squared_l2",
         "filter": "profile_eligible_levels",
         "component_depth": config.component_depth,
+        "fused_worklist_depth": FUSED_WORKLIST_DEPTH,
+        "lexical_contract": LEXICAL_CONTRACT,
+        "query_classifier_contract": QUERY_CLASSIFIER_CONTRACT,
+        "evidence_policy": "ranked_source_preserved_fail_on_budget_overflow",
         "candidate_depth": config.candidate_depth,
         "card_aggregation": "first_rank_unique_card_max5_evidence",
         "reranker": config.reranker,

@@ -26,15 +26,20 @@ sys.path[:0] = [
 
 from pickcardu_indexer.pipeline import (  # noqa: E402
     Indexer,
+    LaneRestructureRequired,
+    _identity_evidence,
     OpenAIEmbeddingAdapter,
     compare_ocr_outputs,
     normalise_fact,
+    relation_tuple,
     strict_resolution,
     validate_lane,
     validate_lanes_independently,
+    validation_diagnostics,
 )
+from pickcardu_indexer.grounding import STRUCTURE_SCHEMA_VERSION, normalized, typed_literals  # noqa: E402
 from pickcardu_indexer.__main__ import parser as cli_parser, run_ocr  # noqa: E402
-from pickcardu_indexer.ocr import OCR_PROMPT, OCR_SCHEMA, STRUCTURE_PROMPT, LiveLaneAdapter, LunaFactStructurer, LunaOcrTranscriber, OcrProviderError, UpstageOcrTranscriber, pages_text, upstage_pages  # noqa: E402
+from pickcardu_indexer.ocr import OCR_PROMPT, OCR_SCHEMA, STRUCTURE_PROMPT, STRUCTURE_SCHEMA, LiveLaneAdapter, LunaFactStructurer, LunaOcrTranscriber, OcrProviderError, UpstageOcrTranscriber, pages_text, upstage_pages  # noqa: E402
 from pickcardu_indexer.structural import build_structural_chunks  # noqa: E402
 from pickcardu_rag_api.config import Settings  # noqa: E402
 from pickcardu_rag_api.index import ActiveIndexLoader  # noqa: E402
@@ -51,25 +56,39 @@ SOURCE_SHA = "c5c2e8be6ad0825a56ded1f1a153ceaf11dc060ab44b120a94406a08207babc2"
 
 def lane(document_id: str, provider: str, *, condition: str = "monthly", value: str = "1", quote: str | None = None) -> dict[str, object]:
     quote = quote or f"카페 {condition} {value}% 할인"
-    return {
+    source_line = f"상품 안내: {quote}"
+    raw_fields = {"benefit_type": "상품 안내", "action": "할인", "target": "카페", "condition": condition, "value": value, "unit": "%", "cap": "", "frequency": "", "period": "", "exceptions": ""}
+    field_evidence = {
+        field: ([] if not raw else [{"line_id": "P0001-L0003", "fragment": raw, "char_start": max(source_line.find(raw), 0), "char_end": max(source_line.find(raw), 0) + len(raw)}])
+        for field, raw in raw_fields.items()
+    }
+    payload = {
         "document_id": document_id,
         "provider": provider,
         "source_pdf_sha256": SOURCE_SHA,
         "provenance": {"endpoint": "local-fixture", "model": f"{provider}-fixture", "config_hash": "fixture-v1"},
-        "identity": {"issuer_name": "Issuer", "card_name": "Card", "issuer_evidence": {"page": 1, "quote": "Issuer"}, "card_evidence": {"page": 1, "quote": "Card"}},
+        "structure_schema_version": STRUCTURE_SCHEMA_VERSION,
+        "identity": {"issuer_name": "Issuer", "card_name": "Card", "issuer_evidence": {"line_ids": ["P0001-L0001"]}, "card_evidence": {"line_ids": ["P0001-L0001"]}},
         "pages": [{"page": 1, "text": f"Issuer Card\n### 상품 안내\n상품 안내: {quote}"}],
-        "span_dispositions": [{"page": 1, "quote": "Issuer Card", "kind": "identity"}, {"page": 1, "quote": "### 상품 안내", "kind": "ignore", "reason": "heading"}, {"page": 1, "quote": f"상품 안내: {quote}", "kind": "fact"}],
-        "facts": [{"target": "카페", "condition": condition, "value": value, "unit": "%", "cap": "", "frequency": "", "period": "", "exceptions": "", "evidence": {"page": 1, "quote": quote}}],
+        "ignored_risky_lines": [],
+        "facts": [{**raw_fields, "field_evidence": field_evidence, "relation_scope": {"scope_type": "sentence", "line_ids": ["P0001-L0003"], "header_line_ids": [], "row_line_ids": []}}],
     }
+    return payload
 
 
 def line_id_lane(document_id: str, provider: str, *, condition: str = "monthly") -> dict[str, object]:
     quote = f"카페 {condition} 1% 할인"
+    raw_fields = {"benefit_type": "카페", "action": "할인", "target": "카페", "condition": condition, "value": "1", "unit": "%", "cap": "", "frequency": "", "period": "", "exceptions": ""}
+    field_evidence = {
+        field: ([] if not raw else [{"line_id": "P0001-L0002", "fragment": raw, "char_start": quote.index(raw), "char_end": quote.index(raw) + len(raw)}])
+        for field, raw in raw_fields.items()
+    }
     return {
         "document_id": document_id,
         "provider": provider,
         "source_pdf_sha256": SOURCE_SHA,
         "provenance": {"endpoint": "local-fixture", "model": f"{provider}-fixture", "config_hash": "fixture-v2"},
+        "structure_schema_version": STRUCTURE_SCHEMA_VERSION,
         "identity": {
             "issuer_name": "Issuer",
             "card_name": "Card",
@@ -77,44 +96,59 @@ def line_id_lane(document_id: str, provider: str, *, condition: str = "monthly")
             "card_evidence": {"line_ids": ["P0001-L0001"]},
         },
         "pages": [{"page": 1, "text": f"Issuer Card\n{quote}"}],
-        "facts": [{
-            "target": "카페",
-            "condition": condition,
-            "value": "1",
-            "unit": "%",
-            "cap": "",
-            "frequency": "",
-            "period": "",
-            "exceptions": "",
-            "evidence": {"line_ids": ["P0001-L0002"]},
-        }],
+        "facts": [{**raw_fields, "field_evidence": field_evidence, "relation_scope": {"scope_type": "sentence", "line_ids": ["P0001-L0002"], "header_line_ids": [], "row_line_ids": []}}],
         "ignored_risky_lines": [],
     }
 
 
-def resolution_payload() -> dict[str, object]:
-    return {
-        "resolution": {"selected_provider": "luna", "selected_identity_provider": "luna", "reason": "verified", "rejected_relations": []},
+def resolution_payload(luna: dict[str, object] | None = None, upstage: dict[str, object] | None = None, *, selected: str = "luna", selected_identity: str | None = None) -> dict[str, object]:
+    luna = lane("issuer/card", "luna") if luna is None else luna
+    upstage = lane("issuer/card", "upstage") if upstage is None else upstage
+    selected_identity = selected if selected_identity is None else selected_identity
+    validated = {"luna": validate_lane("luna", luna), "upstage": validate_lane("upstage", upstage)}
+    keyed = {provider: {relation_tuple(item["fact"]): item for item in items} for provider, items in validated.items()}
+    other = "upstage" if selected == "luna" else "luna"
+    identity_evidence = {
+        provider: _identity_evidence(provider, payload)
+        for provider, payload in (("luna", luna), ("upstage", upstage))
+    }
+    identities = {
+        provider: (normalized(payload["identity"]["issuer_name"]), normalized(payload["identity"]["card_name"]))
+        for provider, payload in (("luna", luna), ("upstage", upstage))
+    }
+    selected_identity_pair = identities[selected_identity]
+    payload = {
+        "resolution": {"selected_provider": selected, "selected_identity_provider": selected_identity, "reason": "verified", "rejected_relations": []},
         "identity": {
-            "issuer_name": "Issuer",
-            "card_name": "Card",
+            "issuer_name": selected_identity_pair[0],
+            "card_name": selected_identity_pair[1],
             "evidence_refs": {
                 provider: {
-                    "issuer": {"provider": provider, "page": 1, "quote": "Issuer"},
-                    "card": {"provider": provider, "page": 1, "quote": "Card"},
-                    "supports_selected": True,
+                    "issuer": identity_evidence[provider]["issuer"],
+                    "card": identity_evidence[provider]["card"],
+                    "supports_selected": identities[provider] == selected_identity_pair,
                 }
                 for provider in ("luna", "upstage")
             },
         },
-        "canonical": [{"fact": {"target": "카페", "condition": "monthly", "value": "1", "unit": "%", "cap": "", "frequency": "", "period": "", "exceptions": ""}, "evidence_refs": {"luna": {"provider": "luna", "page": 1, "quote": "카페 monthly 1% 할인", "supports_selected": True}, "upstage": {"provider": "upstage", "page": 1, "quote": "카페 monthly 1% 할인", "supports_selected": True}}}],
+        "canonical": [
+            {"fact": item["fact"], "field_evidence_refs": {selected: item["field_evidence"], other: keyed[other].get(key, validated[other][0])["field_evidence"]}, "relation_scope_refs": {selected: item["relation_scope"], other: keyed[other].get(key, validated[other][0])["relation_scope"]}, "evidence_refs": {selected: {**item["evidence"], "supports_selected": True}, other: {**keyed[other].get(key, validated[other][0])["evidence"], "supports_selected": key in keyed[other]}}}
+            for key, item in keyed[selected].items()
+        ],
     }
+    payload["resolution"]["rejected_relations"] = [
+        {"provider": other, "tuple": list(relation_tuple(item["fact"])), "reason": "different grounded relation"}
+        for key, item in keyed[other].items()
+        if key not in keyed[selected]
+    ]
+    return payload
 
 
 def add_relation(payload: dict[str, object], *, condition: str, quote: str) -> None:
     payload["pages"][0]["text"] += f"\n{quote}"
-    payload["span_dispositions"].append({"page": 1, "quote": quote, "kind": "fact"})
-    payload["facts"].append({"target": "카페", "condition": condition, "value": "1", "unit": "%", "cap": "", "frequency": "", "period": "", "exceptions": "", "evidence": {"page": 1, "quote": quote}})
+    line_id = f"P0001-L{len(payload['pages'][0]['text'].splitlines()):04d}"
+    values = {"benefit_type": "카페", "action": "할인", "target": "카페", "condition": condition, "value": "1", "unit": "%", "cap": "", "frequency": "", "period": "", "exceptions": ""}
+    payload["facts"].append({**values, "field_evidence": {field: ([] if not value else [{"line_id": line_id, "fragment": value, "char_start": quote.index(value), "char_end": quote.index(value) + len(value)}]) for field, value in values.items()}, "relation_scope": {"scope_type": "sentence", "line_ids": [line_id], "header_line_ids": [], "row_line_ids": []}})
 
 
 def relation_item(condition: str, luna_quote: str, upstage_quote: str, *, luna_supports: bool, upstage_supports: bool) -> dict[str, object]:
@@ -183,7 +217,7 @@ class RecordingReranker:
     def __init__(self) -> None:
         self.calls = 0
 
-    def score(self, _mode: str, _query: str, _documents: list[str]):
+    def score(self, _mode: str, _query: str, _documents: list[str], **_kwargs: object):
         self.calls += 1
         return [float(len(_documents) - index) for index in range(len(_documents))], {"fixture": True}
 
@@ -211,16 +245,13 @@ class FakeStructurer:
 
     def request(self, provider: str, pages: list[dict[str, object]]):
         self.calls.append(provider)
-        dispositions = [
-            {"page": 1, "quote": "Issuer Card", "kind": "identity", "reason": "identity"},
-            {"page": 1, "quote": "상품 안내: 카페 monthly 1% 할인", "kind": "fact", "reason": "benefit"},
-        ]
-        if "추가 문구" in str(pages[0]["text"]):
-            dispositions.append({"page": 1, "quote": "추가 문구", "kind": "ignore", "reason": "non-benefit text"})
+        source_line = "상품 안내: 카페 monthly 1% 할인"
+        raw_fields = {"benefit_type": "상품 안내", "action": "할인", "target": "카페", "condition": "monthly", "value": "1", "unit": "%", "cap": "", "frequency": "", "period": "", "exceptions": ""}
         structured = {
-            "identity": {"issuer_name": "Issuer", "card_name": "Card", "issuer_evidence": {"page": 1, "quote": "Issuer"}, "card_evidence": {"page": 1, "quote": "Card"}},
-            "facts": [{"target": "카페", "condition": "monthly", "value": "1", "unit": "%", "cap": "", "frequency": "", "period": "", "exceptions": "", "evidence": {"page": 1, "quote": "카페 monthly 1% 할인"}}],
-            "span_dispositions": dispositions,
+            "structure_schema_version": STRUCTURE_SCHEMA_VERSION,
+            "identity": {"issuer_name": "Issuer", "card_name": "Card", "issuer_evidence": {"line_ids": ["P0001-L0001"]}, "card_evidence": {"line_ids": ["P0001-L0001"]}},
+            "facts": [{**raw_fields, "field_evidence": {field: ([] if not raw else [{"line_id": "P0001-L0002", "fragment": raw, "char_start": source_line.index(raw), "char_end": source_line.index(raw) + len(raw)}]) for field, raw in raw_fields.items()}, "relation_scope": {"scope_type": "sentence", "line_ids": ["P0001-L0002"], "header_line_ids": [], "row_line_ids": []}}],
+            "ignored_risky_lines": [],
         }
         return {"provider": provider, "structured": structured}
 
@@ -266,14 +297,14 @@ class IndexerTest(unittest.TestCase):
         )
 
     def open_relation_review(self) -> tuple[int, Path]:
-        write_json(self.upstage_dir / "issuer__card.json", lane(self.document_id, "upstage", condition="daily", quote="카페 monthly daily 1% 할인"))
+        luna_payload = lane(self.document_id, "luna")
+        upstage_payload = lane(self.document_id, "upstage", condition="daily", quote="카페 monthly daily 1% 할인")
+        write_json(self.upstage_dir / "issuer__card.json", upstage_payload)
         with self.assertRaises(RuntimeError):
             self.execute_indexer()
         review_id = self.indexer.state.status()["reviews"][0]["review_id"]
         after = self.root / "resolution.json"
-        payload = resolution_payload()
-        payload["canonical"][0]["evidence_refs"]["upstage"] = {"provider": "upstage", "page": 1, "quote": "카페 monthly daily 1% 할인", "supports_selected": False}
-        payload["resolution"]["rejected_relations"] = [{"provider": "upstage", "tuple": ["카페", "daily", "1", "%", "", "", "", ""], "reason": "daily differs from selected monthly relation"}]
+        payload = resolution_payload(luna_payload, upstage_payload)
         write_json(after, payload)
         return review_id, after
 
@@ -350,8 +381,8 @@ class IndexerTest(unittest.TestCase):
                 self.assertEqual(body["profile"], profile)
                 self.assertEqual(body["cards"][0]["card_key"], self.document_id)
                 self.assertTrue(body["evidence"])
-                expected_level = "structural" if profile == "parent_child_bundle" else "benefit"
-                self.assertTrue(all(row["level"] == expected_level for row in body["evidence"]))
+                expected_levels = {"structural"} if profile == "parent_child_bundle" else {"benefit", "section"}
+                self.assertTrue(all(row["level"] in expected_levels for row in body["evidence"]))
                 self.assertEqual(reranker.calls, 1 if profile == "parent_child_bundle" else 0)
 
     def test_openai_embedding_adapter_batches_and_restores_response_order(self) -> None:
@@ -394,6 +425,9 @@ class IndexerTest(unittest.TestCase):
             self.assertTrue((document_root / provider / "ocr.txt").is_file())
             self.assertTrue((document_root / provider / "pages.json").is_file())
             self.assertTrue((document_root / provider / "normalized.json").is_file())
+        normalized_lane = json.loads((document_root / "luna" / "normalized.json").read_text(encoding="utf-8"))
+        self.assertEqual(normalized_lane["normalization_errors"], [])
+        self.assertEqual(normalized_lane["facts"][0]["typed_normalization"]["value"], [{"kind": "ratio", "decimal": "0.01"}])
         comparison = json.loads((document_root / "validation/ocr_comparison.json").read_text(encoding="utf-8"))
         self.assertFalse(comparison["all_normalized_text_equal"])
         self.assertEqual(json.loads((document_root / "validation/normalized_json_comparison.json").read_text())["status"], "pass")
@@ -1160,37 +1194,17 @@ class IndexerTest(unittest.TestCase):
     def test_risky_ignore_and_duplicate_disposition_fail_closed(self) -> None:
         risky = lane(self.document_id, "luna")
         risky["pages"][0]["text"] += "\n카페 10% 할인"
-        risky["span_dispositions"].append({"page": 1, "quote": "카페 10% 할인", "kind": "ignore", "reason": "omitted"})
-        with self.assertRaisesRegex(ValueError, "benefit-like"):
+        risky["ignored_risky_lines"] = [{"line_id": "P0001-L0004", "reason": "omitted benefit"}]
+        with self.assertRaises(LaneRestructureRequired):
             validate_lane("luna", risky)
         safe = lane(self.document_id, "luna")
-        safe["pages"][0]["text"] += "\n청구할인 서비스\n연체이자율 최대 3%\n카드 신규 출시 이후 할인혜택 유지\n카드 이용 시 제공되는 추가적인 혜택 등 부가서비스 제공에 소요된 비용\n| 대상 | 적립율 |"
-        safe["span_dispositions"].extend([
-            {"page": 1, "quote": "청구할인 서비스", "kind": "ignore", "reason": "섹션 제목"},
-            {"page": 1, "quote": "연체이자율 최대 3%", "kind": "ignore", "reason": "연체이자율 안내"},
-            {"page": 1, "quote": "카드 신규 출시 이후 할인혜택 유지", "kind": "ignore", "reason": "부가서비스 유지 고지"},
-            {"page": 1, "quote": "카드 이용 시 제공되는 추가적인 혜택 등 부가서비스 제공에 소요된 비용", "kind": "ignore", "reason": "법정 안내"},
-            {"page": 1, "quote": "| 대상 | 적립율 |", "kind": "ignore", "reason": "표 헤더"},
-        ])
         self.assertEqual(len(validate_lane("luna", safe)), 1)
-        duplicate = lane(self.document_id, "luna")
-        duplicate["span_dispositions"].append(dict(duplicate["span_dispositions"][0]))
-        with self.assertRaisesRegex(ValueError, "duplicate"):
-            validate_lane("luna", duplicate)
-        repeated = lane(self.document_id, "luna")
-        repeated["pages"][0]["text"] = repeated["pages"][0]["text"].replace("Issuer Card", "Issuer Card\nIssuer Card")
-        repeated["span_dispositions"].append(dict(repeated["span_dispositions"][0]))
-        self.assertEqual(len(validate_lane("luna", repeated)), 1)
-        markdown_identity = lane(self.document_id, "luna")
-        markdown_identity["pages"][0]["text"] = markdown_identity["pages"][0]["text"].replace("Issuer Card", "# Issuer Card")
-        markdown_identity["span_dispositions"][0]["quote"] = "# Issuer Card"
-        self.assertEqual(len(validate_lane("luna", markdown_identity)), 1)
 
     def test_risky_ignore_is_non_resolvable_restructure_block(self) -> None:
         for provider, root in (("luna", self.luna_dir), ("upstage", self.upstage_dir)):
             payload = lane(self.document_id, provider)
             payload["pages"][0]["text"] += "\n카페 10% 할인"
-            payload["span_dispositions"].append({"page": 1, "quote": "카페 10% 할인", "kind": "ignore", "reason": "omitted"})
+            payload["ignored_risky_lines"] = [{"line_id": "P0001-L0004", "reason": "omitted benefit"}]
             write_json(root / "issuer__card.json", payload)
         result = self.indexer.ocr(self.manifest, self.luna_dir, self.upstage_dir, config={"mode": "risky-ignore"})
         self.assertEqual(result["status"]["documents"][0]["status"], "blocked")
@@ -1278,10 +1292,8 @@ class IndexerTest(unittest.TestCase):
             self.execute_indexer()
         review_id = self.indexer.state.status()["reviews"][0]["review_id"]
         after = self.root / "after.json"
-        payload = resolution_payload()
+        payload = resolution_payload(lane(self.document_id, "luna"), lane(self.document_id, "upstage", condition="daily", quote="카페 monthly daily 1% 할인"))
         payload["resolution"]["reason"] = "selected grounded Luna relation"
-        payload["resolution"]["rejected_relations"] = [{"provider": "upstage", "tuple": ["카페", "daily", "1", "%", "", "", "", ""], "reason": "daily relation differs"}]
-        payload["canonical"][0]["evidence_refs"]["upstage"] = {"provider": "upstage", "page": 1, "quote": "카페 monthly daily 1% 할인", "supports_selected": False}
         write_json(after, payload)
         self.indexer.resolve_review(review_id, "reviewer@example.test", "checked source evidence", after, self.luna_dir, self.upstage_dir)
         review = self.indexer.state.review(review_id)
@@ -1292,49 +1304,25 @@ class IndexerTest(unittest.TestCase):
 
     def test_rule_and_grounding_failures_are_not_silenced(self) -> None:
         with self.assertRaisesRegex(ValueError, "missing"):
-            normalise_fact({"target": "x", "value": "", "unit": "원"})
+            normalise_fact({"benefit_type": "할인", "action": "할인", "target": "x", "value": "", "unit": "원"})
         self.assertEqual(
-            normalise_fact({"target": "온라인 예매", "exceptions": "제외"})["exceptions"],
+            normalise_fact({"benefit_type": "할인", "action": "할인", "target": "온라인 예매", "exceptions": "제외"})["exceptions"],
             "제외",
         )
         with self.assertRaisesRegex(ValueError, "dash"):
-            normalise_fact({"target": "x", "value": "-", "unit": "원"})
-        with self.assertRaisesRegex(ValueError, "linked"):
+            normalise_fact({"benefit_type": "할인", "action": "할인", "target": "x", "value": "-", "unit": "원"})
+        with self.assertRaisesRegex(ValueError, "fragment"):
             validate_lane("luna", lane(self.document_id, "luna", value="2", quote="카페 monthly 1% 할인"))
         invalid = lane(self.document_id, "luna")
-        invalid["facts"][0]["evidence"]["quote"] = "없는 근거"
-        with self.assertRaisesRegex(ValueError, "grounded"):
+        invalid["facts"][0]["field_evidence"]["value"][0]["fragment"] = "없는 근거"
+        with self.assertRaisesRegex(ValueError, "fragment"):
             validate_lane("luna", invalid)
         hallucinated = lane(self.document_id, "luna", value="캐시백", quote="카페 monthly % 할인")
-        with self.assertRaisesRegex(ValueError, "non-numeric value"):
+        with self.assertRaisesRegex(ValueError, "fragment"):
             validate_lane("luna", hallucinated)
 
     def test_line_id_evidence_groups_one_benefit_and_lanes_validate_independently(self) -> None:
-        payload = {
-            "document_id": self.document_id,
-            "provider": "luna",
-            "source_pdf_sha256": SOURCE_SHA,
-            "provenance": {"endpoint": "fixture", "model": "fixture", "config_hash": "fixture-v2"},
-            "identity": {
-                "issuer_name": "Issuer",
-                "card_name": "Card",
-                "issuer_evidence": {"line_ids": ["P0001-L0001"]},
-                "card_evidence": {"line_ids": ["P0001-L0001"]},
-            },
-            "pages": [{"page": 1, "text": "Issuer Card\n편의점 할인\n10%\n전월 실적 30만원"}],
-            "facts": [{
-                "target": "편의점",
-                "condition": "전월 실적 30만원",
-                "value": "10",
-                "unit": "%",
-                "cap": "",
-                "frequency": "",
-                "period": "",
-                "exceptions": "",
-                "evidence": {"line_ids": ["P0001-L0002", "P0001-L0003", "P0001-L0004"]},
-            }],
-            "ignored_risky_lines": [],
-        }
+        payload = line_id_lane(self.document_id, "luna")
         self.assertEqual(len(validate_lane("luna", payload)), 1)
         broken = json.loads(json.dumps(payload))
         broken["provider"] = "upstage"
@@ -1344,16 +1332,16 @@ class IndexerTest(unittest.TestCase):
         self.assertIn("upstage", errors)
         omitted = json.loads(json.dumps(payload))
         omitted["pages"][0]["text"] += "\n주유 5% 할인"
-        with self.assertRaisesRegex(ValueError, "lacks fact evidence"):
+        with self.assertRaises(LaneRestructureRequired):
             validate_lane("luna", omitted)
         spoofed = json.loads(json.dumps(omitted))
         spoofed["ignored_risky_lines"] = [{"line_id": "P0001-L0005", "reason": "표 헤더"}]
-        with self.assertRaisesRegex(ValueError, "benefit-like"):
+        with self.assertRaises(ValueError):
             validate_lane("luna", spoofed)
         waiver = json.loads(json.dumps(payload))
         waiver["pages"][0]["text"] += "\n연회비 면제"
         waiver["ignored_risky_lines"] = [{"line_id": "P0001-L0005", "reason": "연회비 안내"}]
-        with self.assertRaisesRegex(ValueError, "benefit-like"):
+        with self.assertRaises(ValueError):
             validate_lane("luna", waiver)
 
     def test_line_id_lanes_auto_publish_and_review_resolution_preserves_evidence(self) -> None:
@@ -1365,72 +1353,31 @@ class IndexerTest(unittest.TestCase):
         self.assertEqual(result["status"]["run"]["status"], "test_only_published")
 
         upstage = line_id_lane(self.document_id, "upstage", condition="daily")
-        luna_fact = validate_lane("luna", luna)[0]
-        upstage_fact = validate_lane("upstage", upstage)[0]
-        identity_evidence = {
-            provider: {
-                key: {
-                    "provider": provider,
-                    "page": 1,
-                    "quote": "Issuer Card",
-                    "line_ids": ["P0001-L0001"],
-                    "spans": [{"page": 1, "line_id": "P0001-L0001", "quote": "Issuer Card"}],
-                }
-                for key in ("issuer", "card")
-            }
-            for provider in ("luna", "upstage")
-        }
-        resolution = {
-            "resolution": {
-                "selected_provider": "luna",
-                "selected_identity_provider": "luna",
-                "reason": "monthly relation selected",
-                "rejected_relations": [{
-                    "provider": "upstage",
-                    "tuple": ["카페", "daily", "1", "%", "", "", "", ""],
-                    "reason": "different grounded relation",
-                }],
-            },
-            "identity": {
-                "issuer_name": "Issuer",
-                "card_name": "Card",
-                "evidence_refs": {
-                    provider: {**evidence, "supports_selected": True}
-                    for provider, evidence in identity_evidence.items()
-                },
-            },
-            "canonical": [{
-                "fact": luna_fact["fact"],
-                "evidence_refs": {
-                    "luna": {**luna_fact["evidence"], "supports_selected": True},
-                    "upstage": {**upstage_fact["evidence"], "supports_selected": False},
-                },
-            }],
-        }
+        resolution = resolution_payload(luna, upstage)
         canonical, identity, _audit = strict_resolution(resolution, luna, upstage)
         self.assertEqual(canonical[0]["evidence_refs"]["luna"]["line_ids"], ["P0001-L0002"])
         self.assertEqual(identity["evidence_refs"]["upstage"]["card"]["page"], 1)
 
     def test_field_and_critical_span_coverage_fail_closed(self) -> None:
+        invalid_condition = lane(self.document_id, "luna", quote="카페 1% 할인")
+        invalid_condition["facts"][0]["field_evidence"]["condition"] = []
         with self.assertRaisesRegex(ValueError, "condition"):
-            validate_lane("luna", lane(self.document_id, "luna", quote="카페 1% 할인"))
+            validate_lane("luna", invalid_condition)
         missing = lane(self.document_id, "luna")
-        missing["pages"] = [{"page": 1, "text": "Issuer Card\n카페 monthly 1% 할인\n주유 daily 2% 할인"}]
-        missing["span_dispositions"] = [{"page": 1, "quote": "Issuer Card", "kind": "identity"}, {"page": 1, "quote": "카페 monthly 1% 할인", "kind": "fact"}]
-        with self.assertRaisesRegex(ValueError, "OCR line lacks explicit disposition"):
+        missing["pages"] = [{"page": 1, "text": "Issuer Card\n### 상품 안내\n상품 안내: 카페 monthly 1% 할인\n주유 daily 2% 할인"}]
+        with self.assertRaises(LaneRestructureRequired):
             validate_lane("luna", missing)
         zero = lane(self.document_id, "luna", value="0", quote="카페 monthly 0% 할인")
         self.assertEqual(len(validate_lane("luna", zero)), 1)
-        mislabeled = lane(self.document_id, "luna")
-        mislabeled["span_dispositions"][0]["kind"] = "fact"
-        with self.assertRaisesRegex(ValueError, "fact disposition"):
-            validate_lane("luna", mislabeled)
+        unscoped = lane(self.document_id, "luna")
+        unscoped["facts"][0]["relation_scope"]["line_ids"] = ["P0001-L0001", "P0001-L0003"]
+        with self.assertRaisesRegex(ValueError, "sentence scope"):
+            validate_lane("luna", unscoped)
 
     def test_ocr_comparison_and_chunk_profiles_are_explicit(self) -> None:
         luna_payload = lane(self.document_id, "luna")
         upstage_payload = lane(self.document_id, "upstage")
         upstage_payload["pages"][0]["text"] += "\n추가 문구"
-        upstage_payload["span_dispositions"].append({"page": 1, "quote": "추가 문구", "kind": "ignore", "reason": "diagnostic"})
         audit = compare_ocr_outputs(luna_payload, upstage_payload)
         self.assertEqual(audit["purpose"], "diagnostic_only_not_a_correctness_or_selection_gate")
         self.assertFalse(audit["all_normalized_text_equal"])
@@ -1489,14 +1436,13 @@ class IndexerTest(unittest.TestCase):
 
     def test_identity_grounding_and_lane_mismatch_are_reviews(self) -> None:
         ungrounded = lane(self.document_id, "luna")
-        ungrounded["identity"]["issuer_evidence"]["quote"] = "Missing issuer"
+        ungrounded["identity"]["issuer_evidence"]["line_ids"] = ["P0001-L9999"]
         with self.assertRaisesRegex(ValueError, "identity is not grounded"):
             validate_lane("luna", ungrounded)
         mismatched = lane(self.document_id, "upstage")
         mismatched["identity"]["card_name"] = "OtherCard"
-        mismatched["identity"]["card_evidence"]["quote"] = "Card OtherCard"
         mismatched["pages"][0]["text"] = mismatched["pages"][0]["text"].replace("Issuer Card", "Issuer Card OtherCard")
-        mismatched["span_dispositions"][0]["quote"] = "Issuer Card OtherCard"
+        mismatched["identity"]["card_evidence"] = {"line_ids": ["P0001-L0001"]}
         write_json(self.upstage_dir / "issuer__card.json", mismatched)
         with self.assertRaises(RuntimeError):
             self.execute_indexer()
@@ -1567,7 +1513,7 @@ class IndexerTest(unittest.TestCase):
         luna, upstage = lane(self.document_id, "luna"), lane(self.document_id, "upstage")
         for kind in ("mixed", "wrong", "false"):
             with self.subTest(kind=kind):
-                payload = resolution_payload()
+                payload = resolution_payload(luna, upstage)
                 if kind == "mixed": payload["canonical"][0]["fact"]["condition"] = "daily"
                 if kind == "wrong": payload["canonical"][0]["evidence_refs"]["luna"]["quote"] = "wrong"
                 if kind == "false": payload["canonical"][0]["evidence_refs"]["upstage"]["supports_selected"] = False
@@ -1577,11 +1523,7 @@ class IndexerTest(unittest.TestCase):
         luna, upstage = lane(self.document_id, "luna"), lane(self.document_id, "upstage")
         add_relation(luna, condition="weekly", quote="카페 weekly 1% 할인")
         add_relation(upstage, condition="daily", quote="카페 daily 1% 할인")
-        payload = resolution_payload()
-        payload["resolution"]["rejected_relations"] = [{"provider": "upstage", "tuple": ["카페", "daily", "1", "%", "", "", "", ""], "reason": "daily differs"}]
-        with self.assertRaisesRegex(ValueError, "exactly equal"):
-            strict_resolution(payload, luna, upstage)
-        payload["canonical"].append(relation_item("weekly", "카페 weekly 1% 할인", "카페 daily 1% 할인", luna_supports=True, upstage_supports=False))
+        payload = resolution_payload(luna, upstage)
         canonical, identity, audit = strict_resolution(payload, luna, upstage)
         self.assertEqual([item["fact"]["condition"] for item in canonical], ["monthly", "weekly"])
         self.assertEqual(identity["card_name"], "Card")
@@ -1594,24 +1536,15 @@ class IndexerTest(unittest.TestCase):
         luna, upstage = lane(self.document_id, "luna"), lane(self.document_id, "upstage")
         add_relation(luna, condition="weekly", quote="카페 weekly 1% 할인")
         add_relation(upstage, condition="daily", quote="카페 daily 1% 할인")
-        payload = resolution_payload()
-        payload["resolution"]["selected_provider"] = "upstage"
-        payload["resolution"]["rejected_relations"] = [{"provider": "luna", "tuple": ["카페", "weekly", "1", "%", "", "", "", ""], "reason": "weekly differs"}]
-        payload["canonical"].append(relation_item("daily", "카페 weekly 1% 할인", "카페 daily 1% 할인", luna_supports=False, upstage_supports=True))
+        payload = resolution_payload(luna, upstage, selected="upstage")
         canonical, _, _ = strict_resolution(payload, luna, upstage)
-        self.assertEqual([item["fact"]["condition"] for item in canonical], ["daily", "monthly"])
+        self.assertEqual([item["fact"]["condition"] for item in canonical], ["monthly", "daily"])
 
     def test_upstage_identity_resolution_preserves_exact_provenance(self) -> None:
         luna, upstage = lane(self.document_id, "luna"), lane(self.document_id, "upstage")
         upstage["identity"]["card_name"] = "OtherCard"
-        upstage["identity"]["card_evidence"]["quote"] = "OtherCard"
         upstage["pages"][0]["text"] = upstage["pages"][0]["text"].replace("Issuer Card", "Issuer OtherCard")
-        upstage["span_dispositions"][0]["quote"] = "Issuer OtherCard"
-        payload = resolution_payload()
-        payload["resolution"]["selected_identity_provider"] = "upstage"
-        payload["identity"]["card_name"] = "OtherCard"
-        payload["identity"]["evidence_refs"]["luna"]["supports_selected"] = False
-        payload["identity"]["evidence_refs"]["upstage"]["card"]["quote"] = "OtherCard"
+        payload = resolution_payload(luna, upstage, selected_identity="upstage")
         _, identity, _ = strict_resolution(payload, luna, upstage)
         self.assertEqual(identity["card_name"], "OtherCard")
         self.assertFalse(identity["evidence_refs"]["luna"]["supports_selected"])
@@ -1626,18 +1559,12 @@ class IndexerTest(unittest.TestCase):
     def test_resolve_review_uses_selected_upstage_identity(self) -> None:
         upstage = lane(self.document_id, "upstage")
         upstage["identity"]["card_name"] = "OtherCard"
-        upstage["identity"]["card_evidence"]["quote"] = "OtherCard"
         upstage["pages"][0]["text"] = upstage["pages"][0]["text"].replace("Issuer Card", "Issuer OtherCard")
-        upstage["span_dispositions"][0]["quote"] = "Issuer OtherCard"
         write_json(self.upstage_dir / "issuer__card.json", upstage)
         with self.assertRaises(RuntimeError):
             self.execute_indexer()
         review_id = self.indexer.state.status()["reviews"][0]["review_id"]
-        payload = resolution_payload()
-        payload["resolution"]["selected_identity_provider"] = "upstage"
-        payload["identity"]["card_name"] = "OtherCard"
-        payload["identity"]["evidence_refs"]["luna"]["supports_selected"] = False
-        payload["identity"]["evidence_refs"]["upstage"]["card"]["quote"] = "OtherCard"
+        payload = resolution_payload(lane(self.document_id, "luna"), upstage, selected_identity="upstage")
         after = self.root / "identity-resolution.json"
         write_json(after, payload)
         result = self.indexer.resolve_review(review_id, "reviewer", "Upstage identity is grounded", after, self.luna_dir, self.upstage_dir)
@@ -1733,6 +1660,318 @@ class IndexerTest(unittest.TestCase):
         self.assertNotIn("snap" + "shot", source.casefold())
         self.assertNotIn("ki" + "wi", source.casefold())
         self.assertNotIn("m" + "mr", source.casefold())
+
+
+class FieldEvidenceV6Test(unittest.TestCase):
+    def _lane(self) -> dict[str, object]:
+        return line_id_lane("issuer/card", "luna")
+
+    def test_fullwidth_percent_unit_preserves_source(self) -> None:
+        payload = self._lane()
+        payload["pages"][0]["text"] = payload["pages"][0]["text"].replace("%", "％")
+        payload["facts"][0]["field_evidence"]["unit"][0]["fragment"] = "％"
+        result = validate_lane("luna", payload)
+        self.assertEqual(result[0]["fact"]["unit"], "%")
+        self.assertIn("％", result[0]["evidence"]["spans"][0]["quote"])
+
+    def test_typed_numeric_dimensions_and_operators(self) -> None:
+        self.assertEqual(typed_literals("30만원"), typed_literals("300000원"))
+        self.assertEqual(typed_literals("300,000,000원"), [{"kind": "KRW", "decimal": "300000000"}])
+        self.assertEqual(typed_literals("10.0%"), typed_literals("10%"))
+        self.assertEqual(typed_literals("10%"), [{"kind": "ratio", "decimal": "0.1"}])
+        self.assertNotEqual(typed_literals("10%"), typed_literals("1%"))
+        self.assertNotEqual(typed_literals("1원"), typed_literals("1만원"))
+        self.assertEqual(typed_literals("-10%"), [{"kind": "ratio", "decimal": "-0.1"}])
+        fact = normalise_fact({"benefit_type": "할인", "action": "할인", "target": "카페", "condition": "전월 30만원 이상", "value": "10", "unit": "%", "cap": "", "frequency": "", "period": "", "exceptions": ""})
+        self.assertEqual(fact["typed_normalization"]["condition_operators"], ["gte"])
+        comparable = {**fact, "value": "10.0"}
+        self.assertEqual(relation_tuple(fact), relation_tuple(normalise_fact(comparable)))
+
+    def test_schema_is_strict_and_all_object_properties_required(self) -> None:
+        def walk(node: object) -> None:
+            if not isinstance(node, dict):
+                return
+            if node.get("type") == "object":
+                self.assertIs(node.get("additionalProperties"), False)
+                self.assertEqual(set(node.get("properties", {})), set(node.get("required", [])))
+            for value in node.values():
+                if isinstance(value, list):
+                    for item in value:
+                        walk(item)
+                else:
+                    walk(value)
+        walk(STRUCTURE_SCHEMA)
+
+    def test_legacy_and_field_or_scope_swaps_do_not_autoapprove(self) -> None:
+        legacy = self._lane()
+        legacy.pop("structure_schema_version")
+        with self.assertRaises(LaneRestructureRequired):
+            validate_lane("luna", legacy)
+        swapped = self._lane()
+        swapped["facts"][0]["field_evidence"]["condition"][0]["fragment"] = "카페"
+        with self.assertRaisesRegex(ValueError, "fragment does not match"):
+            validate_lane("luna", swapped)
+        broad = self._lane()
+        broad["facts"].append(json.loads(json.dumps(broad["facts"][0])))
+        with self.assertRaisesRegex(ValueError, "reuse one broad"):
+            validate_lane("luna", broad)
+        ambiguous = self._lane()
+        ambiguous["facts"][0]["relation_scope"]["scope_type"] = "unknown"
+        with self.assertRaisesRegex(ValueError, "ambiguous or unknown"):
+            validate_lane("luna", ambiguous)
+        malformed = self._lane()
+        malformed["facts"] = {}
+        with self.assertRaisesRegex(ValueError, "non-empty facts arrays"):
+            validate_lane("luna", malformed)
+
+    def test_multi_benefit_and_uncovered_critical_lines_require_review(self) -> None:
+        mixed = self._lane()
+        source = "카페 10%, 통신비 5% 할인"
+        mixed["pages"][0]["text"] = "Issuer Card\n" + source
+        fact = mixed["facts"][0]
+        fact["benefit_type"] = "카페"
+        fact["action"] = "할인"
+        fact["target"] = "카페"
+        fact["condition"] = ""
+        fact["value"] = "5"
+        fact["unit"] = "%"
+        fact["field_evidence"] = {
+            field: ([] if not value else [{"line_id": "P0001-L0002", "fragment": value, "char_start": source.index(value), "char_end": source.index(value) + len(value)}])
+            for field, value in ((key, fact[key]) for key in ("benefit_type", "action", "target", "condition", "value", "unit", "cap", "frequency", "period", "exceptions"))
+        }
+        fact["relation_scope"] = {"scope_type": "sentence", "line_ids": ["P0001-L0002"], "header_line_ids": [], "row_line_ids": []}
+        with self.assertRaisesRegex(ValueError, "multiple benefit candidates"):
+            validate_lane("luna", mixed)
+        missing = self._lane()
+        missing["pages"][0]["text"] += "\n전월 실적 30만원 이상"
+        with self.assertRaisesRegex(ValueError, "condition, cap, exception, or value"):
+            validate_lane("luna", missing)
+
+    def test_single_benefit_bounded_block_preserves_conditions_and_caps(self) -> None:
+        payload = self._lane()
+        lines = ["Issuer Card", "편의점 10% 할인", "전월 실적 30만원 이상", "월 할인한도 5천원"]
+        payload["pages"][0]["text"] = "\n".join(lines)
+        fact = payload["facts"][0]
+        values = {"benefit_type": "할인", "action": "할인", "target": "편의점", "condition": "전월 실적 30만원 이상", "value": "10", "unit": "%", "cap": "월 할인한도 5천원", "frequency": "", "period": "", "exceptions": ""}
+        line_for = {"benefit_type": 2, "action": 2, "target": 2, "value": 2, "unit": 2, "condition": 3, "cap": 4}
+        fact.update(values)
+        fact["field_evidence"] = {
+            field: ([] if not value else [{"line_id": f"P0001-L{line_for[field]:04d}", "fragment": value, "char_start": lines[line_for[field] - 1].index(value), "char_end": lines[line_for[field] - 1].index(value) + len(value)}])
+            for field, value in values.items()
+        }
+        fact["relation_scope"] = {"scope_type": "bounded_block", "line_ids": ["P0001-L0002", "P0001-L0003", "P0001-L0004"], "header_line_ids": [], "row_line_ids": []}
+        validated = validate_lane("luna", payload)
+        self.assertEqual(validated[0]["fact"]["condition"], values["condition"])
+        self.assertEqual(validated[0]["fact"]["cap"], values["cap"])
+        omitted = json.loads(json.dumps(payload))
+        omitted_fact = omitted["facts"][0]
+        for field in ("condition", "cap"):
+            omitted_fact[field] = ""
+            omitted_fact["field_evidence"][field] = []
+        with self.assertRaisesRegex(ValueError, "marked condition"):
+            validate_lane("luna", omitted)
+        swapped_roles = json.loads(json.dumps(payload))
+        swapped_fact = swapped_roles["facts"][0]
+        for field, other in (("condition", "cap"), ("cap", "condition")):
+            swapped_fact[field] = values[other]
+            source_line = line_for[other]
+            swapped_fact["field_evidence"][field] = [{
+                "line_id": f"P0001-L{source_line:04d}",
+                "fragment": values[other],
+                "char_start": lines[source_line - 1].index(values[other]),
+                "char_end": lines[source_line - 1].index(values[other]) + len(values[other]),
+            }]
+        with self.assertRaisesRegex(ValueError, "marked condition"):
+            validate_lane("luna", swapped_roles)
+        unsafe = self._lane()
+        unsafe_line = "카페 monthly 10% 할인"
+        unsafe["pages"][0]["text"] = "Issuer Card\n" + unsafe_line
+        unsafe["facts"][0]["value"] = "1"
+        for field in ("benefit_type", "action", "target", "condition", "unit"):
+            fragment = unsafe["facts"][0][field]
+            start = unsafe_line.index(fragment)
+            unsafe["facts"][0]["field_evidence"][field] = [{"line_id": "P0001-L0002", "fragment": fragment, "char_start": start, "char_end": start + len(fragment)}]
+        start = unsafe_line.index("10")
+        unsafe["facts"][0]["field_evidence"]["value"] = [{"line_id": "P0001-L0002", "fragment": "1", "char_start": start, "char_end": start + 1}]
+        with self.assertRaisesRegex(ValueError, "source numeric range"):
+            validate_lane("luna", unsafe)
+
+    def test_table_scope_requires_exactly_one_header_and_one_row(self) -> None:
+        payload = self._lane()
+        lines = ["Issuer Card", "| 대상 | 할인율 |", "| 카페 | 10% |"]
+        payload["pages"][0]["text"] = "\n".join(lines)
+        fact = payload["facts"][0]
+        values = {"benefit_type": "대상", "action": "할인율", "target": "카페", "condition": "", "value": "10", "unit": "%", "cap": "", "frequency": "", "period": "", "exceptions": ""}
+        line_for = {"benefit_type": 2, "action": 2, "target": 3, "value": 3, "unit": 3}
+        fact.update(values)
+        fact["field_evidence"] = {
+            field: ([] if not value else [{"line_id": f"P0001-L{line_for[field]:04d}", "fragment": value, "char_start": lines[line_for[field] - 1].index(value), "char_end": lines[line_for[field] - 1].index(value) + len(value)}])
+            for field, value in values.items()
+        }
+        fact["relation_scope"] = {"scope_type": "table_row", "line_ids": ["P0001-L0002", "P0001-L0003"], "header_line_ids": ["P0001-L0002"], "row_line_ids": ["P0001-L0003"]}
+        self.assertEqual(len(validate_lane("luna", payload)), 1)
+        payload["facts"][0]["relation_scope"]["row_line_ids"] = ["P0001-L0002", "P0001-L0003"]
+        with self.assertRaisesRegex(ValueError, "one header and one row"):
+            validate_lane("luna", payload)
+        crossed = self._lane()
+        crossed["pages"][0]["text"] = "Issuer Card\n| 대상 | 할인율 |\n| 카페 | 10% |"
+        crossed_fact = crossed["facts"][0]
+        crossed_fact.update(values)
+        crossed_fact["field_evidence"] = {
+            field: ([] if not value else [{"line_id": f"P0001-L{line_for[field]:04d}", "fragment": value, "char_start": lines[line_for[field] - 1].index(value), "char_end": lines[line_for[field] - 1].index(value) + len(value)}])
+            for field, value in values.items()
+        }
+        crossed_fact["field_evidence"]["value"][0]["line_id"] = "P0001-L0002"
+        crossed_fact["field_evidence"]["value"][0]["fragment"] = "할인율"
+        crossed_fact["field_evidence"]["value"][0]["char_start"] = lines[1].index("할인율")
+        crossed_fact["field_evidence"]["value"][0]["char_end"] = lines[1].index("할인율") + len("할인율")
+        crossed_fact["relation_scope"] = {"scope_type": "table_row", "line_ids": ["P0001-L0002", "P0001-L0003"], "header_line_ids": ["P0001-L0002"], "row_line_ids": ["P0001-L0003"]}
+        with self.assertRaisesRegex(ValueError, "reconstruct|data row"):
+            validate_lane("luna", crossed)
+
+    def test_all_four_diagnostics_complete_when_one_lane_is_invalid(self) -> None:
+        luna, upstage = self._lane(), line_id_lane("issuer/card", "upstage")
+        luna["facts"][0]["field_evidence"]["condition"] = []
+        outcomes, lanes, errors = validation_diagnostics({"luna": luna, "upstage": upstage})
+        self.assertEqual(set(outcomes), {"ocr_comparison", "luna_text_to_json", "upstage_text_to_json", "normalized_json_diagnostic_comparison"})
+        self.assertIn("luna", errors)
+        self.assertIn("upstage", lanes)
+
+    def test_diagnostic_execution_failure_blocks_automatic_approval(self) -> None:
+        luna, upstage = self._lane(), line_id_lane("issuer/card", "upstage")
+        with mock.patch("pickcardu_indexer.pipeline.compare_ocr_outputs", side_effect=RuntimeError("comparison exploded")):
+            outcomes, lanes, errors = validation_diagnostics({"luna": luna, "upstage": upstage})
+        self.assertEqual(outcomes["ocr_comparison"]["status"], "review")
+        self.assertIn("ocr_comparison", errors)
+        self.assertEqual(set(lanes), {"luna", "upstage"})
+
+    def test_exact_one_line_role_ranges_and_numeric_ownership(self) -> None:
+        payload = self._lane()
+        source = "편의점 10% 할인 전월 실적 30만원 이상 월 한도 5천원"
+        payload["pages"][0]["text"] = "Issuer Card\n" + source
+        fact = payload["facts"][0]
+        values = {
+            "benefit_type": "편의점", "action": "할인", "target": "편의점",
+            "condition": "전월 실적 30만원 이상", "value": "10", "unit": "%",
+            "cap": "월 한도 5천원", "frequency": "", "period": "", "exceptions": "",
+        }
+        fact.update(values)
+        fact["field_evidence"] = {
+            field: ([] if not value else [{
+                "line_id": "P0001-L0002", "fragment": value,
+                "char_start": source.index(value), "char_end": source.index(value) + len(value),
+            }])
+            for field, value in values.items()
+        }
+        fact["relation_scope"] = {"scope_type": "sentence", "line_ids": ["P0001-L0002"], "header_line_ids": [], "row_line_ids": []}
+        self.assertEqual(len(validate_lane("luna", payload)), 1)
+
+        missing_unit = json.loads(json.dumps(payload))
+        missing_unit["facts"][0]["unit"] = ""
+        missing_unit["facts"][0]["field_evidence"]["unit"] = []
+        with self.assertRaisesRegex(ValueError, "source numeric unit"):
+            validate_lane("luna", missing_unit)
+        inline_unit = json.loads(json.dumps(missing_unit))
+        inline_unit["facts"][0]["value"] = "10%"
+        inline_unit["facts"][0]["field_evidence"]["value"][0].update({"fragment": "10%", "char_end": source.index("10%") + 3})
+        self.assertEqual(len(validate_lane("luna", inline_unit)), 1)
+
+        omitted_middle = json.loads(json.dumps(payload))
+        omitted_middle["facts"][0]["condition"] = "전월 실적 30 이상"
+        omitted_middle["facts"][0]["field_evidence"]["condition"] = [
+            {"line_id": "P0001-L0002", "fragment": fragment,
+             "char_start": source.index(fragment), "char_end": source.index(fragment) + len(fragment)}
+            for fragment in ("전월 실적 30", "이상")
+        ]
+        with self.assertRaisesRegex(ValueError, "skip non-whitespace"):
+            validate_lane("luna", omitted_middle)
+
+        swapped = json.loads(json.dumps(payload))
+        for field, other in (("condition", "cap"), ("cap", "condition")):
+            swapped["facts"][0][field] = values[other]
+            swapped["facts"][0]["field_evidence"][field][0].update({
+                "fragment": values[other],
+                "char_start": source.index(values[other]),
+                "char_end": source.index(values[other]) + len(values[other]),
+            })
+        with self.assertRaisesRegex(ValueError, "marked condition source range"):
+            validate_lane("luna", swapped)
+
+        broad = json.loads(json.dumps(payload))
+        broad["facts"][0]["field_evidence"]["condition"].append({
+            "line_id": "P0001-L0002", "fragment": source,
+            "char_start": 0, "char_end": len(source),
+        })
+        with self.assertRaisesRegex(ValueError, "ordered non-overlapping|reconstruct"):
+            validate_lane("luna", broad)
+
+        missing_condition_number = json.loads(json.dumps(payload))
+        missing_condition_number["facts"][0]["condition"] = "전월 실적"
+        missing_condition_number["facts"][0]["field_evidence"]["condition"][0].update({
+            "fragment": "전월 실적", "char_start": source.index("전월 실적"), "char_end": source.index("전월 실적") + len("전월 실적"),
+        })
+        with self.assertRaisesRegex(ValueError, "marked condition source range|source numeric range"):
+            validate_lane("luna", missing_condition_number)
+
+        wrong_value = json.loads(json.dumps(payload))
+        wrong_value["facts"][0]["value"] = "5"
+        wrong_value["facts"][0]["field_evidence"]["value"][0].update({
+            "fragment": "5", "char_start": source.rindex("5"), "char_end": source.rindex("5") + 1,
+        })
+        with self.assertRaisesRegex(ValueError, "source numeric range"):
+            validate_lane("luna", wrong_value)
+
+        punctuated = json.loads(json.dumps(payload))
+        punctuated_source = source.replace("이상", "이상,").replace("5천원", "5천원,")
+        punctuated["pages"][0]["text"] = "Issuer Card\n" + punctuated_source
+        for field in ("condition", "cap"):
+            value = values[field] + ","
+            punctuated["facts"][0][field] = value
+            punctuated["facts"][0]["field_evidence"][field][0].update({
+                "fragment": value, "char_start": punctuated_source.index(value), "char_end": punctuated_source.index(value) + len(value),
+            })
+        self.assertEqual(len(validate_lane("luna", punctuated)), 1)
+
+    def test_four_column_table_binds_field_roles_to_row_cells(self) -> None:
+        payload = self._lane()
+        header = "| 대상 | 할인율 | 전월 실적 | 월 한도 |"
+        row = "| 편의점 | 10% | 30만원 이상 | 5천원 |"
+        payload["pages"][0]["text"] = f"Issuer Card\n{header}\n{row}"
+        fact = payload["facts"][0]
+        values = {
+            "benefit_type": "대상", "action": "할인율", "target": "편의점",
+            "condition": "30만원 이상", "value": "10", "unit": "%",
+            "cap": "5천원", "frequency": "", "period": "", "exceptions": "",
+        }
+        fact.update(values)
+        locations = {"benefit_type": (header, "대상", 2), "action": (header, "할인율", 2), "target": (row, "편의점", 3), "condition": (row, "30만원 이상", 3), "value": (row, "10", 3), "unit": (row, "%", 3), "cap": (row, "5천원", 3)}
+        fact["field_evidence"] = {
+            field: ([] if not value else [{
+                "line_id": f"P0001-L{locations[field][2]:04d}", "fragment": value,
+                "char_start": locations[field][0].index(value), "char_end": locations[field][0].index(value) + len(value),
+            }])
+            for field, value in values.items()
+        }
+        fact["relation_scope"] = {"scope_type": "table_row", "line_ids": ["P0001-L0002", "P0001-L0003"], "header_line_ids": ["P0001-L0002"], "row_line_ids": ["P0001-L0003"]}
+        self.assertEqual(len(validate_lane("luna", payload)), 1)
+        truncated_condition = json.loads(json.dumps(payload))
+        truncated_condition["facts"][0]["condition"] = "30만원"
+        truncated_condition["facts"][0]["field_evidence"]["condition"][0].update({"fragment": "30만원", "char_end": row.index("30만원") + len("30만원")})
+        with self.assertRaisesRegex(ValueError, "condition cell is only partially"):
+            validate_lane("luna", truncated_condition)
+        truncated_unit = json.loads(json.dumps(payload))
+        truncated_unit["facts"][0]["unit"] = ""
+        truncated_unit["facts"][0]["field_evidence"]["unit"] = []
+        with self.assertRaisesRegex(ValueError, "value cell is only partially"):
+            validate_lane("luna", truncated_unit)
+        swapped = json.loads(json.dumps(payload))
+        for field, other in (("condition", "cap"), ("cap", "condition")):
+            swapped["facts"][0][field] = values[other]
+            swapped["facts"][0]["field_evidence"][field][0].update({
+                "fragment": values[other], "char_start": row.index(values[other]), "char_end": row.index(values[other]) + len(values[other]),
+            })
+        with self.assertRaisesRegex(ValueError, "matching data cell"):
+            validate_lane("luna", swapped)
 
 
 if __name__ == "__main__":

@@ -12,17 +12,22 @@ import threading
 import time
 import unicodedata
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, Callable, Iterable, Literal, Mapping, Protocol, Sequence
 
 import numpy as np
 
 from .answering import ANSWER_PAYLOAD_UNIT_LIMIT, measure_answer_payload
-from .errors import RerankerUnavailable
+from .errors import EvidencePackageTooLarge, RerankerUnavailable
 
 
-TOKEN_PATTERN = re.compile(r"[\w]+(?:[./+-][\w]+)*%?", re.UNICODE)
+TOKEN_PATTERN = re.compile(r"[가-힣a-z0-9]+(?:[.,%+~-][가-힣a-z0-9]+)*", re.IGNORECASE)
+LEXICAL_CONTRACT = "normalized_ko_numeric_hex_v1"
+QUERY_CLASSIFIER_CONTRACT = "query_text_conservative_v2"
+FUSED_WORKLIST_DEPTH = 50
+PARENT_CHILD_DOCUMENT_TOKEN_LIMIT = 4096
 GTE_REVISION = "40ced75c3017eb27626c9d4ea981bde21a2662f4"
 RERANKER_BATCH_SIZE = 2
 RERANKER_REQUESTED_MAX_LENGTH = 8192
@@ -106,7 +111,7 @@ class VectorSearcher(Protocol):
 
 
 class Reranker(Protocol):
-    def score(self, mode: str, query: str, documents: list[str]) -> tuple[list[float], dict[str, Any]]: ...
+    def score(self, mode: str, query: str, documents: list[str], *, document_token_limit: int | None = None) -> tuple[list[float], dict[str, Any]]: ...
 
 
 @dataclass(frozen=True)
@@ -155,7 +160,36 @@ def normalize_text(text: str) -> str:
 
 
 def normalized_tokens(text: str) -> list[str]:
-    return [token for token in TOKEN_PATTERN.findall(normalize_text(text)) if token != "_"]
+    """Historical Korean n-grams and numeric search aliases; never rewrite evidence."""
+    text = normalize_text(text)
+    tokens = list(TOKEN_PATTERN.findall(text))
+    for run in re.findall(r"[가-힣](?:[가-힣 ]{0,38}[가-힣])?", text):
+        joined = run.replace(" ", "")
+        for size in (2, 3, 4):
+            tokens.extend(f"ko{size}_" + joined[i:i + size] for i in range(len(joined) - size + 1))
+
+    def decimal(value: str | Decimal) -> str:
+        return format(Decimal(str(value).replace(",", "")).normalize(), "f")
+
+    consumed = []
+    for match in re.finditer(r"(\d[\d,]*(?:\.\d+)?)\s*만\s*(\d[\d,]*(?:\.\d+)?)\s*천\s*원", text):
+        amount = Decimal(match[1].replace(",", "")) * 10000 + Decimal(match[2].replace(",", "")) * 1000
+        tokens.append("money_krw_" + decimal(amount))
+        consumed.append(match.span())
+    for match in re.finditer(r"(\d[\d,]*(?:\.\d+)?)\s*(만|천)?\s*원", text):
+        if not any(start <= match.start() and match.end() <= end for start, end in consumed):
+            amount = Decimal(match[1].replace(",", "")) * {"만": 10000, "천": 1000, None: 1}[match[2]]
+            tokens.append("money_krw_" + decimal(amount))
+    for match in re.finditer(r"(\d[\d,]*(?:\.\d+)?)\s*%", text):
+        tokens.append("percent_" + decimal(match[1]))
+    for match in re.finditer(r"(?:(월|연|년|일)\s*)?(\d[\d,]*(?:\.\d+)?)\s*(회|개월|년|일)", text):
+        tokens.append(f"period_{match[1] or 'none'}_{decimal(match[2])}_{match[3]}")
+    return tokens
+
+
+def lexical_terms(text: str) -> list[str]:
+    """One normalized token per opaque ASCII term, independent of backend splitting."""
+    return ["t" + token.encode("utf-8").hex() for token in normalized_tokens(text)]
 
 
 class BM25:
@@ -249,7 +283,11 @@ def weighted_rrf(
         for row in rows:
             component_ranks[component][row.chunk_id] = row.rank
             scores[row.chunk_id] = scores.get(row.chunk_id, 0.0) + weights[component] / (k + row.rank)
-    ordered = sorted(scores, key=lambda chunk_id: (-scores[chunk_id], chunk_id))
+    ordered = sorted(scores, key=lambda chunk_id: (
+        -scores[chunk_id],
+        min(ranks[chunk_id] for ranks in component_ranks.values() if chunk_id in ranks),
+        chunk_id,
+    ))
     return [
         Candidate(
             chunk_id=chunk_id,
@@ -262,10 +300,13 @@ def weighted_rrf(
 
 
 def classify_query(query: str) -> Literal["proper_noun", "numeric_condition", "semantic"]:
-    normalized = normalize_text(query)
-    if PROPER_QUESTION_PATTERN.search(normalized):
+    normalized = normalize_text(query).rstrip(" ?.!,。？！")
+    # Conservative, query-text-only rules; ambiguous recommendations stay semantic.
+    proper = r"(?:어느\s*)?(?:카드사|은행|회사)(?:인가|이야)?$|(?:발급사|발행사)(?:는|은|가|인가)?$|어디서\s*(?:발급|발행|출시)"
+    numeric = r"몇\s*(?:원|%|퍼센트|마일|마일리지|포인트|회|개월|일|년)(?:인가|야)?$|얼마나\s*(?:할인|적립|차감|청구)|(?:수수료|실적\s*(?:금액|기준)|이용\s*(?:횟수|기간))(?:은|는|이|가|인가)?$"
+    if PROPER_QUESTION_PATTERN.search(normalized) or re.search(proper, normalized):
         return "proper_noun"
-    if NUMERIC_QUESTION_PATTERN.search(normalized):
+    if "연회비 면제 조건" not in normalized and (NUMERIC_QUESTION_PATTERN.search(normalized) or re.search(numeric, normalized)):
         return "numeric_condition"
     return "semantic"
 
@@ -283,7 +324,11 @@ def collapse_cards(
     evidence: list[dict[str, Any]] = []
     by_card: dict[str, dict[str, Any]] = {}
     dropped_chunk_ids: list[str] = []
+    seen: set[str] = set()
     for row in rows:
+        if row.chunk_id in seen:
+            continue
+        seen.add(row.chunk_id)
         chunk = chunks[row.chunk_id]
         if isinstance(chunk.page_num, bool) or not isinstance(chunk.page_num, int) or chunk.page_num < 0:
             raise ValueError("invalid evidence page_num")
@@ -306,8 +351,10 @@ def collapse_cards(
             "score": row.score,
         }
         if measure_answer_payload(standalone_query, [*evidence, candidate])[0] > max_payload_size:
-            dropped_chunk_ids.append(chunk.chunk_id)
-            continue
+            raise EvidencePackageTooLarge(
+                "selected evidence exceeds the answer payload budget; no partial package returned",
+                extra={"chunk_id": chunk.chunk_id, "payload_unit_limit": max_payload_size},
+            )
         if card is None:
             card = {
                 "card_key": chunk.card_key,
@@ -329,37 +376,6 @@ def collapse_cards(
         "dropped_chunk_count": len(dropped_chunk_ids),
         "dropped_chunk_ids": dropped_chunk_ids,
     }
-
-
-def hydrate_evidence_rows(
-    rows: Sequence[Candidate], chunks: Mapping[str, Chunk]
-) -> list[Candidate]:
-    """Replace selected aggregate parents with their exact benefit children."""
-    hydrated: list[Candidate] = []
-    seen: set[str] = set()
-    for row in rows:
-        chunk = chunks[row.chunk_id]
-        child_ids = chunk.child_ids if chunk.level in {"section", "bundle"} else ()
-        if chunk.level in {"section", "bundle"} and not child_ids:
-            raise ValueError("aggregate chunk has no benefit children")
-        target_ids = child_ids or (row.chunk_id,)
-        for child_id in target_ids:
-            if child_id in seen:
-                continue
-            child = chunks.get(child_id)
-            if child is None or (child_ids and (child.parent_id != chunk.chunk_id or child.level != "benefit")):
-                raise ValueError("aggregate child relationship is invalid")
-            seen.add(child_id)
-            hydrated.append(
-                Candidate(
-                    chunk_id=child_id,
-                    score=row.score,
-                    rank=len(hydrated) + 1,
-                    component_ranks=row.component_ranks,
-                    prior_rank=row.prior_rank or row.rank,
-                )
-            )
-    return hydrated
 
 
 def _candidate_dict(row: Candidate) -> dict[str, Any]:
@@ -413,16 +429,20 @@ def parent_child_bundles(
         sections = [f"[카드]\n{seed.issuer} > {seed.card_name}"]
         if seed.optional_parent_heading:
             sections.append(f"[상위 제목]\n{seed.optional_parent_heading}")
+        evidence_texts: dict[str, str] = {}
         for index, chunk_id in enumerate(selected, 1):
             chunk = chunks[chunk_id]
             path = " > ".join(chunk.heading_path) or "(root content)"
-            sections.append(f"[근거 {index} 경로]\n{path}\n[근거 {index} 본문]\n{chunk.text}")
+            section = f"[근거 {index} 경로]\n{path}\n[근거 {index} 본문]\n{chunk.text}"
+            evidence_texts[chunk_id] = "\n\n".join([*sections, section]) if index == 1 else section
+            sections.append(section)
         text = "\n\n".join(sections)
         bundles.append({
             "card_key": card_key,
             "seed": seed_row,
             "selected_chunk_ids": selected,
             "text": text,
+            "evidence_texts": evidence_texts,
             "bundle_sha256": hashlib.sha256(text.encode()).hexdigest(),
         })
     return bundles
@@ -434,7 +454,10 @@ def _rank_parent_child_bundles(
     reranker: Reranker,
     mode: str,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    scores, trace = reranker.score(mode, query, [bundle["text"] for bundle in bundles])
+    scores, trace = reranker.score(
+        mode, query, [bundle["text"] for bundle in bundles],
+        document_token_limit=PARENT_CHILD_DOCUMENT_TOKEN_LIMIT,
+    )
     if len(scores) != len(bundles) or not np.isfinite(np.asarray(scores, dtype=np.float64)).all():
         raise RerankerUnavailable("reranker score count or finiteness mismatch")
     ranked = [{**bundle, "score": float(scores[index])} for index, bundle in enumerate(bundles)]
@@ -478,12 +501,13 @@ class RagPipeline:
         if vector:
             components["vector"] = vector
             weights["vector"] = config.vector_weight
-        fused = weighted_rrf(components, weights)
+        fused = weighted_rrf(components, weights)[:FUSED_WORKLIST_DEPTH]
         leaf = [row for row in fused if self.chunks[row.chunk_id].level in self.profile.eligible_levels][
             : config.candidate_depth
         ]
         reranker_trace = None
         bundle_trace: list[dict[str, Any]] = []
+        answer_chunks = self.chunks
         if self.profile.identifier == "parent_child_bundle":
             if config.reranker != "bge" or config.reranker_route != "all":
                 raise ValueError("parent-child profile requires all-query BGE reranking")
@@ -493,6 +517,7 @@ class RagPipeline:
             ranked_bundles, reranker_trace = _rank_parent_child_bundles(query, bundles, self.reranker, "bge")
             hydrated = []
             reranked = []
+            answer_chunks = dict(self.chunks)
             for bundle_rank, bundle in enumerate(ranked_bundles, 1):
                 seed = bundle["seed"]
                 reranked.append(Candidate(
@@ -511,6 +536,7 @@ class RagPipeline:
                     "score": bundle["score"],
                 })
                 for chunk_id in bundle["selected_chunk_ids"]:
+                    answer_chunks[chunk_id] = replace(self.chunks[chunk_id], text=bundle["evidence_texts"][chunk_id])
                     hydrated.append(Candidate(
                         chunk_id,
                         bundle["score"],
@@ -540,9 +566,10 @@ class RagPipeline:
                 ]
                 reranked.sort(key=lambda row: (-row.score, row.prior_rank or row.rank, row.chunk_id))
                 reranked = [Candidate(**{**row.__dict__, "rank": rank}) for rank, row in enumerate(reranked, 1)]
-            hydrated = hydrate_evidence_rows(reranked, self.chunks)
+            # Preserve the actual ranked section/benefit; do not substitute children.
+            hydrated = reranked
         cards, evidence, budget = collapse_cards(
-            hydrated, self.chunks, top_k=config.top_k, standalone_query=query
+            hydrated, answer_chunks, top_k=config.top_k, standalone_query=query
         )
         return {
             "query_type": query_type,
@@ -560,6 +587,10 @@ class RagPipeline:
                 "card": cards,
                 "evidence_budget": budget,
                 "profile": self.profile.identifier,
+                "lexical_contract": LEXICAL_CONTRACT,
+                "query_classifier_contract": QUERY_CLASSIFIER_CONTRACT,
+                "fused_worklist_depth": FUSED_WORKLIST_DEPTH,
+                "evidence_policy": "ranked_source_preserved_fail_on_budget_overflow",
                 "latency": {"total_ms": round((time.perf_counter() - started) * 1000, 3)},
             },
         }
@@ -686,7 +717,7 @@ class LocalReranker:
                 limits.append(value)
         return min(limits)
 
-    def score(self, mode: str, query: str, documents: list[str]) -> tuple[list[float], dict[str, Any]]:
+    def score(self, mode: str, query: str, documents: list[str], *, document_token_limit: int | None = None) -> tuple[list[float], dict[str, Any]]:
         path = self.bge_path if mode == "bge" else self.gte_path
         contract = self.artifact_contract(mode)
         assert path is not None
@@ -726,15 +757,22 @@ class LocalReranker:
             try:
                 import torch
 
+                # Preflight every input before any model scoring; no silent truncation.
+                all_pairs = [[query, document] for document in documents]
+                all_lengths = [len(ids) for ids in tokenizer(all_pairs, truncation=False, add_special_tokens=True)["input_ids"]] if all_pairs else []
+                if any(length > max_length for length in all_lengths):
+                    raise RerankerUnavailable("reranker input exceeds token limit; truncation forbidden")
+                if document_token_limit is not None:
+                    document_lengths = [len(ids) for ids in tokenizer(documents, truncation=False, add_special_tokens=False)["input_ids"]] if documents else []
+                    if any(length > document_token_limit for length in document_lengths):
+                        raise RerankerUnavailable("parent-child document exceeds bundle token limit")
                 for offset in range(0, len(documents), RERANKER_BATCH_SIZE):
                     pairs = [[query, document] for document in documents[offset : offset + RERANKER_BATCH_SIZE]]
-                    token_lengths = [
-                        len(ids) for ids in tokenizer(pairs, truncation=False, add_special_tokens=True)["input_ids"]
-                    ]
+                    token_lengths = all_lengths[offset : offset + RERANKER_BATCH_SIZE]
                     input_token_count += sum(token_lengths)
                     truncated_count += sum(length > max_length for length in token_lengths)
                     encoded = tokenizer(
-                        pairs, padding=True, truncation=True, max_length=max_length, return_tensors="pt"
+                        pairs, padding=True, truncation="only_second", max_length=max_length, return_tensors="pt"
                     )
                     encoded = {name: value.to(device) for name, value in encoded.items()}
                     with torch.no_grad():

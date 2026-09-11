@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "Operational dual-OCR RAG index builder"
 requires-python = ">=3.11"
 dependencies = [
+  "pickcardu-rag==0.1.0",
   "numpy==2.3.5",
   "chromadb==1.5.5",
   "openai==2.30.0",

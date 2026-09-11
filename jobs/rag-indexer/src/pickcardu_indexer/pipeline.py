@@ -8,23 +8,52 @@ import re
 import shutil
 import sqlite3
 import tempfile
-import unicodedata
 import fcntl
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterable, Protocol
 
 import numpy as np
+from pickcardu_rag.retrieval import LEXICAL_CONTRACT, lexical_terms
 
 from .state import StateStore, canonical_json
 from .ocr import LiveLaneAdapter, OcrProviderError, numbered_ocr_pages, pages_text
+from .grounding import (
+    CHUNKING_CONTRACT,
+    RELATION_FIELDS,
+    STRUCTURE_SCHEMA_VERSION,
+    normalise_fact as _normalise_fact,
+    normalized as _grounded_normalized,
+    relation_key,
+)
 from .structural import STRUCTURAL_CONTRACT, build_structural_chunks, render_pages
 
 
-RELATION_FIELDS = ("target", "condition", "value", "unit", "cap", "frequency", "period", "exceptions")
 NUMBER = re.compile(r"\d+(?:[,.]\d+)?")
+NUMBER_TOKEN = re.compile(r"(?<![\d.])[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?![\d.])")
+SOURCE_UNIT = re.compile(r"\s*(?:만\s*원|천\s*원|원|%|％|퍼센트|마일리지|마일|포인트|개월|회|년|일|시간|분|초|점|달러)")
 RISKY_IGNORED_LINE = re.compile(r"할인|적립|캐시백|마일|포인트|무료|면제|혜택")
+BENEFIT_ACTION_SIGNAL = re.compile(r"할인|적립|캐시백|마일|포인트|무료|면제")
+CRITICAL_RELATION_LINE = re.compile(r"할인|적립|캐시백|마일|포인트|무료|면제|전월.?실적|이용.?금액|한도|횟수|이상|초과|이하|미만|제외|불가|조건")
+FIELD_ROLE_MARKERS = {
+    "condition": re.compile(r"전월.?실적|이용.?금액|이상|초과|이하|미만|조건"),
+    "cap": re.compile(r"한도"),
+    "frequency": re.compile(r"횟수|월\s*\d+회|일\s*\d+회|연\s*\d+회"),
+    "period": re.compile(r"기간|개월|연간|월간"),
+    "exceptions": re.compile(r"제외|불가|미적용"),
+}
+TABLE_FIELD_ROLE = {
+    "target": "target",
+    "value": "value",
+    "unit": "value",
+    "condition": "condition",
+    "cap": "cap",
+    "frequency": "frequency",
+    "period": "period",
+    "exceptions": "exceptions",
+}
 NON_BENEFIT_IGNORED_LINE = re.compile(r"연체|신용평점|카드 발급|카드 신규 출시|부가서비스.*(?:유지|변경|소요된 비용)")
 LAYOUT_REASON = re.compile(r"제목|머리글|헤더|열(?:\s+)?제목")
 MARKUP_PREFIX = re.compile(r"^(?:[#>*•-]+\s*)+")
@@ -35,7 +64,7 @@ GENERIC_LAYOUT_LABELS = {
 }
 CHUNKING_PROFILES = {"card_page_section_benefit", "parent_child_bundle"}
 DEFAULT_CHUNKING_PROFILE = "card_page_section_benefit"
-OCR_PIPELINE_CONTRACT = "dual-lane-grounded-v5"
+OCR_PIPELINE_CONTRACT = "dual-lane-field-evidence-relation-v6"
 
 
 class LaneRestructureRequired(ValueError):
@@ -106,7 +135,7 @@ def input_fingerprint(source_manifest: Path, documents: list[dict[str, str]], lu
 
 
 def normalized(value: object) -> str:
-    return " ".join(unicodedata.normalize("NFKC", str(value)).split())
+    return _grounded_normalized(value)
 
 
 def approved_layout_ignore(line: str, reason: str) -> bool:
@@ -121,25 +150,13 @@ def approved_layout_ignore(line: str, reason: str) -> bool:
     return False
 
 
-def spans_link(left: str, right: str) -> bool:
-    left_content = MARKUP_PREFIX.sub("", normalized(left))
-    right_content = MARKUP_PREFIX.sub("", normalized(right))
-    return bool(left_content and right_content and (left_content in right_content or right_content in left_content))
+def relation_tuple(fact: dict[str, Any]) -> tuple[str, ...]:
+    return relation_key(fact)
 
 
-def relation_tuple(fact: dict[str, str]) -> tuple[str, ...]:
-    return tuple(fact[field] for field in RELATION_FIELDS)
-
-
-def normalise_fact(raw: dict[str, Any]) -> dict[str, str]:
-    fact = {field: normalized(raw.get(field, "")) for field in RELATION_FIELDS}
-    if not fact["target"]:
-        raise ValueError("required fact field missing: target")
-    if not any(fact[field] for field in ("condition", "value", "cap", "frequency", "period", "exceptions")):
-        raise ValueError("required fact content is missing")
-    if fact["value"] in {"-", "—"}:
-        raise ValueError("blank or dash value is a rule failure")
-    return fact
+def normalise_fact(raw: dict[str, Any]) -> dict[str, Any]:
+    """Public compatibility entrypoint for v6 typed raw relation normalization."""
+    return _normalise_fact(raw)
 
 
 def numbers(value: str) -> set[str]:
@@ -321,7 +338,9 @@ def load_lane(provider: str, root: Path, document_id: str) -> tuple[Path, dict[s
 def _line_registry(pages: dict[int, str]) -> dict[str, tuple[int, str]]:
     numbered = numbered_ocr_pages([{"page": page, "text": text} for page, text in sorted(pages.items())])
     return {
-        row["line_id"]: (page["page"], normalized(row["text"]))
+        # Preserve the OCR line exactly for canonical evidence/chunking.  All
+        # comparisons explicitly call normalized() instead of discarding source text.
+        row["line_id"]: (page["page"], str(row["text"]))
         for page in numbered
         for row in page["lines"]
     }
@@ -359,9 +378,249 @@ def _resolve_evidence(
     return {"provider": provider, "page": page, "quote": quote}
 
 
+def _table_cells(line: str) -> list[tuple[int, int, str]]:
+    """Return exact non-empty Markdown-pipe cell ranges, rejecting loose tables."""
+    if not line.strip().startswith("|") or not line.rstrip().endswith("|"):
+        raise ValueError("table row must use explicit Markdown pipe cells")
+    cells: list[tuple[int, int, str]] = []
+    delimiter_positions = [index for index, character in enumerate(line) if character == "|"]
+    for left, right in zip(delimiter_positions, delimiter_positions[1:]):
+        raw = line[left + 1:right]
+        content = raw.strip()
+        if not content:
+            raise ValueError("table has an empty or merged cell")
+        start = left + 1 + len(raw) - len(raw.lstrip())
+        cells.append((start, start + len(content), content))
+    if len(cells) < 2:
+        raise ValueError("table requires at least two cells")
+    return cells
+
+
+def _table_header_role(value: str) -> str | None:
+    text = normalized(value)
+    if re.search(r"한도", text):
+        return "cap"
+    if re.search(r"전월.?실적|이용.?금액|조건", text):
+        return "condition"
+    if re.search(r"횟수|이용.?회", text):
+        return "frequency"
+    if re.search(r"기간|개월|연간|월간", text):
+        return "period"
+    if re.search(r"제외|불가|유의", text):
+        return "exceptions"
+    if re.search(r"대상|업종|가맹점|서비스", text):
+        return "target"
+    if re.search(r"할인율|할인률|적립률|적립율|할인|적립", text):
+        return "value"
+    return None
+
+
+def _contains_range(container: tuple[str, int, int], line_id: str, start: int, end: int) -> bool:
+    return container[0] == line_id and container[1] <= start and end <= container[2]
+
+
+def _scope_line_ids(provider: str, ordinal: int, scope: Any, registry: dict[str, tuple[int, str]]) -> list[str]:
+    if not isinstance(scope, dict):
+        raise ValueError(f"{provider} fact {ordinal} relation_scope is required")
+    scope_type, line_ids = scope.get("scope_type"), scope.get("line_ids")
+    if scope_type not in {"sentence", "bounded_block", "table_row"}:
+        raise ValueError(f"{provider} fact {ordinal} relation_scope is ambiguous or unknown")
+    if not isinstance(line_ids, list) or not line_ids or len(set(line_ids)) != len(line_ids) or not all(isinstance(line_id, str) and line_id in registry for line_id in line_ids):
+        raise ValueError(f"{provider} fact {ordinal} relation_scope line_ids are invalid")
+    order = {line_id: index for index, line_id in enumerate(registry)}
+    ordered = sorted(line_ids, key=order.__getitem__)
+    if scope_type == "sentence" and len(ordered) != 1:
+        raise ValueError(f"{provider} fact {ordinal} sentence scope must be one source line")
+    if scope_type == "bounded_block":
+        if len(ordered) > 6 or len({registry[line_id][0] for line_id in ordered}) != 1:
+            raise ValueError(f"{provider} fact {ordinal} bounded block is ambiguous")
+        if any(order[right] != order[left] + 1 for left, right in zip(ordered, ordered[1:])):
+            raise ValueError(f"{provider} fact {ordinal} bounded block is not contiguous")
+    header, row = scope.get("header_line_ids"), scope.get("row_line_ids")
+    if not isinstance(header, list) or not isinstance(row, list):
+        raise ValueError(f"{provider} fact {ordinal} relation_scope header/row arrays are required")
+    if scope_type == "table_row":
+        if len(header) != 1 or len(row) != 1:
+            raise ValueError(f"{provider} fact {ordinal} table scope requires one header and one row")
+        if set(header + row) != set(ordered) or header[0] not in registry or row[0] not in registry:
+            raise ValueError(f"{provider} fact {ordinal} table scope does not match header and row")
+        if registry[header[0]][0] != registry[row[0]][0] or order[header[0]] >= order[row[0]]:
+            raise ValueError(f"{provider} fact {ordinal} table header must precede its row on the same page")
+    elif header or row:
+        raise ValueError(f"{provider} fact {ordinal} non-table scope has table-only line IDs")
+    return ordered
+
+
+def _validate_field_grounding(
+    provider: str,
+    ordinal: int,
+    raw_fact: dict[str, Any],
+    fact: dict[str, Any],
+    registry: dict[str, tuple[int, str]],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    scope_ids = _scope_line_ids(provider, ordinal, raw_fact.get("relation_scope"), registry)
+    scope = raw_fact["relation_scope"]
+    scope_lines = [registry[line_id][1] for line_id in scope_ids]
+    scope_text = " ".join(scope_lines)
+    action_signals = BENEFIT_ACTION_SIGNAL.findall(scope_text)
+    independent_benefit_lines = [
+        line for line in scope_lines
+        if RISKY_IGNORED_LINE.search(line) and not re.search(r"실적|한도|횟수|이상|초과|이하|미만|제외|조건", line)
+    ]
+    if scope["scope_type"] == "bounded_block" and len(independent_benefit_lines) > 1:
+        raise ValueError(f"{provider} fact {ordinal} bounded block contains multiple benefit candidates")
+    if scope["scope_type"] == "sentence" and (len(action_signals) > 1 or scope_text.count("%") > 1):
+        raise ValueError(f"{provider} fact {ordinal} sentence contains multiple benefit candidates")
+    field_evidence = raw_fact.get("field_evidence")
+    if not isinstance(field_evidence, dict):
+        raise ValueError(f"{provider} fact {ordinal} field_evidence is required")
+    evidence: dict[str, Any] = {}
+    if set(field_evidence) != set(RELATION_FIELDS):
+        raise ValueError(f"{provider} fact {ordinal} field_evidence keys are incomplete")
+    field_spans: dict[str, list[tuple[str, int, int]]] = {}
+    line_order = {line_id: index for index, line_id in enumerate(registry)}
+    source_ids = list(registry)
+    for field in RELATION_FIELDS:
+        value = fact[field]
+        supplied = field_evidence.get(field)
+        if not isinstance(supplied, list):
+            raise ValueError(f"{provider} fact {ordinal} {field} field evidence must be an array")
+        if not value:
+            if supplied:
+                raise ValueError(f"{provider} fact {ordinal} empty {field} has field evidence")
+            continue
+        if not supplied:
+            raise ValueError(f"{provider} fact {ordinal} {field} field evidence is required")
+        line_ids: list[str] = []
+        fragments: list[str] = []
+        locations: list[tuple[str, int, int]] = []
+        for fragment in supplied:
+            if not isinstance(fragment, dict):
+                raise ValueError(f"{provider} fact {ordinal} {field} fragment is invalid")
+            line_id, source_fragment = fragment.get("line_id"), fragment.get("fragment")
+            start, end = fragment.get("char_start"), fragment.get("char_end")
+            if not isinstance(line_id, str) or line_id not in registry or not isinstance(source_fragment, str) or isinstance(start, bool) or isinstance(end, bool) or not isinstance(start, int) or not isinstance(end, int) or start < 0 or end <= start:
+                raise ValueError(f"{provider} fact {ordinal} {field} fragment location is invalid")
+            source_line = registry[line_id][1]
+            if end > len(source_line):
+                raise ValueError(f"{provider} fact {ordinal} {field} fragment exceeds OCR source range")
+            if source_line[start:end] != source_fragment:
+                raise ValueError(f"{provider} fact {ordinal} {field} fragment does not match OCR source range")
+            line_ids.append(line_id)
+            fragments.append(source_fragment)
+            locations.append((line_id, start, end))
+        if not set(line_ids) <= set(scope_ids):
+            raise ValueError(f"{provider} fact {ordinal} {field} evidence escapes relation_scope")
+        ordered_locations = sorted(locations, key=lambda item: (line_order[item[0]], item[1], item[2]))
+        if locations != ordered_locations or any(
+            left[0] == right[0] and left[2] > right[1]
+            for left, right in zip(ordered_locations, ordered_locations[1:])
+        ):
+            raise ValueError(f"{provider} fact {ordinal} {field} fragments must be ordered non-overlapping source ranges")
+        for left, right in zip(ordered_locations, ordered_locations[1:]):
+            if left[0] == right[0]:
+                gap = registry[left[0]][1][left[2]:right[1]]
+            else:
+                between = source_ids[line_order[left[0]] + 1:line_order[right[0]]]
+                gap = "\n".join([registry[left[0]][1][left[2]:],
+                                 *(registry[line_id][1] for line_id in between),
+                                 registry[right[0]][1][:right[1]]])
+            if gap.strip():
+                raise ValueError(f"{provider} fact {ordinal} {field} fragments skip non-whitespace source content")
+        field_spans[field] = ordered_locations
+        # Do not let a correct small fragment plus an unrelated broad quote pass.
+        # The ordered provider fragments must reconstruct the complete raw field.
+        if normalized(" ".join(fragments)) != value:
+            raise ValueError(f"{provider} fact {ordinal} {field} fragments do not reconstruct its raw field")
+        resolved = _resolve_evidence(provider, f"fact {ordinal} {field}", {"line_ids": line_ids}, {}, registry)
+        evidence[field] = {**resolved, "fragments": supplied}
+    if scope["scope_type"] == "table_row":
+        header_id, row_id = scope["header_line_ids"][0], scope["row_line_ids"][0]
+        header_cells, row_cells = _table_cells(registry[header_id][1]), _table_cells(registry[row_id][1])
+        if len(header_cells) != len(row_cells):
+            raise ValueError(f"{provider} fact {ordinal} table header and row column counts differ")
+        header_roles = [_table_header_role(cell[2]) for cell in header_cells]
+        for column, (_start, _end, text) in enumerate(row_cells):
+            if NUMBER_TOKEN.search(text) and header_roles[column] is None:
+                raise ValueError(f"{provider} fact {ordinal} table numeric column has an unknown role")
+        for field, expected_role in TABLE_FIELD_ROLE.items():
+            if not fact[field]:
+                continue
+            matching_columns = [index for index, role in enumerate(header_roles) if role == expected_role]
+            if len(matching_columns) != 1:
+                raise ValueError(f"{provider} fact {ordinal} table {field} column is ambiguous or missing")
+            cell_start, cell_end, _text = row_cells[matching_columns[0]]
+            if not field_spans[field] or not all(
+                span[0] == row_id and cell_start <= span[1] and span[2] <= cell_end
+                for span in field_spans[field]
+            ):
+                raise ValueError(f"{provider} fact {ordinal} table {field} is not grounded in its matching data cell")
+        for column, role in enumerate(header_roles):
+            if role is None:
+                continue
+            cell_start, cell_end, _text = row_cells[column]
+            fields = ("value", "unit") if role == "value" else (role,)
+            spans = [span for field in fields for span in field_spans.get(field, [])]
+            if any(not registry[row_id][1][position].isspace() and not any(
+                _contains_range(span, row_id, position, position + 1) for span in spans
+            ) for position in range(cell_start, cell_end)):
+                raise ValueError(f"{provider} fact {ordinal} table {role} cell is only partially preserved")
+    else:
+        for line_id in scope_ids:
+            source_line = registry[line_id][1]
+            for field, marker in FIELD_ROLE_MARKERS.items():
+                for match in marker.finditer(source_line):
+                    if not any(_contains_range(span, line_id, match.start(), match.end()) for span in field_spans.get(field, [])):
+                        raise ValueError(f"{provider} fact {ordinal} marked {field} source range is not mapped to that field")
+    numeric_owner: dict[tuple[str, int, int], str] = {}
+    for line_id in scope_ids:
+        for match in NUMBER_TOKEN.finditer(registry[line_id][1]):
+            owners = [
+                field for field, spans in field_spans.items()
+                if field != "unit" and any(_contains_range(span, line_id, match.start(), match.end()) for span in spans)
+            ]
+            if len(owners) != 1:
+                raise ValueError(f"{provider} fact {ordinal} source numeric range is missing or ambiguously mapped")
+            numeric_owner[(line_id, match.start(), match.end())] = owners[0]
+            suffix = SOURCE_UNIT.match(registry[line_id][1], match.end())
+            if suffix:
+                unit_start = match.end()
+                while registry[line_id][1][unit_start].isspace():
+                    unit_start += 1
+                allowed = [*field_spans[owners[0]], *(field_spans.get("unit", []) if owners[0] == "value" else [])]
+                if not any(_contains_range(span, line_id, unit_start, suffix.end()) for span in allowed):
+                    raise ValueError(f"{provider} fact {ordinal} source numeric unit is missing from its owning field")
+    if fact["unit"]:
+        attached = False
+        for (line_id, start, end), owner in numeric_owner.items():
+            if owner != "value":
+                continue
+            source_line = registry[line_id][1]
+            unit_start = end
+            while unit_start < len(source_line) and source_line[unit_start].isspace():
+                unit_start += 1
+            unit_end = unit_start + len(fact["unit"])
+            if normalized(source_line[unit_start:unit_end]) == fact["unit"] and any(_contains_range(span, line_id, unit_start, unit_end) for span in field_spans.get("unit", [])):
+                attached = True
+                break
+        if not attached:
+            raise ValueError(f"{provider} fact {ordinal} unit is not attached to its value source number")
+    scope_evidence = _resolve_evidence(provider, f"fact {ordinal} relation_scope", {"line_ids": scope_ids}, {}, registry)
+    return (
+        {"scope_type": scope["scope_type"], "line_ids": scope_ids, "evidence": scope_evidence},
+        evidence,
+    )
+
+
 def validate_lane(provider: str, payload: dict[str, Any]) -> list[dict[str, Any]]:
+    if payload.get("structure_schema_version") != STRUCTURE_SCHEMA_VERSION:
+        raise LaneRestructureRequired(
+            f"{provider} legacy structured payload is diagnostic-only; {STRUCTURE_SCHEMA_VERSION} is required"
+        )
     if payload.get("provider") != provider or not isinstance(payload.get("source_pdf_sha256"), str):
         raise ValueError(f"{provider} provenance is invalid")
+    if not isinstance(payload.get("pages"), list) or not isinstance(payload.get("facts"), list) or not payload["facts"]:
+        raise ValueError(f"{provider} pages and non-empty facts arrays are required")
     provenance = payload.get("provenance")
     if not isinstance(provenance, dict) or not all(isinstance(provenance.get(key), str) and provenance[key] for key in ("endpoint", "model", "config_hash")):
         raise ValueError(f"{provider} endpoint/model/config provenance is required")
@@ -390,16 +649,18 @@ def validate_lane(provider: str, payload: dict[str, Any]) -> list[dict[str, Any]
             raise ValueError(f"{provider} {key} identity is not grounded")
         identity_evidence[key] = resolved
     validated: list[dict[str, Any]] = []
+    scope_fingerprints: set[tuple[str, tuple[str, ...]]] = set()
     for ordinal, raw_fact in enumerate(payload["facts"]):
         if not isinstance(raw_fact, dict):
             raise ValueError(f"{provider} fact {ordinal} is not an object")
         fact = normalise_fact(raw_fact)
-        evidence = _resolve_evidence(provider, f"fact {ordinal}", raw_fact.get("evidence"), pages, registry)
-        validate_fact_evidence(fact, evidence["quote"], f"{provider} fact {ordinal}")
-        validated.append({"fact": fact, "evidence": evidence})
-    covered = {item["evidence"]["quote"] for item in validated}
-    covered_line_ids = {line_id for item in validated for line_id in item["evidence"].get("line_ids", [])}
-    identity_quotes = {item["quote"] for item in identity_evidence.values()}
+        relation_scope, field_evidence = _validate_field_grounding(provider, ordinal, raw_fact, fact, registry)
+        fingerprint = (relation_scope["scope_type"], tuple(relation_scope["line_ids"]))
+        if fingerprint in scope_fingerprints:
+            raise ValueError(f"{provider} two facts reuse one broad relation_scope")
+        scope_fingerprints.add(fingerprint)
+        validated.append({"fact": fact, "evidence": relation_scope["evidence"], "relation_scope": relation_scope, "field_evidence": field_evidence})
+    covered_line_ids = {line_id for item in validated for line_id in item["relation_scope"]["line_ids"]}
     identity_line_ids = {line_id for item in identity_evidence.values() for line_id in item.get("line_ids", [])}
     if "ignored_risky_lines" in payload:
         ignored = payload["ignored_risky_lines"]
@@ -427,48 +688,18 @@ def validate_lane(provider: str, payload: dict[str, Any]) -> list[dict[str, Any]
         }
         if risky_unreferenced != ignored_ids:
             raise LaneRestructureRequired(f"{provider} benefit-like OCR line lacks fact evidence or an approved ignore reason")
+        critical_unreferenced = {
+            line_id
+            for line_id, (_page, line) in registry.items()
+            if line_id not in referenced and CRITICAL_RELATION_LINE.search(line)
+        }
+        if critical_unreferenced - ignored_ids:
+            raise ValueError(f"{provider} benefit condition, cap, exception, or value line lacks grounded relation scope")
         return validated
-    dispositions = payload.get("span_dispositions")
-    if not isinstance(dispositions, list):
-        raise ValueError(f"{provider} span_dispositions is required")
-    line_counts = Counter((page, normalized(line)) for page, text in pages.items() for line in text.splitlines() if normalized(line))
-    lines = set(line_counts)
-    disposition_counts: Counter[tuple[int, str]] = Counter()
-    mapped: set[tuple[int, str]] = set()
-    for disposition in dispositions:
-        if not isinstance(disposition, dict) or disposition.get("kind") not in {"fact", "identity", "ignore"}:
-            raise ValueError(f"{provider} invalid span disposition")
-        item = (disposition.get("page"), normalized(disposition.get("quote", "")))
-        if item not in lines:
-            raise ValueError(f"{provider} disposition is not an exact page line")
-        disposition_counts[item] += 1
-        if disposition_counts[item] > line_counts[item]:
-            raise ValueError(f"{provider} OCR line has duplicate dispositions")
-        if disposition["kind"] == "ignore" and not normalized(disposition.get("reason", "")):
-            raise ValueError(f"{provider} ignored span reason is required")
-        ignore_reason = normalized(disposition.get("reason", ""))
-        if (
-            disposition["kind"] == "ignore"
-            and RISKY_IGNORED_LINE.search(item[1])
-            and not NON_BENEFIT_IGNORED_LINE.search(item[1])
-            and not approved_layout_ignore(item[1], ignore_reason)
-        ):
-            raise LaneRestructureRequired(f"{provider} benefit-like ignored span requires a new structuring run")
-        line = item[1]
-        if disposition["kind"] == "fact" and not any(spans_link(quote, line) for quote in covered):
-            raise ValueError(f"{provider} fact disposition is not linked to a validated fact")
-        if disposition["kind"] == "identity" and not any(spans_link(quote, line) for quote in identity_quotes):
-            raise ValueError(f"{provider} identity disposition is not linked to validated identity")
-        mapped.add(item)
-    if mapped != lines:
-        raise ValueError(f"{provider} OCR line lacks explicit disposition")
-    fact_lines = {normalized(row.get("quote", "")) for row in dispositions if row.get("kind") == "fact"}
-    identity_lines = {normalized(row.get("quote", "")) for row in dispositions if row.get("kind") == "identity"}
-    if any(not any(spans_link(quote, line) for line in fact_lines) for quote in covered):
-        raise ValueError(f"{provider} validated fact lacks a fact disposition")
-    if any(not any(spans_link(quote, line) for line in identity_lines) for quote in identity_quotes):
-        raise ValueError(f"{provider} validated identity lacks an identity disposition")
-    return validated
+    # A v6 payload must make every risky source-line disposition explicit.  The
+    # former page-quote/span-dispositions branch is diagnostic-only, never an
+    # approval fallback.
+    raise LaneRestructureRequired(f"{provider} ignored_risky_lines is required for v6 approval")
 
 
 def validate_lanes_independently(payloads: dict[str, dict[str, Any]]) -> tuple[dict[str, list[dict[str, Any]]], dict[str, dict[str, str]]]:
@@ -484,20 +715,65 @@ def validate_lanes_independently(payloads: dict[str, dict[str, Any]]) -> tuple[d
     return validated, errors
 
 
-def diagnostic_json_comparison(luna_payload: dict[str, Any], upstage_payload: dict[str, Any]) -> dict[str, Any]:
-    def relations(payload: dict[str, Any]) -> set[tuple[str, ...]]:
-        return {
-            tuple(normalized(fact.get(field, "")) for field in RELATION_FIELDS)
-            for fact in payload.get("facts", [])
-            if isinstance(fact, dict)
-        }
+def validation_diagnostics(payloads: dict[str, dict[str, Any]]) -> tuple[dict[str, Any], dict[str, list[dict[str, Any]]], dict[str, dict[str, str]]]:
+    """Run four read-only validation jobs independently; callers persist on main thread."""
+    tasks: dict[str, Callable[[], Any]] = {
+        "ocr_comparison": lambda: compare_ocr_outputs(payloads["luna"], payloads["upstage"]),
+        "luna_text_to_json": lambda: validate_lane("luna", payloads["luna"]),
+        "upstage_text_to_json": lambda: validate_lane("upstage", payloads["upstage"]),
+        "normalized_json_diagnostic_comparison": lambda: diagnostic_json_comparison(payloads["luna"], payloads["upstage"]),
+    }
+    outcomes: dict[str, Any] = {}
+    with ThreadPoolExecutor(max_workers=4, thread_name_prefix="grounding") as executor:
+        futures = {name: executor.submit(task) for name, task in tasks.items()}
+        for name in tasks:
+            try:
+                outcomes[name] = futures[name].result()
+            except LaneRestructureRequired as error:
+                outcomes[name] = {"status": "blocked", "error": str(error)}
+            except Exception as error:  # Preserve every diagnostic failure; no task short-circuits another.
+                outcomes[name] = {"status": "review", "error": f"{type(error).__name__}: {error}"}
+    lanes = {
+        provider: outcomes[f"{provider}_text_to_json"]
+        for provider in ("luna", "upstage")
+        if isinstance(outcomes[f"{provider}_text_to_json"], list)
+    }
+    errors = {
+        provider: outcomes[f"{provider}_text_to_json"]
+        for provider in ("luna", "upstage")
+        if isinstance(outcomes[f"{provider}_text_to_json"], dict)
+    }
+    for name in ("ocr_comparison", "normalized_json_diagnostic_comparison"):
+        outcome = outcomes[name]
+        if isinstance(outcome, dict) and outcome.get("status") in {"blocked", "review"}:
+            errors[name] = {"status": "review", "error": str(outcome.get("error", "diagnostic is not evaluable"))}
+    return outcomes, lanes, errors
 
-    luna_relations, upstage_relations = relations(luna_payload), relations(upstage_payload)
+
+def diagnostic_json_comparison(luna_payload: dict[str, Any], upstage_payload: dict[str, Any]) -> dict[str, Any]:
+    def relations(payload: dict[str, Any]) -> tuple[Counter[tuple[str, ...]], list[str]]:
+        keys: list[tuple[str, ...]] = []
+        errors: list[str] = []
+        for ordinal, fact in enumerate(payload.get("facts", [])):
+            if isinstance(fact, dict):
+                try:
+                    keys.append(relation_tuple(normalise_fact(fact)))
+                except ValueError as error:
+                    errors.append(f"fact {ordinal}: {error}")
+            else:
+                errors.append(f"fact {ordinal}: not an object")
+        return Counter(keys), errors
+
+    luna_relations, luna_errors = relations(luna_payload)
+    upstage_relations, upstage_errors = relations(upstage_payload)
     return {
         "purpose": "diagnostic_only_invalid_lanes_are_not_approval_eligible",
-        "luna_only": sorted(luna_relations - upstage_relations),
-        "upstage_only": sorted(upstage_relations - luna_relations),
-        "shared_relation_count": len(luna_relations & upstage_relations),
+        "luna_only": sorted((luna_relations - upstage_relations).elements()),
+        "upstage_only": sorted((upstage_relations - luna_relations).elements()),
+        "shared_relation_count": sum((luna_relations & upstage_relations).values()),
+        "comparison_eligible": not luna_errors and not upstage_errors and luna_payload.get("structure_schema_version") == STRUCTURE_SCHEMA_VERSION and upstage_payload.get("structure_schema_version") == STRUCTURE_SCHEMA_VERSION,
+        "invalid_fact_count": {"luna": len(luna_errors), "upstage": len(upstage_errors)},
+        "invalid_fact_errors": {"luna": luna_errors, "upstage": upstage_errors},
         "identity": {
             provider: {
                 key: normalized(payload.get("identity", {}).get(key, ""))
@@ -509,10 +785,14 @@ def diagnostic_json_comparison(luna_payload: dict[str, Any], upstage_payload: di
 
 
 def canonical_from_lanes(luna: list[dict[str, Any]], upstage: list[dict[str, Any]], luna_payload: dict[str, Any], upstage_payload: dict[str, Any]) -> tuple[list[dict[str, Any]] | None, dict[str, Any] | None, dict[str, Any] | None]:
-    luna_by_tuple = {relation_tuple(item["fact"]): item for item in luna}
-    upstage_by_tuple = {relation_tuple(item["fact"]): item for item in upstage}
-    if set(luna_by_tuple) != set(upstage_by_tuple):
-        return None, {"luna_only": sorted(set(luna_by_tuple) - set(upstage_by_tuple)), "upstage_only": sorted(set(upstage_by_tuple) - set(luna_by_tuple))}, None
+    luna_keys = [relation_tuple(item["fact"]) for item in luna]
+    upstage_keys = [relation_tuple(item["fact"]) for item in upstage]
+    if len(luna_keys) != len(set(luna_keys)) or len(upstage_keys) != len(set(upstage_keys)):
+        return None, {"error": "duplicate normalized relation is not approval eligible"}, None
+    luna_by_tuple = dict(zip(luna_keys, luna))
+    upstage_by_tuple = dict(zip(upstage_keys, upstage))
+    if Counter(luna_keys) != Counter(upstage_keys):
+        return None, {"luna_only": sorted((Counter(luna_keys) - Counter(upstage_keys)).elements()), "upstage_only": sorted((Counter(upstage_keys) - Counter(luna_keys)).elements())}, None
     luna_identity, upstage_identity = luna_payload["identity"], upstage_payload["identity"]
     identity_pair = (normalized(luna_identity["issuer_name"]), normalized(luna_identity["card_name"]))
     if identity_pair != (normalized(upstage_identity["issuer_name"]), normalized(upstage_identity["card_name"])):
@@ -520,6 +800,8 @@ def canonical_from_lanes(luna: list[dict[str, Any]], upstage: list[dict[str, Any
     canonical = [
         {
             "fact": luna_by_tuple[key]["fact"],
+            "field_evidence_refs": {"luna": luna_by_tuple[key]["field_evidence"], "upstage": upstage_by_tuple[key]["field_evidence"]},
+            "relation_scope_refs": {"luna": luna_by_tuple[key]["relation_scope"], "upstage": upstage_by_tuple[key]["relation_scope"]},
             "evidence_refs": {"luna": luna_by_tuple[key]["evidence"], "upstage": upstage_by_tuple[key]["evidence"]},
         }
         for key in sorted(luna_by_tuple)
@@ -558,11 +840,13 @@ def strict_resolution(value: Any, luna_payload: dict[str, Any], upstage_payload:
         raise ValueError("resolution selected_provider, selected_identity_provider, reason, and rejected_relations are required")
     lanes = {"luna": validate_lane("luna", luna_payload), "upstage": validate_lane("upstage", upstage_payload)}
     by_tuple = {provider: {relation_tuple(item["fact"]): item for item in items} for provider, items in lanes.items()}
+    if any(len(items) != len(by_tuple[provider]) for provider, items in lanes.items()):
+        raise ValueError("duplicate normalized relations cannot be resolved")
     canonical: list[dict[str, Any]] = []
     canonical_keys: list[tuple[str, ...]] = []
     for item in value["canonical"]:
         if not isinstance(item, dict) or not isinstance(item.get("fact"), dict) or not isinstance(item.get("evidence_refs"), dict):
-            raise ValueError("canonical item requires fact and evidence_refs")
+            raise ValueError("canonical item requires fact and evidence refs")
         fact = normalise_fact(item["fact"])
         key = relation_tuple(fact)
         if key not in by_tuple[selected]:
@@ -580,8 +864,12 @@ def strict_resolution(value: Any, luna_payload: dict[str, Any], upstage_payload:
             expected = candidates[key] if supported else next((candidate for candidate in candidates.values() if candidate["evidence"] == evidence), None)
             if expected is None or expected["evidence"] != evidence:
                 raise ValueError("lane evidence is not an exact validated lane evidence")
+            supplied_fields = item.get("field_evidence_refs", {})
+            supplied_scope = item.get("relation_scope_refs", {})
+            if supplied_fields and supplied_fields.get(provider) != expected["field_evidence"] or supplied_scope and supplied_scope.get(provider) != expected["relation_scope"]:
+                raise ValueError("canonical field evidence or relation scope is not exact validated lane evidence")
             references[provider] = {**evidence, "supports_selected": supported}
-        canonical.append({"fact": fact, "evidence_refs": references})
+        canonical.append({"fact": fact, "field_evidence_refs": {provider: by_tuple[provider][key]["field_evidence"] if key in by_tuple[provider] else next(candidate["field_evidence"] for candidate in by_tuple[provider].values() if candidate["evidence"] == {k: v for k, v in item["evidence_refs"][provider].items() if k != "supports_selected"}) for provider in ("luna", "upstage")}, "relation_scope_refs": {provider: by_tuple[provider][key]["relation_scope"] if key in by_tuple[provider] else next(candidate["relation_scope"] for candidate in by_tuple[provider].values() if candidate["evidence"] == {k: v for k, v in item["evidence_refs"][provider].items() if k != "supports_selected"}) for provider in ("luna", "upstage")}, "evidence_refs": references})
         canonical_keys.append(key)
     if len(canonical_keys) != len(set(canonical_keys)) or set(canonical_keys) != set(by_tuple[selected]):
         raise ValueError("canonical relations must exactly equal the selected-provider relation set")
@@ -594,9 +882,10 @@ def strict_resolution(value: Any, luna_payload: dict[str, Any], upstage_payload:
         if not isinstance(rejected, dict) or set(rejected) != {"provider", "tuple", "reason"}:
             raise ValueError("each rejected relation requires exactly provider, tuple, and reason")
         raw_tuple = rejected["tuple"]
-        if rejected["provider"] != other or not isinstance(raw_tuple, list) or len(raw_tuple) != len(RELATION_FIELDS) or not all(isinstance(part, str) for part in raw_tuple) or not isinstance(rejected["reason"], str) or not rejected["reason"].strip():
+        expected_tuple_size = len(next(iter(by_tuple[other]), ()))
+        if rejected["provider"] != other or not isinstance(raw_tuple, list) or len(raw_tuple) != expected_tuple_size or not all(isinstance(part, str) for part in raw_tuple) or not isinstance(rejected["reason"], str) or not rejected["reason"].strip():
             raise ValueError("rejected relation provider, tuple, or reason is invalid")
-        key = tuple(normalized(part) for part in raw_tuple)
+        key = tuple(raw_tuple)
         supplied_rejected.append(key)
         rejected_relations.append({"provider": other, "tuple": list(key), "reason": rejected["reason"].strip()})
     if len(supplied_rejected) != len(set(supplied_rejected)) or set(supplied_rejected) != expected_rejected:
@@ -899,12 +1188,12 @@ class Indexer:
                 raise ValueError("provider artifacts must be distinct")
             if luna_payload.get("source_pdf_sha256") != source_hash or upstage_payload.get("source_pdf_sha256") != source_hash:
                 raise ValueError("provider artifact source hash mismatch")
-            ocr_comparison = compare_ocr_outputs(luna_payload, upstage_payload)
+            outcomes, lanes, errors = validation_diagnostics({"luna": luna_payload, "upstage": upstage_payload})
+            ocr_comparison = outcomes["ocr_comparison"]
             self._validation_artifact(run_id, document_id, "ocr_comparison", ocr_comparison)
-            self.state.record_stage(run_id, document_id, "ocr_comparison", sha256_bytes(canonical_json(ocr_comparison).encode()), "completed", ocr_comparison, now())
-            diagnostic = diagnostic_json_comparison(luna_payload, upstage_payload)
+            self.state.record_stage(run_id, document_id, "ocr_comparison", sha256_bytes(canonical_json(ocr_comparison).encode()), "completed" if not isinstance(ocr_comparison, dict) or "status" not in ocr_comparison else "review", ocr_comparison, now())
+            diagnostic = outcomes["normalized_json_diagnostic_comparison"]
             self._validation_artifact(run_id, document_id, "normalized_json_diagnostic_comparison", diagnostic)
-            lanes, errors = validate_lanes_independently({"luna": luna_payload, "upstage": upstage_payload})
             for provider in ("luna", "upstage"):
                 result = errors.get(provider) or {"status": "pass", "facts": len(lanes[provider])}
                 self._validation_artifact(run_id, document_id, f"{provider}_text_to_json", {**result, "source_pdf_sha256": source_hash})
@@ -1048,7 +1337,8 @@ class Indexer:
             self.state.record_artifact(run_id, document_id, "ocr_json", "upstage", str(upstage_path), sha256_file(upstage_path), {"provider": "upstage"})
             self._materialize_lane(run_id, document_id, "luna", luna_payload, adapters["luna"])
             self._materialize_lane(run_id, document_id, "upstage", upstage_payload, adapters["upstage"])
-            ocr_comparison = compare_ocr_outputs(luna_payload, upstage_payload)
+            outcomes, lanes, errors = validation_diagnostics({"luna": luna_payload, "upstage": upstage_payload})
+            ocr_comparison = outcomes["ocr_comparison"]
             self._validation_artifact(run_id, document_id, "ocr_comparison", ocr_comparison)
             self.state.record_stage(
                 run_id,
@@ -1059,9 +1349,8 @@ class Indexer:
                 ocr_comparison,
                 now(),
             )
-            diagnostic = diagnostic_json_comparison(luna_payload, upstage_payload)
+            diagnostic = outcomes["normalized_json_diagnostic_comparison"]
             self._validation_artifact(run_id, document_id, "normalized_json_diagnostic_comparison", diagnostic)
-            lanes, errors = validate_lanes_independently({"luna": luna_payload, "upstage": upstage_payload})
             for provider in ("luna", "upstage"):
                 result = errors.get(provider) or {"status": "pass", "facts": len(lanes[provider])}
                 self._validation_artifact(run_id, document_id, f"{provider}_text_to_json", {**result, "source_pdf_sha256": source_hash})
@@ -1132,7 +1421,7 @@ class Indexer:
     ) -> Path:
         if structure_provider not in {"luna", "upstage"}:
             raise ValueError("canonical structure provider is invalid")
-        encoded = (canonical_json({"document_id": document_id, "identity": identity or {}, "facts": canonical, "structure_provider": structure_provider}) + "\n").encode()
+        encoded = (canonical_json({"document_id": document_id, "identity": identity or {}, "facts": canonical, "structure_provider": structure_provider, "pipeline_contract": OCR_PIPELINE_CONTRACT, "chunking_contract": CHUNKING_CONTRACT}) + "\n").encode()
         canonical_sha256 = sha256_bytes(encoded)
         root = self.runtime_root / "working" / run_id / "canonical" / document_id.replace("/", "__")
         root.mkdir(parents=True, exist_ok=True)
@@ -1172,7 +1461,7 @@ class Indexer:
         resolution = json.loads(after_path.read_text(encoding="utf-8"))
         canonical, identity, audit = strict_resolution(resolution, luna_payload, upstage_payload)
         structure_provider = audit["resolution"]["selected_provider"]
-        encoded = (canonical_json({"document_id": document["document_id"], "identity": identity, "facts": canonical, "structure_provider": structure_provider}) + "\n").encode()
+        encoded = (canonical_json({"document_id": document["document_id"], "identity": identity, "facts": canonical, "structure_provider": structure_provider, "pipeline_contract": OCR_PIPELINE_CONTRACT, "chunking_contract": CHUNKING_CONTRACT}) + "\n").encode()
         canonical_sha256 = sha256_bytes(encoded)
         root = self.runtime_root / "working" / str(review["run_id"]) / "canonical" / str(document["document_id"]).replace("/", "__")
         root.mkdir(parents=True, exist_ok=True)
@@ -1202,11 +1491,11 @@ class Indexer:
         source_pages: list[int] | None = None,
     ) -> dict[str, Any]:
         chunk_id = sha256_bytes(f"{document_id}:{level}:{local_key}:{text}".encode())[:32]
-        title = " | ".join(value for value in (identity.get("issuer_name"), identity.get("card_name"), section) if value)
+        path_title = " > ".join(str(value) for value in (identity.get("issuer_name"), identity.get("card_name"), level, section) if value)
         pages = evidence_pages(evidence_refs) if source_pages is None else sorted(set(source_pages))
         if not pages:
             raise ValueError("chunk requires source page provenance")
-        augmented_text = f"{title}\n{text}" if title else text
+        reranker_text = f"[문서 경로] {path_title}\n[본문]\n{text}"
         return {
             "chunk_id": chunk_id,
             "document_id": document_id,
@@ -1221,8 +1510,8 @@ class Indexer:
                 "parent_id": parent_id,
                 "child_ids": child_ids or [],
                 "source_pages": pages,
-                "retrieval_text": augmented_text,
-                "reranker_text": augmented_text,
+                "retrieval_text": text,
+                "reranker_text": reranker_text,
                 "evidence_refs": evidence_refs,
                 "related_chunk_ids": [],
             },
@@ -1244,19 +1533,27 @@ class Indexer:
             if not document["canonical_sha256"] or sha256_file(canonical_path) != document["canonical_sha256"] or self.state.artifact_hash(run_id, document_id, "canonical", None) != document["canonical_sha256"]:
                 raise RuntimeError("canonical artifact hash mismatch")
             payload = json.loads(canonical_path.read_text(encoding="utf-8"))
+            if payload.get("pipeline_contract") != OCR_PIPELINE_CONTRACT or payload.get("chunking_contract") != CHUNKING_CONTRACT:
+                raise RuntimeError("legacy canonical is not eligible for v6 chunking")
             identity = payload.get("identity", {})
             document_ids.append(document_id)
             facts = list(payload["facts"])
             if not facts:
                 continue
+            provider = payload.get("structure_provider")
+            if provider not in {"luna", "upstage"}:
+                raise RuntimeError("chunking requires an approved source provider")
+            lane_path = self.state.artifact_path(run_id, document_id, "normalized_json", provider)
+            if sha256_file(lane_path) != self.state.artifact_hash(run_id, document_id, "normalized_json", provider):
+                raise RuntimeError("chunking source hash mismatch")
+            lane = json.loads(lane_path.read_text(encoding="utf-8"))
+            registry = _line_registry({row["page"]: row["text"] for row in lane["pages"]})
+            source_order = {line_id: ordinal for ordinal, line_id in enumerate(registry)}
+            facts.sort(key=lambda item: min(
+                (source_order.get(line_id, len(registry)) for line_id in item.get("relation_scope_refs", {}).get(provider, {}).get("line_ids", [])),
+                default=len(registry),
+            ))
             if profile == "parent_child_bundle":
-                provider = payload.get("structure_provider")
-                if provider not in {"luna", "upstage"}:
-                    raise RuntimeError("parent-child release requires an approved structure provider")
-                lane_path = self.state.artifact_path(run_id, document_id, "normalized_json", provider)
-                if sha256_file(lane_path) != self.state.artifact_hash(run_id, document_id, "normalized_json", provider):
-                    raise RuntimeError("parent-child structure source hash mismatch")
-                lane = json.loads(lane_path.read_text(encoding="utf-8"))
                 raw = render_pages(lane.get("pages", []))
                 structural, _hierarchy, audit = build_structural_chunks(
                     raw,
@@ -1266,6 +1563,15 @@ class Indexer:
                 )
                 if audit["heading_lines"] < 1:
                     raise RuntimeError("parent-child structure source has no Markdown headings")
+                approved_scopes = []
+                for item in facts:
+                    scope = item.get("relation_scope_refs", {}).get(provider, {})
+                    quote = scope.get("evidence", {}).get("quote") if isinstance(scope, dict) else None
+                    if not isinstance(quote, str) or not quote or not any(normalized(quote) in normalized(chunk["text"]) for chunk in structural):
+                        raise RuntimeError("parent-child chunking lost an approved canonical source scope")
+                    approved_scopes.append(quote)
+                for chunk in structural:
+                    chunk["metadata"]["canonical_scope_coverage"] = [quote for quote in approved_scopes if normalized(quote) in normalized(chunk["text"])]
                 chunks.extend(structural)
                 continue
             card_text = " ".join(value for value in (identity.get("issuer_name"), identity.get("card_name")) if value)
@@ -1281,20 +1587,30 @@ class Indexer:
             )
             grouped: dict[str, list[tuple[int, dict[str, Any], str]]] = {}
             pages: dict[int, list[tuple[int, dict[str, Any], str]]] = {}
+            heading_by_line: dict[str, str] = {}
+            headings: list[tuple[int, str]] = []
+            for line_id, (page_number, source_line) in registry.items():
+                match = re.match(r"^\s{0,3}(#{1,6})\s+(.+?)\s*#*\s*$", source_line)
+                if match:
+                    depth = len(match[1])
+                    headings = [item for item in headings if item[0] < depth]
+                    headings.append((depth, match[2]))
+                heading_by_line[line_id] = " > ".join(item[1] for item in headings) or f"페이지 {page_number}"
             for index, item in enumerate(facts):
-                fact = item["fact"]
-                text = " | ".join(f"{field}: {fact[field]}" for field in RELATION_FIELDS if fact[field])
-                grouped.setdefault(fact["target"], []).append((index, item, text))
-                page_values = [ref.get("page") for ref in item["evidence_refs"].values() if isinstance(ref, dict)]
-                valid_pages = [
-                    value
-                    for value in page_values
-                    if isinstance(value, int) and not isinstance(value, bool) and value >= 1
-                ]
-                if not valid_pages:
-                    raise ValueError("canonical fact requires source page provenance")
-                page = min(valid_pages)
-                pages.setdefault(page, []).append((index, item, text))
+                selected_scope = item.get("relation_scope_refs", {}).get(provider)
+                if not isinstance(selected_scope, dict) or not isinstance(selected_scope.get("evidence"), dict):
+                    raise RuntimeError("canonical fact lacks approved source relation_scope")
+                line_ids = selected_scope.get("line_ids", [])
+                if not line_ids or any(line_id not in registry for line_id in line_ids):
+                    raise RuntimeError("canonical source scope has invalid OCR line IDs")
+                text = "\n".join(registry[line_id][1] for line_id in line_ids)
+                if normalized(text) != normalized(selected_scope["evidence"].get("quote", "")):
+                    raise RuntimeError("canonical source scope does not match its OCR lines")
+                source_heading = heading_by_line[line_ids[0]]
+                grouped.setdefault(source_heading, []).append((index, item, text))
+                for page in sorted({registry[line_id][0] for line_id in line_ids}):
+                    page_text = "\n".join(registry[line_id][1] for line_id in line_ids if registry[line_id][0] == page)
+                    pages.setdefault(page, []).append((index, item, page_text))
             if profile == "card_page_section_benefit":
                 for page, rows in pages.items():
                     chunks.append(
@@ -1368,7 +1684,7 @@ class Indexer:
             vector_mode = "approved_adapter"
         corpus_hash = sha256_bytes(canonical_json(chunks).encode())
         release_id = "release_" + sha256_bytes(
-            f"{run_id}:{corpus_hash}:{embedding_model}:{dimension}:{release_status}".encode()
+            f"{run_id}:{corpus_hash}:{embedding_model}:{dimension}:{release_status}:{LEXICAL_CONTRACT}".encode()
         )[:16]
         final_root = self.runtime_root / "index-release" / release_id
         if final_root.exists():
@@ -1377,6 +1693,7 @@ class Indexer:
                 manifest.get("embedding_model") != embedding_model
                 or manifest.get("embedding_dimension") != dimension
                 or manifest.get("release_status") != release_status
+                or manifest.get("lexical_contract") != LEXICAL_CONTRACT
             ):
                 raise RuntimeError("existing release embedding contract mismatch")
             embeddings = self._read_embeddings(
@@ -1418,7 +1735,8 @@ class Indexer:
                 "release_id": release_id,
                 "run_id": run_id,
                 "strategy": profile,
-                "chunking_contract": STRUCTURAL_CONTRACT if profile == "parent_child_bundle" else "card_page_section_benefit_v1",
+                "chunking_contract": STRUCTURAL_CONTRACT if profile == "parent_child_bundle" else CHUNKING_CONTRACT,
+                "lexical_contract": LEXICAL_CONTRACT,
                 "vector_mode": vector_mode,
                 "release_status": release_status,
                 "distance_contract": "squared_l2",
@@ -1507,7 +1825,7 @@ class Indexer:
                     "INSERT INTO chunks_fts VALUES(?,?)",
                     (
                         chunk["chunk_id"],
-                        normalized(str(chunk["metadata"].get("retrieval_text", chunk["text"]))),
+                        " ".join(lexical_terms(str(chunk["metadata"].get("retrieval_text", chunk["text"])))),
                     ),
                 )
             connection.commit()
@@ -1652,6 +1970,8 @@ class Indexer:
             raise RuntimeError("release manifest ID mismatch")
         if manifest.get("release_status") != "production":
             raise RuntimeError("only a production release can be activated")
+        if manifest.get("lexical_contract") != LEXICAL_CONTRACT:
+            raise RuntimeError("release lexical contract mismatch; rebuild before activation")
         if sha256_file(root / "manifest.json") != release["manifest_sha256"]:
             raise RuntimeError("release manifest hash mismatch")
         target = self.runtime_root / "active-index.json"

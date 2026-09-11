@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import gc
 import os
+import sqlite3
 import sys
 import tempfile
 import unittest
@@ -16,7 +17,8 @@ ROOT = Path(__file__).resolve().parents[3]
 sys.path[:0] = [str(ROOT / "services/rag-api/src"), str(ROOT / "packages/rag-core/src")]
 
 from pickcardu_rag import SearchConfig  # noqa: E402
-from pickcardu_rag_api.index import ActiveIndexLoader, _canonical, _sha256, _tree_hash  # noqa: E402
+from pickcardu_rag_api.index import ActiveIndexLoader, SQLiteFTSSearcher, _canonical, _sha256, _tree_hash  # noqa: E402
+from pickcardu_rag.retrieval import lexical_terms  # noqa: E402
 from support import FakeReranker, build_release  # noqa: E402
 
 
@@ -44,6 +46,16 @@ class ActiveIndexTest(unittest.TestCase):
         self.assertEqual(result["evidence"][0]["page_num"], 2)
         self.assertIs(self.loader.load(), handle)
 
+    def test_lexical_numeric_aliases_match_without_query_syntax_injection(self) -> None:
+        path = self.root / "lexical.sqlite"
+        with sqlite3.connect(path) as connection:
+            connection.execute("CREATE VIRTUAL TABLE chunks_fts USING fts5(chunk_id UNINDEXED,text)")
+            for key, text in (("a", "전월 실적 30만원"), ("b", "전월 실적 50만원")):
+                connection.execute("INSERT INTO chunks_fts VALUES (?,?)", (key, " ".join(lexical_terms(text))))
+        searcher = SQLiteFTSSearcher(path)
+        self.assertEqual([row.chunk_id for row in searcher.search("300,000원", limit=50)], ["a"])
+        self.assertEqual(searcher.search('" : *', limit=50), [])
+
     def test_cached_handle_is_revalidated_only_after_pointer_change(self) -> None:
         handle = self.loader.load()
         with patch.object(self.loader, "_load_uncached", side_effect=AssertionError("unexpected reload")):
@@ -55,7 +67,7 @@ class ActiveIndexTest(unittest.TestCase):
                 self.loader.load()
 
     def test_pointer_manifest_dimension_and_tree_mismatch_fail_closed(self) -> None:
-        cases = ("pointer", "dimension", "tree", "corpus", "chunks", "chunking_contract")
+        cases = ("pointer", "dimension", "tree", "corpus", "chunks", "chunking_contract", "lexical_contract")
         for case in cases:
             with self.subTest(case=case):
                 self.tearDown(); self.setUp()
@@ -74,6 +86,8 @@ class ActiveIndexTest(unittest.TestCase):
                         manifest["corpus_hash"] = "0" * 64
                     elif case == "chunking_contract":
                         manifest["chunking_contract"] = "wrong_contract"
+                    elif case == "lexical_contract":
+                        manifest.pop("lexical_contract")
                     else:
                         manifest["chunk_ids"] = ["wrong"]
                     (release / "manifest.json").write_text(_canonical(manifest) + "\n")

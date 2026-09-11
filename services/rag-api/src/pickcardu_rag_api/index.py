@@ -14,11 +14,12 @@ from typing import Any, Iterator
 from urllib.parse import quote
 
 import numpy as np
-from pickcardu_rag import CHUNKING_PROFILES, Candidate, Chunk, RagPipeline, SearchConfig, normalized_tokens
+from pickcardu_rag import CHUNKING_PROFILES, Candidate, Chunk, RagPipeline, SearchConfig
+from pickcardu_rag.retrieval import LEXICAL_CONTRACT, lexical_terms
 
 
 CHUNKING_CONTRACTS = {
-    "card_page_section_benefit": "card_page_section_benefit_v1",
+    "card_page_section_benefit": "source-grounded-raw-span-v6",
     "parent_child_bundle": "structural_heading_parent_child_v1",
 }
 
@@ -94,7 +95,7 @@ class SQLiteFTSSearcher:
         self.path = path
 
     def search(self, query: str, *, limit: int) -> list[Candidate]:
-        tokens = normalized_tokens(query)
+        tokens = list(dict.fromkeys(lexical_terms(query)))
         if not tokens:
             return []
         expression = " OR ".join(f'"{token.replace(chr(34), chr(34) * 2)}"' for token in tokens)
@@ -197,6 +198,8 @@ class ActiveIndexLoader:
             raise RuntimeError("active release manifest contract mismatch")
         if manifest["chunking_contract"] != CHUNKING_CONTRACTS[manifest["strategy"]]:
             raise RuntimeError("active release chunking contract mismatch")
+        if manifest.get("lexical_contract") != LEXICAL_CONTRACT:
+            raise RuntimeError("active release lexical contract mismatch; rebuild the index")
         if not isinstance(manifest["embedding_dimension"], int) or manifest["embedding_dimension"] < 1 or not isinstance(manifest["embedding_model"], str) or not manifest["embedding_model"] or not isinstance(manifest["embedding_sha256"], str) or not re.fullmatch(r"[0-9a-f]{64}", manifest["embedding_sha256"]):
             raise RuntimeError("active embedding contract is invalid")
         if not isinstance(manifest["corpus_sqlite_sha256"], str) or not re.fullmatch(r"[0-9a-f]{64}", manifest["corpus_sqlite_sha256"]) or _sha256(corpus_path) != manifest["corpus_sqlite_sha256"]:

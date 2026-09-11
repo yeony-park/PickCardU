@@ -11,6 +11,7 @@ from typing import Any
 import chromadb
 import numpy as np
 from pickcardu_rag import AnswerOutput, AtomicClaim, Recommendation
+from pickcardu_rag.retrieval import LEXICAL_CONTRACT, lexical_terms
 
 from pickcardu_rag_api.config import Settings
 from pickcardu_rag_api.index import _canonical, _embedding_sha256, _sha256, _tree_hash
@@ -42,7 +43,7 @@ def build_release(runtime: Path) -> dict[str, Any]:
     connection.executescript("CREATE TABLE chunks(chunk_id TEXT PRIMARY KEY,document_id TEXT,level TEXT,text TEXT,metadata_json TEXT); CREATE VIRTUAL TABLE chunks_fts USING fts5(chunk_id UNINDEXED,text,tokenize='unicode61');")
     for record in records:
         connection.execute("INSERT INTO chunks VALUES(?,?,?,?,?)", (record["chunk_id"], record["document_id"], record["level"], record["text"], _canonical(record["metadata"])))
-        connection.execute("INSERT INTO chunks_fts VALUES(?,?)", (record["chunk_id"], record["metadata"]["retrieval_text"]))
+        connection.execute("INSERT INTO chunks_fts VALUES(?,?)", (record["chunk_id"], " ".join(lexical_terms(record["metadata"]["retrieval_text"]))))
     connection.commit()
     connection.close()
     corpus_hash = hashlib.sha256(_canonical(records).encode()).hexdigest()
@@ -58,7 +59,8 @@ def build_release(runtime: Path) -> dict[str, Any]:
         "schema_version": "rag_index_release_v1",
         "release_id": release_id,
         "strategy": "card_page_section_benefit",
-        "chunking_contract": "card_page_section_benefit_v1",
+        "chunking_contract": "source-grounded-raw-span-v6",
+        "lexical_contract": LEXICAL_CONTRACT,
         "release_status": "production",
         "distance_contract": "squared_l2",
         "embedding_model": "text-embedding-3-small",
@@ -135,5 +137,5 @@ class FakeReranker:
     def artifact_contract(self, mode: str) -> dict[str, Any]:
         return {"artifact_fingerprint": f"{mode}-fixture"}
 
-    def score(self, mode: str, query: str, documents: list[str]):
+    def score(self, mode: str, query: str, documents: list[str], *, document_token_limit=None):
         return [float(len(documents) - index) for index in range(len(documents))], {"mode": mode, "fixture": True}

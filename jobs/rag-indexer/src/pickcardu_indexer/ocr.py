@@ -13,6 +13,8 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from .grounding import RELATION_FIELDS, STRUCTURE_SCHEMA_VERSION, normalise_fact
+
 
 LUNA_OCR_MODEL = "gpt-5.6-luna"
 LUNA_REASONING = "max"
@@ -60,10 +62,7 @@ OCR_SCHEMA: dict[str, Any] = {
     },
 }
 
-_FACT_PROPERTIES = {
-    field: {"type": "string"}
-    for field in ("target", "condition", "value", "unit", "cap", "frequency", "period", "exceptions")
-}
+_FACT_PROPERTIES = {field: {"type": "string"} for field in RELATION_FIELDS}
 _LINE_EVIDENCE = {
     "type": "object",
     "additionalProperties": False,
@@ -75,11 +74,40 @@ _LINE_EVIDENCE = {
         }
     },
 }
+_FIELD_FRAGMENT = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["line_id", "fragment", "char_start", "char_end"],
+    "properties": {
+        "line_id": {"type": "string"},
+        "fragment": {"type": "string"},
+        "char_start": {"type": "integer", "minimum": 0},
+        "char_end": {"type": "integer", "minimum": 1},
+    },
+}
+_FIELD_EVIDENCE = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": list(RELATION_FIELDS),
+    "properties": {field: {"type": "array", "items": _FIELD_FRAGMENT} for field in RELATION_FIELDS},
+}
+_RELATION_SCOPE = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["scope_type", "line_ids", "header_line_ids", "row_line_ids"],
+    "properties": {
+        "scope_type": {"type": "string", "enum": ["sentence", "bounded_block", "table_row"]},
+        "line_ids": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+        "header_line_ids": {"type": "array", "items": {"type": "string"}},
+        "row_line_ids": {"type": "array", "items": {"type": "string"}},
+    },
+}
 STRUCTURE_SCHEMA: dict[str, Any] = {
     "type": "object",
     "additionalProperties": False,
-    "required": ["identity", "facts", "ignored_risky_lines"],
+    "required": ["structure_schema_version", "identity", "facts", "ignored_risky_lines"],
     "properties": {
+        "structure_schema_version": {"const": STRUCTURE_SCHEMA_VERSION},
         "identity": {
             "type": "object",
             "additionalProperties": False,
@@ -96,10 +124,11 @@ STRUCTURE_SCHEMA: dict[str, Any] = {
             "items": {
                 "type": "object",
                 "additionalProperties": False,
-                "required": [*_FACT_PROPERTIES, "evidence"],
+                "required": [*_FACT_PROPERTIES, "field_evidence", "relation_scope"],
                 "properties": {
                     **_FACT_PROPERTIES,
-                    "evidence": _LINE_EVIDENCE,
+                    "field_evidence": _FIELD_EVIDENCE,
+                    "relation_scope": _RELATION_SCOPE,
                 },
             },
         },
@@ -150,11 +179,13 @@ OCR_PAGE_FALLBACK_PROMPT = """이 이미지는 원본 카드 상품안내서에�
 pages 배열에는 지정된 page_num의 항목 하나만 반환하세요."""
 
 STRUCTURE_PROMPT = """주어진 단일 OCR lane만 사용해 카드 혜택을 구조화하세요. 다른 OCR 결과를 추측하거나 보완하지 마세요.
-입력의 각 OCR 줄에는 고유한 line_id가 있습니다. 원문 문장을 다시 쓰지 말고 근거에는 line_id만 사용하세요.
-issuer_name과 card_name은 evidence.line_ids가 가리키는 원문에 있는 표기와 띄어쓰기를 그대로 복사하세요. 실제 혜택마다 target, condition, value, unit, cap, frequency, period, exceptions를 문자열로 기록하세요.
-제목, 혜택 값, 조건, 한도와 예외가 인접한 여러 줄이나 같은 표 행·열에 나뉘어 있어도 같은 혜택 블록이면 하나의 fact로 묶고, 사용한 모든 줄을 evidence.line_ids에 기록하세요.
+입력의 각 OCR 줄에는 고유한 line_id가 있습니다. identity 근거는 evidence.line_ids만 사용하세요. 각 fact field 근거는 field_evidence의 line_id와 원문 fragment 및 정확한 0-based [char_start, char_end) 좌표를 함께 사용하세요.
+issuer_name과 card_name은 evidence.line_ids가 가리키는 원문에 있는 표기와 띄어쓰기를 그대로 복사하세요. structure_schema_version은 field-evidence-relation-v6으로 고정하세요. 실제 혜택마다 benefit_type, action, target, condition, value, unit, cap, frequency, period, exceptions를 문자열로 기록하세요.
+각 fact field에는 field_evidence[field] 배열을 넣으세요(비어 있으면 빈 배열). 각 fragment에는 line_id, 원문 fragment, 0-based char_start와 exclusive char_end를 모두 넣고, 그 구간의 원문이 fragment와 정확히 같아야 합니다. field의 fragment를 원문 순서대로 공백으로 이은 내용이 해당 field 값이어야 합니다. 무관한 넓은 fragment를 추가하지 마세요. relation_scope는 하나의 혜택 관계를 입증하는 범위만 지정합니다: 같은 문장(sentence), 명확히 하나의 혜택만 담은 연속 bounded_block, 또는 table_row(표 header와 단일 row). header_line_ids와 row_line_ids는 해당하지 않으면 빈 배열입니다. 서로 다른 대상·행동·조건을 섞은 넓은 범위는 추측하지 말고 fact를 만들지 마세요.
+일반 문장의 condition, cap, frequency, period, exceptions는 전월 실적·한도·횟수·기간·제외 등의 표지와 관련 수치·단위를 함께 포함하세요. 같은 field의 fragment 사이에서 공백 이외의 원문을 건너뛰지 마세요. 표에서는 header의 열 의미에 맞는 같은 열의 data row 셀 전체를 보존하고 표 header를 값으로 복사하지 마세요. value와 unit을 나누더라도 합쳐서 셀 전체를 보존해야 합니다. unit은 value에 붙은 단위여야 하며 다른 조건이나 한도에서 빌려오지 마세요. 범위 안의 중요한 숫자나 조건을 생략하지 마세요.
+제목, 혜택 값, 조건, 한도와 예외가 인접한 여러 줄이나 같은 표 행·열에 나뉘어 있어도 같은 혜택 블록이면 하나의 fact로 묶고, 사용한 모든 줄을 relation_scope.line_ids에 기록하세요.
 서로 다른 혜택·표·섹션의 줄을 한 fact로 합치지 마세요. 제목이나 법정·일반 안내만으로는 fact를 만들지 말고 관련 혜택 fact의 근거 또는 ignore로 분류하세요.
-모든 fact에는 비어 있지 않은 target과 condition/value/cap/frequency/period/exceptions 중 하나 이상이 있어야 합니다. 비어 있지 않은 각 필드는 evidence.line_ids가 가리키는 원문에서 문자 그대로 확인되어야 합니다.
+모든 fact에는 비어 있지 않은 benefit_type, action, target과 condition/value/cap/frequency/period/exceptions 중 하나 이상이 있어야 합니다. 숫자만 있는 줄을 value 근거로 쓰지 말고, target/action/조건이 같은 relation_scope 안에서 함께 확인되어야 합니다.
 할인, 적립, 캐시백, 마일, 포인트, 무료, 면제, 혜택 표현이 있는 줄은 관련 fact의 evidence에 포함하세요. 법정 안내나 표 머리글이라 fact에 포함하지 않는 경우에만 ignored_risky_lines에 line_id와 구체적인 reason을 기록하세요. 그 밖의 미사용 줄은 출력하지 마세요.
 숫자, 단위, 조건과 예외를 정규화하거나 확대 해석하지 말고 지정된 JSON 형식만 반환하세요."""
 
@@ -934,6 +965,24 @@ class LiveLaneAdapter:
         _structured_path, structured_envelope = self.read_structured(document_id)
         structured = structured_envelope.get("structured")
         normalized_path = structure_root / "normalized.json"
+        raw_facts = structured.get("facts")
+        normalized_facts: list[Any] = []
+        normalization_errors: list[dict[str, Any]] = []
+        if isinstance(raw_facts, list):
+            for ordinal, raw_fact in enumerate(raw_facts):
+                if not isinstance(raw_fact, dict):
+                    normalized_facts.append(raw_fact)
+                    normalization_errors.append({"fact_index": ordinal, "error": "fact is not an object"})
+                    continue
+                preserved = dict(raw_fact)
+                try:
+                    preserved["typed_normalization"] = normalise_fact(raw_fact)["typed_normalization"]
+                except ValueError as error:
+                    normalization_errors.append({"fact_index": ordinal, "error": str(error)})
+                normalized_facts.append(preserved)
+        else:
+            normalized_facts = raw_facts
+            normalization_errors.append({"fact_index": None, "error": "facts is not an array"})
         payload = {
             "document_id": document_id,
             "provider": self.provider,
@@ -941,9 +990,13 @@ class LiveLaneAdapter:
             "provenance": {**self.structurer.config, "config_hash": self.config_hash},
             "ocr_provenance": envelope["ocr_provenance"],
             "ocr_parse_provenance": envelope["ocr_parse_provenance"],
+            "structure_schema_version": structured.get("structure_schema_version"),
             "identity": structured.get("identity"),
             "pages": [dict(row) for row in pages],
-            "facts": structured.get("facts"),
+            # Preserve provider field strings and source evidence byte-for-byte;
+            # typed values are local comparison metadata, not provider output.
+            "facts": normalized_facts,
+            "normalization_errors": normalization_errors,
         }
         if "span_dispositions" in structured:
             payload["span_dispositions"] = structured["span_dispositions"]

@@ -19,6 +19,10 @@ class RerankerUnavailable(RagError):
     code = "RERANKER_UNAVAILABLE"
 
 
+class EvidencePackageTooLarge(RagError):
+    code = "EVIDENCE_PACKAGE_TOO_LARGE"
+
+
 class EmbeddingUnavailable(RagError):
     code = "EMBEDDING_UNAVAILABLE"
     retryable = True
