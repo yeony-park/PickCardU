@@ -9,6 +9,7 @@ import shutil
 import sqlite3
 import tempfile
 import fcntl
+import unicodedata
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
@@ -34,11 +35,13 @@ from .structural import STRUCTURAL_CONTRACT, build_structural_chunks, render_pag
 NUMBER = re.compile(r"\d+(?:[,.]\d+)?")
 NUMBER_TOKEN = re.compile(r"(?<![\d.])[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?![\d.])")
 SOURCE_UNIT = re.compile(r"\s*(?:만\s*원|천\s*원|원|%|％|퍼센트|마일리지|마일|포인트|개월|회|년|일|시간|분|초|점|달러)")
+TIME_RANGE = re.compile(r"(?:오전|오후)\s*\d{1,2}\s*시\s*(?:~|～|-|–|—|부터)\s*(?:오전|오후)\s*\d{1,2}\s*시(?:\s*까지)?")
 RISKY_IGNORED_LINE = re.compile(r"할인|적립|캐시백|마일|포인트|무료|면제|혜택")
 BENEFIT_ACTION_SIGNAL = re.compile(r"할인|적립|캐시백|마일|포인트|무료|면제")
-CRITICAL_RELATION_LINE = re.compile(r"할인|적립|캐시백|마일|포인트|무료|면제|전월.?실적|이용.?금액|한도|횟수|이상|초과|이하|미만|제외|불가|조건")
+BENEFIT_VERB_SIGNAL = re.compile(r"할인|적립|캐시백|무료|면제")
+CRITICAL_RELATION_LINE = re.compile(r"할인|적립|캐시백|마일|포인트|무료|면제|(?:전월|지난달).?실적|이용.?금액|한도|횟수|이상|초과|이하|미만|제외|불가|조건")
 FIELD_ROLE_MARKERS = {
-    "condition": re.compile(r"전월.?실적|이용.?금액|이상|초과|이하|미만|조건"),
+    "condition": re.compile(r"(?:전월|지난달).?실적|이용.?금액|이상|초과|이하|미만|조건"),
     "cap": re.compile(r"한도"),
     "frequency": re.compile(r"횟수|월\s*\d+회|일\s*\d+회|연\s*\d+회"),
     "period": re.compile(r"기간|개월|연간|월간"),
@@ -57,14 +60,16 @@ TABLE_FIELD_ROLE = {
 NON_BENEFIT_IGNORED_LINE = re.compile(r"연체|신용평점|카드 발급|카드 신규 출시|부가서비스.*(?:유지|변경|소요된 비용)")
 LAYOUT_REASON = re.compile(r"제목|머리글|헤더|열(?:\s+)?제목")
 MARKUP_PREFIX = re.compile(r"^(?:[#>*•-]+\s*)+")
+EVIDENCE_FORMAT_PREFIX = re.compile(r"^(?:#{1,6}\s+|•\s*)")
 GENERIC_LAYOUT_LABELS = {
     "구분", "대상", "서비스", "서비스 안내", "혜택", "혜택 안내", "할인", "할인 서비스",
     "할인율", "할인률", "적립", "적립 서비스", "적립율", "적립률", "업종", "영역",
     "가맹점", "조건", "한도", "전월실적", "기준", "부가서비스 안내", "청구할인 서비스",
 }
+GENERIC_LAYOUT_KEYS = {re.sub(r"\s+", "", label) for label in GENERIC_LAYOUT_LABELS}
 CHUNKING_PROFILES = {"card_page_section_benefit", "parent_child_bundle"}
 DEFAULT_CHUNKING_PROFILE = "card_page_section_benefit"
-OCR_PIPELINE_CONTRACT = "dual-lane-field-evidence-relation-v6"
+OCR_PIPELINE_CONTRACT = "dual-lane-field-evidence-relation-v7"
 
 
 class LaneRestructureRequired(ValueError):
@@ -148,6 +153,11 @@ def approved_layout_ignore(line: str, reason: str) -> bool:
         cells = [cell.strip() for cell in content.strip("|").split("|") if cell.strip()]
         return len(cells) >= 2 and all(cell in GENERIC_LAYOUT_LABELS for cell in cells)
     return False
+
+
+def _is_generic_layout_line(line: str) -> bool:
+    content = MARKUP_PREFIX.sub("", normalized(line)).strip()
+    return re.sub(r"\s+", "", content) in GENERIC_LAYOUT_KEYS
 
 
 def relation_tuple(fact: dict[str, Any]) -> tuple[str, ...]:
@@ -400,7 +410,7 @@ def _table_header_role(value: str) -> str | None:
     text = normalized(value)
     if re.search(r"한도", text):
         return "cap"
-    if re.search(r"전월.?실적|이용.?금액|조건", text):
+    if re.search(r"(?:전월|지난달).?실적|이용.?금액|조건", text):
         return "condition"
     if re.search(r"횟수|이용.?회", text):
         return "frequency"
@@ -419,6 +429,68 @@ def _contains_range(container: tuple[str, int, int], line_id: str, start: int, e
     return container[0] == line_id and container[1] <= start and end <= container[2]
 
 
+def _fragment_format_key(value: str) -> str:
+    """Normalize presentation only; numbers, units, operators and negation survive."""
+    text = normalized(EVIDENCE_FORMAT_PREFIX.sub("", unicodedata.normalize("NFKC", value))).strip()
+    return re.sub(r"(?<!\d)\s+|\s+(?!\d)", "", text)
+
+
+def _same_line_fragment_range(
+    source_line: str,
+    fragment: str,
+    start: int,
+    end: int,
+    allowed_ranges: list[tuple[int, int]] | None = None,
+) -> tuple[int, int]:
+    """Repair a provider coordinate only from a unique match on its stated line."""
+    allowed_ranges = allowed_ranges or [(0, len(source_line))]
+    within = lambda left, right: any(low <= left and right <= high for low, high in allowed_ranges)
+    wanted = _fragment_format_key(fragment)
+    if end <= len(source_line) and within(start, end) and _fragment_format_key(source_line[start:end]) == wanted:
+        return start, end
+
+    exact = [
+        (match.start(), match.end())
+        for match in re.finditer(re.escape(fragment), source_line)
+        if within(match.start(), match.end())
+    ]
+    if len(exact) == 1:
+        return exact[0]
+    if len(exact) > 1:
+        raise ValueError("fragment has ambiguous repeated candidates on its source line")
+
+    projected: list[str] = []
+    positions: list[tuple[int, int]] = []
+    for index, character in enumerate(source_line):
+        for normalized_character in unicodedata.normalize("NFKC", character):
+            if normalized_character.isspace():
+                if projected and projected[-1] == " ":
+                    positions[-1] = (positions[-1][0], index + 1)
+                    continue
+                normalized_character = " "
+            projected.append(normalized_character)
+            positions.append((index, index + 1))
+    compacted: list[str] = []
+    compacted_positions: list[tuple[int, int]] = []
+    for index, character in enumerate(projected):
+        if character == " ":
+            previous = projected[index - 1] if index else ""
+            following = projected[index + 1] if index + 1 < len(projected) else ""
+            if not previous.isdigit() or not following.isdigit():
+                continue
+        compacted.append(character)
+        compacted_positions.append(positions[index])
+    haystack, positions = "".join(compacted), compacted_positions
+    matches = [
+        (positions[match.start()][0], positions[match.end() - 1][1])
+        for match in re.finditer(re.escape(wanted), haystack)
+        if wanted and within(positions[match.start()][0], positions[match.end() - 1][1])
+    ]
+    if len(set(matches)) != 1:
+        raise ValueError("fragment has no unique formatting-equivalent candidate on its source line")
+    return matches[0]
+
+
 def _scope_line_ids(provider: str, ordinal: int, scope: Any, registry: dict[str, tuple[int, str]]) -> list[str]:
     if not isinstance(scope, dict):
         raise ValueError(f"{provider} fact {ordinal} relation_scope is required")
@@ -432,20 +504,51 @@ def _scope_line_ids(provider: str, ordinal: int, scope: Any, registry: dict[str,
     if scope_type == "sentence" and len(ordered) != 1:
         raise ValueError(f"{provider} fact {ordinal} sentence scope must be one source line")
     if scope_type == "bounded_block":
-        if len(ordered) > 6 or len({registry[line_id][0] for line_id in ordered}) != 1:
+        if len({registry[line_id][0] for line_id in ordered}) != 1:
             raise ValueError(f"{provider} fact {ordinal} bounded block is ambiguous")
-        if any(order[right] != order[left] + 1 for left, right in zip(ordered, ordered[1:])):
-            raise ValueError(f"{provider} fact {ordinal} bounded block is not contiguous")
+        selected = set(ordered)
+        first, last = order[ordered[0]], order[ordered[-1]]
+        skipped = [line_id for line_id in list(registry)[first:last + 1] if line_id not in selected]
+        if any(
+            registry[line_id][1].strip().startswith("|")
+            or CRITICAL_RELATION_LINE.search(registry[line_id][1]) and not _is_generic_layout_line(registry[line_id][1])
+            for line_id in skipped
+        ):
+            raise ValueError(f"{provider} fact {ordinal} bounded block skips a competing relation boundary")
     header, row = scope.get("header_line_ids"), scope.get("row_line_ids")
     if not isinstance(header, list) or not isinstance(row, list):
         raise ValueError(f"{provider} fact {ordinal} relation_scope header/row arrays are required")
     if scope_type == "table_row":
         if len(header) != 1 or len(row) != 1:
             raise ValueError(f"{provider} fact {ordinal} table scope requires one header and one row")
-        if set(header + row) != set(ordered) or header[0] not in registry or row[0] not in registry:
+        if not set(header + row) <= set(ordered) or header[0] not in registry or row[0] not in registry:
             raise ValueError(f"{provider} fact {ordinal} table scope does not match header and row")
-        if registry[header[0]][0] != registry[row[0]][0] or order[header[0]] >= order[row[0]]:
+        if len({registry[line_id][0] for line_id in ordered}) != 1 or order[header[0]] >= order[row[0]]:
             raise ValueError(f"{provider} fact {ordinal} table header must precede its row on the same page")
+        registry_ids = list(registry)
+        header_index, row_index = order[header[0]], order[row[0]]
+        if any(not registry[line_id][1].strip().startswith("|") for line_id in registry_ids[header_index:row_index + 1]):
+            raise ValueError(f"{provider} fact {ordinal} table header and row cross a non-table boundary")
+        block_start, block_end = header_index, row_index
+        while block_start and registry[registry_ids[block_start - 1]][1].strip().startswith("|"):
+            block_start -= 1
+        while block_end + 1 < len(registry_ids) and registry[registry_ids[block_end + 1]][1].strip().startswith("|"):
+            block_end += 1
+        extra_indices = sorted(order[line_id] for line_id in ordered if line_id not in {header[0], row[0]})
+        before = [index for index in extra_indices if index < block_start]
+        after = [index for index in extra_indices if index > block_end]
+        inside = [index for index in extra_indices if block_start <= index <= block_end]
+        selected_extra = set(extra_indices)
+        before_separated = before and any(
+            index not in selected_extra and not _is_generic_layout_line(registry[registry_ids[index]][1])
+            for index in range(before[0], block_start)
+        )
+        after_separated = after and any(
+            index not in selected_extra and not _is_generic_layout_line(registry[registry_ids[index]][1])
+            for index in range(block_end + 1, after[-1] + 1)
+        )
+        if inside or before_separated or after_separated:
+            raise ValueError(f"{provider} fact {ordinal} table context is not adjacent to its table")
     elif header or row:
         raise ValueError(f"{provider} fact {ordinal} non-table scope has table-only line IDs")
     return ordered
@@ -460,17 +563,15 @@ def _validate_field_grounding(
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     scope_ids = _scope_line_ids(provider, ordinal, raw_fact.get("relation_scope"), registry)
     scope = raw_fact["relation_scope"]
-    scope_lines = [registry[line_id][1] for line_id in scope_ids]
-    scope_text = " ".join(scope_lines)
-    action_signals = BENEFIT_ACTION_SIGNAL.findall(scope_text)
-    independent_benefit_lines = [
-        line for line in scope_lines
-        if RISKY_IGNORED_LINE.search(line) and not re.search(r"실적|한도|횟수|이상|초과|이하|미만|제외|조건", line)
-    ]
-    if scope["scope_type"] == "bounded_block" and len(independent_benefit_lines) > 1:
-        raise ValueError(f"{provider} fact {ordinal} bounded block contains multiple benefit candidates")
-    if scope["scope_type"] == "sentence" and (len(action_signals) > 1 or scope_text.count("%") > 1):
-        raise ValueError(f"{provider} fact {ordinal} sentence contains multiple benefit candidates")
+    table_roles: list[str | None] = []
+    table_row_cells: list[tuple[int, int, str]] = []
+    if scope["scope_type"] == "table_row":
+        header_id, row_id = scope["header_line_ids"][0], scope["row_line_ids"][0]
+        header_cells = _table_cells(registry[header_id][1])
+        table_row_cells = _table_cells(registry[row_id][1])
+        if len(header_cells) != len(table_row_cells):
+            raise ValueError(f"{provider} fact {ordinal} table header and row column counts differ")
+        table_roles = [_table_header_role(cell[2]) for cell in header_cells]
     field_evidence = raw_fact.get("field_evidence")
     if not isinstance(field_evidence, dict):
         raise ValueError(f"{provider} fact {ordinal} field_evidence is required")
@@ -502,10 +603,19 @@ def _validate_field_grounding(
             if not isinstance(line_id, str) or line_id not in registry or not isinstance(source_fragment, str) or isinstance(start, bool) or isinstance(end, bool) or not isinstance(start, int) or not isinstance(end, int) or start < 0 or end <= start:
                 raise ValueError(f"{provider} fact {ordinal} {field} fragment location is invalid")
             source_line = registry[line_id][1]
-            if end > len(source_line):
-                raise ValueError(f"{provider} fact {ordinal} {field} fragment exceeds OCR source range")
-            if source_line[start:end] != source_fragment:
-                raise ValueError(f"{provider} fact {ordinal} {field} fragment does not match OCR source range")
+            allowed_ranges: list[tuple[int, int]] | None = None
+            if scope["scope_type"] == "table_row" and line_id == scope["row_line_ids"][0] and field in TABLE_FIELD_ROLE:
+                role = TABLE_FIELD_ROLE[field]
+                allowed_ranges = [(cell[0], cell[1]) for index, cell in enumerate(table_row_cells) if table_roles[index] == role]
+                if not allowed_ranges:
+                    allowed_ranges = None if field in {"condition", "cap", "frequency", "period", "exceptions"} else []
+            if allowed_ranges == []:
+                raise ValueError(f"{provider} fact {ordinal} table {field} column is ambiguous or missing")
+            try:
+                start, end = _same_line_fragment_range(source_line, source_fragment, start, end, allowed_ranges)
+            except ValueError as error:
+                raise ValueError(f"{provider} fact {ordinal} {field} {error}") from error
+            source_fragment = source_line[start:end]
             line_ids.append(line_id)
             fragments.append(source_fragment)
             locations.append((line_id, start, end))
@@ -525,43 +635,90 @@ def _validate_field_grounding(
                 gap = "\n".join([registry[left[0]][1][left[2]:],
                                  *(registry[line_id][1] for line_id in between),
                                  registry[right[0]][1][:right[1]]])
-            if gap.strip():
+            if not re.fullmatch(r"[\s•※]*", gap):
                 raise ValueError(f"{provider} fact {ordinal} {field} fragments skip non-whitespace source content")
         field_spans[field] = ordered_locations
         # Do not let a correct small fragment plus an unrelated broad quote pass.
         # The ordered provider fragments must reconstruct the complete raw field.
-        if normalized(" ".join(fragments)) != value:
+        if _fragment_format_key(" ".join(fragments)) != _fragment_format_key(value):
             raise ValueError(f"{provider} fact {ordinal} {field} fragments do not reconstruct its raw field")
-        resolved = _resolve_evidence(provider, f"fact {ordinal} {field}", {"line_ids": line_ids}, {}, registry)
-        evidence[field] = {**resolved, "fragments": supplied}
+        resolved = _resolve_evidence(
+            provider,
+            f"fact {ordinal} {field}",
+            {"line_ids": list(dict.fromkeys(line_ids))},
+            {},
+            registry,
+        )
+        evidence[field] = {**resolved, "fragments": [
+            {**fragment, "fragment": registry[location[0]][1][location[1]:location[2]], "char_start": location[1], "char_end": location[2]}
+            for fragment, location in zip(supplied, locations)
+        ]}
+    all_spans = [span for spans in field_spans.values() for span in spans]
+    if scope["scope_type"] == "table_row":
+        structural_ids = {scope["header_line_ids"][0], scope["row_line_ids"][0]}
+        for line_id in set(scope_ids) - structural_ids:
+            if not any(span[0] == line_id for span in all_spans):
+                raise ValueError(f"{provider} fact {ordinal} table context line has no field-level relationship evidence")
+    for line_id in scope_ids:
+        source_line = registry[line_id][1]
+        if line_id in set(scope.get("header_line_ids", [])):
+            continue
+        layout_heading = _is_generic_layout_line(source_line) or bool(re.match(r"^\s*#{1,6}\s+", source_line))
+        for match in BENEFIT_VERB_SIGNAL.finditer(source_line):
+            action_mapped = any(
+                _contains_range(span, line_id, match.start(), match.end())
+                for span in field_spans.get("action", [])
+            )
+            contextual_role = any(
+                re.fullmatch(r"\s*", source_line[match.end():marker.start()])
+                and any(_contains_range(span, line_id, marker.start(), marker.end()) for span in field_spans.get(field, []))
+                for field in ("condition", "cap", "frequency", "period", "exceptions")
+                for marker in FIELD_ROLE_MARKERS[field].finditer(source_line)
+                if marker.start() >= match.end()
+            )
+            table_common_title = (
+                scope["scope_type"] == "table_row"
+                and line_id not in {scope["header_line_ids"][0], scope["row_line_ids"][0]}
+                and not NUMBER_TOKEN.search(source_line)
+                and any(_contains_range(span, line_id, match.start(), match.end()) for span in field_spans.get("benefit_type", []))
+                and any(
+                    span[0] == scope["header_line_ids"][0]
+                    and normalized(registry[span[0]][1][span[1]:span[2]]) == normalized(match.group())
+                    for span in field_spans.get("action", [])
+                )
+                and any(
+                    _contains_range(span, line_id, marker.start(), marker.end())
+                    for span in field_spans.get("condition", [])
+                    for marker in FIELD_ROLE_MARKERS["condition"].finditer(source_line)
+                )
+            )
+            if not layout_heading and not action_mapped and not contextual_role and not table_common_title:
+                raise ValueError(f"{provider} fact {ordinal} contains multiple benefit candidates")
     if scope["scope_type"] == "table_row":
         header_id, row_id = scope["header_line_ids"][0], scope["row_line_ids"][0]
-        header_cells, row_cells = _table_cells(registry[header_id][1]), _table_cells(registry[row_id][1])
-        if len(header_cells) != len(row_cells):
-            raise ValueError(f"{provider} fact {ordinal} table header and row column counts differ")
-        header_roles = [_table_header_role(cell[2]) for cell in header_cells]
-        for column, (_start, _end, text) in enumerate(row_cells):
-            if NUMBER_TOKEN.search(text) and header_roles[column] is None:
+        for column, (_start, _end, text) in enumerate(table_row_cells):
+            if NUMBER_TOKEN.search(text) and table_roles[column] is None:
                 raise ValueError(f"{provider} fact {ordinal} table numeric column has an unknown role")
         for field, expected_role in TABLE_FIELD_ROLE.items():
             if not fact[field]:
                 continue
-            matching_columns = [index for index, role in enumerate(header_roles) if role == expected_role]
-            if len(matching_columns) != 1:
+            matching_columns = [index for index, role in enumerate(table_roles) if role == expected_role]
+            spans = field_spans[field]
+            if matching_columns:
+                if len(matching_columns) != 1:
+                    raise ValueError(f"{provider} fact {ordinal} table {field} column is ambiguous or missing")
+                cell_start, cell_end, _text = table_row_cells[matching_columns[0]]
+                if not all(span[0] == row_id and cell_start <= span[1] and span[2] <= cell_end for span in spans):
+                    raise ValueError(f"{provider} fact {ordinal} table {field} is not grounded in its matching data cell")
+            elif field in {"target", "value", "unit"} or any(span[0] in {header_id, row_id} for span in spans):
                 raise ValueError(f"{provider} fact {ordinal} table {field} column is ambiguous or missing")
-            cell_start, cell_end, _text = row_cells[matching_columns[0]]
-            if not field_spans[field] or not all(
-                span[0] == row_id and cell_start <= span[1] and span[2] <= cell_end
-                for span in field_spans[field]
-            ):
-                raise ValueError(f"{provider} fact {ordinal} table {field} is not grounded in its matching data cell")
-        for column, role in enumerate(header_roles):
+        for column, role in enumerate(table_roles):
             if role is None:
                 continue
-            cell_start, cell_end, _text = row_cells[column]
+            cell_start, cell_end, _text = table_row_cells[column]
             fields = ("value", "unit") if role == "value" else (role,)
             spans = [span for field in fields for span in field_spans.get(field, [])]
-            if any(not registry[row_id][1][position].isspace() and not any(
+            if any(not (registry[row_id][1][position].isspace() or registry[row_id][1][position] == "•") and not any(
                 _contains_range(span, row_id, position, position + 1) for span in spans
             ) for position in range(cell_start, cell_end)):
                 raise ValueError(f"{provider} fact {ordinal} table {role} cell is only partially preserved")
@@ -573,7 +730,10 @@ def _validate_field_grounding(
                     if not any(_contains_range(span, line_id, match.start(), match.end()) for span in field_spans.get(field, [])):
                         raise ValueError(f"{provider} fact {ordinal} marked {field} source range is not mapped to that field")
     numeric_owner: dict[tuple[str, int, int], str] = {}
+    header_ids = set(scope.get("header_line_ids", []))
     for line_id in scope_ids:
+        if line_id in header_ids:
+            continue
         for match in NUMBER_TOKEN.finditer(registry[line_id][1]):
             owners = [
                 field for field, spans in field_spans.items()
@@ -582,8 +742,28 @@ def _validate_field_grounding(
             if len(owners) != 1:
                 raise ValueError(f"{provider} fact {ordinal} source numeric range is missing or ambiguously mapped")
             numeric_owner[(line_id, match.start(), match.end())] = owners[0]
+            if owners[0] in {"condition", "cap", "frequency", "period", "exceptions"}:
+                table_role_bound = (
+                    scope["scope_type"] == "table_row"
+                    and line_id == scope["row_line_ids"][0]
+                    and TABLE_FIELD_ROLE[owners[0]] in table_roles
+                )
+                marker_bound = any(
+                    _contains_range(span, line_id, marker.start(), marker.end())
+                    for span in field_spans[owners[0]]
+                    for marker in FIELD_ROLE_MARKERS[owners[0]].finditer(registry[line_id][1])
+                )
+                time_range_bound = owners[0] == "condition" and any(
+                    time.start() <= match.start() and match.end() <= time.end()
+                    and any(_contains_range(span, line_id, time.start(), time.end()) for span in field_spans["condition"])
+                    for time in TIME_RANGE.finditer(registry[line_id][1])
+                )
+                if not table_role_bound and not marker_bound and not time_range_bound:
+                    raise ValueError(f"{provider} fact {ordinal} numeric relationship is assigned to the wrong field role")
             suffix = SOURCE_UNIT.match(registry[line_id][1], match.end())
             if suffix:
+                if owners[0] in {"benefit_type", "action", "target"}:
+                    raise ValueError(f"{provider} fact {ordinal} benefit numeric range is assigned to a non-numeric field")
                 unit_start = match.end()
                 while registry[line_id][1][unit_start].isspace():
                     unit_start += 1
@@ -649,13 +829,19 @@ def validate_lane(provider: str, payload: dict[str, Any]) -> list[dict[str, Any]
             raise ValueError(f"{provider} {key} identity is not grounded")
         identity_evidence[key] = resolved
     validated: list[dict[str, Any]] = []
-    scope_fingerprints: set[tuple[str, tuple[str, ...]]] = set()
+    scope_fingerprints: set[tuple[Any, ...]] = set()
     for ordinal, raw_fact in enumerate(payload["facts"]):
         if not isinstance(raw_fact, dict):
             raise ValueError(f"{provider} fact {ordinal} is not an object")
         fact = normalise_fact(raw_fact)
         relation_scope, field_evidence = _validate_field_grounding(provider, ordinal, raw_fact, fact, registry)
-        fingerprint = (relation_scope["scope_type"], tuple(relation_scope["line_ids"]))
+        source_ranges = tuple(sorted(
+            (fragment["line_id"], fragment["char_start"], fragment["char_end"])
+            for field, item in field_evidence.items()
+            if field in {"benefit_type", "action", "target", "value", "unit"}
+            for fragment in item.get("fragments", [])
+        ))
+        fingerprint = (relation_scope["scope_type"], source_ranges)
         if fingerprint in scope_fingerprints:
             raise ValueError(f"{provider} two facts reuse one broad relation_scope")
         scope_fingerprints.add(fingerprint)

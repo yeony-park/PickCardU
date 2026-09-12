@@ -107,7 +107,13 @@ def relation_key(fact: dict[str, Any]) -> tuple[str, ...]:
         if field == "unit" and fact.get("unit") in {"%", "퍼센트", "원", "만원", "천원"}:
             return ""
         literals = iter(typed_literals(text))
-        return NUMBER.sub(lambda _match: "<" + repr(next(literals)) + ">", text).rstrip(".。,，;；")
+        text = NUMBER.sub(
+            lambda _match: (lambda literal: f"<{literal['kind']}:{literal['decimal']}>")(next(literals)),
+            text,
+        ).rstrip(".。,，;；")
+        # Layout-only spacing is not a relationship difference.  Keep spaces
+        # between adjacent numeric placeholders so separate values cannot join.
+        return re.sub(r"(?<!>)\s+|\s+(?!<)", "", text)
 
     # Source strings remain in the lane artifact; canonical strings have only
     # NFKC/whitespace normalization. Replace typed literals in comparison keys,
