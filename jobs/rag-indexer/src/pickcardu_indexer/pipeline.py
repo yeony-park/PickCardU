@@ -28,6 +28,8 @@ from .grounding import (
     normalise_fact as _normalise_fact,
     normalized as _grounded_normalized,
     relation_key,
+    typed_literals,
+    condition_operators,
 )
 from .structural import HEADING_RE, STRUCTURAL_CONTRACT, build_structural_chunks, render_pages
 
@@ -73,11 +75,29 @@ GENERIC_LAYOUT_LABELS = {
 GENERIC_LAYOUT_KEYS = {re.sub(r"\s+", "", label) for label in GENERIC_LAYOUT_LABELS}
 CHUNKING_PROFILES = {"card_page_section_benefit", "parent_child_bundle"}
 DEFAULT_CHUNKING_PROFILE = "card_page_section_benefit"
-OCR_PIPELINE_CONTRACT = "dual-lane-field-evidence-relation-v8"
+OCR_PIPELINE_CONTRACT = "dual-lane-field-evidence-relation-v9"
 
 
 class LaneRestructureRequired(ValueError):
     pass
+
+
+class LaneFactReview(ValueError):
+    """Collect unresolved facts without making partially validated lanes usable."""
+
+    def __init__(self, issues: list[dict[str, Any]], checked_count: int) -> None:
+        self.issues = issues
+        self.checked_count = checked_count
+        super().__init__("; ".join(item["error"] for item in issues))
+
+    def diagnostic(self) -> dict[str, Any]:
+        return {"status": "review", "error": str(self), "issues": self.issues,
+                "checked_fact_count": self.checked_count,
+                "unresolved_fact_count": len(self.issues), "approval_eligible": False}
+
+
+class CriticalContentMismatch(ValueError):
+    """A grounded source fragment and its JSON value disagree on critical data."""
 
 
 def now() -> str:
@@ -486,6 +506,43 @@ def _fragment_format_key(value: str) -> str:
     return re.sub(r"(?<!\d)\s+|\s+(?!\d)", "", text)
 
 
+def _shared_table_heading(scope: dict[str, Any], registry: dict[str, tuple[int, str]]) -> str | None:
+    """Prove the narrow heading -> single table shape; never guess plain titles."""
+    ids = list(registry)
+    header = scope["header_line_ids"][0]
+    index = ids.index(header)
+    if index == 0:
+        return None
+    title_id = ids[index - 1]
+    page, title = registry[title_id]
+    heading = HEADING_RE.fullmatch(title)
+    if not heading or page != registry[header][0] or title_id not in scope["line_ids"]:
+        return None
+    if set(scope["line_ids"]) != {title_id, header, scope["row_line_ids"][0]}:
+        return None
+    # A real delimiter row anchors the columns; a pipe in prose is not a table.
+    if index + 1 >= len(ids) or not re.fullmatch(r"\s*\|(?:\s*:?-+:?\s*\|){2,}\s*", registry[ids[index + 1]][1]):
+        return None
+    ended = False
+    for line_id in ids[index:]:
+        line_page, text = registry[line_id]
+        if line_page != page:
+            break
+        following_heading = HEADING_RE.fullmatch(text)
+        if following_heading:
+            if len(following_heading[1]) <= len(heading[1]):
+                break
+            return None  # Nested sections require their own proof, not proximity.
+        if text.strip().startswith("|"):
+            if ended:
+                return None  # A second table makes the title's scope ambiguous.
+        else:
+            ended = True
+            if not _is_generic_layout_line(text):
+                return None  # Do not silently drop surrounding rules/exceptions.
+    return title_id
+
+
 def _same_line_fragment_range(
     source_line: str,
     fragment: str,
@@ -621,6 +678,7 @@ def _validate_field_grounding(
     scope = raw_fact["relation_scope"]
     table_roles: list[str | None] = []
     table_row_cells: list[tuple[int, int, str]] = []
+    shared_heading: str | None = None
     if scope["scope_type"] == "table_row":
         header_id, row_id = scope["header_line_ids"][0], scope["row_line_ids"][0]
         header_cells = _table_cells(registry[header_id][1])
@@ -628,6 +686,7 @@ def _validate_field_grounding(
         if len(header_cells) != len(table_row_cells):
             raise ValueError(f"{provider} fact {ordinal} table header and row column counts differ")
         table_roles = [_table_header_role(cell[2]) for cell in header_cells]
+        shared_heading = _shared_table_heading(scope, registry)
     field_evidence = raw_fact.get("field_evidence")
     if not isinstance(field_evidence, dict):
         raise ValueError(f"{provider} fact {ordinal} field_evidence is required")
@@ -691,13 +750,21 @@ def _validate_field_grounding(
                 gap = "\n".join([registry[left[0]][1][left[2]:],
                                  *(registry[line_id][1] for line_id in between),
                                  registry[right[0]][1][:right[1]]])
-            if not re.fullmatch(r"[\s•※]*", gap):
+            # Only line-initial Markdown heading markers are layout. Do not
+            # erase pipes, minus signs, comparison operators or prose in gaps.
+            layout_gap = re.sub(r"(?m)^ {0,3}#{1,6}[ \t]+", "", gap) if left[0] != right[0] else gap
+            if not re.fullmatch(r"[\s•※]*", layout_gap):
                 raise ValueError(f"{provider} fact {ordinal} {field} fragments skip non-whitespace source content")
         field_spans[field] = ordered_locations
         # Do not let a correct small fragment plus an unrelated broad quote pass.
         # The ordered provider fragments must reconstruct the complete raw field.
-        if _fragment_format_key(" ".join(fragments)) != _fragment_format_key(value):
-            raise ValueError(f"{provider} fact {ordinal} {field} fragments do not reconstruct its raw field")
+        source_value = " ".join(fragments)
+        if _fragment_format_key(source_value) != _fragment_format_key(value):
+            error_type = CriticalContentMismatch if (
+                typed_literals(source_value) != typed_literals(value)
+                or condition_operators(source_value) != condition_operators(value)
+            ) else ValueError
+            raise error_type(f"{provider} fact {ordinal} {field} fragments do not reconstruct its raw field")
         resolved = _resolve_evidence(
             provider,
             f"fact {ordinal} {field}",
@@ -786,7 +853,10 @@ def _validate_field_grounding(
                 cell_start, cell_end, _text = table_row_cells[matching_columns[0]]
                 if not all(span[0] == row_id and cell_start <= span[1] and span[2] <= cell_end for span in spans):
                     raise ValueError(f"{provider} fact {ordinal} table {field} is not grounded in its matching data cell")
-            elif field in {"target", "value", "unit"} or any(span[0] in {header_id, row_id} for span in spans):
+            elif field in {"target", "value", "unit"}:
+                if not shared_heading or not all(span[0] == shared_heading for span in spans):
+                    raise ValueError(f"{provider} fact {ordinal} table {field} column is ambiguous or missing")
+            elif any(span[0] in {header_id, row_id} for span in spans):
                 raise ValueError(f"{provider} fact {ordinal} table {field} column is ambiguous or missing")
         for column, role in enumerate(table_roles):
             if role is None:
@@ -798,6 +868,40 @@ def _validate_field_grounding(
                 _contains_range(span, row_id, position, position + 1) for span in spans
             ) for position in range(cell_start, cell_end)):
                 raise ValueError(f"{provider} fact {ordinal} table {role} cell is only partially preserved")
+        inherited = any(fact[field] and TABLE_FIELD_ROLE[field] not in table_roles for field in ("target", "value", "unit"))
+        if inherited:
+            title = registry[shared_heading][1]
+            heading = HEADING_RE.fullmatch(title)
+            # Do not hide a second target/rate/exception inside benefit_type.
+            title_spans = [span for field, spans in field_spans.items() if field != "benefit_type" for span in spans]
+            if any(not character.isspace() and not any(_contains_range(span, shared_heading, index, index + 1) for span in title_spans)
+                   for index, character in enumerate(title) if heading.start(2) <= index < heading.end(2)):
+                raise ValueError(f"{provider} fact {ordinal} shared heading contains unmapped relationship content")
+            if not field_spans.get("action") or not all(span[0] == shared_heading for span in field_spans["action"]):
+                raise ValueError(f"{provider} fact {ordinal} shared heading action is not directly grounded")
+            if "value" not in table_roles and fact["value"] and len(fact["typed_normalization"].get("value", [])) != 1:
+                raise ValueError(f"{provider} fact {ordinal} shared heading value is not a single numeric benefit")
+            if "value" not in table_roles and fact["value"]:
+                actions = field_spans["action"]
+                amounts = field_spans["value"] + field_spans.get("unit", [])
+                amount_start, amount_end = min(span[1] for span in amounts), max(span[2] for span in amounts)
+                number = NUMBER_TOKEN.match(title, amount_start)
+                source_unit = SOURCE_UNIT.match(title, number.end()) if number else None
+                if not source_unit or source_unit.end() != amount_end:
+                    raise ValueError(f"{provider} fact {ordinal} shared heading amount must be one number with its unit")
+                directly_bound = False
+                if len(actions) == 1 and BENEFIT_VERB_SIGNAL.fullmatch(fact["action"]):
+                    _, action_start, action_end = actions[0]
+                    if amount_end <= action_start:
+                        directly_bound = not title[amount_end:action_start].strip()
+                    elif action_end <= amount_start:
+                        directly_bound = not title[action_end:amount_start].strip()
+                if not directly_bound:
+                    raise ValueError(f"{provider} fact {ordinal} shared heading value is not directly bound to its benefit action")
+            for field, marker in FIELD_ROLE_MARKERS.items():
+                for match in marker.finditer(title):
+                    if not any(_contains_range(span, shared_heading, match.start(), match.end()) for span in field_spans.get(field, [])):
+                        raise ValueError(f"{provider} fact {ordinal} shared heading {field} role is not preserved")
     else:
         for line_id in scope_ids:
             source_line = registry[line_id][1]
@@ -907,22 +1011,37 @@ def validate_lane(provider: str, payload: dict[str, Any]) -> list[dict[str, Any]
         identity_evidence[key] = resolved
     validated: list[dict[str, Any]] = []
     scope_fingerprints: set[tuple[Any, ...]] = set()
+    fact_issues: list[dict[str, Any]] = []
     for ordinal, raw_fact in enumerate(payload["facts"]):
-        if not isinstance(raw_fact, dict):
-            raise ValueError(f"{provider} fact {ordinal} is not an object")
-        fact = normalise_fact(raw_fact)
-        relation_scope, field_evidence = _validate_field_grounding(provider, ordinal, raw_fact, fact, registry)
-        source_ranges = tuple(sorted(
-            (fragment["line_id"], fragment["char_start"], fragment["char_end"])
-            for field, item in field_evidence.items()
-            if field in {"benefit_type", "action", "target", "value", "unit"}
-            for fragment in item.get("fragments", [])
-        ))
-        fingerprint = (relation_scope["scope_type"], source_ranges)
-        if fingerprint in scope_fingerprints:
-            raise ValueError(f"{provider} two facts reuse one broad relation_scope")
-        scope_fingerprints.add(fingerprint)
-        validated.append({"fact": fact, "evidence": relation_scope["evidence"], "relation_scope": relation_scope, "field_evidence": field_evidence})
+        try:
+            if not isinstance(raw_fact, dict):
+                raise ValueError(f"{provider} fact {ordinal} is not an object")
+            fact = normalise_fact(raw_fact)
+            relation_scope, field_evidence = _validate_field_grounding(provider, ordinal, raw_fact, fact, registry)
+            is_table = relation_scope["scope_type"] == "table_row"
+            source_ranges = tuple(sorted(
+                (field if is_table else "", fragment["line_id"], fragment["char_start"], fragment["char_end"])
+                for field, item in field_evidence.items()
+                if is_table or field in {"benefit_type", "action", "target", "value", "unit"}
+                for fragment in item.get("fragments", [])
+            ))
+            # Distinct source rows may share a benefit heading but have different
+            # condition/cap pairs. Identical rows/ranges must still be rejected.
+            row_anchor = tuple(raw_fact["relation_scope"]["row_line_ids"]) if is_table else ()
+            fingerprint = (relation_scope["scope_type"], row_anchor, source_ranges)
+            if fingerprint in scope_fingerprints:
+                raise ValueError(f"{provider} two facts reuse one broad relation_scope")
+            scope_fingerprints.add(fingerprint)
+            validated.append({"fact": fact, "evidence": relation_scope["evidence"], "relation_scope": relation_scope, "field_evidence": field_evidence})
+        except ValueError as error:
+            # A grounding failure is not by itself proof of an incorrect OCR
+            # value. Keep source references so a human can distinguish the two.
+            supplied_scope = raw_fact.get("relation_scope") if isinstance(raw_fact, dict) else None
+            category = "critical_content_mismatch" if isinstance(error, CriticalContentMismatch) else "verification_unresolved"
+            fact_issues.append({"fact_index": ordinal, "category": category,
+                                "error": str(error), "relation_scope": supplied_scope})
+    if fact_issues:
+        raise LaneFactReview(fact_issues, len(payload["facts"]))
     covered_line_ids = {line_id for item in validated for line_id in item["relation_scope"]["line_ids"]}
     identity_line_ids = {line_id for item in identity_evidence.values() for line_id in item.get("line_ids", [])}
     if "ignored_risky_lines" in payload:
@@ -965,12 +1084,14 @@ def validate_lane(provider: str, payload: dict[str, Any]) -> list[dict[str, Any]
     raise LaneRestructureRequired(f"{provider} ignored_risky_lines is required for v6 approval")
 
 
-def validate_lanes_independently(payloads: dict[str, dict[str, Any]]) -> tuple[dict[str, list[dict[str, Any]]], dict[str, dict[str, str]]]:
+def validate_lanes_independently(payloads: dict[str, dict[str, Any]]) -> tuple[dict[str, list[dict[str, Any]]], dict[str, dict[str, Any]]]:
     validated: dict[str, list[dict[str, Any]]] = {}
-    errors: dict[str, dict[str, str]] = {}
+    errors: dict[str, dict[str, Any]] = {}
     for provider in ("luna", "upstage"):
         try:
             validated[provider] = validate_lane(provider, payloads[provider])
+        except LaneFactReview as error:
+            errors[provider] = error.diagnostic()
         except LaneRestructureRequired as error:
             errors[provider] = {"status": "blocked", "error": str(error)}
         except (ValueError, FileNotFoundError) as error:
@@ -978,7 +1099,7 @@ def validate_lanes_independently(payloads: dict[str, dict[str, Any]]) -> tuple[d
     return validated, errors
 
 
-def validation_diagnostics(payloads: dict[str, dict[str, Any]]) -> tuple[dict[str, Any], dict[str, list[dict[str, Any]]], dict[str, dict[str, str]]]:
+def validation_diagnostics(payloads: dict[str, dict[str, Any]]) -> tuple[dict[str, Any], dict[str, list[dict[str, Any]]], dict[str, dict[str, Any]]]:
     """Run four read-only validation jobs independently; callers persist on main thread."""
     tasks: dict[str, Callable[[], Any]] = {
         "ocr_comparison": lambda: compare_ocr_outputs(payloads["luna"], payloads["upstage"]),
@@ -992,6 +1113,8 @@ def validation_diagnostics(payloads: dict[str, dict[str, Any]]) -> tuple[dict[st
         for name in tasks:
             try:
                 outcomes[name] = futures[name].result()
+            except LaneFactReview as error:
+                outcomes[name] = error.diagnostic()
             except LaneRestructureRequired as error:
                 outcomes[name] = {"status": "blocked", "error": str(error)}
             except Exception as error:  # Preserve every diagnostic failure; no task short-circuits another.

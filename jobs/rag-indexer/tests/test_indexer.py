@@ -1666,6 +1666,172 @@ class FieldEvidenceV6Test(unittest.TestCase):
     def _lane(self) -> dict[str, object]:
         return line_id_lane("issuer/card", "luna")
 
+    def _heading_table_lane(self) -> dict[str, object]:
+        payload = self._lane()
+        lines = ["Issuer Card", "## 편의점 10% 할인", "| 전월 실적 | 월 한도 |",
+                 "| --- | --- |", "| 30만원 이상 | 5천원 |", "| 50만원 이상 | 1만원 |"]
+        payload["pages"][0]["text"] = "\n".join(lines)
+        payload["facts"] = []
+        for row, condition, cap in ((5, "30만원 이상", "5천원"), (6, "50만원 이상", "1만원")):
+            values = dict.fromkeys(RELATION_FIELDS, "")
+            values.update(benefit_type="편의점", target="편의점", action="할인", value="10", unit="%", condition=condition, cap=cap)
+            evidence = {}
+            for field, value in values.items():
+                number = row if field in {"condition", "cap"} else 2
+                source = lines[number - 1]
+                evidence[field] = [] if not value else [{"line_id": f"P0001-L{number:04d}", "fragment": value,
+                    "char_start": source.index(value), "char_end": source.index(value) + len(value)}]
+            payload["facts"].append({**values, "field_evidence": evidence, "relation_scope": {
+                "scope_type": "table_row", "line_ids": ["P0001-L0002", "P0001-L0003", f"P0001-L{row:04d}"],
+                "header_line_ids": ["P0001-L0003"], "row_line_ids": [f"P0001-L{row:04d}"]}})
+        return payload
+
+    def test_shared_heading_preserves_distinct_condition_cap_pairs_for_any_card(self) -> None:
+        for document_id in ("issuer_a/card_a", "issuer_b/card_b", "new_issuer/new_card"):
+            for provider in ("luna", "upstage"):
+                with self.subTest(document_id=document_id, provider=provider):
+                    payload = self._heading_table_lane()
+                    payload.update(document_id=document_id, provider=provider)
+                    before = json.dumps(payload, sort_keys=True)
+                    facts = validate_lane(provider, payload)
+                    self.assertEqual([(f["fact"]["condition"], f["fact"]["cap"]) for f in facts],
+                                     [("30만원 이상", "5천원"), ("50만원 이상", "1만원")])
+                    self.assertEqual(facts[0]["field_evidence"]["value"]["line_ids"], ["P0001-L0002"])
+                    self.assertNotEqual(relation_tuple(facts[0]["fact"]), relation_tuple(facts[1]["fact"]))
+                    self.assertEqual(json.dumps(payload, sort_keys=True), before)
+
+    def test_shared_heading_never_guesses_plain_titles_competitors_or_exceptions(self) -> None:
+        for replacement in ("편의점 10% 할인", "## 편의점 10% 할인 제외", "## 편의점 및 통신비 10% 할인"):
+            payload = self._heading_table_lane()
+            payload["pages"][0]["text"] = payload["pages"][0]["text"].replace("## 편의점 10% 할인", replacement)
+            with self.subTest(title=replacement), self.assertRaises(ValueError):
+                validate_lane("luna", payload)
+        for tail in ("\n추가 이용 조건 안내", "\n### 다른 혜택\n| 대상 | 한도 |\n| 카페 | 2천원 |",
+                     "\n안내\n| 전월 실적 | 월 한도 |\n| 20만원 | 3천원 |"):
+            payload = self._heading_table_lane()
+            payload["pages"][0]["text"] += tail
+            with self.subTest(tail=tail), self.assertRaises(ValueError):
+                validate_lane("luna", payload)
+
+    def test_shared_heading_does_not_replace_existing_value_column(self) -> None:
+        payload = self._heading_table_lane()
+        payload["pages"][0]["text"] = payload["pages"][0]["text"].replace(
+            "| 전월 실적 | 월 한도 |", "| 전월 실적 | 월 한도 | 할인율 |"
+        ).replace("| --- | --- |", "| --- | --- | --- |").replace(
+            "| 30만원 이상 | 5천원 |", "| 30만원 이상 | 5천원 | 5% |"
+        ).replace("| 50만원 이상 | 1만원 |", "| 50만원 이상 | 1만원 | 5% |")
+        with self.assertRaisesRegex(ValueError, "matching data cell"):
+            validate_lane("luna", payload)
+        # Even choosing the row rate must not silently ignore the conflicting
+        # title rate. The latter remains an unowned source number.
+        for fact in payload["facts"]:
+            row_id = fact["relation_scope"]["row_line_ids"][0]
+            row_text = payload["pages"][0]["text"].splitlines()[int(row_id[-4:]) - 1]
+            for field, value in (("value", "5"), ("unit", "%")):
+                start = row_text.rindex("5%") + (field == "unit")
+                fact[field] = value
+                fact["field_evidence"][field] = [{"line_id": row_id, "fragment": value, "char_start": start, "char_end": start + 1}]
+        with self.assertRaises(ValueError):
+            validate_lane("luna", payload)
+
+    def test_condition_cap_row_swaps_and_duplicate_rows_remain_blocked(self) -> None:
+        payload = self._heading_table_lane()
+        swapped = json.loads(json.dumps(payload))
+        swapped["facts"][0]["cap"] = "1만원"
+        swapped["facts"][0]["field_evidence"]["cap"] = swapped["facts"][1]["field_evidence"]["cap"]
+        with self.assertRaisesRegex(ValueError, "escapes relation_scope"):
+            validate_lane("luna", swapped)
+        duplicate = json.loads(json.dumps(payload))
+        duplicate["facts"].append(json.loads(json.dumps(duplicate["facts"][0])))
+        with self.assertRaisesRegex(ValueError, "reuse one broad"):
+            validate_lane("luna", duplicate)
+
+    def test_diagnostics_collect_all_fact_errors_without_partial_approval(self) -> None:
+        luna = self._heading_table_lane()
+        for fact in luna["facts"]:
+            fact["value"] = "1"  # Both rows have incorrect structured values.
+        upstage = self._heading_table_lane()
+        upstage["provider"] = "upstage"
+        outcomes, lanes, errors = validation_diagnostics({"luna": luna, "upstage": upstage})
+        self.assertEqual(set(lanes), {"upstage"})
+        diagnostic = outcomes["luna_text_to_json"]
+        self.assertEqual(diagnostic["checked_fact_count"], 2)
+        self.assertEqual([issue["fact_index"] for issue in diagnostic["issues"]], [0, 1])
+        self.assertFalse(diagnostic["approval_eligible"])
+        self.assertEqual(errors["luna"]["unresolved_fact_count"], 2)
+        self.assertEqual({issue["category"] for issue in diagnostic["issues"]}, {"critical_content_mismatch"})
+        unclear = self._heading_table_lane()
+        unclear["pages"][0]["text"] = unclear["pages"][0]["text"].replace("## 편의점", "편의점")
+        outcomes, _, _ = validation_diagnostics({"luna": unclear, "upstage": upstage})
+        self.assertEqual({issue["category"] for issue in outcomes["luna_text_to_json"]["issues"]}, {"verification_unresolved"})
+
+    def test_shared_heading_cannot_relabel_spending_requirement_as_discount_value(self) -> None:
+        payload = self._heading_table_lane()
+        title = "## 편의점 전월 실적 30만원 이상 할인"
+        payload["pages"][0]["text"] = payload["pages"][0]["text"].replace("## 편의점 10% 할인", title)
+        for fact in payload["facts"]:
+            fact.update(value="전월 실적 30만원 이상", unit="")
+            for field in ("benefit_type", "target", "action", "value", "unit"):
+                value = fact[field]
+                fact["field_evidence"][field] = [] if not value else [{"line_id": "P0001-L0002", "fragment": value,
+                    "char_start": title.index(value), "char_end": title.index(value) + len(value)}]
+        with self.assertRaisesRegex(ValueError, "shared heading condition role|directly bound|one number"):
+            validate_lane("luna", payload)
+
+    def test_shared_heading_amount_must_bind_to_benefit_not_spending_action(self) -> None:
+        for cue in ("이용시", "결제시", "사용시"):
+            for action in ("할인", f"{cue} 할인"):
+                payload = self._heading_table_lane()
+                title = f"## 편의점 10만원 {cue} 할인"
+                payload["pages"][0]["text"] = payload["pages"][0]["text"].replace("## 편의점 10% 할인", title)
+                for fact in payload["facts"]:
+                    fact.update(value="10", unit="만원", action=action)
+                    for field in ("benefit_type", "target", "action", "value", "unit"):
+                        value = fact[field]
+                        fact["field_evidence"][field] = [{"line_id": "P0001-L0002", "fragment": value,
+                            "char_start": title.index(value), "char_end": title.index(value) + len(value)}]
+                with self.subTest(cue=cue, action=action), self.assertRaises(ValueError):
+                    validate_lane("luna", payload)
+                # The same spending cue must not be hidden in the value field.
+                for fact in payload["facts"]:
+                    fact.update(value=f"10만원 {cue}", unit="", action="할인")
+                    for field in ("value", "unit", "action"):
+                        value = fact[field]
+                        fact["field_evidence"][field] = [] if not value else [{"line_id": "P0001-L0002", "fragment": value,
+                            "char_start": title.index(value), "char_end": title.index(value) + len(value)}]
+                with self.subTest(cue_in_value=cue), self.assertRaisesRegex(ValueError, "one number"):
+                    validate_lane("luna", payload)
+        for title in ("## 편의점 할인 10%", "## 편의점 10만원 할인"):
+            payload = self._heading_table_lane()
+            payload["pages"][0]["text"] = payload["pages"][0]["text"].replace("## 편의점 10% 할인", title)
+            for fact in payload["facts"]:
+                if "만원" in title:
+                    fact["unit"] = "만원"
+                for field in ("benefit_type", "target", "action", "value", "unit"):
+                    value = fact[field]
+                    fact["field_evidence"][field] = [{"line_id": "P0001-L0002", "fragment": value,
+                        "char_start": title.index(value), "char_end": title.index(value) + len(value)}]
+            with self.subTest(title=title):
+                self.assertEqual(len(validate_lane("luna", payload)), 2)
+
+    def test_fragment_gap_allows_heading_markup_but_not_hidden_content(self) -> None:
+        payload = self._lane()
+        lines = ["Issuer Card", "카페 monthly 1% 할인", "전월 실적 30만원 이상", "## 50만원 미만"]
+        payload["pages"][0]["text"] = "\n".join(lines)
+        fact = payload["facts"][0]
+        fact["condition"] = "전월 실적 30만원 이상 50만원 미만"
+        fact["field_evidence"]["condition"] = [
+            {"line_id": f"P0001-L{number:04d}", "fragment": text, "char_start": lines[number - 1].index(text),
+             "char_end": lines[number - 1].index(text) + len(text)}
+            for number, text in ((3, "전월 실적 30만원 이상"), (4, "50만원 미만"))]
+        fact["relation_scope"] = {"scope_type": "bounded_block", "line_ids": ["P0001-L0002", "P0001-L0003", "P0001-L0004"], "header_line_ids": [], "row_line_ids": []}
+        self.assertEqual(len(validate_lane("luna", payload)), 1)
+        for text in ("## 제외 50만원 미만", "## -50만원 미만", "| 50만원 미만", "> 50만원 미만"):
+            changed = json.loads(json.dumps(payload))
+            changed["pages"][0]["text"] = "\n".join([*lines[:3], text])
+            with self.subTest(text=text), self.assertRaises(ValueError):
+                validate_lane("luna", changed)
+
     def test_fullwidth_percent_unit_preserves_source(self) -> None:
         payload = self._lane()
         payload["pages"][0]["text"] = payload["pages"][0]["text"].replace("%", "％")
