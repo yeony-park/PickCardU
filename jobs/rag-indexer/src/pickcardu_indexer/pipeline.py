@@ -30,6 +30,7 @@ from .grounding import (
     relation_key,
     typed_literals,
     condition_operators,
+    field_comparison_key,
 )
 from .structural import HEADING_RE, STRUCTURAL_CONTRACT, build_structural_chunks, render_pages
 
@@ -75,7 +76,7 @@ GENERIC_LAYOUT_LABELS = {
 GENERIC_LAYOUT_KEYS = {re.sub(r"\s+", "", label) for label in GENERIC_LAYOUT_LABELS}
 CHUNKING_PROFILES = {"card_page_section_benefit", "parent_child_bundle"}
 DEFAULT_CHUNKING_PROFILE = "card_page_section_benefit"
-OCR_PIPELINE_CONTRACT = "dual-lane-field-evidence-relation-v9"
+OCR_PIPELINE_CONTRACT = "dual-lane-field-evidence-relation-v10"
 
 
 class LaneRestructureRequired(ValueError):
@@ -694,6 +695,7 @@ def _validate_field_grounding(
     if set(field_evidence) != set(RELATION_FIELDS):
         raise ValueError(f"{provider} fact {ordinal} field_evidence keys are incomplete")
     field_spans: dict[str, list[tuple[str, int, int]]] = {}
+    source_fields = {field: "" for field in RELATION_FIELDS}
     line_order = {line_id: index for index, line_id in enumerate(registry)}
     source_ids = list(registry)
     for field in RELATION_FIELDS:
@@ -752,14 +754,20 @@ def _validate_field_grounding(
                                  registry[right[0]][1][:right[1]]])
             # Only line-initial Markdown heading markers are layout. Do not
             # erase pipes, minus signs, comparison operators or prose in gaps.
-            layout_gap = re.sub(r"(?m)^ {0,3}#{1,6}[ \t]+", "", gap) if left[0] != right[0] else gap
+            layout_gap = gap
+            if left[0] != right[0]:
+                # Only actual starts of subsequent source lines may contain
+                # bullets; a '-' following a fragment can be a range/operator.
+                tail, *following = gap.split("\n")
+                layout_gap = "\n".join([tail, *(re.sub(r"^ {0,3}(?:#{1,6}[ \t]+|(?:[-*•·][ \t]+)+)", "", line) for line in following)])
             if not re.fullmatch(r"[\s•※]*", layout_gap):
                 raise ValueError(f"{provider} fact {ordinal} {field} fragments skip non-whitespace source content")
         field_spans[field] = ordered_locations
         # Do not let a correct small fragment plus an unrelated broad quote pass.
         # The ordered provider fragments must reconstruct the complete raw field.
         source_value = " ".join(fragments)
-        if _fragment_format_key(source_value) != _fragment_format_key(value):
+        source_fields[field] = source_value
+        if field not in {"value", "unit"} and field_comparison_key(source_fields, field) != field_comparison_key(fact, field):
             error_type = CriticalContentMismatch if (
                 typed_literals(source_value) != typed_literals(value)
                 or condition_operators(source_value) != condition_operators(value)
@@ -776,6 +784,12 @@ def _validate_field_grounding(
             {**fragment, "fragment": registry[location[0]][1][location[1]:location[2]], "char_start": location[1], "char_end": location[2]}
             for fragment, location in zip(supplied, locations)
         ]}
+    # Compare value+unit together: 30 + 만원 and 300000 + 원 are the same
+    # amount. Source coordinates/units below still refer to the original OCR.
+    source_fact = normalise_fact(source_fields)
+    for field in ("value", "unit"):
+        if field_comparison_key(source_fact, field) != field_comparison_key(fact, field):
+            raise CriticalContentMismatch(f"{provider} fact {ordinal} {field} fragments do not reconstruct its raw field")
     all_spans = [span for spans in field_spans.values() for span in spans]
     if scope["scope_type"] == "table_row":
         structural_ids = {scope["header_line_ids"][0], scope["row_line_ids"][0]}
@@ -835,7 +849,18 @@ def _validate_field_grounding(
                 for field, spans in field_spans.items() if field not in {"benefit_type", "action"}
                 for span in spans
             )
-            if not layout_heading and not action_mapped and not contextual_role and not table_common_title and not noun_mapped:
+            # '청구할인 제외' states an exclusion of the named benefit, not a
+            # second positive discount. Both target and negative action must
+            # remain explicitly grounded on this same source line.
+            excluded_target = any(
+                _contains_range(target_span, line_id, match.start(), match.end())
+                and target_span[2] <= marker.start()
+                and not source_line[target_span[2]:marker.start()].strip()
+                and any(_contains_range(span, line_id, marker.start(), marker.end()) for span in field_spans.get("action", []))
+                for target_span in field_spans.get("target", [])
+                for marker in FIELD_ROLE_MARKERS["exceptions"].finditer(source_line)
+            )
+            if not layout_heading and not action_mapped and not contextual_role and not table_common_title and not noun_mapped and not excluded_target:
                 raise ValueError(f"{provider} fact {ordinal} contains multiple benefit candidates")
     if scope["scope_type"] == "table_row":
         header_id, row_id = scope["header_line_ids"][0], scope["row_line_ids"][0]
@@ -907,7 +932,14 @@ def _validate_field_grounding(
             source_line = registry[line_id][1]
             for field, marker in FIELD_ROLE_MARKERS.items():
                 for match in marker.finditer(source_line):
-                    if not any(_contains_range(span, line_id, match.start(), match.end()) for span in field_spans.get(field, [])):
+                    permitted = ("exceptions", "condition", "action") if field == "exceptions" else (field,)
+                    if (field == "condition" and re.sub(r"\s+", "", match.group()) == "이용금액"
+                            and not NUMBER_TOKEN.search(source_line)
+                            and FIELD_ROLE_MARKERS["exceptions"].search(fact["action"])):
+                        # '무이자할부 이용금액 제외' names excluded spending; it
+                        # does not introduce a numeric spending requirement.
+                        permitted = ("condition", "exceptions", "target")
+                    if not any(_contains_range(span, line_id, match.start(), match.end()) for owner in permitted for span in field_spans.get(owner, [])):
                         raise ValueError(f"{provider} fact {ordinal} marked {field} source range is not mapped to that field")
     numeric_owner: dict[tuple[str, int, int], str] = {}
     header_ids = set(scope.get("header_line_ids", []))
@@ -951,7 +983,7 @@ def _validate_field_grounding(
                 allowed = [*field_spans[owners[0]], *(field_spans.get("unit", []) if owners[0] == "value" else [])]
                 if not any(_contains_range(span, line_id, unit_start, suffix.end()) for span in allowed):
                     raise ValueError(f"{provider} fact {ordinal} source numeric unit is missing from its owning field")
-    if fact["unit"]:
+    if source_fact["unit"]:
         attached = False
         for (line_id, start, end), owner in numeric_owner.items():
             if owner != "value":
@@ -960,8 +992,8 @@ def _validate_field_grounding(
             unit_start = end
             while unit_start < len(source_line) and source_line[unit_start].isspace():
                 unit_start += 1
-            unit_end = unit_start + len(fact["unit"])
-            if normalized(source_line[unit_start:unit_end]) == fact["unit"] and any(_contains_range(span, line_id, unit_start, unit_end) for span in field_spans.get("unit", [])):
+            unit_end = unit_start + len(source_fact["unit"])
+            if normalized(source_line[unit_start:unit_end]) == source_fact["unit"] and any(_contains_range(span, line_id, unit_start, unit_end) for span in field_spans.get("unit", [])):
                 attached = True
                 break
         if not attached:

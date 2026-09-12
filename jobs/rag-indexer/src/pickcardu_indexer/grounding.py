@@ -94,30 +94,29 @@ def normalise_fact(raw: dict[str, Any]) -> dict[str, Any]:
     return {**fact, "typed_normalization": typed}
 
 
+def field_comparison_key(fact: dict[str, Any], field: str) -> str:
+    """Shared OCR/JSON comparison: normalize units, not benefit meaning."""
+    text = normalized(fact.get(field, ""))
+    if field == "value" and fact.get("unit") in {"%", "퍼센트", "원", "만원", "천원"} and not any(unit for _number, unit in NUMBER.findall(text)):
+        text += str(fact["unit"])
+    # Value already carries the unit dimension, including a separate unit field.
+    if field == "unit" and fact.get("unit") in {"%", "퍼센트", "원", "만원", "천원"}:
+        return ""
+    literals = iter(typed_literals(text))
+    text = NUMBER.sub(
+        lambda _match: (lambda literal: f"<{literal['kind']}:{literal['decimal']}>")(next(literals)), text,
+    ).rstrip(".。,，;；")
+    return re.sub(r"(?<!>)\s+|\s+(?!<)", "", text)
+
+
 def relation_key(fact: dict[str, Any]) -> tuple[str, ...]:
     typed = fact.get("typed_normalization")
     if not isinstance(typed, dict):
         raise ValueError("typed normalization is required for relation comparison")
-    def semantic_text(field: str) -> str:
-        text = str(fact.get(field, ""))
-        if field == "value" and fact.get("unit") in {"%", "퍼센트", "원", "만원", "천원"} and not any(unit for _number, unit in NUMBER.findall(text)):
-            text += str(fact["unit"])
-        # The value key already includes its dimension, whether that unit was
-        # inline (10%) or separate (10 + %). Do not compare it a second time.
-        if field == "unit" and fact.get("unit") in {"%", "퍼센트", "원", "만원", "천원"}:
-            return ""
-        literals = iter(typed_literals(text))
-        text = NUMBER.sub(
-            lambda _match: (lambda literal: f"<{literal['kind']}:{literal['decimal']}>")(next(literals)),
-            text,
-        ).rstrip(".。,，;；")
-        # Layout-only spacing is not a relationship difference.  Keep spaces
-        # between adjacent numeric placeholders so separate values cannot join.
-        return re.sub(r"(?<!>)\s+|\s+(?!<)", "", text)
 
     # Source strings remain in the lane artifact; canonical strings have only
     # NFKC/whitespace normalization. Replace typed literals in comparison keys,
     # so 30만원 and 300000원 agree without erasing target/action/exception meaning.
-    raw = tuple(semantic_text(field) for field in RELATION_FIELDS)
+    raw = tuple(field_comparison_key(fact, field) for field in RELATION_FIELDS)
     typed_key = repr(sorted((key, repr(value)) for key, value in typed.items()))
     return (*raw, typed_key)
