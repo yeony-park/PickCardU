@@ -107,7 +107,7 @@ STRUCTURE_SCHEMA: dict[str, Any] = {
     "additionalProperties": False,
     "required": ["structure_schema_version", "identity", "facts", "ignored_risky_lines"],
     "properties": {
-        "structure_schema_version": {"const": STRUCTURE_SCHEMA_VERSION},
+        "structure_schema_version": {"type": "string", "const": STRUCTURE_SCHEMA_VERSION},
         "identity": {
             "type": "object",
             "additionalProperties": False,
@@ -178,16 +178,49 @@ OCR_PAGE_FALLBACK_PROMPT = """이 이미지는 원본 카드 상품안내서에�
 이미지 자체를 확인할 수 없을 때만 status를 failed로 반환하세요.
 pages 배열에는 지정된 page_num의 항목 하나만 반환하세요."""
 
-STRUCTURE_PROMPT = """주어진 단일 OCR lane만 사용해 카드 혜택을 구조화하세요. 다른 OCR 결과를 추측하거나 보완하지 마세요.
-입력의 각 OCR 줄에는 고유한 line_id가 있습니다. identity 근거는 evidence.line_ids만 사용하세요. 각 fact field 근거는 field_evidence의 line_id와 원문 fragment 및 정확한 0-based [char_start, char_end) 좌표를 함께 사용하세요.
-issuer_name과 card_name은 evidence.line_ids가 가리키는 원문에 있는 표기와 띄어쓰기를 그대로 복사하세요. structure_schema_version은 field-evidence-relation-v6으로 고정하세요. 실제 혜택마다 benefit_type, action, target, condition, value, unit, cap, frequency, period, exceptions를 문자열로 기록하세요.
-각 fact field에는 field_evidence[field] 배열을 넣으세요(비어 있으면 빈 배열). 각 fragment에는 line_id, 원문 fragment, 0-based char_start와 exclusive char_end를 모두 넣고, 그 구간의 원문이 fragment와 정확히 같아야 합니다. field의 fragment를 원문 순서대로 공백으로 이은 내용이 해당 field 값이어야 합니다. 무관한 넓은 fragment를 추가하지 마세요. relation_scope는 하나의 혜택 관계를 입증하는 범위만 지정합니다: 같은 문장(sentence), 명확히 하나의 혜택만 담은 연속 bounded_block, 또는 table_row(표 header와 단일 row). header_line_ids와 row_line_ids는 해당하지 않으면 빈 배열입니다. 서로 다른 대상·행동·조건을 섞은 넓은 범위는 추측하지 말고 fact를 만들지 마세요.
-일반 문장의 condition, cap, frequency, period, exceptions는 전월 실적·한도·횟수·기간·제외 등의 표지와 관련 수치·단위를 함께 포함하세요. 같은 field의 fragment 사이에서 공백 이외의 원문을 건너뛰지 마세요. 표에서는 header의 열 의미에 맞는 같은 열의 data row 셀 전체를 보존하고 표 header를 값으로 복사하지 마세요. value와 unit을 나누더라도 합쳐서 셀 전체를 보존해야 합니다. unit은 value에 붙은 단위여야 하며 다른 조건이나 한도에서 빌려오지 마세요. 범위 안의 중요한 숫자나 조건을 생략하지 마세요.
-제목, 혜택 값, 조건, 한도와 예외가 인접한 여러 줄이나 같은 표 행·열에 나뉘어 있어도 같은 혜택 블록이면 하나의 fact로 묶고, 사용한 모든 줄을 relation_scope.line_ids에 기록하세요.
-서로 다른 혜택·표·섹션의 줄을 한 fact로 합치지 마세요. 제목이나 법정·일반 안내만으로는 fact를 만들지 말고 관련 혜택 fact의 근거 또는 ignore로 분류하세요.
-모든 fact에는 비어 있지 않은 benefit_type, action, target과 condition/value/cap/frequency/period/exceptions 중 하나 이상이 있어야 합니다. 숫자만 있는 줄을 value 근거로 쓰지 말고, target/action/조건이 같은 relation_scope 안에서 함께 확인되어야 합니다.
-할인, 적립, 캐시백, 마일, 포인트, 무료, 면제, 혜택 표현이 있는 줄은 관련 fact의 evidence에 포함하세요. 법정 안내나 표 머리글이라 fact에 포함하지 않는 경우에만 ignored_risky_lines에 line_id와 구체적인 reason을 기록하세요. 그 밖의 미사용 줄은 출력하지 마세요.
-숫자, 단위, 조건과 예외를 정규화하거나 확대 해석하지 말고 지정된 JSON 형식만 반환하세요."""
+STRUCTURE_PROMPT = """주어진 단일 OCR lane에서 카드 혜택과 적용 조건을 원문 근거에 연결해 구조화하세요. 다른 OCR 결과, 사전 지식, 아래 설명용 예시의 값을 입력 문서에 보충하지 마세요. 지정된 JSON 스키마만 반환하세요.
+
+1. 원문 보존과 공통 형식
+structure_schema_version은 field-evidence-relation-v6입니다. issuer_name과 card_name은 각각 identity.issuer_evidence.line_ids와 identity.card_evidence.line_ids가 가리키는 원문의 표기와 띄어쓰기를 그대로 복사하세요. OCR 오탈자, 숫자, 단위, 조건과 예외를 교정·정규화·요약하지 마세요. 비교용 정규화는 후속 코드가 수행합니다.
+모든 fact에는 benefit_type, action, target, condition, value, unit, cap, frequency, period, exceptions와 field_evidence, relation_scope를 넣으세요. 내용이 없는 문자열 필드는 빈 문자열, 해당 field_evidence는 빈 배열로 두세요. 임의 필드나 새 상태값을 만들지 마세요.
+
+2. 필드의 의미
+모든 필드 값은 아래 역할에 해당하는 원문 문구를 복사하세요. 역할 설명이나 예시 단어를 대신 채우지 마세요.
+- benefit_type: 원문에 표시된 혜택·서비스 종류 또는 이름.
+- action: 할인, 적립, 면제, 제공, 적용, 제외 등 원문이 명시한 행위나 상태. 제외를 제공으로 바꾸지 마세요.
+- target: 해당 행위가 적용되는 가맹점·업종·서비스·수수료 등 대상. 다른 카드의 혜택을 현재 카드 자체 혜택으로 바꾸지 마세요.
+- condition: 전월 실적, 결제 수단, 지정 카드 선택, 가입 자격 등 혜택이 성립하는 전제. 숫자가 없는 전제도 조건입니다.
+- value와 unit: 할인율·적립률·금액 등 혜택 값과 그 값에 붙은 단위. 비수치 결과는 원문 결과 문구를 value에 보존하고 unit은 빈 문자열로 두세요. 면제를 임의로 0원으로 바꾸지 마세요.
+- cap: 월·건별 등 할인/적립 한도와 그 적용 범위.
+- frequency: 횟수 제한과 그 기준.
+- period: 적용·유효 기간이나 시점.
+- exceptions: 제외 대상과 예외 조건. 원문에서 조건과 예외를 분리할 수 없으면 condition에 전체 문구를 보존하세요. 중요한 예외를 빠뜨리거나 긍정 조건으로 바꾸지 마세요.
+
+3. 혜택과 조건을 함께 추출
+혜택 결과 문장만 보고 condition을 비워 두지 마세요. 같은 관계에 명확히 연결된 앞뒤 문장·공통 제목·표 머리글·주석의 전제, 한도, 횟수, 기간, 예외를 함께 확인하세요. 실제로 연결되는 조건은 보존하되, 가깝다는 이유만으로 다른 혜택의 조건을 가져오지 마세요.
+일반 문장의 condition, cap, frequency, period, exceptions는 실적·한도·횟수·기간·제외 등 의미를 나타내는 문구와 관련 수치·단위를 함께 보존하세요. 표에서는 머리글의 의미에 맞는 해당 행·열의 셀 전체를 보존하세요. 머리글을 셀 값으로 복사하지 마세요. value와 unit은 합쳐서 원문 값 전체를 보존해야 하며, unit을 다른 조건이나 한도에서 빌리지 마세요.
+같은 문서에 실적 구간이나 한도가 여러 개이면 각 구간과 대응 값의 짝을 유지하세요. 서로 다른 구간의 조건 목록과 한도 목록을 따로 모아 짝을 알 수 없게 만들지 마세요. 독립적인 혜택·구간·대상은 각각의 관계로 구분하고 중요한 수치나 적용 조건을 생략하지 마세요.
+
+4. 필드별 원문 근거
+입력의 각 OCR 줄에는 고유한 line_id가 있습니다. identity 근거는 identity.issuer_evidence.line_ids와 identity.card_evidence.line_ids를 사용하세요. 각 field_evidence[field] 배열의 fragment에는 line_id, 원문 fragment, 정확한 0-based char_start와 exclusive char_end를 넣으세요. 좌표는 입력 text 자체를 기준으로 세며 앞의 공백·Markdown 기호를 포함한 원문 줄을 바꾸지 마세요. text[char_start:char_end]가 fragment와 정확히 같아야 합니다. 반복되는 같은 문구는 실제로 선택한 위치를 지정하세요.
+같은 field의 fragment를 원문 순서대로 공백으로 이으면 해당 field 값과 같아야 합니다. 같은 field의 fragment 사이에서 공백 이외의 원문을 건너뛰지 마세요. 각 fragment의 줄은 relation_scope.line_ids 안에 있어야 합니다. 근거를 맞추려고 다른 문구나 넓은 범위를 추가하지 마세요.
+
+5. 하나의 혜택 관계를 입증하는 범위
+relation_scope는 sentence(한 원문 줄), bounded_block(명확히 하나의 관계를 담은 연속 문단), table_row(표 머리글과 단일 데이터 행) 중 하나입니다.
+sentence와 bounded_block의 header_line_ids, row_line_ids는 빈 배열입니다. table_row에는 정확히 해당 표의 머리글 한 줄과 데이터 행 한 줄을 각각 지정하고 line_ids에도 포함하세요. Markdown 구분선은 데이터 행이나 근거로 지정하지 마세요. 같은 표에 바로 붙고 해당 행에 적용되는 공통 제목·주석은 line_ids에 함께 포함할 수 있습니다.
+공통 제목의 적용 범위는 원문의 계층·문장 연결·표 구조로 확인하세요. 다른 동급 섹션이나 다른 표의 조건을 합치지 마세요. 제목, 혜택 값, 조건과 예외가 여러 줄에 나뉘어도 명확히 같은 혜택 블록이면 하나의 fact로 묶고 사용한 모든 근거 줄을 포함하세요. 단순한 근접성만으로 불명확한 관계를 확정하지 마세요.
+
+6. 설명용 가상 예시 — 입력 문서에 복사하지 마세요
+- 원문: '편의점 8% 할인, 전월 실적 25만원 이상, 월 할인 한도 4천원'. target='편의점', action='할인', value='8', unit='%', condition='전월 실적 25만원 이상', cap='월 할인 한도 4천원'처럼 수치 역할을 구분합니다. cap의 4천원을 value로 옮기면 잘못입니다.
+- 원문: '지정 결제수단을 선택한 경우'와 그 결과인 '문화시설 할인 적용'이 명확히 연결됨. 결과만 추출해 condition을 비우면 잘못입니다. 조건과 결과의 원문 근거를 함께 보존합니다.
+- 원문 공통 제목: '일상 할인 6%', 그 아래 '서점', '제과점', 다음 동급 제목: '여행 적립 2%'. 제목의 적용이 명확할 때 서점·제과점 각각에 6%를 연결하며, 여행의 2%와 섞지 않습니다. 공통 제목만 독립 혜택으로 만들지 않습니다.
+- 원문 표: '실적 | 월 한도' 아래 '25만원 | 4천원', '45만원 | 9천원'. 25만원과 4천원, 45만원과 9천원의 짝을 각각 보존합니다. 다른 행이나 한도 열의 값을 바꿔 붙이지 않습니다.
+- 원문: '연회비 없음. 별도로 보유한 카드의 연회비는 청구됨'. 없음과 별도 카드 예외를 보존합니다. 모든 카드의 연회비가 없다고 확대하지 않습니다.
+예시는 일부 필드의 의미 설명이며 실제 응답에서는 전체 필드와 실제 입력의 근거를 반환하세요.
+
+7. 누락과 추측 방지
+모든 fact에는 원문으로 뒷받침되는 비어 있지 않은 benefit_type, action, target과 condition/value/cap/frequency/period/exceptions 중 하나 이상이 있어야 합니다. 숫자만 있는 줄로 관계를 만들지 마세요. 표현을 새로 만들어 필수 필드를 채우지 마세요.
+할인, 적립, 캐시백, 마일, 포인트, 무료, 면제, 혜택 표현이 있는 줄은 관련 fact의 field_evidence와 relation_scope로 연결하세요. 법정·일반 안내나 표 머리글이라 fact에 포함하지 않는 경우에만 ignored_risky_lines에 line_id와 구체적인 reason을 기록하세요. 불명확한 실제 혜택을 일반 안내로 표시해 숨기지 마세요. 근거로 관계를 입증할 수 없으면 추측한 fact를 만들지 마세요. 미추출 위험 줄의 판단은 후속 검증에 맡기며 그 밖의 미사용 줄은 출력하지 마세요."""
 
 
 def numbered_ocr_pages(pages: list[dict[str, Any]]) -> list[dict[str, Any]]:
