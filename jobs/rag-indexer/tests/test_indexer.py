@@ -1855,6 +1855,28 @@ class FieldEvidenceV6Test(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "skip non-whitespace"):
             validate_lane("luna", unsafe)
 
+    def test_noun_labels_cannot_hide_two_non_numeric_benefit_targets(self) -> None:
+        lines = ["Issuer Card", "monthly", "카페 할인 대상", "통신비 할인 대상"]
+        def ref(index, text):
+            start = lines[index].index(text)
+            return {"line_id": f"P0001-L{index + 1:04d}", "fragment": text,
+                    "char_start": start, "char_end": start + len(text)}
+        for absorbed_field in ("benefit_type", "condition"):
+            payload = self._lane()
+            payload["pages"][0]["text"] = "\n".join(lines)
+            fact = payload["facts"][0]
+            fact.update({key: "" for key in RELATION_FIELDS})
+            fact.update(benefit_type="할인", action="할인", target="카페", condition="monthly")
+            fact["field_evidence"] = {key: [] for key in RELATION_FIELDS}
+            fact["field_evidence"].update(benefit_type=[ref(2, "할인")], action=[ref(2, "할인")],
+                                          target=[ref(2, "카페")], condition=[ref(1, "monthly")])
+            indices = (2, 3) if absorbed_field == "benefit_type" else (1, 2, 3)
+            fact[absorbed_field] = " ".join(lines[i] for i in indices)
+            fact["field_evidence"][absorbed_field] = [ref(i, lines[i]) for i in indices]
+            fact["relation_scope"] = {"scope_type": "bounded_block", "line_ids": ["P0001-L0002", "P0001-L0003", "P0001-L0004"], "header_line_ids": [], "row_line_ids": []}
+            with self.subTest(absorbed_field=absorbed_field), self.assertRaisesRegex(ValueError, "multiple benefit candidates"):
+                validate_lane("luna", payload)
+
     def test_explicit_clock_range_is_condition_evidence(self) -> None:
         payload = self._lane()
         source = "카페 (오전11시~오후2시) 10% 할인"
@@ -1866,6 +1888,106 @@ class FieldEvidenceV6Test(unittest.TestCase):
             field: ([] if not value else [{"line_id": "P0001-L0002", "fragment": value, "char_start": source.index(value), "char_end": source.index(value) + len(value)}])
             for field, value in values.items()
         }
+        self.assertEqual(len(validate_lane("luna", payload)), 1)
+
+    def test_common_context_tokens_are_not_money_or_blanket_exemptions(self) -> None:
+        def make(context: str, field: str = "condition"):
+            payload = self._lane()
+            source = f"카페 {context} 7% 할인"
+            payload["pages"][0]["text"] = "Issuer Card\n" + source
+            fact = payload["facts"][0]
+            values = {key: "" for key in fact["field_evidence"]}
+            values.update(benefit_type="할인", action="할인", target="카페", value="7", unit="%")
+            values[field] = context
+            fact.update(values)
+            fact["field_evidence"] = {
+                key: ([] if not value else [{
+                    "line_id": "P0001-L0002", "fragment": value,
+                    "char_start": source.index("7%" if key == "value" else value),
+                    "char_end": source.index("7%" if key == "value" else value) + len(value),
+                }]) for key, value in values.items()
+            }
+            return payload
+
+        for context, field in (
+            ("09:00~18:00", "condition"), ("11시~14시", "condition"),
+            ("오전 11시~오후 2시", "period"),
+            ("2024년 2월 29일 이후 발급", "exceptions"),
+            ("2024-02-29", "period"),
+            ("고객센터 1588-1688", "exceptions"),
+            ("전화 02-950-8510", "exceptions"),
+        ):
+            with self.subTest(context=context, field=field):
+                payload = make(context, field)
+                before = json.loads(json.dumps(payload))
+                self.assertEqual(len(validate_lane("luna", payload)), 1)
+                self.assertEqual(payload, before)
+                payload["facts"][0][field] = context.replace("2", "3", 1) if "2" in context else context + " 추가"
+                with self.assertRaises(ValueError):
+                    validate_lane("luna", payload)
+        for context in ("29:80~31:70", "오전23시", "2023년 2월 29일", "1588-1688", "문의 A-2006-0302-9227-00204"):
+            with self.subTest(invalid=context), self.assertRaises(ValueError):
+                validate_lane("luna", make(context, "exceptions"))
+        for context in ("09:00~18:00 10%", "고객센터 1588-1688 10%"):
+            with self.subTest(unrelated_rate=context), self.assertRaises(ValueError):
+                validate_lane("luna", make(context, "exceptions"))
+
+    def test_noun_labels_preserve_explanatory_rules_without_new_benefits(self) -> None:
+        cases = [
+            ("적립 대상이 중복인 경우 적립률이 높은 서비스 우선 적용",
+             {"benefit_type": "적립률", "action": "우선 적용", "target": "적립률이 높은 서비스", "condition": "적립 대상이 중복인 경우"}),
+            ("카페 할인/적립 서비스 제공",
+             {"benefit_type": "카페", "action": "서비스 제공", "target": "카페", "value": "할인/적립"}),
+        ]
+        for source, values in cases:
+            with self.subTest(source=source):
+                payload = self._lane()
+                payload["pages"][0]["text"] = "Issuer Card\n" + source
+                fact = payload["facts"][0]
+                values = {key: values.get(key, "") for key in fact["field_evidence"]}
+                fact.update(values)
+                fact["field_evidence"] = {
+                    key: ([] if not value else [{"line_id": "P0001-L0002", "fragment": value,
+                        "char_start": source.index(value), "char_end": source.index(value) + len(value)}])
+                    for key, value in values.items()
+                }
+                self.assertEqual(len(validate_lane("luna", payload)), 1)
+
+    def test_heading_relationship_is_structural_not_card_specific(self) -> None:
+        for document_id in ("issuer_a/card_a", "issuer_b/card_b", "issuer_c/card_c"):
+            payload = self._lane()
+            payload["document_id"] = document_id
+            lines = ["Issuer Card", "## 혜택", "안내", "### 카페", "monthly 7% 할인"]
+            payload["pages"][0]["text"] = "\n".join(lines)
+            fact = payload["facts"][0]
+            fact.update(benefit_type="혜택", target="카페", condition="monthly", value="7", action="할인")
+            positions = {"benefit_type": 2, "target": 4, "condition": 5, "value": 5, "action": 5, "unit": 5}
+            fact["field_evidence"] = {
+                key: ([] if not fact[key] else [{"line_id": f"P0001-L{positions[key]:04d}", "fragment": fact[key],
+                    "char_start": lines[positions[key] - 1].index(fact[key]),
+                    "char_end": lines[positions[key] - 1].index(fact[key]) + len(fact[key])}])
+                for key in fact["field_evidence"]
+            }
+            fact["relation_scope"] = {"scope_type": "bounded_block", "line_ids": ["P0001-L0002", "P0001-L0004", "P0001-L0005"], "header_line_ids": [], "row_line_ids": []}
+            with self.subTest(document_id=document_id):
+                self.assertEqual(len(validate_lane("luna", payload)), 1)
+                payload["pages"][0]["text"] = payload["pages"][0]["text"].replace("### 카페", "## 카페")
+                with self.assertRaisesRegex(ValueError, "sibling heading"):
+                    validate_lane("luna", payload)
+
+    def test_adjacent_provider_heading_markers_do_not_invent_a_section_conflict(self) -> None:
+        payload = self._lane()
+        lines = ["Issuer Card", "# 카페", "# monthly 1% 할인"]
+        payload["pages"][0]["text"] = "\n".join(lines)
+        fact = payload["facts"][0]
+        for field, refs in fact["field_evidence"].items():
+            if not refs:
+                continue
+            number = 2 if field in {"benefit_type", "target"} else 3
+            value = fact[field]
+            fact["field_evidence"][field] = [{"line_id": f"P0001-L{number:04d}", "fragment": value,
+                "char_start": lines[number - 1].index(value), "char_end": lines[number - 1].index(value) + len(value)}]
+        fact["relation_scope"] = {"scope_type": "bounded_block", "line_ids": ["P0001-L0002", "P0001-L0003"], "header_line_ids": [], "row_line_ids": []}
         self.assertEqual(len(validate_lane("luna", payload)), 1)
 
     def test_table_common_benefit_title_uses_header_action_and_condition(self) -> None:

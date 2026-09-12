@@ -29,16 +29,20 @@ from .grounding import (
     normalized as _grounded_normalized,
     relation_key,
 )
-from .structural import STRUCTURAL_CONTRACT, build_structural_chunks, render_pages
+from .structural import HEADING_RE, STRUCTURAL_CONTRACT, build_structural_chunks, render_pages
 
 
 NUMBER = re.compile(r"\d+(?:[,.]\d+)?")
 NUMBER_TOKEN = re.compile(r"(?<![\d.])[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?![\d.])")
 SOURCE_UNIT = re.compile(r"\s*(?:만\s*원|천\s*원|원|%|％|퍼센트|마일리지|마일|포인트|개월|회|년|일|시간|분|초|점|달러)")
-TIME_RANGE = re.compile(r"(?:오전|오후)\s*\d{1,2}\s*시\s*(?:~|～|-|–|—|부터)\s*(?:오전|오후)\s*\d{1,2}\s*시(?:\s*까지)?")
+CLOCK_LITERAL = re.compile(r"(?<![\d:])(?:[01]?\d|2[0-3]):[0-5]\d(?![\d:])|(?<!\d)(?:(?:오전|오후)\s*(?:0?[1-9]|1[0-2])|(?:[01]?\d|2[0-3]))\s*시(?:\s*[0-5]?\d\s*분)?(?!간)")
+DATE_LITERAL = re.compile(r"(?<![\d-])(\d{4})(?:\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*일|-(\d{2})-(\d{2}))(?![\d-])")
+PHONE_LITERAL = re.compile(r"(?<![\d-])(?:0\d{1,2}-\d{3,4}-\d{4}|1\d{3}-\d{4})(?![\d-])")
+CONTACT_LABEL = re.compile(r"☎|전화|고객센터|고객상담|문의|연락처|팩스")
 RISKY_IGNORED_LINE = re.compile(r"할인|적립|캐시백|마일|포인트|무료|면제|혜택")
-BENEFIT_ACTION_SIGNAL = re.compile(r"할인|적립|캐시백|마일|포인트|무료|면제")
 BENEFIT_VERB_SIGNAL = re.compile(r"할인|적립|캐시백|무료|면제")
+BENEFIT_NOUN_SUFFIX = re.compile(r"\s*(?:율|률|대상)")
+BENEFIT_COMBINED_LABEL = re.compile(r"(?:할인/적립|적립/할인)")
 CRITICAL_RELATION_LINE = re.compile(r"할인|적립|캐시백|마일|포인트|무료|면제|(?:전월|지난달).?실적|이용.?금액|한도|횟수|이상|초과|이하|미만|제외|불가|조건")
 FIELD_ROLE_MARKERS = {
     "condition": re.compile(r"(?:전월|지난달).?실적|이용.?금액|이상|초과|이하|미만|조건"),
@@ -69,7 +73,7 @@ GENERIC_LAYOUT_LABELS = {
 GENERIC_LAYOUT_KEYS = {re.sub(r"\s+", "", label) for label in GENERIC_LAYOUT_LABELS}
 CHUNKING_PROFILES = {"card_page_section_benefit", "parent_child_bundle"}
 DEFAULT_CHUNKING_PROFILE = "card_page_section_benefit"
-OCR_PIPELINE_CONTRACT = "dual-lane-field-evidence-relation-v7"
+OCR_PIPELINE_CONTRACT = "dual-lane-field-evidence-relation-v8"
 
 
 class LaneRestructureRequired(ValueError):
@@ -429,6 +433,53 @@ def _contains_range(container: tuple[str, int, int], line_id: str, start: int, e
     return container[0] == line_id and container[1] <= start and end <= container[2]
 
 
+def _context_literal_ranges(text: str, field: str) -> list[tuple[int, int]]:
+    """Recognize complete non-monetary tokens, never exempt their whole line."""
+    if field not in {"condition", "period", "exceptions"}:
+        return []
+    ranges = []
+    for match in CLOCK_LITERAL.finditer(text):
+        # Do not reinterpret the tail of an invalid '오전23시' as a 24-hour clock.
+        if re.search(r"(?:오전|오후)\s*$", text[:match.start()]):
+            continue
+        ranges.append(match.span())
+    for match in DATE_LITERAL.finditer(text):
+        year, month, day, iso_month, iso_day = match.groups()
+        try:
+            datetime(int(year), int(month or iso_month), int(day or iso_day))
+        except ValueError:
+            continue
+        ranges.append(match.span())
+    if field == "exceptions":
+        for match in PHONE_LITERAL.finditer(text):
+            if CONTACT_LABEL.search(text[:match.start()]):
+                ranges.append(match.span())
+    return ranges
+
+
+def _check_heading_chain(provider: str, ordinal: int, ordered: list[str], registry: dict[str, tuple[int, str]]) -> None:
+    """A common heading may be an ancestor, but sibling sections cannot be mixed."""
+    selected = set(ordered)
+    paths: list[tuple[str, ...]] = []
+    stack: list[tuple[int, str]] = []
+    current_page = None
+    for line_id, (page, text) in registry.items():
+        if page != current_page:
+            stack.clear()
+            current_page = page
+        heading = HEADING_RE.fullmatch(text)
+        if heading:
+            depth = len(heading[1])
+            while stack and stack[-1][0] >= depth:
+                stack.pop()
+            stack.append((depth, line_id))
+        if line_id in selected:
+            paths.append(tuple(item[1] for item in stack))
+    deepest = max(paths, key=len, default=())
+    if any(path != deepest[:len(path)] or (deepest and not path) for path in paths):
+        raise ValueError(f"{provider} fact {ordinal} relation_scope crosses sibling heading sections")
+
+
 def _fragment_format_key(value: str) -> str:
     """Normalize presentation only; numbers, units, operators and negation survive."""
     text = normalized(EVIDENCE_FORMAT_PREFIX.sub("", unicodedata.normalize("NFKC", value))).strip()
@@ -509,12 +560,17 @@ def _scope_line_ids(provider: str, ordinal: int, scope: Any, registry: dict[str,
         selected = set(ordered)
         first, last = order[ordered[0]], order[ordered[-1]]
         skipped = [line_id for line_id in list(registry)[first:last + 1] if line_id not in selected]
+        # OCR can mark an adjacent explanatory sentence as another '# heading'.
+        # Use hierarchy only to guard a remote jump, not as a blanket rejection
+        # of contiguous text already checked by the field/numeric validators.
+        if skipped:
+            _check_heading_chain(provider, ordinal, ordered, registry)
         if any(
             registry[line_id][1].strip().startswith("|")
             or CRITICAL_RELATION_LINE.search(registry[line_id][1]) and not _is_generic_layout_line(registry[line_id][1])
             for line_id in skipped
         ):
-            raise ValueError(f"{provider} fact {ordinal} bounded block skips a competing relation boundary")
+            raise ValueError(f"{provider} fact {ordinal} bounded block skips a competing relation boundary; shared context is not proven")
     header, row = scope.get("header_line_ids"), scope.get("row_line_ids")
     if not isinstance(header, list) or not isinstance(row, list):
         raise ValueError(f"{provider} fact {ordinal} relation_scope header/row arrays are required")
@@ -692,7 +748,27 @@ def _validate_field_grounding(
                     for marker in FIELD_ROLE_MARKERS["condition"].finditer(source_line)
                 )
             )
-            if not layout_heading and not action_mapped and not contextual_role and not table_common_title:
+            # '적립률' or a '할인/적립' label names a concept, not another action.
+            # It must still be preserved in an actual field; all numeric and
+            # role checks below apply unchanged to the surrounding content.
+            noun_end = BENEFIT_NOUN_SUFFIX.match(source_line, match.end())
+            noun_ranges = [(match.start(), noun_end.end())] if noun_end else []
+            noun_ranges.extend(
+                label.span() for label in BENEFIT_COMBINED_LABEL.finditer(source_line)
+                if label.start() <= match.start() and match.end() <= label.end()
+            )
+            explanatory_action = any(
+                span[0] == line_id
+                and not BENEFIT_VERB_SIGNAL.fullmatch(normalized(source_line[span[1]:span[2]]))
+                for span in field_spans.get("action", [])
+            )
+            noun_mapped = explanatory_action and any(
+                _contains_range(span, line_id, start, end)
+                for start, end in noun_ranges
+                for field, spans in field_spans.items() if field not in {"benefit_type", "action"}
+                for span in spans
+            )
+            if not layout_heading and not action_mapped and not contextual_role and not table_common_title and not noun_mapped:
                 raise ValueError(f"{provider} fact {ordinal} contains multiple benefit candidates")
     if scope["scope_type"] == "table_row":
         header_id, row_id = scope["header_line_ids"][0], scope["row_line_ids"][0]
@@ -753,12 +829,13 @@ def _validate_field_grounding(
                     for span in field_spans[owners[0]]
                     for marker in FIELD_ROLE_MARKERS[owners[0]].finditer(registry[line_id][1])
                 )
-                time_range_bound = owners[0] == "condition" and any(
-                    time.start() <= match.start() and match.end() <= time.end()
-                    and any(_contains_range(span, line_id, time.start(), time.end()) for span in field_spans["condition"])
-                    for time in TIME_RANGE.finditer(registry[line_id][1])
+                context_literal_bound = any(
+                    span[0] == line_id
+                    and span[1] + start <= match.start() and match.end() <= span[1] + end
+                    for span in field_spans[owners[0]]
+                    for start, end in _context_literal_ranges(registry[span[0]][1][span[1]:span[2]], owners[0])
                 )
-                if not table_role_bound and not marker_bound and not time_range_bound:
+                if not table_role_bound and not marker_bound and not context_literal_bound:
                     raise ValueError(f"{provider} fact {ordinal} numeric relationship is assigned to the wrong field role")
             suffix = SOURCE_UNIT.match(registry[line_id][1], match.end())
             if suffix:
