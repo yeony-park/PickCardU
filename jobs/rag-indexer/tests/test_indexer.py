@@ -2476,6 +2476,103 @@ class FieldEvidenceV6Test(unittest.TestCase):
             })
         self.assertEqual(len(validate_lane("luna", punctuated)), 1)
 
+    def test_fee_label_value_table_preserves_fee_and_exception(self) -> None:
+        payload = self._lane()
+        lines = ["Issuer Card", "# 연회비 정보", "| 구 분 | 국내전용 / 해외겸용 |",
+                 "| --- | --- |", "| 연회비 | 없음 |",
+                 "Card의 별도 연회비는 없으며, 보유 카드의 연회비는 각각 청구됩니다."]
+        payload["pages"][0]["text"] = "\n".join(lines)
+        fact = payload["facts"][0]
+        values = dict.fromkeys(RELATION_FIELDS, "")
+        values.update(benefit_type="연회비", target="Card의 별도 연회비", action="없으며",
+                      value="없음", exceptions="보유 카드의 연회비는 각각 청구됩니다.")
+        fact.update(values)
+        positions = {"benefit_type": 5, "value": 5, "target": 6, "action": 6, "exceptions": 6}
+        fact["field_evidence"] = {
+            field: ([] if not value else [{"line_id": f"P0001-L{positions[field]:04d}", "fragment": value,
+                "char_start": lines[positions[field] - 1].index(value),
+                "char_end": lines[positions[field] - 1].index(value) + len(value)}])
+            for field, value in values.items()
+        }
+        fact["relation_scope"] = {"scope_type": "table_row", "line_ids": ["P0001-L0002", "P0001-L0003", "P0001-L0005", "P0001-L0006"],
+                                  "header_line_ids": ["P0001-L0003"], "row_line_ids": ["P0001-L0005"]}
+        self.assertEqual(len(validate_lane("luna", payload)), 1)
+        for field, replacement in (("value", "5천원"), ("target", "다른 수수료")):
+            unsafe = json.loads(json.dumps(payload))
+            unsafe["facts"][0][field] = replacement
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                validate_lane("luna", unsafe)
+        unsafe = json.loads(json.dumps(payload))
+        unsafe["pages"][0]["text"] = unsafe["pages"][0]["text"].replace("# 연회비 정보", "# 연회비 30만원 이상 면제")
+        with self.assertRaises(ValueError):
+            validate_lane("luna", unsafe)
+        for header in ("전월 실적 30만원 이상", "가족 제외", "월 한도", "연간", "가족카드", "국내전용"):
+            unsafe = json.loads(json.dumps(payload))
+            unsafe["pages"][0]["text"] = unsafe["pages"][0]["text"].replace("국내전용 / 해외겸용", header)
+            with self.subTest(header=header), self.assertRaises(ValueError):
+                validate_lane("luna", unsafe)
+        unsafe = json.loads(json.dumps(payload))
+        unsafe["facts"][0]["exceptions"] = ""
+        unsafe["facts"][0]["field_evidence"]["exceptions"] = []
+        with self.assertRaisesRegex(ValueError, "fee condition or exception"):
+            validate_lane("luna", unsafe)
+        # Omitting both the context and its evidence must not hide its rules.
+        unsafe["facts"][0]["relation_scope"]["line_ids"].remove("P0001-L0006")
+        for field, value in (("target", "연회비"), ("action", "없음")):
+            unsafe["facts"][0][field] = value
+            unsafe["facts"][0]["field_evidence"][field] = [{"line_id": "P0001-L0005", "fragment": value,
+                "char_start": lines[4].index(value), "char_end": lines[4].index(value) + len(value)}]
+        with self.assertRaisesRegex(ValueError, "adjacent fee rules"):
+            validate_lane("luna", unsafe)
+        unsafe = json.loads(json.dumps(payload))
+        unsafe["pages"][0]["text"] = unsafe["pages"][0]["text"].replace("Card의 별도", "Other의 별도")
+        unsafe["facts"][0]["target"] = "Other의 별도 연회비"
+        unsafe["facts"][0]["field_evidence"]["target"][0].update(fragment="Other의 별도 연회비", char_end=len("Other의 별도 연회비"))
+        with self.assertRaisesRegex(ValueError, "fee target"):
+            validate_lane("luna", unsafe)
+        unsafe = json.loads(json.dumps(payload))
+        unsafe["pages"][0]["text"] += "\n다만, 재발급은 청구됩니다."
+        with self.assertRaisesRegex(ValueError, "adjacent fee rules"):
+            validate_lane("luna", unsafe)
+
+    def test_table_parenthesized_common_condition_can_join_row_condition(self) -> None:
+        payload = self._lane()
+        lines = ["Issuer Card", "# 할인 서비스(온라인 결제 시)",
+                 "| 조건 | 대상 | 할인율 |", "| --- | --- | --- |",
+                 "| 전월 실적 30만원 이상 | 카페 | 10% |"]
+        payload["pages"][0]["text"] = "\n".join(lines)
+        fact = payload["facts"][0]
+        values = dict.fromkeys(RELATION_FIELDS, "")
+        values.update(benefit_type="할인 서비스", action="할인", target="카페",
+                      condition="온라인 결제 시 전월 실적 30만원 이상", value="10", unit="%")
+        fact.update(values)
+        parts = {"benefit_type": [(2, "할인 서비스")], "action": [(2, "할인")],
+                 "target": [(5, "카페")], "condition": [(2, "온라인 결제 시"), (5, "전월 실적 30만원 이상")],
+                 "value": [(5, "10")], "unit": [(5, "%")]}
+        fact["field_evidence"] = {
+            field: [{"line_id": f"P0001-L{number:04d}", "fragment": fragment,
+                     "char_start": lines[number - 1].index(fragment),
+                     "char_end": lines[number - 1].index(fragment) + len(fragment)}
+                    for number, fragment in parts.get(field, [])] for field in RELATION_FIELDS
+        }
+        fact["relation_scope"] = {"scope_type": "table_row", "line_ids": ["P0001-L0002", "P0001-L0003", "P0001-L0005"],
+                                  "header_line_ids": ["P0001-L0003"], "row_line_ids": ["P0001-L0005"]}
+        self.assertEqual(len(validate_lane("luna", payload)), 1)
+        for omitted in ("제외", "50만원 미만", "에 한하지 않음"):
+            unsafe = json.loads(json.dumps(payload))
+            unsafe["pages"][0]["text"] = unsafe["pages"][0]["text"].replace("온라인 결제 시)", f"온라인 결제 시 {omitted})")
+            with self.subTest(omitted=omitted), self.assertRaises(ValueError):
+                validate_lane("luna", unsafe)
+        unsafe = json.loads(json.dumps(payload))
+        unsafe["facts"][0]["condition"] = "온라인 결제 시 전월 실적 50만원 이상"
+        with self.assertRaises(ValueError):
+            validate_lane("luna", unsafe)
+        for header in ("조건 50만원 이상", "조건 제외"):
+            unsafe = json.loads(json.dumps(payload))
+            unsafe["pages"][0]["text"] = unsafe["pages"][0]["text"].replace("| 조건 |", f"| {header} |")
+            with self.subTest(header=header), self.assertRaises(ValueError):
+                validate_lane("luna", unsafe)
+
     def test_four_column_table_binds_field_roles_to_row_cells(self) -> None:
         payload = self._lane()
         header = "| 대상 | 할인율 | 전월 실적 | 월 한도 |"

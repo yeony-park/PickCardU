@@ -76,7 +76,7 @@ GENERIC_LAYOUT_LABELS = {
 GENERIC_LAYOUT_KEYS = {re.sub(r"\s+", "", label) for label in GENERIC_LAYOUT_LABELS}
 CHUNKING_PROFILES = {"card_page_section_benefit", "parent_child_bundle"}
 DEFAULT_CHUNKING_PROFILE = "card_page_section_benefit"
-OCR_PIPELINE_CONTRACT = "dual-lane-field-evidence-relation-v10"
+OCR_PIPELINE_CONTRACT = "dual-lane-field-evidence-relation-v11"
 
 
 class LaneRestructureRequired(ValueError):
@@ -450,6 +450,56 @@ def _table_header_role(value: str) -> str | None:
     return None
 
 
+def _fee_row_label(header: list[tuple[int, int, str]], row: list[tuple[int, int, str]], fact: dict[str, Any]) -> str | None:
+    """Recognize an explicit fee label/value row, not an arbitrary unknown table."""
+    if len(header) != 2 or len(row) != 2 or re.sub(r"\s+", "", header[0][2]) not in {"구분", "항목"}:
+        return None
+    if NUMBER_TOKEN.search(header[1][2]) or CRITICAL_RELATION_LINE.search(header[1][2]) or _table_header_role(header[1][2]) is not None:
+        return None  # Never reinterpret a condition/limit column as a fee value.
+    heading = re.sub(r"\s+", "", header[1][2])
+    variants = set(heading.split("/"))
+    all_variants = ("국내전용" in variants and bool(variants & {"국내외겸용", "해외겸용"})
+                    and variants <= {"국내전용", "국내외겸용", "해외겸용", "K-world"})
+    if heading not in {"금액", "비용", "내용"} and not all_variants:
+        return None  # A lone family/domestic category is a restriction, not a value label.
+    label = normalized(row[0][2])
+    if not re.fullmatch(r"(?:기본|제휴|총|발급)?(?:연회비|수수료|이용료|발급비)", label):
+        return None
+    if normalized(fact["benefit_type"]) != label or label not in normalized(fact["target"]):
+        return None
+    return label
+
+
+def _table_condition_bridge(left: tuple[str, int, int], right: tuple[str, int, int],
+                            scope: dict[str, Any], registry: dict[str, tuple[int, str]]) -> bool:
+    """Join a parenthesized common condition to the first data row's condition.
+
+    Only the closing parenthesis, column headers and delimiter row may be
+    skipped. Other data rows, prose and unselected conditions remain blocking.
+    """
+    if scope["scope_type"] != "table_row":
+        return False
+    ids = list(registry)
+    header, row = scope["header_line_ids"][0], scope["row_line_ids"][0]
+    hi, ri = ids.index(header), ids.index(row)
+    if hi == 0 or left[0] != ids[hi - 1] or right[0] != row:
+        return False
+    title = registry[left[0]][1]
+    if not title[:left[1]].rstrip().endswith("(") or title[left[2]:].strip() != ")":
+        return False
+    if not HEADING_RE.fullmatch(title):
+        return False
+    if ri != hi + 2 or not re.fullmatch(r"\s*\|(?:\s*:?-+:?\s*\|){2,}\s*", registry[ids[hi + 1]][1]):
+        return False
+    headers, cells = _table_cells(registry[header][1]), _table_cells(registry[row][1])
+    if len(headers) != len(cells) or not all(re.sub(r"\s+", "", h[2]) in GENERIC_LAYOUT_KEYS for h in headers):
+        return False  # A header containing a condition/value is not disposable layout.
+    return any(
+        _table_header_role(h[2]) == "condition" and (right[1], right[2]) == (cell[0], cell[1])
+        for h, cell in zip(headers, cells)
+    )
+
+
 def _contains_range(container: tuple[str, int, int], line_id: str, start: int, end: int) -> bool:
     return container[0] == line_id and container[1] <= start and end <= container[2]
 
@@ -674,12 +724,14 @@ def _validate_field_grounding(
     raw_fact: dict[str, Any],
     fact: dict[str, Any],
     registry: dict[str, tuple[int, str]],
+    card_name: str | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     scope_ids = _scope_line_ids(provider, ordinal, raw_fact.get("relation_scope"), registry)
     scope = raw_fact["relation_scope"]
     table_roles: list[str | None] = []
     table_row_cells: list[tuple[int, int, str]] = []
     shared_heading: str | None = None
+    fee_label: str | None = None
     if scope["scope_type"] == "table_row":
         header_id, row_id = scope["header_line_ids"][0], scope["row_line_ids"][0]
         header_cells = _table_cells(registry[header_id][1])
@@ -687,6 +739,9 @@ def _validate_field_grounding(
         if len(header_cells) != len(table_row_cells):
             raise ValueError(f"{provider} fact {ordinal} table header and row column counts differ")
         table_roles = [_table_header_role(cell[2]) for cell in header_cells]
+        fee_label = _fee_row_label(header_cells, table_row_cells, fact)
+        if fee_label:
+            table_roles = ["fee_label", "value"]
         shared_heading = _shared_table_heading(scope, registry)
     field_evidence = raw_fact.get("field_evidence")
     if not isinstance(field_evidence, dict):
@@ -724,6 +779,8 @@ def _validate_field_grounding(
             if scope["scope_type"] == "table_row" and line_id == scope["row_line_ids"][0] and field in TABLE_FIELD_ROLE:
                 role = TABLE_FIELD_ROLE[field]
                 allowed_ranges = [(cell[0], cell[1]) for index, cell in enumerate(table_row_cells) if table_roles[index] == role]
+                if fee_label and field == "target":
+                    allowed_ranges = [(table_row_cells[0][0], table_row_cells[0][1])]
                 if not allowed_ranges:
                     allowed_ranges = None if field in {"condition", "cap", "frequency", "period", "exceptions"} else []
             if allowed_ranges == []:
@@ -760,7 +817,9 @@ def _validate_field_grounding(
                 # bullets; a '-' following a fragment can be a range/operator.
                 tail, *following = gap.split("\n")
                 layout_gap = "\n".join([tail, *(re.sub(r"^ {0,3}(?:#{1,6}[ \t]+|(?:[-*•·][ \t]+)+)", "", line) for line in following)])
-            if not re.fullmatch(r"[\s•※]*", layout_gap):
+            if not re.fullmatch(r"[\s•※]*", layout_gap) and not (
+                field == "condition" and _table_condition_bridge(left, right, scope, registry)
+            ):
                 raise ValueError(f"{provider} fact {ordinal} {field} fragments skip non-whitespace source content")
         field_spans[field] = ordered_locations
         # Do not let a correct small fragment plus an unrelated broad quote pass.
@@ -791,9 +850,29 @@ def _validate_field_grounding(
         if field_comparison_key(source_fact, field) != field_comparison_key(fact, field):
             raise CriticalContentMismatch(f"{provider} fact {ordinal} {field} fragments do not reconstruct its raw field")
     all_spans = [span for spans in field_spans.values() for span in spans]
+    if fee_label:
+        # A fee row cannot silently discard its immediately following rules.
+        ids = list(registry)
+        cursor = ids.index(scope["row_line_ids"][0]) + 1
+        while cursor < len(ids) and registry[ids[cursor]][1].strip().startswith("|"):
+            cursor += 1
+        while cursor < len(ids):
+            line_id = ids[cursor]
+            page, text = registry[line_id]
+            if page != registry[scope["row_line_ids"][0]][0] or HEADING_RE.fullmatch(text) or text.strip().startswith("|"):
+                break
+            if line_id not in scope_ids:
+                raise ValueError(f"{provider} fact {ordinal} adjacent fee rules are missing from relation_scope")
+            remaining = "".join(character for index, character in enumerate(text)
+                                if not any(_contains_range(span, line_id, index, index + 1) for span in all_spans))
+            if not re.fullmatch(r"(?:[\s,.;:•※·-]|는|은|이|가|을|를|의)*", remaining):
+                raise ValueError(f"{provider} fact {ordinal} adjacent fee condition or exception is not preserved")
+            cursor += 1
     if scope["scope_type"] == "table_row":
         structural_ids = {scope["header_line_ids"][0], scope["row_line_ids"][0]}
         for line_id in set(scope_ids) - structural_ids:
+            if fee_label and _fragment_format_key(registry[line_id][1]) in {fee_label, fee_label + "안내", fee_label + "정보"}:
+                continue  # A repeated label adds no condition, amount or exception.
             if not any(span[0] == line_id for span in all_spans):
                 raise ValueError(f"{provider} fact {ordinal} table context line has no field-level relationship evidence")
     for line_id in scope_ids:
@@ -872,11 +951,36 @@ def _validate_field_grounding(
                 continue
             matching_columns = [index for index, role in enumerate(table_roles) if role == expected_role]
             spans = field_spans[field]
+            if fee_label and field == "target":
+                label_start, label_end, _ = table_row_cells[0]
+                row_index = list(registry).index(row_id)
+                for line_id, start, end in spans:
+                    if line_id == row_id and label_start <= start and end <= label_end:
+                        continue
+                    # The adjacent prose must name the same fee explicitly;
+                    # cross-row/remote explanations cannot substitute a target.
+                    target_key = _fragment_format_key(registry[line_id][1][start:end])
+                    card_key = _fragment_format_key(card_name or "")
+                    same_card_target = bool(card_key) and bool(re.fullmatch(
+                        re.escape(card_key) + r"(?:의|발급에따른)?별도" + re.escape(fee_label), target_key))
+                    same_free_action = fact["value"] in {"없음", "면제"} and any(
+                        action_line == line_id and action_start >= end
+                        and re.fullmatch(r"\s*(?:는|은|이|가)?\s*", registry[line_id][1][end:action_start])
+                        and re.fullmatch(r"없(?:음|으며|습니다|다)|면제(?:됩니다|입니다)?", normalized(registry[line_id][1][action_start:action_end]))
+                        for action_line, action_start, action_end in field_spans.get("action", [])
+                    )
+                    if (list(registry).index(line_id) != row_index + 1
+                            or registry[line_id][1].strip().startswith("|")
+                            or not same_card_target or not same_free_action):
+                        raise ValueError(f"{provider} fact {ordinal} fee target is not bound to its row label")
+                continue
             if matching_columns:
                 if len(matching_columns) != 1:
                     raise ValueError(f"{provider} fact {ordinal} table {field} column is ambiguous or missing")
                 cell_start, cell_end, _text = table_row_cells[matching_columns[0]]
-                if not all(span[0] == row_id and cell_start <= span[1] and span[2] <= cell_end for span in spans):
+                bridges = {spans[index] for index in range(len(spans) - 1)
+                           if field == "condition" and _table_condition_bridge(spans[index], spans[index + 1], scope, registry)}
+                if not all(span in bridges or (span[0] == row_id and cell_start <= span[1] and span[2] <= cell_end) for span in spans):
                     raise ValueError(f"{provider} fact {ordinal} table {field} is not grounded in its matching data cell")
             elif field in {"target", "value", "unit"}:
                 if not shared_heading or not all(span[0] == shared_heading for span in spans):
@@ -884,7 +988,7 @@ def _validate_field_grounding(
             elif any(span[0] in {header_id, row_id} for span in spans):
                 raise ValueError(f"{provider} fact {ordinal} table {field} column is ambiguous or missing")
         for column, role in enumerate(table_roles):
-            if role is None:
+            if role is None or role == "fee_label":
                 continue
             cell_start, cell_end, _text = table_row_cells[column]
             fields = ("value", "unit") if role == "value" else (role,)
@@ -893,7 +997,8 @@ def _validate_field_grounding(
                 _contains_range(span, row_id, position, position + 1) for span in spans
             ) for position in range(cell_start, cell_end)):
                 raise ValueError(f"{provider} fact {ordinal} table {role} cell is only partially preserved")
-        inherited = any(fact[field] and TABLE_FIELD_ROLE[field] not in table_roles for field in ("target", "value", "unit"))
+        inherited = any(fact[field] and TABLE_FIELD_ROLE[field] not in table_roles
+                        and not (fee_label and field == "target") for field in ("target", "value", "unit"))
         if inherited:
             title = registry[shared_heading][1]
             heading = HEADING_RE.fullmatch(title)
@@ -1049,7 +1154,7 @@ def validate_lane(provider: str, payload: dict[str, Any]) -> list[dict[str, Any]
             if not isinstance(raw_fact, dict):
                 raise ValueError(f"{provider} fact {ordinal} is not an object")
             fact = normalise_fact(raw_fact)
-            relation_scope, field_evidence = _validate_field_grounding(provider, ordinal, raw_fact, fact, registry)
+            relation_scope, field_evidence = _validate_field_grounding(provider, ordinal, raw_fact, fact, registry, identity["card_name"])
             is_table = relation_scope["scope_type"] == "table_row"
             source_ranges = tuple(sorted(
                 (field if is_table else "", fragment["line_id"], fragment["char_start"], fragment["char_end"])
