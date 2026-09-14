@@ -76,7 +76,7 @@ GENERIC_LAYOUT_LABELS = {
 GENERIC_LAYOUT_KEYS = {re.sub(r"\s+", "", label) for label in GENERIC_LAYOUT_LABELS}
 CHUNKING_PROFILES = {"card_page_section_benefit", "parent_child_bundle"}
 DEFAULT_CHUNKING_PROFILE = "card_page_section_benefit"
-OCR_PIPELINE_CONTRACT = "dual-lane-field-evidence-relation-v11"
+OCR_PIPELINE_CONTRACT = "dual-lane-field-evidence-relation-v15"
 
 
 class LaneRestructureRequired(ValueError):
@@ -718,6 +718,52 @@ def _scope_line_ids(provider: str, ordinal: int, scope: Any, registry: dict[str,
     return ordered
 
 
+def _list_marker_ranges(registry: dict[str, tuple[int, str]]) -> dict[str, tuple[int, int]]:
+    """Recognize consecutive list labels, never amounts, decimals or inline refs."""
+    pattern = re.compile(r"^\s*(?:[-*•·]\s+)*(?P<label>[①-⑳]|[1-9]\d?[.)]|\([1-9]\d?\))\s+(?=\S)")
+    candidates = []
+    lines = list(registry)
+    for index, line_id in enumerate(lines):
+        page, text = registry[line_id]
+        match = pattern.match(text)
+        if match:
+            label = match['label']
+            number = int(unicodedata.normalize('NFKC', label).strip('().'))
+            style = 'circled' if label[0] in '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳' else re.sub(r'\d+', '#', label)
+            candidates.append((index, line_id, page, number, style, match.span('label')))
+    result = {}
+    for left, right in zip(candidates, candidates[1:]):
+        if left[2] == right[2] and left[4] == right[4] and right[3] == left[3] + 1 and right[0] - left[0] <= 6 and not any(HEADING_RE.fullmatch(registry[k][1]) for k in lines[left[0] + 1:right[0]]):
+            result[left[1]], result[right[1]] = left[5], right[5]
+    return result
+
+
+def _strip_confirmed_list_labels(value: str, registry: dict[str, tuple[int, str]], line_ids: Iterable[str]) -> str:
+    """Remove a label only alongside its complete, explicitly referenced item text."""
+    markers = _list_marker_ranges(registry)
+    for line_id in line_ids:
+        if line_id not in markers:
+            continue
+        start, end = markers[line_id]
+        line = registry[line_id][1]
+        label, body = line[start:end], line[end:].strip()
+        body_pattern = r'\s+'.join(re.escape(word) for word in body.split())
+        value = re.sub(r'(?<!\S)' + re.escape(label) + r'\s+(?=' + body_pattern + r'(?:\s|$))', '', value)
+    return value
+
+
+def _comparison_fact(raw: dict[str, Any], registry: dict[str, tuple[int, str]]) -> dict[str, Any]:
+    comparable = dict(raw)
+    fields = raw.get('field_evidence', {})
+    if isinstance(fields, dict):
+        for field in ('condition', 'cap', 'frequency', 'period', 'exceptions'):
+            fragments = fields.get(field)
+            if isinstance(raw.get(field), str) and isinstance(fragments, list):
+                ids = [x['line_id'] for x in fragments if isinstance(x, dict) and isinstance(x.get('line_id'), str)]
+                comparable[field] = _strip_confirmed_list_labels(raw[field], registry, ids)
+    return normalise_fact(comparable)
+
+
 def _validate_field_grounding(
     provider: str,
     ordinal: int,
@@ -753,6 +799,9 @@ def _validate_field_grounding(
     source_fields = {field: "" for field in RELATION_FIELDS}
     line_order = {line_id: index for index, line_id in enumerate(registry)}
     source_ids = list(registry)
+    list_markers = _list_marker_ranges(registry)
+    gap_lines = {key: text[:list_markers[key][0]] + ' ' * (list_markers[key][1] - list_markers[key][0]) + text[list_markers[key][1]:]
+                 if key in list_markers else text for key, (_page, text) in registry.items()}
     for field in RELATION_FIELDS:
         value = fact[field]
         supplied = field_evidence.get(field)
@@ -803,12 +852,12 @@ def _validate_field_grounding(
             raise ValueError(f"{provider} fact {ordinal} {field} fragments must be ordered non-overlapping source ranges")
         for left, right in zip(ordered_locations, ordered_locations[1:]):
             if left[0] == right[0]:
-                gap = registry[left[0]][1][left[2]:right[1]]
+                gap = gap_lines[left[0]][left[2]:right[1]]
             else:
                 between = source_ids[line_order[left[0]] + 1:line_order[right[0]]]
-                gap = "\n".join([registry[left[0]][1][left[2]:],
-                                 *(registry[line_id][1] for line_id in between),
-                                 registry[right[0]][1][:right[1]]])
+                gap = "\n".join([gap_lines[left[0]][left[2]:],
+                                 *(gap_lines[line_id] for line_id in between),
+                                 gap_lines[right[0]][:right[1]]])
             # Only line-initial Markdown heading markers are layout. Do not
             # erase pipes, minus signs, comparison operators or prose in gaps.
             layout_gap = gap
@@ -825,6 +874,8 @@ def _validate_field_grounding(
         # Do not let a correct small fragment plus an unrelated broad quote pass.
         # The ordered provider fragments must reconstruct the complete raw field.
         source_value = " ".join(fragments)
+        if field in {'condition', 'cap', 'frequency', 'period', 'exceptions'}:
+            source_value = _strip_confirmed_list_labels(source_value, registry, line_ids)
         source_fields[field] = source_value
         if field not in {"value", "unit"} and field_comparison_key(source_fields, field) != field_comparison_key(fact, field):
             error_type = CriticalContentMismatch if (
@@ -895,7 +946,7 @@ def _validate_field_grounding(
             table_common_title = (
                 scope["scope_type"] == "table_row"
                 and line_id not in {scope["header_line_ids"][0], scope["row_line_ids"][0]}
-                and not NUMBER_TOKEN.search(source_line)
+                and not NUMBER_TOKEN.search(gap_lines[line_id])
                 and any(_contains_range(span, line_id, match.start(), match.end()) for span in field_spans.get("benefit_type", []))
                 and any(
                     span[0] == scope["header_line_ids"][0]
@@ -1039,7 +1090,7 @@ def _validate_field_grounding(
                 for match in marker.finditer(source_line):
                     permitted = ("exceptions", "condition", "action") if field == "exceptions" else (field,)
                     if (field == "condition" and re.sub(r"\s+", "", match.group()) == "이용금액"
-                            and not NUMBER_TOKEN.search(source_line)
+                            and not NUMBER_TOKEN.search(gap_lines[line_id])
                             and FIELD_ROLE_MARKERS["exceptions"].search(fact["action"])):
                         # '무이자할부 이용금액 제외' names excluded spending; it
                         # does not introduce a numeric spending requirement.
@@ -1052,6 +1103,8 @@ def _validate_field_grounding(
         if line_id in header_ids:
             continue
         for match in NUMBER_TOKEN.finditer(registry[line_id][1]):
+            if line_id in list_markers and list_markers[line_id][0] <= match.start() and match.end() <= list_markers[line_id][1]:
+                continue
             owners = [
                 field for field, spans in field_spans.items()
                 if field != "unit" and any(_contains_range(span, line_id, match.start(), match.end()) for span in spans)
@@ -1153,7 +1206,7 @@ def validate_lane(provider: str, payload: dict[str, Any]) -> list[dict[str, Any]
         try:
             if not isinstance(raw_fact, dict):
                 raise ValueError(f"{provider} fact {ordinal} is not an object")
-            fact = normalise_fact(raw_fact)
+            fact = _comparison_fact(raw_fact, registry)
             relation_scope, field_evidence = _validate_field_grounding(provider, ordinal, raw_fact, fact, registry, identity["card_name"])
             is_table = relation_scope["scope_type"] == "table_row"
             source_ranges = tuple(sorted(
@@ -1236,12 +1289,172 @@ def validate_lanes_independently(payloads: dict[str, dict[str, Any]]) -> tuple[d
     return validated, errors
 
 
+def diagnose_lane(provider: str, payload: dict[str, Any]) -> list[dict[str, Any]] | dict[str, Any]:
+    """Keep strict approval unchanged; finish independent diagnostics on rejection.
+
+    A matching source fragment is NOT a grounded benefit relationship. Supplemental
+    checks never return usable facts or replace the original rejection.
+    """
+    try:
+        return validate_lane(provider, payload)
+    except LaneFactReview as error:
+        result = error.diagnostic()
+    except LaneRestructureRequired as error:
+        result = {"status": "blocked", "error": str(error)}
+    except ValueError as error:
+        result = {"status": "review", "error": str(error)}
+    result["approval_eligible"] = False
+    checks: list[dict[str, Any]] = []
+    result["independent_checks"] = checks
+
+    def record(check: str, status: str, *, error: str = "", **details: Any) -> None:
+        checks.append({"check": check, "status": status, **({"error": error} if error else {}), **details})
+
+    # Without an unambiguous source registry no source comparison is trustworthy.
+    pages: dict[int, str] = {}
+    try:
+        if not isinstance(payload.get("pages"), list) or not payload["pages"]:
+            raise ValueError("source pages are missing")
+        for page in payload["pages"]:
+            if not isinstance(page, dict):
+                raise ValueError("source page is not an object")
+            number, text = page.get("page", page.get("number")), page.get("text")
+            if isinstance(number, bool) or not isinstance(number, int) or number < 1 or number in pages or not isinstance(text, str):
+                raise ValueError("source page number/text is invalid or duplicated")
+            pages[number] = text
+    except ValueError as error:
+        record("source_checks", "not_checked", error=str(error))
+        return result
+    registry = _line_registry(pages)
+    identity = payload.get("identity")
+    identity = identity if isinstance(identity, dict) else {}
+    declared_ids: set[str] = set()
+    for key, label in (("issuer", "issuer_name"), ("card", "card_name")):
+        try:
+            resolved = _resolve_evidence(provider, f"{key} identity", identity.get(f"{key}_evidence"), pages, registry)
+            value = identity.get(label)
+            if not isinstance(value, str) or not normalized(value) or normalized(value) not in resolved["quote"]:
+                raise ValueError(f"{key} identity is not grounded")
+            declared_ids.update(resolved.get("line_ids", []))
+            record(f"identity.{key}", "source_match")
+        except ValueError as error:
+            record(f"identity.{key}", "review", error=str(error))
+
+    facts = payload.get("facts")
+    if not isinstance(facts, list):
+        record("facts", "not_checked", error="facts is not an array")
+        facts = []
+    result["diagnosed_fact_count"] = len(facts)
+    for ordinal, raw in enumerate(facts):
+        if not isinstance(raw, dict):
+            record("fact_fields", "not_checked", fact_index=ordinal, error="fact is not an object")
+            continue
+        fact_error = ""
+        try:
+            fact = _comparison_fact(raw, registry)
+        except ValueError as error:
+            fact_error = str(error)
+            record("fact_schema", "review", fact_index=ordinal, error=fact_error)
+            fact = {field: normalized(raw.get(field, "")) if isinstance(raw.get(field, ""), str) else "" for field in RELATION_FIELDS}
+        scope = raw.get("relation_scope")
+        if isinstance(scope, dict) and isinstance(scope.get("line_ids"), list):
+            declared_ids.update(x for x in scope["line_ids"] if isinstance(x, str) and x in registry)
+        # Run relationships even when the lane failed earlier at identity.
+        try:
+            if fact_error:
+                raise ValueError(fact_error)
+            _validate_field_grounding(provider, ordinal, raw, fact, registry, identity.get("card_name"))
+            record("relationship", "checked", fact_index=ordinal)
+        except ValueError as error:
+            record("relationship", "review", fact_index=ordinal, error=str(error),
+                   remaining_checks="not_checked_after_first_dependent_failure")
+
+        supplied_fields = raw.get("field_evidence")
+        supplied_fields = supplied_fields if isinstance(supplied_fields, dict) else {}
+        source_fields: dict[str, str] = {}
+        for field in RELATION_FIELDS:
+            if not isinstance(raw.get(field, ""), str):
+                record("field_comparison", "not_checked", fact_index=ordinal, field=field,
+                       error="field value is not a string")
+                continue
+            supplied = supplied_fields.get(field)
+            if not isinstance(supplied, list) or (fact[field] and not supplied) or (not fact[field] and supplied):
+                record("field_source", "review", fact_index=ordinal, field=field,
+                       error="field evidence array is missing or inconsistent with field value")
+                continue
+            fragments: list[str] = []
+            complete = True
+            # Each fragment is independent too; collect every invalid location.
+            for index, fragment in enumerate(supplied):
+                try:
+                    if not isinstance(fragment, dict):
+                        raise ValueError("fragment is not an object")
+                    line_id, quote = fragment.get("line_id"), fragment.get("fragment")
+                    start, end = fragment.get("char_start"), fragment.get("char_end")
+                    if not isinstance(line_id, str) or line_id not in registry or not isinstance(quote, str) or not quote or isinstance(start, bool) or isinstance(end, bool) or not isinstance(start, int) or not isinstance(end, int) or start < 0 or end <= start:
+                        raise ValueError("fragment location is invalid")
+                    start, end = _same_line_fragment_range(registry[line_id][1], quote, start, end)
+                    fragments.append(registry[line_id][1][start:end])
+                except ValueError as error:
+                    complete = False
+                    record("fragment", "review", fact_index=ordinal, field=field,
+                           fragment_index=index, error=str(error))
+            if complete:
+                joined = " ".join(fragments)
+                if field in {'condition', 'cap', 'frequency', 'period', 'exceptions'}:
+                    joined = _strip_confirmed_list_labels(joined, registry, [x['line_id'] for x in supplied])
+                source_fields[field] = normalized(joined)
+            else:
+                record("field_comparison", "not_checked", fact_index=ordinal, field=field,
+                       error="one or more source fragments could not be resolved")
+
+        for field in RELATION_FIELDS:
+            if field not in source_fields:
+                continue
+            # Amount and unit are one comparison: 30만원 == 300000원.
+            if field in {"value", "unit"} and not {"value", "unit"} <= source_fields.keys():
+                record("field_comparison", "not_checked", fact_index=ordinal, field=field,
+                       error="value/unit comparison requires both source fields")
+                continue
+            equal = field_comparison_key(source_fields, field) == field_comparison_key(fact, field)
+            critical = field in {"value", "unit"} or typed_literals(source_fields[field]) != typed_literals(fact[field]) or condition_operators(source_fields[field]) != condition_operators(fact[field])
+            record("field_comparison", "source_match" if equal else "review", fact_index=ordinal,
+                   field=field, source=source_fields[field], value=fact[field],
+                   category="source_match_only" if equal else "critical_content_mismatch" if critical else "verification_unresolved",
+                   relationship_proven=False)
+
+    # Inventory declared references even if grounding failed. Do not mislabel
+    # all rejected facts as omissions merely because they were not approved.
+    ignored = payload.get("ignored_risky_lines")
+    ignored_ids: set[str] = set()
+    if not isinstance(ignored, list):
+        record("ignored_source_lines", "review", error="ignored_risky_lines is not an array")
+    else:
+        for index, item in enumerate(ignored):
+            line_id = item.get("line_id") if isinstance(item, dict) else None
+            reason = item.get("reason") if isinstance(item, dict) else None
+            if not isinstance(line_id, str) or line_id not in registry or line_id in ignored_ids or line_id in declared_ids or not isinstance(reason, str) or not normalized(reason):
+                record("ignored_source_line", "review", item_index=index, error="invalid, duplicate or already referenced ignored line")
+                continue
+            ignored_ids.add(line_id)
+            line = registry[line_id][1]
+            if not RISKY_IGNORED_LINE.search(line) or not (NON_BENEFIT_IGNORED_LINE.search(line) or approved_layout_ignore(line, normalized(reason))):
+                record("ignored_source_line", "review", item_index=index, line_id=line_id,
+                       error="source line has no approved ignore reason")
+    for line_id, (_page, line) in registry.items():
+        if line_id not in declared_ids | ignored_ids and (RISKY_IGNORED_LINE.search(line) or CRITICAL_RELATION_LINE.search(line)):
+            record("unclaimed_source_line", "review", line_id=line_id, source=line,
+                   error="critical source line has no declared fact/identity/ignore reference")
+    record("grounded_coverage", "not_checked", error="strict lane rejected; declared references are not proof of complete grounded coverage")
+    return result
+
+
 def validation_diagnostics(payloads: dict[str, dict[str, Any]]) -> tuple[dict[str, Any], dict[str, list[dict[str, Any]]], dict[str, dict[str, Any]]]:
     """Run four read-only validation jobs independently; callers persist on main thread."""
     tasks: dict[str, Callable[[], Any]] = {
         "ocr_comparison": lambda: compare_ocr_outputs(payloads["luna"], payloads["upstage"]),
-        "luna_text_to_json": lambda: validate_lane("luna", payloads["luna"]),
-        "upstage_text_to_json": lambda: validate_lane("upstage", payloads["upstage"]),
+        "luna_text_to_json": lambda: diagnose_lane("luna", payloads["luna"]),
+        "upstage_text_to_json": lambda: diagnose_lane("upstage", payloads["upstage"]),
         "normalized_json_diagnostic_comparison": lambda: diagnostic_json_comparison(payloads["luna"], payloads["upstage"]),
     }
     outcomes: dict[str, Any] = {}
@@ -1273,23 +1486,69 @@ def validation_diagnostics(payloads: dict[str, dict[str, Any]]) -> tuple[dict[st
     return outcomes, lanes, errors
 
 
+def _review_locations(payload: dict[str, Any], fact_index: int, field: str | None = None) -> list[dict[str, Any]]:
+    """Resolve exact source ranges when possible; never invent a verified location."""
+    facts = payload.get('facts', [])
+    if not isinstance(facts, list) or not 0 <= fact_index < len(facts) or not isinstance(facts[fact_index], dict):
+        return []
+    raw = facts[fact_index]
+    registry = _line_registry({p['page']: p['text'] for p in payload.get('pages', []) if isinstance(p, dict) and isinstance(p.get('page'), int) and isinstance(p.get('text'), str)})
+    evidence = raw.get('field_evidence', {})
+    fragments = evidence.get(field, []) if isinstance(evidence, dict) and field else []
+    fragments = fragments if isinstance(fragments, list) else []
+    result = []
+    for fragment in fragments:
+        if not isinstance(fragment, dict):
+            continue
+        line_id = fragment.get('line_id')
+        if not isinstance(line_id, str) or line_id not in registry:
+            result.append({'line_id': line_id, 'location_verified': False, 'reason': 'source line unavailable'})
+            continue
+        page, text = registry[line_id]
+        item = {'page': page, 'line_id': line_id, 'quote': text, 'location_verified': False}
+        try:
+            start, end = fragment.get('char_start'), fragment.get('char_end')
+            if isinstance(start, bool) or isinstance(end, bool) or not isinstance(start, int) or not isinstance(end, int) or start < 0 or end <= start or not isinstance(fragment.get('fragment'), str):
+                raise ValueError('invalid coordinates')
+            start, end = _same_line_fragment_range(text, fragment['fragment'], start, end)
+            item.update(char_start=start, char_end=end, fragment=text[start:end], location_verified=True)
+        except ValueError as error:
+            item['reason'] = str(error)
+        result.append(item)
+    if not result:
+        scope = raw.get('relation_scope', {})
+        ids = scope.get('line_ids', []) if isinstance(scope, dict) else []
+        for line_id in ids if isinstance(ids, list) else []:
+            if isinstance(line_id, str) and line_id in registry:
+                page, text = registry[line_id]
+                result.append({'page': page, 'line_id': line_id, 'quote': text, 'location_verified': False,
+                               'reason': 'declared scope only; exact field range unavailable'})
+    return result
+
+
 def diagnostic_json_comparison(luna_payload: dict[str, Any], upstage_payload: dict[str, Any]) -> dict[str, Any]:
-    def relations(payload: dict[str, Any]) -> tuple[Counter[tuple[str, ...]], list[str]]:
+    def relations(payload: dict[str, Any]) -> tuple[Counter[tuple[str, ...]], list[str], dict[int, dict[str, Any]]]:
         keys: list[tuple[str, ...]] = []
         errors: list[str] = []
-        for ordinal, fact in enumerate(payload.get("facts", [])):
+        entries: dict[int, dict[str, Any]] = {}
+        registry = _line_registry({p['page']: p['text'] for p in payload.get('pages', []) if isinstance(p, dict) and isinstance(p.get('page'), int) and isinstance(p.get('text'), str)})
+        facts = payload.get('facts')
+        if not isinstance(facts, list) or not facts:
+            return Counter(), ['non-empty facts array required'], entries
+        for ordinal, fact in enumerate(facts):
             if isinstance(fact, dict):
                 try:
-                    keys.append(relation_tuple(normalise_fact(fact)))
+                    entries[ordinal] = _comparison_fact(fact, registry)
+                    keys.append(relation_tuple(entries[ordinal]))
                 except ValueError as error:
                     errors.append(f"fact {ordinal}: {error}")
             else:
                 errors.append(f"fact {ordinal}: not an object")
-        return Counter(keys), errors
+        return Counter(keys), errors, entries
 
-    luna_relations, luna_errors = relations(luna_payload)
-    upstage_relations, upstage_errors = relations(upstage_payload)
-    return {
+    luna_relations, luna_errors, left = relations(luna_payload)
+    upstage_relations, upstage_errors, right = relations(upstage_payload)
+    result = {
         "purpose": "diagnostic_only_invalid_lanes_are_not_approval_eligible",
         "luna_only": sorted((luna_relations - upstage_relations).elements()),
         "upstage_only": sorted((upstage_relations - luna_relations).elements()),
@@ -1305,6 +1564,100 @@ def diagnostic_json_comparison(luna_payload: dict[str, Any], upstage_payload: di
             for provider, payload in (("luna", luna_payload), ("upstage", upstage_payload))
         },
     }
+    remaining = set(right)
+    pending = []
+    comparisons = []
+    for i, fact in left.items():
+        exact = [j for j in sorted(remaining) if relation_tuple(fact) == relation_tuple(right[j])]
+        if exact:
+            j = exact[0]
+            remaining.remove(j)
+            comparisons.append({'match': 'exact_or_list_format_equivalent', 'luna_fact_index': i,
+                                'upstage_fact_index': j, 'differences': []})
+        else:
+            pending.append(i)
+    anchor = lambda fact: (field_comparison_key(fact, 'target'), field_comparison_key(fact, 'action'))
+    candidates = {i: [j for j in sorted(remaining) if anchor(left[i]) == anchor(right[j])] for i in pending}
+    paired = set()
+    for i in pending:
+        options = candidates[i]
+        if len(options) == 1 and sum(options[0] in js for js in candidates.values()) == 1:
+            j = options[0]
+            paired.add(j)
+            differences = []
+            for field in RELATION_FIELDS:
+                if field_comparison_key(left[i], field) != field_comparison_key(right[j], field):
+                    conflicts = [other for other in ('condition', 'cap', 'frequency', 'period', 'exceptions')
+                                 if other != field and field in ('condition', 'cap', 'frequency', 'period', 'exceptions')
+                                 and left[i][field] and field_comparison_key(left[i], field) == field_comparison_key(right[j], other)]
+                    differences.append({'field': field, 'luna': left[i][field], 'upstage': right[j][field],
+                                        'reason': 'cross_field_role_conflict' if conflicts else 'field_difference',
+                                        'possible_other_fields': conflicts,
+                                        'luna_locations': _review_locations(luna_payload, i, field),
+                                        'upstage_locations': _review_locations(upstage_payload, j, field)})
+            comparisons.append({'match': 'paired_for_review', 'luna_fact_index': i, 'upstage_fact_index': j,
+                                'candidate_count': 1, 'differences': differences})
+        else:
+            comparisons.append({'match': 'ambiguous' if options else 'unmatched', 'luna_fact_index': i,
+                                'upstage_fact_index': None, 'candidate_count': len(options),
+                                'candidate_indices': options, 'luna_locations': _review_locations(luna_payload, i)})
+    for j in sorted(remaining - paired):
+        options = [i for i, js in candidates.items() if j in js]
+        comparisons.append({'match': 'ambiguous' if options else 'unmatched', 'luna_fact_index': None,
+                            'upstage_fact_index': j, 'candidate_count': len(options), 'candidate_indices': options,
+                            'upstage_locations': _review_locations(upstage_payload, j)})
+    identity_equal = result['identity']['luna'] == result['identity']['upstage'] and all(result['identity']['luna'].values())
+    duplicates = {'luna': sum(n - 1 for n in luna_relations.values() if n > 1),
+                  'upstage': sum(n - 1 for n in upstage_relations.values() if n > 1)}
+    result.update(comparisons=comparisons, duplicate_relation_count=duplicates,
+                  identity_equal=bool(identity_equal),
+                  comparison_status='pass' if result['comparison_eligible'] and identity_equal and luna_relations == upstage_relations and not any(duplicates.values()) else 'review',
+                  source_contracts={p: {'source_pdf_sha256': x.get('source_pdf_sha256'),
+                                         'schema': x.get('structure_schema_version'), 'config_hash': x.get('provenance', {}).get('config_hash')}
+                                    for p, x in (('luna', luna_payload), ('upstage', upstage_payload))})
+    return result
+
+
+def validation_summary(payloads: dict[str, dict[str, Any]], outcomes: dict[str, Any]) -> dict[str, Any]:
+    """Presentation-neutral PDF verdict consumed by CLI, HTML or future admin UI."""
+    own = {}
+    for provider in ('luna', 'upstage'):
+        outcome = outcomes[f'{provider}_text_to_json']
+        if isinstance(outcome, list):
+            own[provider] = {'status': 'pass', 'issues': []}
+            continue
+        issues = []
+        # Keep content mismatches, unresolved relationships and unavailable checks separate.
+        for check in outcome.get('independent_checks', []):
+            if check['status'] not in {'review', 'not_checked'}:
+                continue
+            item = dict(check)
+            item['kind'] = 'content_mismatch' if check.get('category') == 'critical_content_mismatch' else 'not_checked' if check['status'] == 'not_checked' else 'verification_unresolved'
+            index = check.get('fact_index')
+            if isinstance(index, int):
+                item['locations'] = _review_locations(payloads[provider], index, check.get('field'))
+                raw = payloads[provider]['facts'][index]
+                raw = raw if isinstance(raw, dict) else {}
+                item['benefit'] = {field: raw.get(field, '') for field in ('target', 'action', 'benefit_type')}
+            elif isinstance(check.get('line_id'), str):
+                item['locations'] = [{'line_id': check['line_id'], 'quote': check.get('source', ''), 'location_verified': False}]
+            issues.append(item)
+        own[provider] = {'status': outcome.get('status', 'review'), 'error': outcome.get('error'),
+                         'issues': issues, 'approval_eligible': False}
+    json_result = outcomes['normalized_json_diagnostic_comparison']
+    json_status = json_result.get('comparison_status', 'review')
+    own_status = 'blocked' if any(x['status'] == 'blocked' for x in own.values()) else 'review' if any(x['status'] != 'pass' for x in own.values()) else 'pass'
+    ocr = outcomes['ocr_comparison']
+    ocr_error = isinstance(ocr, dict) and ocr.get('status') in {'review', 'blocked'}
+    return {'document_id': payloads['luna'].get('document_id'),
+            'document_status': 'blocked' if own_status == 'blocked' else 'pass' if own_status == json_status == 'pass' and not ocr_error else 'review',
+            'checks': {
+                '1_json_to_json': {'status': json_status, 'grounding_confirmed': own_status == 'pass',
+                                   'result': json_result},
+                '2_ocr_to_json': {'status': own_status, 'providers': own},
+                '3_ocr_to_ocr': {'status': 'not_checked' if ocr_error else 'same' if ocr.get('all_normalized_text_equal') else 'different',
+                                  'auxiliary': True, 'result': ocr}},
+            'note': 'OCR text differences alone do not reject a PDF. A source-match or review pairing never authorizes canonical output.'}
 
 
 def canonical_from_lanes(luna: list[dict[str, Any]], upstage: list[dict[str, Any]], luna_payload: dict[str, Any], upstage_payload: dict[str, Any]) -> tuple[list[dict[str, Any]] | None, dict[str, Any] | None, dict[str, Any] | None]:
@@ -1717,6 +2070,8 @@ class Indexer:
             self.state.record_stage(run_id, document_id, "ocr_comparison", sha256_bytes(canonical_json(ocr_comparison).encode()), "completed" if not isinstance(ocr_comparison, dict) or "status" not in ocr_comparison else "review", ocr_comparison, now())
             diagnostic = outcomes["normalized_json_diagnostic_comparison"]
             self._validation_artifact(run_id, document_id, "normalized_json_diagnostic_comparison", diagnostic)
+            self._validation_artifact(run_id, document_id, "validation_summary",
+                                      validation_summary({'luna': luna_payload, 'upstage': upstage_payload}, outcomes))
             for provider in ("luna", "upstage"):
                 result = errors.get(provider) or {"status": "pass", "facts": len(lanes[provider])}
                 self._validation_artifact(run_id, document_id, f"{provider}_text_to_json", {**result, "source_pdf_sha256": source_hash})
@@ -1874,6 +2229,8 @@ class Indexer:
             )
             diagnostic = outcomes["normalized_json_diagnostic_comparison"]
             self._validation_artifact(run_id, document_id, "normalized_json_diagnostic_comparison", diagnostic)
+            self._validation_artifact(run_id, document_id, "validation_summary",
+                                      validation_summary({'luna': luna_payload, 'upstage': upstage_payload}, outcomes))
             for provider in ("luna", "upstage"):
                 result = errors.get(provider) or {"status": "pass", "facts": len(lanes[provider])}
                 self._validation_artifact(run_id, document_id, f"{provider}_text_to_json", {**result, "source_pdf_sha256": source_hash})

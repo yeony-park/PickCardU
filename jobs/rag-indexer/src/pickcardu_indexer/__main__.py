@@ -60,6 +60,9 @@ def parser() -> argparse.ArgumentParser:
     review_list.add_argument("--run-id", required=True)
     review_show = review_commands.add_parser("show")
     review_show.add_argument("review_id", type=int)
+    explain = review_commands.add_parser("explain", help="show the PDF's three independent validation checks")
+    explain.add_argument("--run-id", required=True)
+    explain.add_argument("--document-id", required=True)
     resolve = review_commands.add_parser("resolve")
     resolve.add_argument("review_id", type=int)
     resolve.add_argument("--reviewer", required=True)
@@ -152,6 +155,9 @@ def main(argv: list[str] | None = None) -> int:
                 json_output([dict(row) for row in indexer.state.reviews(arguments.run_id)])
             elif arguments.review_command == "show":
                 json_output(dict(indexer.state.review(arguments.review_id)))
+            elif arguments.review_command == "explain":
+                path = indexer.state.artifact_path(arguments.run_id, arguments.document_id, "validation_summary", None)
+                json_output(json.loads(path.read_text(encoding="utf-8")))
             else:
                 json_output(indexer.resolve_review(arguments.review_id, arguments.reviewer, arguments.reason, arguments.after_json, arguments.luna_json_dir, arguments.upstage_json_dir))
         elif arguments.command == "activate":

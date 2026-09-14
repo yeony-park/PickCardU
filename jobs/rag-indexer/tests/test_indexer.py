@@ -36,6 +36,9 @@ from pickcardu_indexer.pipeline import (  # noqa: E402
     validate_lane,
     validate_lanes_independently,
     validation_diagnostics,
+    validation_summary,
+    diagnostic_json_comparison,
+    _list_marker_ranges,
 )
 from pickcardu_indexer.grounding import RELATION_FIELDS, STRUCTURE_SCHEMA_VERSION, normalized, typed_literals  # noqa: E402
 from pickcardu_indexer.__main__ import parser as cli_parser, run_ocr  # noqa: E402
@@ -1726,6 +1729,25 @@ class FieldEvidenceV6Test(unittest.TestCase):
             changed["pages"][0]["text"] = "\n".join([*lines[:3], replacement])
             with self.subTest(replacement=replacement), self.assertRaises(ValueError):
                 validate_lane("luna", changed)
+        for labels in (('①', '②'), ('1.', '2.'), ('(1)', '(2)')):
+            for include_labels in (False, True):
+                changed = json.loads(json.dumps(payload))
+                numbered_lines = [*lines[:2], '- ' + labels[0] + ' 무이자할부 이용금액', '- ' + labels[1] + ' 상품권 구매금액']
+                changed['pages'][0]['text'] = '\n'.join(numbered_lines)
+                for fragment in changed['facts'][0]['field_evidence']['exceptions']:
+                    n = int(fragment['line_id'].split('L')[1])
+                    fragment['char_start'] = numbered_lines[n - 1].index(fragment['fragment'])
+                    fragment['char_end'] = len(numbered_lines[n - 1])
+                if include_labels:
+                    changed['facts'][0]['exceptions'] = labels[0] + ' 무이자할부 이용금액 ' + labels[1] + ' 상품권 구매금액'
+                before = json.dumps(changed, ensure_ascii=False)
+                with self.subTest(labels=labels, include_labels=include_labels):
+                    self.assertEqual(len(validate_lane('luna', changed)), 1)
+                    self.assertEqual(json.dumps(changed, ensure_ascii=False), before)
+                    other = json.loads(json.dumps(changed)); other['provider'] = 'upstage'
+                    other['facts'][0]['exceptions'] = payload['facts'][0]['exceptions']
+                    outcomes, _, _ = validation_diagnostics({'luna': changed, 'upstage': other})
+                    self.assertEqual(validation_summary({'luna': changed, 'upstage': other}, outcomes)['document_status'], 'pass')
         lost = json.loads(json.dumps(payload))
         lost["facts"][0]["action"] = "적용"
         with self.assertRaises(ValueError):
@@ -2381,6 +2403,138 @@ class FieldEvidenceV6Test(unittest.TestCase):
         self.assertEqual(set(outcomes), {"ocr_comparison", "luna_text_to_json", "upstage_text_to_json", "normalized_json_diagnostic_comparison"})
         self.assertIn("luna", errors)
         self.assertIn("upstage", lanes)
+
+    def test_list_markers_never_remove_rates_durations_or_inline_references(self) -> None:
+        registry = {f'P0001-L{i:04d}': (1, text) for i, text in enumerate(
+            ['1.5% 할인', '2.5% 할인', '1일 1회', '2개월', '1+1 행사', '-10% 변동', '혜택 ① 적용', '혜택 ② 제외'], 1)}
+        self.assertEqual(_list_marker_ranges(registry), {})
+
+    def test_json_alignment_is_order_independent_and_review_pair_is_not_equality(self) -> None:
+        luna = self._heading_table_lane()
+        upstage = json.loads(json.dumps(luna)); upstage['provider'] = 'upstage'; upstage['facts'].reverse()
+        result = diagnostic_json_comparison(luna, upstage)
+        self.assertEqual(result['comparison_status'], 'pass')
+        self.assertEqual(result['comparisons'][0]['upstage_fact_index'], 1)
+        for fact in upstage['facts']:
+            fact['value'] = '99'
+        result = diagnostic_json_comparison(luna, upstage)
+        self.assertEqual(result['comparison_status'], 'review')
+        self.assertTrue(any(x['match'] == 'ambiguous' for x in result['comparisons']))
+        one = lane('issuer/card', 'luna'); two = lane('issuer/card', 'upstage', value='5')
+        result = diagnostic_json_comparison(one, two)
+        self.assertEqual(result['comparison_status'], 'review')
+        self.assertEqual(result['comparisons'][0]['match'], 'paired_for_review')
+        diff = next(d for d in result['comparisons'][0]['differences'] if d['field'] == 'value')
+        self.assertEqual((diff['luna'], diff['upstage']), ('1', '5'))
+        self.assertTrue(diff['luna_locations'][0]['location_verified'])
+
+    def test_three_checks_do_not_conflate_json_agreement_with_grounding(self) -> None:
+        luna, upstage = lane('issuer/card', 'luna'), lane('issuer/card', 'upstage')
+        for payload in (luna, upstage): payload['facts'][0]['value'] = '5'
+        outcomes, _, _ = validation_diagnostics({'luna': luna, 'upstage': upstage})
+        result = validation_summary({'luna': luna, 'upstage': upstage}, outcomes)
+        self.assertEqual(result['checks']['1_json_to_json']['status'], 'pass')
+        self.assertFalse(result['checks']['1_json_to_json']['grounding_confirmed'])
+        self.assertEqual(result['checks']['2_ocr_to_json']['status'], 'review')
+        self.assertEqual(result['document_status'], 'review')
+        luna, upstage = lane('issuer/card', 'luna'), lane('issuer/card', 'upstage', value='5')
+        outcomes, _, _ = validation_diagnostics({'luna': luna, 'upstage': upstage})
+        result = validation_summary({'luna': luna, 'upstage': upstage}, outcomes)
+        self.assertEqual(result['checks']['1_json_to_json']['status'], 'review')
+        self.assertEqual(result['checks']['2_ocr_to_json']['status'], 'pass')
+        self.assertTrue(result['checks']['3_ocr_to_ocr']['auxiliary'])
+        self.assertEqual(result['document_status'], 'review')
+
+    def test_ocr_format_difference_alone_does_not_reject_pdf(self) -> None:
+        luna, upstage = lane('issuer/card', 'luna'), lane('issuer/card', 'upstage')
+        upstage['pages'][0]['text'] += '\n추가 설명'
+        outcomes, _, _ = validation_diagnostics({'luna': luna, 'upstage': upstage})
+        result = validation_summary({'luna': luna, 'upstage': upstage}, outcomes)
+        self.assertEqual(result['checks']['3_ocr_to_ocr']['status'], 'different')
+        self.assertEqual(result['document_status'], 'pass')
+
+    def test_identity_and_target_errors_do_not_hide_other_field_mismatches(self) -> None:
+        luna, upstage = lane("issuer/card", "luna"), lane("issuer/card", "upstage")
+        luna["identity"]["card_name"] = "Unknown card"
+        fact = luna["facts"][0]
+        fact["target"] = "편의점"
+        fact["value"] = "5"
+        outcomes, lanes, errors = validation_diagnostics({"luna": luna, "upstage": upstage})
+        result = outcomes["luna_text_to_json"]
+        self.assertFalse(result["approval_eligible"])
+        self.assertEqual(set(lanes), {"upstage"})
+        checks = result["independent_checks"]
+        self.assertTrue(any(c["check"] == "identity.card" and c["status"] == "review" for c in checks))
+        fields = {c["field"]: c for c in checks if c["check"] == "field_comparison"}
+        self.assertEqual(fields["target"]["status"], "review")
+        self.assertEqual(fields["value"]["category"], "critical_content_mismatch")
+        self.assertEqual(fields["condition"]["status"], "source_match")
+        self.assertFalse(fields["condition"]["relationship_proven"])
+        self.assertIn("luna", errors)
+
+    def test_scope_failure_does_not_hide_fields_or_unclaimed_lines(self) -> None:
+        luna, upstage = lane("issuer/card", "luna"), lane("issuer/card", "upstage")
+        luna["facts"][0]["relation_scope"]["scope_type"] = "unknown"
+        luna["facts"][0]["value"] = "5"
+        luna["pages"][0]["text"] += "\n통신비 10% 할인"
+        outcomes, lanes, _ = validation_diagnostics({"luna": luna, "upstage": upstage})
+        checks = outcomes["luna_text_to_json"]["independent_checks"]
+        self.assertTrue(any(c.get("field") == "value" and c.get("category") == "critical_content_mismatch" for c in checks))
+        self.assertTrue(any(c["check"] == "unclaimed_source_line" and c["line_id"] == "P0001-L0004" for c in checks))
+        self.assertTrue(any(c["check"] == "grounded_coverage" and c["status"] == "not_checked" for c in checks))
+        self.assertNotIn("luna", lanes)
+
+    def test_missing_value_evidence_skips_only_dependent_unit_comparison(self) -> None:
+        luna, upstage = lane("issuer/card", "luna"), lane("issuer/card", "upstage")
+        luna["facts"][0]["field_evidence"]["value"] = []
+        outcomes, lanes, _ = validation_diagnostics({"luna": luna, "upstage": upstage})
+        checks = outcomes["luna_text_to_json"]["independent_checks"]
+        self.assertTrue(any(c.get("field") == "unit" and c["status"] == "not_checked" for c in checks))
+        self.assertTrue(any(c.get("field") == "condition" and c["status"] == "source_match" for c in checks))
+        self.assertNotIn("luna", lanes)
+
+    def test_invalid_fact_or_ignore_list_does_not_hide_independent_diagnostics(self) -> None:
+        for ignored in (None, "invalid"):
+            luna, upstage = lane("issuer/card", "luna"), lane("issuer/card", "upstage")
+            luna["ignored_risky_lines"] = ignored
+            luna["facts"][0]["target"] = 123
+            luna["facts"][0]["value"] = "5"
+            luna["pages"][0]["text"] += "\n통신비 10% 할인"
+            outcomes, lanes, _ = validation_diagnostics({"luna": luna, "upstage": upstage})
+            checks = outcomes["luna_text_to_json"]["independent_checks"]
+            self.assertTrue(any(c["check"] == "unclaimed_source_line" and c["line_id"] == "P0001-L0004" for c in checks))
+            self.assertTrue(any(c.get("field") == "value" and c.get("category") == "critical_content_mismatch" for c in checks))
+            self.assertNotIn("luna", lanes)
+
+    def test_diagnostic_source_registry_failure_is_explicit_not_checked(self) -> None:
+        luna, upstage = lane("issuer/card", "luna"), lane("issuer/card", "upstage")
+        luna["pages"].append(dict(luna["pages"][0]))
+        outcomes, lanes, _ = validation_diagnostics({"luna": luna, "upstage": upstage})
+        self.assertEqual(outcomes["luna_text_to_json"]["independent_checks"], [{
+            "check": "source_checks", "status": "not_checked",
+            "error": "source page number/text is invalid or duplicated",
+        }])
+        self.assertNotIn("luna", lanes)
+
+    def test_missing_facts_still_inventory_unclaimed_source_lines(self) -> None:
+        luna, upstage = lane("issuer/card", "luna"), lane("issuer/card", "upstage")
+        luna["facts"] = None
+        outcomes, lanes, _ = validation_diagnostics({"luna": luna, "upstage": upstage})
+        checks = outcomes["luna_text_to_json"]["independent_checks"]
+        self.assertTrue(any(c["check"] == "unclaimed_source_line" for c in checks))
+        self.assertNotIn("luna", lanes)
+
+    def test_supplemental_unit_comparison_normalizes_source_whitespace(self) -> None:
+        luna, upstage = lane("issuer/card", "luna"), lane("issuer/card", "upstage")
+        luna["identity"]["card_name"] = "Unknown card"
+        fragment = luna["facts"][0]["field_evidence"]["unit"][0]
+        fragment["fragment"] += " "
+        fragment["char_end"] += 1
+        outcomes, lanes, _ = validation_diagnostics({"luna": luna, "upstage": upstage})
+        checks = outcomes["luna_text_to_json"]["independent_checks"]
+        for field in ("value", "unit"):
+            self.assertTrue(any(c.get("field") == field and c["status"] == "source_match" for c in checks))
+        self.assertNotIn("luna", lanes)
 
     def test_diagnostic_execution_failure_blocks_automatic_approval(self) -> None:
         luna, upstage = self._lane(), line_id_lane("issuer/card", "upstage")
