@@ -492,6 +492,7 @@ class IndexerTest(unittest.TestCase):
         self.assertEqual(output["identity"]["card_name"], "Card")
         self.assertEqual(structure_client.calls[0]["text"]["format"]["name"], "card_facts")
         self.assertEqual(structure_client.calls[0]["max_output_tokens"], 128_000)
+        self.assertEqual(structure_client.calls[0]["timeout"], 1800.0)
         self.assertNotIn("upstage", structure_client.calls[0]["input"][0]["content"][0]["text"].casefold())
         self.assertIn("같은 혜택 블록이면 하나의 fact", STRUCTURE_PROMPT)
         self.assertIn("P0001-L0001", structure_client.calls[0]["input"][0]["content"][0]["text"])

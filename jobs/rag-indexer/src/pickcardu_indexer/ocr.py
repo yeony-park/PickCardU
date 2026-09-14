@@ -801,7 +801,7 @@ class LunaFactStructurer:
                 text={"format": {"type": "json_schema", "name": "card_facts", "strict": True, "schema": STRUCTURE_SCHEMA}},
                 store=False,
                 max_output_tokens=MAX_MODEL_OUTPUT_TOKENS,
-                timeout=900.0,
+                timeout=1800.0,
             )
         except Exception as error:
             raise OcrProviderError(f"Luna structuring failed for {provider}: {type(error).__name__}: {error}", retryable=True) from error
