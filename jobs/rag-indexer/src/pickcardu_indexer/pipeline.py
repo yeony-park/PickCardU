@@ -31,6 +31,8 @@ from .grounding import (
     typed_literals,
     condition_operators,
     field_comparison_key,
+    fact_bundles,
+    BUNDLE_FIELDS,
 )
 from .structural import HEADING_RE, STRUCTURAL_CONTRACT, build_structural_chunks, render_pages
 
@@ -76,7 +78,7 @@ GENERIC_LAYOUT_LABELS = {
 GENERIC_LAYOUT_KEYS = {re.sub(r"\s+", "", label) for label in GENERIC_LAYOUT_LABELS}
 CHUNKING_PROFILES = {"card_page_section_benefit", "parent_child_bundle"}
 DEFAULT_CHUNKING_PROFILE = "card_page_section_benefit"
-OCR_PIPELINE_CONTRACT = "dual-lane-field-evidence-relation-v15"
+OCR_PIPELINE_CONTRACT = "dual-lane-role-bundles-v16"
 
 
 class LaneRestructureRequired(ValueError):
@@ -509,6 +511,11 @@ def _context_literal_ranges(text: str, field: str) -> list[tuple[int, int]]:
     if field not in {"condition", "period", "exceptions"}:
         return []
     ranges = []
+    if field == "period":
+        # A complete duration/deadline atom establishes its temporal role even
+        # when the OCR does not literally include the heading word '기간'.
+        ranges.extend(match.span() for match in re.finditer(
+            r"(?<![\d.])\d+\s*(?:영업일|일|개월|년)\s*(?:이내|이전|이후)(?:에)?", text))
     for match in CLOCK_LITERAL.finditer(text):
         # Do not reinterpret the tail of an invalid '오전23시' as a 24-hour clock.
         if re.search(r"(?:오전|오후)\s*$", text[:match.start()]):
@@ -877,7 +884,7 @@ def _validate_field_grounding(
         if field in {'condition', 'cap', 'frequency', 'period', 'exceptions'}:
             source_value = _strip_confirmed_list_labels(source_value, registry, line_ids)
         source_fields[field] = source_value
-        if field not in {"value", "unit"} and field_comparison_key(source_fields, field) != field_comparison_key(fact, field):
+        if field not in {"benefit_type", "value", "unit"} and field_comparison_key(source_fields, field) != field_comparison_key(fact, field):
             error_type = CriticalContentMismatch if (
                 typed_literals(source_value) != typed_literals(value)
                 or condition_operators(source_value) != condition_operators(value)
@@ -897,9 +904,29 @@ def _validate_field_grounding(
     # Compare value+unit together: 30 + 만원 and 300000 + 원 are the same
     # amount. Source coordinates/units below still refer to the original OCR.
     source_fact = normalise_fact(source_fields)
-    for field in ("value", "unit"):
+    for field in ("benefit_type", "value", "unit"):
         if field_comparison_key(source_fact, field) != field_comparison_key(fact, field):
-            raise CriticalContentMismatch(f"{provider} fact {ordinal} {field} fragments do not reconstruct its raw field")
+            error_type = ValueError if field == "benefit_type" else CriticalContentMismatch
+            raise error_type(f"{provider} fact {ordinal} {field} fragments do not reconstruct its value bundle")
+    # A label may repeat a core value, but may not borrow a different occurrence
+    # elsewhere in the scope to justify dropping that value from the label.
+    if normalized(source_fact["benefit_type"]) != normalized(fact["benefit_type"]):
+        for line_id, start, end in field_spans.get("benefit_type", []):
+            source_line = registry[line_id][1]
+            for field in ("target", "action"):
+                token = source_fields.get(field, "").strip()
+                if not token or normalized(token) in normalized(fact["benefit_type"]):
+                    continue
+                pattern = r"\s*".join(re.escape(part) for part in token.split())
+                for match in re.finditer(pattern, source_line[start:end]):
+                    if not any(_contains_range(span, line_id, start + match.start(), start + match.end())
+                               for span in field_spans.get(field, [])):
+                        raise ValueError(f"{provider} fact {ordinal} label {field} has no same-location role owner")
+            for match in NUMBER_TOKEN.finditer(source_line, start, end):
+                if not any(_contains_range(span, line_id, match.start(), match.end())
+                           for field in ("value", "condition", "cap", "frequency", "period", "exceptions")
+                           for span in field_spans.get(field, [])):
+                    raise ValueError(f"{provider} fact {ordinal} label number has no same-location role owner")
     all_spans = [span for spans in field_spans.values() for span in spans]
     if fee_label:
         # A fee row cannot silently discard its immediately following rules.
@@ -1109,6 +1136,10 @@ def _validate_field_grounding(
                 field for field, spans in field_spans.items()
                 if field != "unit" and any(_contains_range(span, line_id, match.start(), match.end()) for span in spans)
             ]
+            # Redundant label spans are not a second numeric owner. The actual
+            # role must cover this very occurrence, not just an equal number.
+            if "benefit_type" in owners and any(field != "benefit_type" for field in owners):
+                owners.remove("benefit_type")
             if len(owners) != 1:
                 raise ValueError(f"{provider} fact {ordinal} source numeric range is missing or ambiguously mapped")
             numeric_owner[(line_id, match.start(), match.end())] = owners[0]
@@ -1417,11 +1448,27 @@ def diagnose_lane(provider: str, payload: dict[str, Any]) -> list[dict[str, Any]
                        error="value/unit comparison requires both source fields")
                 continue
             equal = field_comparison_key(source_fields, field) == field_comparison_key(fact, field)
-            critical = field in {"value", "unit"} or typed_literals(source_fields[field]) != typed_literals(fact[field]) or condition_operators(source_fields[field]) != condition_operators(fact[field])
+            critical = field != "benefit_type" and (field in {"value", "unit"} or typed_literals(source_fields[field]) != typed_literals(fact[field]) or condition_operators(source_fields[field]) != condition_operators(fact[field]))
             record("field_comparison", "source_match" if equal else "review", fact_index=ordinal,
                    field=field, source=source_fields[field], value=fact[field],
                    category="source_match_only" if equal else "critical_content_mismatch" if critical else "verification_unresolved",
                    relationship_proven=False)
+
+        # Bundle values are independently comparable even when the source's
+        # table/heading relationship cannot be established. They never approve
+        # a fact without the separate relationship check above.
+        source_bundles, json_bundles = fact_bundles(source_fields), fact_bundles(fact)
+        for group, fields in BUNDLE_FIELDS.items():
+            required = set(fields)
+            if group == "label_context":
+                required.update(BUNDLE_FIELDS["benefit"])
+            available = required <= source_fields.keys()
+            equal = available and source_bundles[group] == json_bundles[group]
+            record("value_bundle", "source_match" if equal else "review" if available else "not_checked",
+                   fact_index=ordinal, bundle=group, fields=list(fields),
+                   source=source_bundles[group] if available else None, value=json_bundles[group],
+                   error="" if equal else "role values differ" if available else "source field evidence unavailable",
+                   relationship_proven=False, approval_eligible=False)
 
     # Inventory declared references even if grounding failed. Do not mislabel
     # all rejected facts as omissions merely because they were not approved.
@@ -1572,7 +1619,7 @@ def diagnostic_json_comparison(luna_payload: dict[str, Any], upstage_payload: di
         if exact:
             j = exact[0]
             remaining.remove(j)
-            comparisons.append({'match': 'exact_or_list_format_equivalent', 'luna_fact_index': i,
+            comparisons.append({'match': 'role_bundle_equivalent', 'luna_fact_index': i,
                                 'upstage_fact_index': j, 'differences': []})
         else:
             pending.append(i)
@@ -1596,7 +1643,8 @@ def diagnostic_json_comparison(luna_payload: dict[str, Any], upstage_payload: di
                                         'luna_locations': _review_locations(luna_payload, i, field),
                                         'upstage_locations': _review_locations(upstage_payload, j, field)})
             comparisons.append({'match': 'paired_for_review', 'luna_fact_index': i, 'upstage_fact_index': j,
-                                'candidate_count': 1, 'differences': differences})
+                                'candidate_count': 1, 'differences': differences,
+                                'luna_bundles': fact_bundles(left[i]), 'upstage_bundles': fact_bundles(right[j])})
         else:
             comparisons.append({'match': 'ambiguous' if options else 'unmatched', 'luna_fact_index': i,
                                 'upstage_fact_index': None, 'candidate_count': len(options),

@@ -1529,7 +1529,7 @@ class IndexerTest(unittest.TestCase):
         add_relation(upstage, condition="daily", quote="카페 daily 1% 할인")
         payload = resolution_payload(luna, upstage)
         canonical, identity, audit = strict_resolution(payload, luna, upstage)
-        self.assertEqual([item["fact"]["condition"] for item in canonical], ["monthly", "weekly"])
+        self.assertCountEqual([item["fact"]["condition"] for item in canonical], ["monthly", "weekly"])
         self.assertEqual(identity["card_name"], "Card")
         self.assertEqual(audit["resolution"]["rejected_relations"], payload["resolution"]["rejected_relations"])
         payload["resolution"]["rejected_relations"] = []
@@ -1542,7 +1542,9 @@ class IndexerTest(unittest.TestCase):
         add_relation(upstage, condition="daily", quote="카페 daily 1% 할인")
         payload = resolution_payload(luna, upstage, selected="upstage")
         canonical, _, _ = strict_resolution(payload, luna, upstage)
-        self.assertEqual([item["fact"]["condition"] for item in canonical], ["monthly", "daily"])
+        # Bundle keys have their own deterministic order; array position is not
+        # part of the selected facts' meaning or the resolution contract.
+        self.assertCountEqual([item["fact"]["condition"] for item in canonical], ["monthly", "daily"])
 
     def test_upstage_identity_resolution_preserves_exact_provenance(self) -> None:
         luna, upstage = lane(self.document_id, "luna"), lane(self.document_id, "upstage")
@@ -2408,6 +2410,71 @@ class FieldEvidenceV6Test(unittest.TestCase):
         registry = {f'P0001-L{i:04d}': (1, text) for i, text in enumerate(
             ['1.5% 할인', '2.5% 할인', '1일 1회', '2개월', '1+1 행사', '-10% 변동', '혜택 ① 적용', '혜택 ② 제외'], 1)}
         self.assertEqual(_list_marker_ranges(registry), {})
+
+    def test_role_bundles_preserve_label_values_and_deadline_meaning(self) -> None:
+        def make(source, values):
+            payload = self._lane()
+            payload['pages'][0]['text'] = 'Issuer Card\n' + source
+            fact = payload['facts'][0]
+            fact.update({field: values.get(field, '') for field in RELATION_FIELDS})
+            fact['field_evidence'] = {
+                field: [] if not fact[field] else [{'line_id': 'P0001-L0002', 'fragment': fact[field],
+                    'char_start': source.index(fact[field]), 'char_end': source.index(fact[field]) + len(fact[field])}]
+                for field in RELATION_FIELDS}
+            return payload
+
+        source = '해외 결제금액 1% 포인트 적립'
+        payload = make(source, dict(benefit_type=source, target='해외 결제금액', action='포인트 적립', value='1', unit='%'))
+        payload['facts'][0]['benefit_type'] = '해외 결제금액 포인트 적립'
+        before = json.loads(json.dumps(payload))
+        self.assertEqual(len(validate_lane('luna', payload)), 1)
+        self.assertEqual(payload, before)
+        wrong = json.loads(json.dumps(payload)); wrong['facts'][0]['action'] = '할인'
+        with self.assertRaises(ValueError):
+            validate_lane('luna', wrong)
+
+        # Equal digits from a DIFFERENT occurrence cannot justify label loss.
+        wrong = json.loads(json.dumps(payload))
+        wrong['pages'][0]['text'] += ' 별도 1% 포인트 적립'
+        for field in ('value', 'unit'):
+            ref = wrong['facts'][0]['field_evidence'][field][0]
+            at = wrong['pages'][0]['text'].splitlines()[1].rindex(ref['fragment'])
+            ref.update(char_start=at, char_end=at + len(ref['fragment']))
+        with self.assertRaises(ValueError):
+            validate_lane('luna', wrong)
+
+        source = '연회비 10영업일 이내에 반환'
+        payload = make(source, dict(benefit_type='연회비', target='연회비', action='반환', period='10영업일 이내에'))
+        payload['facts'][0]['period'] = '10영업일 이내'
+        self.assertEqual(len(validate_lane('luna', payload)), 1)
+        for wrong in ('10일 이내', '10영업일 이후'):
+            payload['facts'][0]['period'] = wrong
+            with self.assertRaises(ValueError):
+                validate_lane('luna', payload)
+
+        for suffix in ('서비스', '혜택'):
+            source = f'카페 할인 {suffix} 통신비 할인 적용 1%'
+            payload = make(source, dict(benefit_type=f'카페 할인 {suffix}',
+                condition=f'할인 {suffix}', target='통신비', action='할인 적용', value='1', unit='%'))
+            with self.assertRaises(ValueError):
+                validate_lane('luna', payload)
+
+        source = '카페 할인 서비스 카페 적용 monthly 1%'
+        payload = make(source, dict(benefit_type='카페 할인 서비스', target='카페',
+            action='할인', condition='monthly', value='1', unit='%'))
+        payload['facts'][0]['benefit_type'] = '할인 서비스'
+        ref = payload['facts'][0]['field_evidence']['target'][0]
+        ref.update(char_start=source.rindex('카페'), char_end=source.rindex('카페') + 2)
+        with self.assertRaisesRegex(ValueError, 'same-location role owner'):
+            validate_lane('luna', payload)
+
+    def test_bundle_values_do_not_override_unresolved_relationship(self) -> None:
+        luna, upstage = self._lane(), self._lane()
+        luna['facts'][0]['relation_scope']['scope_type'] = 'unknown'
+        outcomes, _, _ = validation_diagnostics({'luna': luna, 'upstage': upstage})
+        checks = outcomes['luna_text_to_json']['independent_checks']
+        self.assertTrue(any(x['check'] == 'value_bundle' and x['bundle'] == 'benefit' and x['status'] == 'source_match' for x in checks))
+        self.assertEqual(validation_summary({'luna': luna, 'upstage': upstage}, outcomes)['document_status'], 'review')
 
     def test_json_alignment_is_order_independent_and_review_pair_is_not_equality(self) -> None:
         luna = self._heading_table_lane()

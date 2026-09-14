@@ -7,6 +7,7 @@ keeps raw strings for audit while producing small typed comparison keys locally.
 from __future__ import annotations
 
 from decimal import Decimal, InvalidOperation
+import json
 import re
 import unicodedata
 from typing import Any
@@ -20,6 +21,12 @@ RELATION_FIELDS = (
 )
 RAW_FACT_FIELDS = RELATION_FIELDS[2:]
 NUMBER = re.compile(r"(?<![0-9.])(-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)\s*(만원|천원|원|%|퍼센트)?")
+BUNDLE_FIELDS = {
+    "benefit": ("target", "action", "value", "unit"),
+    "condition": ("condition",), "cap": ("cap",),
+    "frequency": ("frequency",), "period": ("period",),
+    "exceptions": ("exceptions",), "label_context": ("benefit_type",),
+}
 
 
 def normalized(value: object) -> str:
@@ -94,8 +101,7 @@ def normalise_fact(raw: dict[str, Any]) -> dict[str, Any]:
     return {**fact, "typed_normalization": typed}
 
 
-def field_comparison_key(fact: dict[str, Any], field: str) -> str:
-    """Shared OCR/JSON comparison: normalize units, not benefit meaning."""
+def _literal_key(fact: dict[str, Any], field: str) -> str:
     text = normalized(fact.get(field, ""))
     if field == "value" and fact.get("unit") in {"%", "퍼센트", "원", "만원", "천원"} and not any(unit for _number, unit in NUMBER.findall(text)):
         text += str(fact["unit"])
@@ -109,14 +115,60 @@ def field_comparison_key(fact: dict[str, Any], field: str) -> str:
     return re.sub(r"(?<!>)\s+|\s+(?!<)", "", text)
 
 
+def field_comparison_key(fact: dict[str, Any], field: str) -> str:
+    """Role-bound atoms, retaining unparsed text instead of guessing its meaning.
+
+    This is deliberately not a bag of words/numbers. Unsupported clauses retain
+    their residual text and cannot become equal merely by containing the same
+    amounts. Labels remove only content repeated in this same fact's core roles;
+    the source validator separately checks ownership of those exact spans.
+    """
+    text = _literal_key(fact, field)
+    if field == "benefit_type":
+        repeated = {_literal_key(fact, key) for key in ("target", "action", "value")}
+        for token in sorted(repeated - {""}, key=len, reverse=True):
+            # Keep embedded standalone numerals (e.g. 10 in 100) intact.
+            if re.fullmatch(r"<(?:number|ratio|KRW):[^>]+>", token) or not NUMBER.search(token):
+                text = text.replace(token, "")
+        return text
+    if field == "condition":
+        # Only complete, named spending predicates can commute under explicit
+        # AND. OR, mixed logic, exceptions and unknown prose remain residual.
+        parts = re.split(r"및|그리고", text)
+        atoms = []
+        role = r"(?:전월실적|전월이용금액|건당결제금액|건당이용금액)"
+        amount = r"<KRW:-?\d+(?:\.\d+)?>"
+        operator = r"(?:이상|초과|이하|미만)"
+        for part in parts:
+            forward = re.fullmatch(f"({role})({amount})({operator})", part)
+            reverse = re.fullmatch(f"({amount})({operator})({role})", part)
+            if forward:
+                name, value, op = forward.groups()
+            elif reverse:
+                value, op, name = reverse.groups()
+            else:
+                break
+            atoms.append((name, value, op))
+        if len(atoms) == len(parts):
+            return json.dumps({"and": sorted(atoms)}, ensure_ascii=False, sort_keys=True)
+    if field in {"period", "condition", "cap", "frequency"}:
+        # A final locative particle does not change a fully identified deadline.
+        text = re.sub(r"(<number:-?\d+(?:\.\d+)?>)(영업일|일|개월|년)(이내|이후|이전)에$", r"\1\2\3", text)
+    return text
+
+
+def fact_bundles(fact: dict[str, Any]) -> dict[str, dict[str, str]]:
+    """Named role mappings; each qualifier remains attached to ONE benefit."""
+    return {group: {field: field_comparison_key(fact, field) for field in fields}
+            for group, fields in BUNDLE_FIELDS.items()}
+
+
 def relation_key(fact: dict[str, Any]) -> tuple[str, ...]:
     typed = fact.get("typed_normalization")
     if not isinstance(typed, dict):
         raise ValueError("typed normalization is required for relation comparison")
 
-    # Source strings remain in the lane artifact; canonical strings have only
-    # NFKC/whitespace normalization. Replace typed literals in comparison keys,
-    # so 30만원 and 300000원 agree without erasing target/action/exception meaning.
-    raw = tuple(field_comparison_key(fact, field) for field in RELATION_FIELDS)
-    typed_key = repr(sorted((key, repr(value)) for key, value in typed.items()))
-    return (*raw, typed_key)
+    # Derived typed_normalization is not a second, order-sensitive raw-text
+    # equality gate. Units/operators and all residuals live in the role keys.
+    return tuple(json.dumps({name: value}, ensure_ascii=False, sort_keys=True)
+                 for name, value in sorted(fact_bundles(fact).items()))
