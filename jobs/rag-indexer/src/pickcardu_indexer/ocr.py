@@ -13,7 +13,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from .grounding import RELATION_FIELDS, STRUCTURE_SCHEMA_VERSION, normalise_fact
+from .grounding import RELATION_FIELDS, STRUCTURE_SCHEMA_VERSION, NORMALIZATION_CONTRACT, normalise_fact
 
 
 LUNA_OCR_MODEL = "gpt-5.6-luna"
@@ -826,7 +826,7 @@ class LiveLaneAdapter:
         self.page_fallback_config = getattr(transcriber, "page_fallback_config", {})
         self.page_fallback_config_hash = _sha256(_json_bytes(self.page_fallback_config)) if self.page_fallback_config else None
         self.structure_config_hash = _sha256(_json_bytes(structurer.config))
-        config = {"ocr": transcriber.config, "structure": structurer.config}
+        config = {"ocr": transcriber.config, "structure": structurer.config, "normalization": NORMALIZATION_CONTRACT}
         if self.parse_config:
             config["ocr_parse"] = self.parse_config
         if self.page_fallback_config:
@@ -997,7 +997,7 @@ class LiveLaneAdapter:
         source_hash, pages, envelope, _root, structure_root = self.read_extracted(document_id)
         _structured_path, structured_envelope = self.read_structured(document_id)
         structured = structured_envelope.get("structured")
-        normalized_path = structure_root / "normalized.json"
+        normalized_path = structure_root / "normalization" / NORMALIZATION_CONTRACT / "normalized.json"
         raw_facts = structured.get("facts")
         normalized_facts: list[Any] = []
         normalization_errors: list[dict[str, Any]] = []
@@ -1030,6 +1030,7 @@ class LiveLaneAdapter:
             # typed values are local comparison metadata, not provider output.
             "facts": normalized_facts,
             "normalization_errors": normalization_errors,
+            "normalization_contract": NORMALIZATION_CONTRACT,
         }
         if "span_dispositions" in structured:
             payload["span_dispositions"] = structured["span_dispositions"]
@@ -1040,11 +1041,11 @@ class LiveLaneAdapter:
 
     def read_normalized(self, document_id: str) -> tuple[Path, dict[str, Any]]:
         _source, source_hash, _expected_count, _request_root, _pages_root, structure_root = self._context(document_id)
-        normalized_path = structure_root / "normalized.json"
+        normalized_path = structure_root / "normalization" / NORMALIZATION_CONTRACT / "normalized.json"
         if not normalized_path.is_file():
             raise FileNotFoundError(f"{self.provider} normalized JSON is missing; run normalize first")
         payload = json.loads(normalized_path.read_text(encoding="utf-8"))
-        if payload.get("provider") != self.provider or payload.get("source_pdf_sha256") != source_hash or payload.get("provenance", {}).get("config_hash") != self.config_hash:
+        if payload.get("provider") != self.provider or payload.get("source_pdf_sha256") != source_hash or payload.get("provenance", {}).get("config_hash") != self.config_hash or payload.get("normalization_contract") != NORMALIZATION_CONTRACT:
             raise RuntimeError("cached live OCR artifact provenance mismatch")
         return normalized_path, payload
 
@@ -1060,7 +1061,7 @@ class LiveLaneAdapter:
         request_root = self._root(document_id, source_hash)
         pages_root = self._pages_root(document_id, source_hash)
         structure_root = self._structure_root(document_id, source_hash)
-        result = {"pages": pages_root / "pages.json", "ocr_text": pages_root / "ocr.txt", "structured": structure_root / "structured.json", "normalized": structure_root / "normalized.json"}
+        result = {"pages": pages_root / "pages.json", "ocr_text": pages_root / "ocr.txt", "structured": structure_root / "structured.json", "normalized": structure_root / "normalization" / NORMALIZATION_CONTRACT / "normalized.json"}
         raw = sorted(request_root.glob("raw_response.*.json"))
         structure_raw = sorted(structure_root.glob("structure_raw_response.*.json"))
         if raw:

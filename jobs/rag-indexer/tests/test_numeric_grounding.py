@@ -39,6 +39,34 @@ class NumericGroundingTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "strings"):
             self.key(value=10)
 
+    def test_compound_money_preserves_total_sign_and_raw_value(self):
+        from pickcardu_indexer.grounding import typed_literals
+        for source, amount in [('1만5천원','15000'), ('1만 5000원','15000'),
+                               ('3만 5천원','35000'), ('1만5원','10005'),
+                               ('1만5백원','10500'), ('-1만5천원','-15000'),
+                               ('2만3천원','23000'), ('5천원','5000'), ('1.5만원','15000'),
+                               ('1억5천만원','150000000'), ('1천5백만2천원','15002000'),
+                               ('2억3천4백5십6만원','234560000'), ('2조3억4만원','2000300040000'),
+                               ('0만원','0'), ('1억0만원','100000000'), ('+2만원','20000')]:
+            with self.subTest(source=source):
+                self.assertEqual(typed_literals(source), [{'kind':'KRW','decimal':amount}])
+                self.assertEqual(self.key(cap='월 '+source),self.key(cap='월 '+amount+'원'))
+        self.assertNotEqual(self.key(cap='월 1만5천원'),self.key(cap='월 5천원'))
+        fact=normalise_fact({**self.raw,'cap':'월 1만5천원'})
+        self.assertEqual(fact['cap'],'월 1만5천원')
+        self.assertEqual(fact['typed_normalization']['cap'],[{'kind':'KRW','decimal':'15000'}])
+
+    def test_affirmative_endings_and_complete_cap_atoms_only(self):
+        self.assertEqual(self.key(action='할인'),self.key(action='할인입니다'))
+        self.assertEqual(self.key(condition='전월 실적 30만원 이상'),self.key(condition='전월 실적은 300000원 이상입니다'))
+        self.assertEqual(self.key(cap='월 1만5천원'),self.key(cap='15000원 / 월'))
+        self.assertEqual(self.key(cap='월 최대 15000원'),self.key(cap='월 1만5천원'))
+        for changes in ({'action':'할인되지 않습니다'}, {'condition':'전월 실적 30만원 초과'},
+                        {'condition':'전월 실적 30만원 이상만'}):
+            self.assertNotEqual(self.key(),self.key(**changes))
+        self.assertNotEqual(self.key(cap='월 1만원'),self.key(cap='월 통합 1만원'))
+        self.assertNotEqual(self.key(cap='월 1만원'),self.key(cap='월 1만원 온라인 제외'))
+
     def test_named_bundles_ignore_key_order_not_roles(self):
         original = normalise_fact(self.raw)
         reordered = normalise_fact(dict(reversed(list(self.raw.items()))))
@@ -52,6 +80,8 @@ class NumericGroundingTests(unittest.TestCase):
         left = "전월 실적 30만원 이상 및 건당 결제금액 1만원 이상"
         right = "10000원 이상 건당 결제금액 그리고 300000원 이상 전월 실적"
         self.assertEqual(self.key(condition=left), self.key(condition=right))
+        self.assertEqual(self.key(condition="전월 실적 30만원 이상 및 건당 1만원 이상"),
+                         self.key(condition="건당 10000원 이상 및 전월 실적 300000원 이상"))
         for wrong in (left.replace("및", "또는"), left.replace("30만원 이상", "30만원 초과"),
                       "전월 실적 1만원 이상 및 건당 결제금액 30만원 이상", left + " 단 온라인 제외"):
             self.assertNotEqual(self.key(condition=left), self.key(condition=wrong))

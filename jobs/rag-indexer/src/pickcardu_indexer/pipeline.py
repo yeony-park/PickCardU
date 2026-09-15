@@ -33,20 +33,25 @@ from .grounding import (
     field_comparison_key,
     fact_bundles,
     BUNDLE_FIELDS,
+    literal_number_spans,
+    material_text_key,
 )
 from .structural import HEADING_RE, STRUCTURAL_CONTRACT, build_structural_chunks, render_pages
 
 
 NUMBER = re.compile(r"\d+(?:[,.]\d+)?")
 NUMBER_TOKEN = re.compile(r"(?<![\d.])[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?![\d.])")
-SOURCE_UNIT = re.compile(r"\s*(?:만\s*원|천\s*원|원|%|％|퍼센트|마일리지|마일|포인트|개월|회|년|일|시간|분|초|점|달러)")
+SOURCE_UNIT = re.compile(r"\s*(?:[조억만천백십]\s*원|원|%|％|퍼센트|마일리지|마일|포인트|개월|회|년|일|시간|분|초|점|달러)")
+NAMED_MEASURE_UNIT = re.compile(
+    r"(?:[%％]\s*)?(?:[A-Za-z][A-Za-z0-9]*(?:\s+리워드)?\s*)?(?:포인트|마일리지|마일)|명"
+)
 CLOCK_LITERAL = re.compile(r"(?<![\d:])(?:[01]?\d|2[0-3]):[0-5]\d(?![\d:])|(?<!\d)(?:(?:오전|오후)\s*(?:0?[1-9]|1[0-2])|(?:[01]?\d|2[0-3]))\s*시(?:\s*[0-5]?\d\s*분)?(?!간)")
 DATE_LITERAL = re.compile(r"(?<![\d-])(\d{4})(?:\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*일|-(\d{2})-(\d{2}))(?![\d-])")
 PHONE_LITERAL = re.compile(r"(?<![\d-])(?:0\d{1,2}-\d{3,4}-\d{4}|1\d{3}-\d{4})(?![\d-])")
 CONTACT_LABEL = re.compile(r"☎|전화|고객센터|고객상담|문의|연락처|팩스")
 RISKY_IGNORED_LINE = re.compile(r"할인|적립|캐시백|마일|포인트|무료|면제|혜택")
 BENEFIT_VERB_SIGNAL = re.compile(r"할인|적립|캐시백|무료|면제")
-BENEFIT_NOUN_SUFFIX = re.compile(r"\s*(?:율|률|대상)")
+BENEFIT_NOUN_SUFFIX = re.compile(r"\s*(?:율|률|대상|제외(?:\s*대상)?)")
 BENEFIT_COMBINED_LABEL = re.compile(r"(?:할인/적립|적립/할인)")
 CRITICAL_RELATION_LINE = re.compile(r"할인|적립|캐시백|마일|포인트|무료|면제|(?:전월|지난달).?실적|이용.?금액|한도|횟수|이상|초과|이하|미만|제외|불가|조건")
 FIELD_ROLE_MARKERS = {
@@ -56,6 +61,8 @@ FIELD_ROLE_MARKERS = {
     "period": re.compile(r"기간|개월|연간|월간"),
     "exceptions": re.compile(r"제외|불가|미적용"),
 }
+NAMED_TABLE_NOTE = re.compile(r"^[\s※•·*#-]*(.+?)\s*(청구할인|할인|적립)\s*(제외\s*대상|대상|조건|한도|제외)\s*[:：]\s*(.+)")
+EXPLICIT_CAP = re.compile(r"(?<![가-힣\d])(?:월|연|일|건당|건)\s*(?:최대|할인한도|적립한도|한도)\s*[-+]?\d[\d,.]*(?:\s*[조억만천백십]\s*\d[\d,.]*)*\s*[조억만천백십]?\s*원")
 TABLE_FIELD_ROLE = {
     "target": "target",
     "value": "value",
@@ -78,7 +85,7 @@ GENERIC_LAYOUT_LABELS = {
 GENERIC_LAYOUT_KEYS = {re.sub(r"\s+", "", label) for label in GENERIC_LAYOUT_LABELS}
 CHUNKING_PROFILES = {"card_page_section_benefit", "parent_child_bundle"}
 DEFAULT_CHUNKING_PROFILE = "card_page_section_benefit"
-OCR_PIPELINE_CONTRACT = "dual-lane-role-bundles-v16"
+OCR_PIPELINE_CONTRACT = "dual-lane-claim-grounding-v28"
 
 
 class LaneRestructureRequired(ValueError):
@@ -198,6 +205,12 @@ def normalise_fact(raw: dict[str, Any]) -> dict[str, Any]:
 
 def numbers(value: str) -> set[str]:
     return {token.replace(",", "") for token in NUMBER.findall(value)}
+
+
+def _critical_source_line(line: str) -> bool:
+    """Include data rows whose benefit/action is expressed in their header."""
+    return bool(CRITICAL_RELATION_LINE.search(line) or RISKY_IGNORED_LINE.search(line)
+                or line.lstrip().startswith("|") and NUMBER_TOKEN.search(line))
 
 
 def evidence_pages(value: Any) -> list[int]:
@@ -472,34 +485,6 @@ def _fee_row_label(header: list[tuple[int, int, str]], row: list[tuple[int, int,
     return label
 
 
-def _table_condition_bridge(left: tuple[str, int, int], right: tuple[str, int, int],
-                            scope: dict[str, Any], registry: dict[str, tuple[int, str]]) -> bool:
-    """Join a parenthesized common condition to the first data row's condition.
-
-    Only the closing parenthesis, column headers and delimiter row may be
-    skipped. Other data rows, prose and unselected conditions remain blocking.
-    """
-    if scope["scope_type"] != "table_row":
-        return False
-    ids = list(registry)
-    header, row = scope["header_line_ids"][0], scope["row_line_ids"][0]
-    hi, ri = ids.index(header), ids.index(row)
-    if hi == 0 or left[0] != ids[hi - 1] or right[0] != row:
-        return False
-    title = registry[left[0]][1]
-    if not title[:left[1]].rstrip().endswith("(") or title[left[2]:].strip() != ")":
-        return False
-    if not HEADING_RE.fullmatch(title):
-        return False
-    if ri != hi + 2 or not re.fullmatch(r"\s*\|(?:\s*:?-+:?\s*\|){2,}\s*", registry[ids[hi + 1]][1]):
-        return False
-    headers, cells = _table_cells(registry[header][1]), _table_cells(registry[row][1])
-    if len(headers) != len(cells) or not all(re.sub(r"\s+", "", h[2]) in GENERIC_LAYOUT_KEYS for h in headers):
-        return False  # A header containing a condition/value is not disposable layout.
-    return any(
-        _table_header_role(h[2]) == "condition" and (right[1], right[2]) == (cell[0], cell[1])
-        for h, cell in zip(headers, cells)
-    )
 
 
 def _contains_range(container: tuple[str, int, int], line_id: str, start: int, end: int) -> bool:
@@ -508,6 +493,8 @@ def _contains_range(container: tuple[str, int, int], line_id: str, start: int, e
 
 def _context_literal_ranges(text: str, field: str) -> list[tuple[int, int]]:
     """Recognize complete non-monetary tokens, never exempt their whole line."""
+    if field == "cap":
+        return [match.span() for match in EXPLICIT_CAP.finditer(text)]
     if field not in {"condition", "period", "exceptions"}:
         return []
     ranges = []
@@ -601,6 +588,18 @@ def _shared_table_heading(scope: dict[str, Any], registry: dict[str, tuple[int, 
     return title_id
 
 
+def _resolve_field_fragment(ref: Any, registry: dict[str, tuple[int, str]]) -> tuple[str, int, int]:
+    """Use a coordinate as a hint, with the same rule for approval and diagnosis."""
+    if not isinstance(ref, dict) or not isinstance(ref.get("line_id"), str) or ref["line_id"] not in registry or not isinstance(ref.get("fragment"), str) or not ref["fragment"]:
+        raise ValueError("source occurrence is unresolved")
+    line_id = ref["line_id"]
+    start, end = ref.get("char_start"), ref.get("char_end")
+    if type(start) is not int or type(end) is not int or start < 0 or end <= start:
+        start, end = 0, 0
+    start, end = _same_line_fragment_range(registry[line_id][1], ref["fragment"], start, end)
+    return line_id, start, end
+
+
 def _same_line_fragment_range(
     source_line: str,
     fragment: str,
@@ -657,72 +656,57 @@ def _same_line_fragment_range(
     return matches[0]
 
 
-def _scope_line_ids(provider: str, ordinal: int, scope: Any, registry: dict[str, tuple[int, str]]) -> list[str]:
-    if not isinstance(scope, dict):
-        raise ValueError(f"{provider} fact {ordinal} relation_scope is required")
-    scope_type, line_ids = scope.get("scope_type"), scope.get("line_ids")
-    if scope_type not in {"sentence", "bounded_block", "table_row"}:
-        raise ValueError(f"{provider} fact {ordinal} relation_scope is ambiguous or unknown")
-    if not isinstance(line_ids, list) or not line_ids or len(set(line_ids)) != len(line_ids) or not all(isinstance(line_id, str) and line_id in registry for line_id in line_ids):
-        raise ValueError(f"{provider} fact {ordinal} relation_scope line_ids are invalid")
-    order = {line_id: index for index, line_id in enumerate(registry)}
-    ordered = sorted(line_ids, key=order.__getitem__)
-    if scope_type == "sentence" and len(ordered) != 1:
-        raise ValueError(f"{provider} fact {ordinal} sentence scope must be one source line")
-    if scope_type == "bounded_block":
-        if len({registry[line_id][0] for line_id in ordered}) != 1:
-            raise ValueError(f"{provider} fact {ordinal} bounded block is ambiguous")
-        selected = set(ordered)
-        first, last = order[ordered[0]], order[ordered[-1]]
-        skipped = [line_id for line_id in list(registry)[first:last + 1] if line_id not in selected]
-        # OCR can mark an adjacent explanatory sentence as another '# heading'.
-        # Use hierarchy only to guard a remote jump, not as a blanket rejection
-        # of contiguous text already checked by the field/numeric validators.
-        if skipped:
-            _check_heading_chain(provider, ordinal, ordered, registry)
-        if any(
-            registry[line_id][1].strip().startswith("|")
-            or CRITICAL_RELATION_LINE.search(registry[line_id][1]) and not _is_generic_layout_line(registry[line_id][1])
-            for line_id in skipped
-        ):
-            raise ValueError(f"{provider} fact {ordinal} bounded block skips a competing relation boundary; shared context is not proven")
-    header, row = scope.get("header_line_ids"), scope.get("row_line_ids")
-    if not isinstance(header, list) or not isinstance(row, list):
-        raise ValueError(f"{provider} fact {ordinal} relation_scope header/row arrays are required")
-    if scope_type == "table_row":
-        if len(header) != 1 or len(row) != 1:
-            raise ValueError(f"{provider} fact {ordinal} table scope requires one header and one row")
-        if not set(header + row) <= set(ordered) or header[0] not in registry or row[0] not in registry:
-            raise ValueError(f"{provider} fact {ordinal} table scope does not match header and row")
-        if len({registry[line_id][0] for line_id in ordered}) != 1 or order[header[0]] >= order[row[0]]:
-            raise ValueError(f"{provider} fact {ordinal} table header must precede its row on the same page")
-        registry_ids = list(registry)
-        header_index, row_index = order[header[0]], order[row[0]]
-        if any(not registry[line_id][1].strip().startswith("|") for line_id in registry_ids[header_index:row_index + 1]):
-            raise ValueError(f"{provider} fact {ordinal} table header and row cross a non-table boundary")
-        block_start, block_end = header_index, row_index
-        while block_start and registry[registry_ids[block_start - 1]][1].strip().startswith("|"):
-            block_start -= 1
-        while block_end + 1 < len(registry_ids) and registry[registry_ids[block_end + 1]][1].strip().startswith("|"):
-            block_end += 1
-        extra_indices = sorted(order[line_id] for line_id in ordered if line_id not in {header[0], row[0]})
-        before = [index for index in extra_indices if index < block_start]
-        after = [index for index in extra_indices if index > block_end]
-        inside = [index for index in extra_indices if block_start <= index <= block_end]
-        selected_extra = set(extra_indices)
-        before_separated = before and any(
-            index not in selected_extra and not _is_generic_layout_line(registry[registry_ids[index]][1])
-            for index in range(before[0], block_start)
-        )
-        after_separated = after and any(
-            index not in selected_extra and not _is_generic_layout_line(registry[registry_ids[index]][1])
-            for index in range(block_end + 1, after[-1] + 1)
-        )
-        if inside or before_separated or after_separated:
-            raise ValueError(f"{provider} fact {ordinal} table context is not adjacent to its table")
-    elif header or row:
-        raise ValueError(f"{provider} fact {ordinal} non-table scope has table-only line IDs")
-    return ordered
+def _named_table_note(scope: dict[str, Any], line_id: str,
+                      registry: dict[str, tuple[int, str]]) -> tuple[str, tuple[int, int]] | None:
+    """Prove one explicitly named note belongs to one source table row.
+
+    Provider coordinates and JSON field values never determine the target.
+    Other notes may intervene; another table/section or duplicate target may not.
+    """
+    if scope.get('scope_type') != 'table_row':
+        return None
+    header_ids, row_ids = scope.get('header_line_ids', []), scope.get('row_line_ids', [])
+    if len(header_ids) != 1 or len(row_ids) != 1 or any(k not in registry for k in [*header_ids, *row_ids, line_id]):
+        return None
+    header, row = header_ids[0], row_ids[0]
+    note = NAMED_TABLE_NOTE.fullmatch(registry[line_id][1])
+    if not note or len({registry[k][0] for k in (header, row, line_id)}) != 1:
+        return None
+    try:
+        headers, cells = _table_cells(registry[header][1]), _table_cells(registry[row][1])
+        roles = [_table_header_role(cell[2]) for cell in headers]
+        if roles.count('target') != 1 or roles.count('value') != 1 or len(cells) != len(headers):
+            return None
+        target_index = roles.index('target')
+        target = _fragment_format_key(cells[target_index][2])
+        if target != _fragment_format_key(note[1]):
+            return None
+        actions = set(BENEFIT_VERB_SIGNAL.findall(headers[roles.index('value')][2]))
+        if actions != {note[2].removeprefix('청구')}:
+            return None
+        ids = list(registry)
+        hi, ri, ni = ids.index(header), ids.index(row), ids.index(line_id)
+        end = ri
+        while end + 1 < len(ids) and registry[ids[end + 1]][0] == registry[row][0] and registry[ids[end + 1]][1].strip().startswith('|'):
+            end += 1
+        if ni <= end or any(registry[k][1].strip().startswith('|') or HEADING_RE.fullmatch(registry[k][1]) for k in ids[end + 1:ni]):
+            return None
+        matches = 0
+        for k in ids[hi + 1:end + 1]:
+            if re.fullmatch(r'[\s|:\-]+', registry[k][1]):
+                continue
+            other = _table_cells(registry[k][1])
+            if len(other) != len(headers):
+                return None
+            matches += _fragment_format_key(other[target_index][2]) == target
+        if matches != 1:
+            return None
+    except ValueError:
+        return None
+    role = 'exceptions' if '제외' in note[3] else 'cap' if note[3] == '한도' else 'condition'
+    return role, note.span(4)
+
+
 
 
 def _list_marker_ranges(registry: dict[str, tuple[int, str]]) -> dict[str, tuple[int, int]]:
@@ -772,162 +756,248 @@ def _comparison_fact(raw: dict[str, Any], registry: dict[str, tuple[int, str]]) 
 
 
 def _validate_field_grounding(
-    provider: str,
-    ordinal: int,
-    raw_fact: dict[str, Any],
-    fact: dict[str, Any],
-    registry: dict[str, tuple[int, str]],
+    provider: str, ordinal: int, raw_fact: dict[str, Any],
+    fact: dict[str, Any], registry: dict[str, tuple[int, str]],
     card_name: str | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
-    scope_ids = _scope_line_ids(provider, ordinal, raw_fact.get("relation_scope"), registry)
-    scope = raw_fact["relation_scope"]
-    table_roles: list[str | None] = []
-    table_row_cells: list[tuple[int, int, str]] = []
-    shared_heading: str | None = None
-    fee_label: str | None = None
-    if scope["scope_type"] == "table_row":
-        header_id, row_id = scope["header_line_ids"][0], scope["row_line_ids"][0]
-        header_cells = _table_cells(registry[header_id][1])
-        table_row_cells = _table_cells(registry[row_id][1])
-        if len(header_cells) != len(table_row_cells):
-            raise ValueError(f"{provider} fact {ordinal} table header and row column counts differ")
-        table_roles = [_table_header_role(cell[2]) for cell in header_cells]
-        fee_label = _fee_row_label(header_cells, table_row_cells, fact)
-        if fee_label:
-            table_roles = ["fee_label", "value"]
-        shared_heading = _shared_table_heading(scope, registry)
-    field_evidence = raw_fact.get("field_evidence")
-    if not isinstance(field_evidence, dict):
-        raise ValueError(f"{provider} fact {ordinal} field_evidence is required")
-    evidence: dict[str, Any] = {}
-    if set(field_evidence) != set(RELATION_FIELDS):
+    """Verify role-bound claims in a source witness, not a reconstructed paragraph.
+
+    Provider scope/coordinates are hints. The witness below is one table row or
+    one bounded benefit block. Unresolved witnesses never authorize a fact.
+    """
+    declared = raw_fact.get("relation_scope")
+    supplied_fields = raw_fact.get("field_evidence")
+    if not isinstance(declared, dict) or not isinstance(supplied_fields, dict):
+        raise ValueError(f"{provider} fact {ordinal} source witness hints are missing")
+    if set(supplied_fields) != set(RELATION_FIELDS):
         raise ValueError(f"{provider} fact {ordinal} field_evidence keys are incomplete")
+    ids = list(registry)
+    order = {line_id: i for i, line_id in enumerate(ids)}
     field_spans: dict[str, list[tuple[str, int, int]]] = {}
     source_fields = {field: "" for field in RELATION_FIELDS}
-    line_order = {line_id: index for index, line_id in enumerate(registry)}
-    source_ids = list(registry)
-    list_markers = _list_marker_ranges(registry)
-    gap_lines = {key: text[:list_markers[key][0]] + ' ' * (list_markers[key][1] - list_markers[key][0]) + text[list_markers[key][1]:]
-                 if key in list_markers else text for key, (_page, text) in registry.items()}
+    evidence: dict[str, Any] = {}
     for field in RELATION_FIELDS:
-        value = fact[field]
-        supplied = field_evidence.get(field)
-        if not isinstance(supplied, list):
-            raise ValueError(f"{provider} fact {ordinal} {field} field evidence must be an array")
-        if not value:
-            if supplied:
-                raise ValueError(f"{provider} fact {ordinal} empty {field} has field evidence")
+        refs = supplied_fields[field]
+        if not isinstance(refs, list):
+            raise ValueError(f"{provider} fact {ordinal} {field} evidence must be an array")
+        if not fact[field] and not refs:
+            field_spans[field] = []
             continue
-        if not supplied:
-            raise ValueError(f"{provider} fact {ordinal} {field} field evidence is required")
-        line_ids: list[str] = []
-        fragments: list[str] = []
-        locations: list[tuple[str, int, int]] = []
-        for fragment in supplied:
-            if not isinstance(fragment, dict):
-                raise ValueError(f"{provider} fact {ordinal} {field} fragment is invalid")
-            line_id, source_fragment = fragment.get("line_id"), fragment.get("fragment")
-            start, end = fragment.get("char_start"), fragment.get("char_end")
-            if not isinstance(line_id, str) or line_id not in registry or not isinstance(source_fragment, str) or isinstance(start, bool) or isinstance(end, bool) or not isinstance(start, int) or not isinstance(end, int) or start < 0 or end <= start:
-                raise ValueError(f"{provider} fact {ordinal} {field} fragment location is invalid")
-            source_line = registry[line_id][1]
-            allowed_ranges: list[tuple[int, int]] | None = None
-            if scope["scope_type"] == "table_row" and line_id == scope["row_line_ids"][0] and field in TABLE_FIELD_ROLE:
-                role = TABLE_FIELD_ROLE[field]
-                allowed_ranges = [(cell[0], cell[1]) for index, cell in enumerate(table_row_cells) if table_roles[index] == role]
-                if fee_label and field == "target":
-                    allowed_ranges = [(table_row_cells[0][0], table_row_cells[0][1])]
-                if not allowed_ranges:
-                    allowed_ranges = None if field in {"condition", "cap", "frequency", "period", "exceptions"} else []
-            if allowed_ranges == []:
-                raise ValueError(f"{provider} fact {ordinal} table {field} column is ambiguous or missing")
-            try:
-                start, end = _same_line_fragment_range(source_line, source_fragment, start, end, allowed_ranges)
-            except ValueError as error:
-                raise ValueError(f"{provider} fact {ordinal} {field} {error}") from error
-            source_fragment = source_line[start:end]
-            line_ids.append(line_id)
-            fragments.append(source_fragment)
-            locations.append((line_id, start, end))
-        if not set(line_ids) <= set(scope_ids):
-            raise ValueError(f"{provider} fact {ordinal} {field} evidence escapes relation_scope")
-        ordered_locations = sorted(locations, key=lambda item: (line_order[item[0]], item[1], item[2]))
-        if locations != ordered_locations or any(
-            left[0] == right[0] and left[2] > right[1]
-            for left, right in zip(ordered_locations, ordered_locations[1:])
-        ):
-            raise ValueError(f"{provider} fact {ordinal} {field} fragments must be ordered non-overlapping source ranges")
-        for left, right in zip(ordered_locations, ordered_locations[1:]):
-            if left[0] == right[0]:
-                gap = gap_lines[left[0]][left[2]:right[1]]
-            else:
-                between = source_ids[line_order[left[0]] + 1:line_order[right[0]]]
-                gap = "\n".join([gap_lines[left[0]][left[2]:],
-                                 *(gap_lines[line_id] for line_id in between),
-                                 gap_lines[right[0]][:right[1]]])
-            # Only line-initial Markdown heading markers are layout. Do not
-            # erase pipes, minus signs, comparison operators or prose in gaps.
-            layout_gap = gap
-            if left[0] != right[0]:
-                # Only actual starts of subsequent source lines may contain
-                # bullets; a '-' following a fragment can be a range/operator.
-                tail, *following = gap.split("\n")
-                layout_gap = "\n".join([tail, *(re.sub(r"^ {0,3}(?:#{1,6}[ \t]+|(?:[-*•·][ \t]+)+)", "", line) for line in following)])
-            if not re.fullmatch(r"[\s•※]*", layout_gap) and not (
-                field == "condition" and _table_condition_bridge(left, right, scope, registry)
-            ):
-                raise ValueError(f"{provider} fact {ordinal} {field} fragments skip non-whitespace source content")
-        field_spans[field] = ordered_locations
-        # Do not let a correct small fragment plus an unrelated broad quote pass.
-        # The ordered provider fragments must reconstruct the complete raw field.
-        source_value = " ".join(fragments)
-        if field in {'condition', 'cap', 'frequency', 'period', 'exceptions'}:
-            source_value = _strip_confirmed_list_labels(source_value, registry, line_ids)
-        source_fields[field] = source_value
-        if field not in {"benefit_type", "value", "unit"} and field_comparison_key(source_fields, field) != field_comparison_key(fact, field):
-            error_type = CriticalContentMismatch if (
-                typed_literals(source_value) != typed_literals(value)
-                or condition_operators(source_value) != condition_operators(value)
-            ) else ValueError
-            raise error_type(f"{provider} fact {ordinal} {field} fragments do not reconstruct its raw field")
-        resolved = _resolve_evidence(
-            provider,
-            f"fact {ordinal} {field}",
-            {"line_ids": list(dict.fromkeys(line_ids))},
-            {},
-            registry,
-        )
+        if not refs:
+            raise ValueError(f"{provider} fact {ordinal} {field} source occurrence is unresolved")
+        spans = []
+        for ref in refs:
+            spans.append(_resolve_field_fragment(ref, registry))
+        spans = sorted(set(spans), key=lambda x: (order[x[0]], x[1], x[2]))
+        if any(a[0] == b[0] and a[2] > b[1] for a, b in zip(spans, spans[1:])):
+            raise ValueError(f"{provider} fact {ordinal} overlapping evidence prevents role comparison")
+        field_spans[field] = spans
+        source = " ".join(registry[k][1][a:b] for k, a, b in spans)
+        if field in {"condition", "cap", "frequency", "period", "exceptions"}:
+            source = _strip_confirmed_list_labels(source, registry, [k for k, _, _ in spans])
+        source_fields[field] = source
+        resolved = _resolve_evidence(provider, f"fact {ordinal} {field}",
+                                     {"line_ids": list(dict.fromkeys(k for k, _, _ in spans))}, {}, registry)
         evidence[field] = {**resolved, "fragments": [
-            {**fragment, "fragment": registry[location[0]][1][location[1]:location[2]], "char_start": location[1], "char_end": location[2]}
-            for fragment, location in zip(supplied, locations)
-        ]}
-    # Compare value+unit together: 30 + 만원 and 300000 + 원 are the same
-    # amount. Source coordinates/units below still refer to the original OCR.
+            {"line_id": k, "fragment": registry[k][1][a:b], "char_start": a, "char_end": b}
+            for k, a, b in spans]}
     source_fact = normalise_fact(source_fields)
-    for field in ("benefit_type", "value", "unit"):
+    for field in RELATION_FIELDS:
         if field_comparison_key(source_fact, field) != field_comparison_key(fact, field):
-            error_type = ValueError if field == "benefit_type" else CriticalContentMismatch
-            raise error_type(f"{provider} fact {ordinal} {field} fragments do not reconstruct its value bundle")
-    # A label may repeat a core value, but may not borrow a different occurrence
-    # elsewhere in the scope to justify dropping that value from the label.
-    if normalized(source_fact["benefit_type"]) != normalized(fact["benefit_type"]):
-        for line_id, start, end in field_spans.get("benefit_type", []):
-            source_line = registry[line_id][1]
-            for field in ("target", "action"):
-                token = source_fields.get(field, "").strip()
-                if not token or normalized(token) in normalized(fact["benefit_type"]):
-                    continue
-                pattern = r"\s*".join(re.escape(part) for part in token.split())
-                for match in re.finditer(pattern, source_line[start:end]):
-                    if not any(_contains_range(span, line_id, start + match.start(), start + match.end())
-                               for span in field_spans.get(field, [])):
-                        raise ValueError(f"{provider} fact {ordinal} label {field} has no same-location role owner")
-            for match in NUMBER_TOKEN.finditer(source_line, start, end):
-                if not any(_contains_range(span, line_id, match.start(), match.end())
-                           for field in ("value", "condition", "cap", "frequency", "period", "exceptions")
-                           for span in field_spans.get(field, [])):
-                    raise ValueError(f"{provider} fact {ordinal} label number has no same-location role owner")
+            material = (field in {"value", "unit", "action"}
+                        or typed_literals(source_fact[field]) != typed_literals(fact[field])
+                        or condition_operators(source_fact[field]) != condition_operators(fact[field]))
+            error = CriticalContentMismatch if material else ValueError
+            raise error(f"{provider} fact {ordinal} {field} material claim differs or its meaning is unresolved")
+    # A positive verb inside an exclusion noun is not a positive benefit.
+    # Preserve the polarity on that action, even if another field quotes the
+    # negative text (e.g. condition='적립 제외 대상', action='적립').
+    if BENEFIT_VERB_SIGNAL.fullmatch(normalized(fact["action"])):
+        for k, _, end in field_spans["action"]:
+            tail = registry[k][1][end:]
+            if re.match(r"\s*(?:(?:대상(?:에서)?|이|가)\s*)?(?:제외|불가|미적용|되지\s*않|하지\s*않)", tail):
+                raise CriticalContentMismatch(f"{provider} fact {ordinal} positive action cites a negated benefit")
+    selected = {k for spans in field_spans.values() for k, _, _ in spans}
+    if not selected:
+        raise ValueError(f"{provider} fact {ordinal} source witness is empty")
+    scope_ids = sorted(selected, key=order.__getitem__)
+    scope = {"scope_type": "bounded_block", "line_ids": scope_ids,
+             "header_line_ids": [], "row_line_ids": []}
+    table_roles = []
+    fee_label = None
+    shared_heading = None
+    header_ids, row_ids = declared.get("header_line_ids", []), declared.get("row_line_ids", [])
+    table_rows = {k for field in ("target", "value", "unit") for k, _, _ in field_spans[field]
+                  if registry[k][1].strip().startswith("|")}
+    if declared.get("scope_type") == "table_row" or table_rows or any(registry[k][1].lstrip().startswith("|") for k in selected):
+        if not isinstance(header_ids, list) or not isinstance(row_ids, list) or len(header_ids) != 1 or len(row_ids) != 1:
+            raise ValueError(f"{provider} fact {ordinal} table scope requires one header and one row")
+        header, row = header_ids[0], row_ids[0]
+        if header not in registry or row not in registry or registry[header][0] != registry[row][0] or order[header] >= order[row]:
+            raise ValueError(f"{provider} fact {ordinal} table header-to-row relation is unresolved")
+        between = ids[order[header]:order[row]+1]
+        if any(not registry[k][1].strip().startswith("|") for k in between):
+            raise ValueError(f"{provider} fact {ordinal} table header belongs to another table")
+        cells, row_cells = _table_cells(registry[header][1]), _table_cells(registry[row][1])
+        if len(cells) != len(row_cells):
+            raise ValueError(f"{provider} fact {ordinal} table cell roles are unresolved")
+        table_roles = [_table_header_role(text) for _, _, text in cells]
+        fee_label = _fee_row_label(cells, row_cells, fact)
+        if fee_label:
+            table_roles = ["target", "value"]
+        scope.update(scope_type="table_row", header_line_ids=[header], row_line_ids=[row],
+                     line_ids=sorted(selected | {header, row}, key=order.__getitem__))
+        scope_ids = scope["line_ids"]
+        if table_rows - {row, header}:
+            raise CriticalContentMismatch(f"{provider} fact {ordinal} benefit fields borrow another table row")
+        for field, role in TABLE_FIELD_ROLE.items():
+            for k, a, b in field_spans[field]:
+                if k == row:
+                    columns = [j for j, (lo, hi, _) in enumerate(row_cells) if lo <= a and b <= hi]
+                    if len(columns) != 1:
+                        raise ValueError(f"{provider} fact {ordinal} {field} cell occurrence is unresolved")
+                    actual = table_roles[columns[0]]
+                    if actual and actual != role:
+                        raise CriticalContentMismatch(f"{provider} fact {ordinal} {field} is assigned to the wrong table role")
+        # External context requires an explicit named note or a proven shared
+        # heading; its distance by itself is not evidence for or against it.
+        shared = shared_heading = _shared_table_heading(scope, registry)
+        for k in selected - {header, row}:
+            named = _named_table_note(scope, k, registry)
+            if named:
+                role, (a, b) = named
+                if not any(_contains_range(span, k, a, b) for span in field_spans[role]):
+                    raise CriticalContentMismatch(f"{provider} fact {ordinal} named note is assigned to the wrong role")
+                continue
+            if k == shared:
+                continue
+            # A complete, contiguous common rule block can be a witness.
+            block_start = order[header]
+            while block_start and registry[ids[block_start-1]][1].strip().startswith("|"):
+                block_start -= 1
+            block_end = order[row]
+            while block_end+1 < len(ids) and registry[ids[block_end+1]][1].strip().startswith("|"):
+                block_end += 1
+            nearest = range(order[k]+1, block_start) if order[k] < block_start else range(block_end+1, order[k])
+            if block_start <= order[k] <= block_end or registry[k][0] != registry[row][0] or any(
+                ids[i] not in selected and not _is_generic_layout_line(registry[ids[i]][1]) for i in nearest
+            ):
+                raise ValueError(f"{provider} fact {ordinal} external rule applicability is unresolved")
+            if fee_label and order[k] == order[row] + 1 and field_spans["target"]:
+                expected = re.sub(r"\s+", "", card_name or "")
+                actual = re.sub(r"\s+", "", fact["target"])
+                if actual not in {fee_label, expected + "의별도" + fee_label, expected + "별도" + fee_label}:
+                    raise ValueError(f"{provider} fact {ordinal} fee target belongs to another entity")
+                continue
+            if any(span[0] == k for field in ("target", "value", "unit") for span in field_spans[field]):
+                raise ValueError(f"{provider} fact {ordinal} shared benefit heading is unresolved")
+        # A row role must retain all of its material content, not all characters.
+        for j, role in enumerate(table_roles):
+            if not role:
+                continue
+            row_value = row_cells[j][2]
+            if fee_label and role == "target":
+                continue  # Entity-qualified target was checked against card identity.
+            owned = " ".join(registry[k][1][a:b] for field in
+                             (("value", "unit", "action") if role == "value" else (role,))
+                             for k, a, b in field_spans[field] if k == row and row_cells[j][0] <= a < b <= row_cells[j][1])
+            if material_text_key(row_value) != material_text_key(owned):
+                raise ValueError(f"{provider} fact {ordinal} table {role} material content is missing or unresolved")
+        inherited = any(fact[field] and TABLE_FIELD_ROLE[field] not in table_roles
+                        and not (fee_label and field == "target") for field in ("target", "value", "unit"))
+        if inherited:
+            if not shared_heading:
+                raise ValueError(f"{provider} fact {ordinal} inherited benefit relation is unresolved")
+            title = registry[shared_heading][1]
+            heading = HEADING_RE.fullmatch(title)
+            # Do not hide a second target/rate/exception inside benefit_type.
+            title_spans = [span for field, spans in field_spans.items() if field != "benefit_type" for span in spans]
+            if any(not character.isspace() and not any(_contains_range(span, shared_heading, index, index + 1) for span in title_spans)
+                   for index, character in enumerate(title) if heading.start(2) <= index < heading.end(2)):
+                raise ValueError(f"{provider} fact {ordinal} shared heading contains unmapped relationship content")
+            if not field_spans.get("action") or not all(span[0] == shared_heading for span in field_spans["action"]):
+                raise ValueError(f"{provider} fact {ordinal} shared heading action is not directly grounded")
+            if "value" not in table_roles and fact["value"] and len(fact["typed_normalization"].get("value", [])) != 1:
+                raise ValueError(f"{provider} fact {ordinal} shared heading value is not a single numeric benefit")
+            if "value" not in table_roles and fact["value"]:
+                actions = field_spans["action"]
+                amounts = field_spans["value"] + field_spans.get("unit", [])
+                amount_start, amount_end = min(span[1] for span in amounts), max(span[2] for span in amounts)
+                number = NUMBER_TOKEN.match(title, amount_start)
+                source_unit = SOURCE_UNIT.match(title, number.end()) if number else None
+                if not source_unit or source_unit.end() != amount_end:
+                    raise ValueError(f"{provider} fact {ordinal} shared heading amount must be one number with its unit")
+                directly_bound = False
+                if len(actions) == 1 and BENEFIT_VERB_SIGNAL.fullmatch(fact["action"]):
+                    _, action_start, action_end = actions[0]
+                    if amount_end <= action_start:
+                        directly_bound = not title[amount_end:action_start].strip()
+                    elif action_end <= amount_start:
+                        directly_bound = not title[action_end:amount_start].strip()
+                if not directly_bound:
+                    raise ValueError(f"{provider} fact {ordinal} shared heading value is not directly bound to its benefit action")
+            for field, marker in FIELD_ROLE_MARKERS.items():
+                for match in marker.finditer(title):
+                    if not any(_contains_range(span, shared_heading, match.start(), match.end()) for span in field_spans.get(field, [])):
+                        raise ValueError(f"{provider} fact {ordinal} shared heading {field} role is not preserved")
+    else:
+        if len({registry[k][0] for k in selected}) != 1:
+            raise ValueError(f"{provider} fact {ordinal} cross-page benefit relation is unresolved")
+        if len(scope_ids) == 1:
+            scope["scope_type"] = "sentence"
+        else:
+            skipped = ids[order[scope_ids[0]]:order[scope_ids[-1]]+1]
+            if any(k not in selected for k in skipped):
+                _check_heading_chain(provider, ordinal, scope_ids, registry)
+            if any(k not in selected and CRITICAL_RELATION_LINE.search(registry[k][1])
+                   and not _is_generic_layout_line(registry[k][1]) for k in skipped):
+                raise ValueError(f"{provider} fact {ordinal} intervening benefit prevents a unique relationship")
+    # Only verified witness lines participate; unrelated provider scope entries
+    # are not silently attributed to this benefit. Coverage is checked per lane.
+    list_markers = _list_marker_ranges(registry)
+    gap_lines = {k: text[:list_markers[k][0]] + " " * (list_markers[k][1] - list_markers[k][0]) + text[list_markers[k][1]:]
+                 if k in list_markers else text for k, (_, text) in registry.items()}
     all_spans = [span for spans in field_spans.values() for span in spans]
+    # An explicit logical expression must retain every operand, not just its
+    # connector. This is NOT a sentence reconstruction gate for other fields:
+    # their values, roles, numeric ownership and negative operators are checked
+    # separately below. Unparsed prose cannot be declared semantically verified.
+    for field in ("target", "condition", "cap", "frequency", "period", "exceptions"):
+        for k in {span[0] for span in field_spans[field]}:
+            if registry[k][1].lstrip().startswith("|"):
+                continue  # The independently matched table cell is checked above.
+            own = [span for span in field_spans[field] if span[0] == k]
+            start, end = min(a for _, a, _ in own), max(b for _, _, b in own)
+            other = [span for name, spans in field_spans.items() if name != field for span in spans if span[0] == k]
+            left = max((b for _, _, b in other if b <= start), default=0)
+            right = min((a for _, a, _ in other if end <= a), default=len(registry[k][1]))
+            named = _named_table_note(scope, k, registry) if scope["scope_type"] == "table_row" else None
+            if named and named[0] == field:
+                left, right = named[1]
+            source = gap_lines[k][left:right]
+            connector = re.search(r"또는|혹은|및|그리고|(?i:\band\b|\bor\b)", source)
+            if not connector:
+                continue
+            # Check the operand tail, not unrelated text before this expression.
+            connector_start, operand_start = left + connector.start(), left + connector.end()
+            if not any(a < connector_start and registry[k][1][a:min(b, connector_start)].strip()
+                       for _, a, b in own):
+                raise ValueError(f"{provider} fact {ordinal} {field} logical operand is missing")
+            left = operand_start
+            # A verified role may overlap the tail (e.g. target '기본 서비스'
+            # and value '기본 서비스만'). Its qualifier is verified in that
+            # role, not falsely required a second time in this target.
+            right = min((a for _, a, b in other if operand_start < a < right and b >= end), default=right)
+            source = gap_lines[k][left:right]
+            if left == 0:
+                source = re.sub(r"^\s*(?:#{1,6}\s+|(?:[-*•·]\s+)+)", "", source)
+            source = source.strip(" ()[]:：,，;.。")
+            source = re.sub(r"^(?:은|는|이|가)\s+", "", source)
+            preserved = " ".join(registry[k][1][max(a, left):min(b, right)]
+                                 for _, a, b in own if b > left and a < right)
+            preserved = _strip_confirmed_list_labels(preserved, registry, [k])
+            if not material_text_key(preserved) or material_text_key(source) != material_text_key(preserved):
+                raise ValueError(f"{provider} fact {ordinal} {field} predicate has unaccounted material content")
     if fee_label:
         # A fee row cannot silently discard its immediately following rules.
         ids = list(registry)
@@ -946,13 +1016,16 @@ def _validate_field_grounding(
             if not re.fullmatch(r"(?:[\s,.;:•※·-]|는|은|이|가|을|를|의)*", remaining):
                 raise ValueError(f"{provider} fact {ordinal} adjacent fee condition or exception is not preserved")
             cursor += 1
-    if scope["scope_type"] == "table_row":
-        structural_ids = {scope["header_line_ids"][0], scope["row_line_ids"][0]}
-        for line_id in set(scope_ids) - structural_ids:
-            if fee_label and _fragment_format_key(registry[line_id][1]) in {fee_label, fee_label + "안내", fee_label + "정보"}:
-                continue  # A repeated label adds no condition, amount or exception.
-            if not any(span[0] == line_id for span in all_spans):
-                raise ValueError(f"{provider} fact {ordinal} table context line has no field-level relationship evidence")
+    # Operators and negative/shared scope are content, even when they occur
+    # outside quoted fragments. Unlike intervening prose, these may not vanish.
+    material_markers = re.compile(r"제외|불가|미적용|않(?:음|습니다)|한하지|한함|한해|한하여|전용|만(?=\s|$|[,.）)])|이상|초과|이하|미만|통합|합산|공유|개별|또는|혹은|및|그리고|(?i:\band\b|\bor\b)|다만|(?<![가-힣])단(?=,)|[<>]=?")
+    for k in scope_ids:
+        for match in material_markers.finditer(registry[k][1]):
+            if fee_label and k in scope["header_line_ids"]:
+                continue  # _fee_row_label proved this column explicitly covers both card variants.
+            if not any(_contains_range(span, k, match.start(), match.end())
+                       for field, spans in field_spans.items() if field != "benefit_type" for span in spans):
+                raise CriticalContentMismatch(f"{provider} fact {ordinal} material operator or exception is omitted")
     for line_id in scope_ids:
         source_line = registry[line_id][1]
         if line_id in set(scope.get("header_line_ids", [])):
@@ -970,6 +1043,10 @@ def _validate_field_grounding(
                 for marker in FIELD_ROLE_MARKERS[field].finditer(source_line)
                 if marker.start() >= match.end()
             )
+            named = _named_table_note(scope, line_id, registry) if scope['scope_type'] == 'table_row' else None
+            if named:
+                role, (start, end) = named
+                contextual_role = contextual_role or any(_contains_range(span, line_id, start, end) for span in field_spans.get(role, []))
             table_common_title = (
                 scope["scope_type"] == "table_row"
                 and line_id not in {scope["header_line_ids"][0], scope["row_line_ids"][0]}
@@ -1019,98 +1096,7 @@ def _validate_field_grounding(
             )
             if not layout_heading and not action_mapped and not contextual_role and not table_common_title and not noun_mapped and not excluded_target:
                 raise ValueError(f"{provider} fact {ordinal} contains multiple benefit candidates")
-    if scope["scope_type"] == "table_row":
-        header_id, row_id = scope["header_line_ids"][0], scope["row_line_ids"][0]
-        for column, (_start, _end, text) in enumerate(table_row_cells):
-            if NUMBER_TOKEN.search(text) and table_roles[column] is None:
-                raise ValueError(f"{provider} fact {ordinal} table numeric column has an unknown role")
-        for field, expected_role in TABLE_FIELD_ROLE.items():
-            if not fact[field]:
-                continue
-            matching_columns = [index for index, role in enumerate(table_roles) if role == expected_role]
-            spans = field_spans[field]
-            if fee_label and field == "target":
-                label_start, label_end, _ = table_row_cells[0]
-                row_index = list(registry).index(row_id)
-                for line_id, start, end in spans:
-                    if line_id == row_id and label_start <= start and end <= label_end:
-                        continue
-                    # The adjacent prose must name the same fee explicitly;
-                    # cross-row/remote explanations cannot substitute a target.
-                    target_key = _fragment_format_key(registry[line_id][1][start:end])
-                    card_key = _fragment_format_key(card_name or "")
-                    same_card_target = bool(card_key) and bool(re.fullmatch(
-                        re.escape(card_key) + r"(?:의|발급에따른)?별도" + re.escape(fee_label), target_key))
-                    same_free_action = fact["value"] in {"없음", "면제"} and any(
-                        action_line == line_id and action_start >= end
-                        and re.fullmatch(r"\s*(?:는|은|이|가)?\s*", registry[line_id][1][end:action_start])
-                        and re.fullmatch(r"없(?:음|으며|습니다|다)|면제(?:됩니다|입니다)?", normalized(registry[line_id][1][action_start:action_end]))
-                        for action_line, action_start, action_end in field_spans.get("action", [])
-                    )
-                    if (list(registry).index(line_id) != row_index + 1
-                            or registry[line_id][1].strip().startswith("|")
-                            or not same_card_target or not same_free_action):
-                        raise ValueError(f"{provider} fact {ordinal} fee target is not bound to its row label")
-                continue
-            if matching_columns:
-                if len(matching_columns) != 1:
-                    raise ValueError(f"{provider} fact {ordinal} table {field} column is ambiguous or missing")
-                cell_start, cell_end, _text = table_row_cells[matching_columns[0]]
-                bridges = {spans[index] for index in range(len(spans) - 1)
-                           if field == "condition" and _table_condition_bridge(spans[index], spans[index + 1], scope, registry)}
-                if not all(span in bridges or (span[0] == row_id and cell_start <= span[1] and span[2] <= cell_end) for span in spans):
-                    raise ValueError(f"{provider} fact {ordinal} table {field} is not grounded in its matching data cell")
-            elif field in {"target", "value", "unit"}:
-                if not shared_heading or not all(span[0] == shared_heading for span in spans):
-                    raise ValueError(f"{provider} fact {ordinal} table {field} column is ambiguous or missing")
-            elif any(span[0] in {header_id, row_id} for span in spans):
-                raise ValueError(f"{provider} fact {ordinal} table {field} column is ambiguous or missing")
-        for column, role in enumerate(table_roles):
-            if role is None or role == "fee_label":
-                continue
-            cell_start, cell_end, _text = table_row_cells[column]
-            fields = ("value", "unit") if role == "value" else (role,)
-            spans = [span for field in fields for span in field_spans.get(field, [])]
-            if any(not (registry[row_id][1][position].isspace() or registry[row_id][1][position] == "•") and not any(
-                _contains_range(span, row_id, position, position + 1) for span in spans
-            ) for position in range(cell_start, cell_end)):
-                raise ValueError(f"{provider} fact {ordinal} table {role} cell is only partially preserved")
-        inherited = any(fact[field] and TABLE_FIELD_ROLE[field] not in table_roles
-                        and not (fee_label and field == "target") for field in ("target", "value", "unit"))
-        if inherited:
-            title = registry[shared_heading][1]
-            heading = HEADING_RE.fullmatch(title)
-            # Do not hide a second target/rate/exception inside benefit_type.
-            title_spans = [span for field, spans in field_spans.items() if field != "benefit_type" for span in spans]
-            if any(not character.isspace() and not any(_contains_range(span, shared_heading, index, index + 1) for span in title_spans)
-                   for index, character in enumerate(title) if heading.start(2) <= index < heading.end(2)):
-                raise ValueError(f"{provider} fact {ordinal} shared heading contains unmapped relationship content")
-            if not field_spans.get("action") or not all(span[0] == shared_heading for span in field_spans["action"]):
-                raise ValueError(f"{provider} fact {ordinal} shared heading action is not directly grounded")
-            if "value" not in table_roles and fact["value"] and len(fact["typed_normalization"].get("value", [])) != 1:
-                raise ValueError(f"{provider} fact {ordinal} shared heading value is not a single numeric benefit")
-            if "value" not in table_roles and fact["value"]:
-                actions = field_spans["action"]
-                amounts = field_spans["value"] + field_spans.get("unit", [])
-                amount_start, amount_end = min(span[1] for span in amounts), max(span[2] for span in amounts)
-                number = NUMBER_TOKEN.match(title, amount_start)
-                source_unit = SOURCE_UNIT.match(title, number.end()) if number else None
-                if not source_unit or source_unit.end() != amount_end:
-                    raise ValueError(f"{provider} fact {ordinal} shared heading amount must be one number with its unit")
-                directly_bound = False
-                if len(actions) == 1 and BENEFIT_VERB_SIGNAL.fullmatch(fact["action"]):
-                    _, action_start, action_end = actions[0]
-                    if amount_end <= action_start:
-                        directly_bound = not title[amount_end:action_start].strip()
-                    elif action_end <= amount_start:
-                        directly_bound = not title[action_end:amount_start].strip()
-                if not directly_bound:
-                    raise ValueError(f"{provider} fact {ordinal} shared heading value is not directly bound to its benefit action")
-            for field, marker in FIELD_ROLE_MARKERS.items():
-                for match in marker.finditer(title):
-                    if not any(_contains_range(span, shared_heading, match.start(), match.end()) for span in field_spans.get(field, [])):
-                        raise ValueError(f"{provider} fact {ordinal} shared heading {field} role is not preserved")
-    else:
+    if scope["scope_type"] != "table_row":
         for line_id in scope_ids:
             source_line = registry[line_id][1]
             for field, marker in FIELD_ROLE_MARKERS.items():
@@ -1129,12 +1115,15 @@ def _validate_field_grounding(
     for line_id in scope_ids:
         if line_id in header_ids:
             continue
-        for match in NUMBER_TOKEN.finditer(registry[line_id][1]):
-            if line_id in list_markers and list_markers[line_id][0] <= match.start() and match.end() <= list_markers[line_id][1]:
+        for cap in EXPLICIT_CAP.finditer(registry[line_id][1]):
+            if not any(_contains_range(span, line_id, cap.start(), cap.end()) for span in field_spans.get('cap', [])):
+                raise ValueError(f"{provider} fact {ordinal} explicit cap amount is not mapped to cap")
+        for number_start, number_end in literal_number_spans(registry[line_id][1]):
+            if line_id in list_markers and list_markers[line_id][0] <= number_start and number_end <= list_markers[line_id][1]:
                 continue
             owners = [
                 field for field, spans in field_spans.items()
-                if field != "unit" and any(_contains_range(span, line_id, match.start(), match.end()) for span in spans)
+                if field != "unit" and any(_contains_range(span, line_id, number_start, number_end) for span in spans)
             ]
             # Redundant label spans are not a second numeric owner. The actual
             # role must cover this very occurrence, not just an equal number.
@@ -1142,7 +1131,7 @@ def _validate_field_grounding(
                 owners.remove("benefit_type")
             if len(owners) != 1:
                 raise ValueError(f"{provider} fact {ordinal} source numeric range is missing or ambiguously mapped")
-            numeric_owner[(line_id, match.start(), match.end())] = owners[0]
+            numeric_owner[(line_id, number_start, number_end)] = owners[0]
             if owners[0] in {"condition", "cap", "frequency", "period", "exceptions"}:
                 table_role_bound = (
                     scope["scope_type"] == "table_row"
@@ -1156,33 +1145,57 @@ def _validate_field_grounding(
                 )
                 context_literal_bound = any(
                     span[0] == line_id
-                    and span[1] + start <= match.start() and match.end() <= span[1] + end
+                    and span[1] + start <= number_start and number_end <= span[1] + end
                     for span in field_spans[owners[0]]
                     for start, end in _context_literal_ranges(registry[span[0]][1][span[1]:span[2]], owners[0])
                 )
                 if not table_role_bound and not marker_bound and not context_literal_bound:
                     raise ValueError(f"{provider} fact {ordinal} numeric relationship is assigned to the wrong field role")
-            suffix = SOURCE_UNIT.match(registry[line_id][1], match.end())
+            suffix = SOURCE_UNIT.match(registry[line_id][1], number_end)
             if suffix:
                 if owners[0] in {"benefit_type", "action", "target"}:
                     raise ValueError(f"{provider} fact {ordinal} benefit numeric range is assigned to a non-numeric field")
-                unit_start = match.end()
+                unit_start = number_end
                 while registry[line_id][1][unit_start].isspace():
                     unit_start += 1
                 allowed = [*field_spans[owners[0]], *(field_spans.get("unit", []) if owners[0] == "value" else [])]
-                if not any(_contains_range(span, line_id, unit_start, suffix.end()) for span in allowed):
+                if not all(any(_contains_range(span, line_id, pos, pos + 1) for span in allowed)
+                           for pos in range(unit_start, suffix.end())):
                     raise ValueError(f"{provider} fact {ordinal} source numeric unit is missing from its owning field")
     if source_fact["unit"]:
+        # Bare adjacent numbers are not a range or a compound Korean amount.
+        if re.fullmatch(r"[\d,.]+(?:\s+[\d,.]+)+", source_fact["value"]):
+            raise ValueError(f"{provider} fact {ordinal} value contains unconnected measurements")
         attached = False
         for (line_id, start, end), owner in numeric_owner.items():
             if owner != "value":
                 continue
             source_line = registry[line_id][1]
+            suffix = SOURCE_UNIT.match(source_line, end)
             unit_start = end
             while unit_start < len(source_line) and source_line[unit_start].isspace():
                 unit_start += 1
-            unit_end = unit_start + len(source_fact["unit"])
-            if normalized(source_line[unit_start:unit_end]) == source_fact["unit"] and any(_contains_range(span, line_id, unit_start, unit_end) for span in field_spans.get("unit", [])):
+            if suffix and any(
+                span[0] == line_id and unit_start <= span[1] < span[2] == suffix.end()
+                and re.fullmatch(r"[조억만천백십\s]*", source_line[unit_start:span[1]])
+                and normalized(source_line[span[1]:span[2]]) == source_fact["unit"]
+                for span in field_spans.get("unit", [])
+            ):
+                attached = True
+                break
+            # Extend only for named measures paired with a plain number.
+            # A value containing prose must not bridge unrelated source facts.
+            if not (NAMED_MEASURE_UNIT.fullmatch(source_fact["unit"])
+                    and re.fullmatch(r"[+-]?\d+(?:,\d{3})*(?:\.\d+)?", source_fact["value"])):
+                continue
+            amount_spans = field_spans.get('value', []) + field_spans.get('unit', [])
+            if any(span[0] == line_id and end <= span[1]
+                   and normalized(source_line[span[1]:span[2]]) == source_fact['unit']
+                   and all(source_line[pos].isspace() or any(
+                       _contains_range(owner_span, line_id, pos, pos + 1)
+                       for owner_span in amount_spans)
+                       for pos in range(start, span[2]))
+                   for span in field_spans.get('unit', [])):
                 attached = True
                 break
         if not attached:
@@ -1294,7 +1307,7 @@ def validate_lane(provider: str, payload: dict[str, Any]) -> list[dict[str, Any]
         critical_unreferenced = {
             line_id
             for line_id, (_page, line) in registry.items()
-            if line_id not in referenced and CRITICAL_RELATION_LINE.search(line)
+            if line_id not in referenced and _critical_source_line(line)
         }
         if critical_unreferenced - ignored_ids:
             raise ValueError(f"{provider} benefit condition, cap, exception, or value line lacks grounded relation scope")
@@ -1413,25 +1426,24 @@ def diagnose_lane(provider: str, payload: dict[str, Any]) -> list[dict[str, Any]
                 record("field_source", "review", fact_index=ordinal, field=field,
                        error="field evidence array is missing or inconsistent with field value")
                 continue
-            fragments: list[str] = []
+            fragments: list[tuple[str, int, int]] = []
             complete = True
             # Each fragment is independent too; collect every invalid location.
             for index, fragment in enumerate(supplied):
                 try:
-                    if not isinstance(fragment, dict):
-                        raise ValueError("fragment is not an object")
-                    line_id, quote = fragment.get("line_id"), fragment.get("fragment")
-                    start, end = fragment.get("char_start"), fragment.get("char_end")
-                    if not isinstance(line_id, str) or line_id not in registry or not isinstance(quote, str) or not quote or isinstance(start, bool) or isinstance(end, bool) or not isinstance(start, int) or not isinstance(end, int) or start < 0 or end <= start:
-                        raise ValueError("fragment location is invalid")
-                    start, end = _same_line_fragment_range(registry[line_id][1], quote, start, end)
-                    fragments.append(registry[line_id][1][start:end])
+                    fragments.append(_resolve_field_fragment(fragment, registry))
                 except ValueError as error:
                     complete = False
                     record("fragment", "review", fact_index=ordinal, field=field,
                            fragment_index=index, error=str(error))
             if complete:
-                joined = " ".join(fragments)
+                order = {key: index for index, key in enumerate(registry)}
+                fragments = sorted(set(fragments), key=lambda x: (order[x[0]], x[1], x[2]))
+                if any(a[0] == b[0] and a[2] > b[1] for a, b in zip(fragments, fragments[1:])):
+                    record("field_comparison", "not_checked", fact_index=ordinal, field=field,
+                           error="overlapping evidence prevents role comparison")
+                    continue
+                joined = " ".join(registry[key][1][start:end] for key, start, end in fragments)
                 if field in {'condition', 'cap', 'frequency', 'period', 'exceptions'}:
                     joined = _strip_confirmed_list_labels(joined, registry, [x['line_id'] for x in supplied])
                 source_fields[field] = normalized(joined)
@@ -1489,7 +1501,7 @@ def diagnose_lane(provider: str, payload: dict[str, Any]) -> list[dict[str, Any]
                 record("ignored_source_line", "review", item_index=index, line_id=line_id,
                        error="source line has no approved ignore reason")
     for line_id, (_page, line) in registry.items():
-        if line_id not in declared_ids | ignored_ids and (RISKY_IGNORED_LINE.search(line) or CRITICAL_RELATION_LINE.search(line)):
+        if line_id not in declared_ids | ignored_ids and _critical_source_line(line):
             record("unclaimed_source_line", "review", line_id=line_id, source=line,
                    error="critical source line has no declared fact/identity/ignore reference")
     record("grounded_coverage", "not_checked", error="strict lane rejected; declared references are not proof of complete grounded coverage")
@@ -1554,10 +1566,7 @@ def _review_locations(payload: dict[str, Any], fact_index: int, field: str | Non
         page, text = registry[line_id]
         item = {'page': page, 'line_id': line_id, 'quote': text, 'location_verified': False}
         try:
-            start, end = fragment.get('char_start'), fragment.get('char_end')
-            if isinstance(start, bool) or isinstance(end, bool) or not isinstance(start, int) or not isinstance(end, int) or start < 0 or end <= start or not isinstance(fragment.get('fragment'), str):
-                raise ValueError('invalid coordinates')
-            start, end = _same_line_fragment_range(text, fragment['fragment'], start, end)
+            _, start, end = _resolve_field_fragment(fragment, registry)
             item.update(char_start=start, char_end=end, fragment=text[start:end], location_verified=True)
         except ValueError as error:
             item['reason'] = str(error)
