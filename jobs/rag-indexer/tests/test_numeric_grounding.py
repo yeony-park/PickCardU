@@ -4,7 +4,7 @@ import sys
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from pickcardu_indexer.grounding import normalise_fact, relation_key, fact_bundles
+from pickcardu_indexer.grounding import normalise_fact, relation_key, fact_bundles, compare_role_field, compare_fact_groups
 
 
 class NumericGroundingTests(unittest.TestCase):
@@ -103,6 +103,43 @@ class NumericGroundingTests(unittest.TestCase):
         self.assertNotEqual(self.key(condition="전월 실적 30만원 이상", cap="월 1만원"),
                             self.key(cap="전월 실적 30만원 이상", condition="월 1만원"))
         self.assertNotEqual(self.key(exceptions="온라인 제외"), self.key(exceptions="온라인 포함"))
+
+    def test_layered_comparison_never_promotes_equal_numbers_alone(self):
+        left = normalise_fact(self.raw)
+        changed = normalise_fact({**self.raw, 'condition': '건당 결제금액 30만원 이상'})
+        result = compare_fact_groups(left, changed)
+        self.assertEqual(result['benefit']['status'], 'pass')
+        condition = result['condition']['fields']['condition']
+        self.assertEqual(condition['numeric_observation'], 'same')
+        self.assertEqual(condition['status'], 'unresolved')
+        for fields in ({'condition': '전월 실적 50만원 이상'},
+                       {'condition': '전월 실적 30만원 초과'},
+                       {'value': '1'}, {'unit': '원'}):
+            result = compare_fact_groups(left, normalise_fact({**self.raw, **fields}))
+            self.assertTrue(any(x['status'] == 'difference' for x in result.values()))
+        for fields in ({'target': '마트'}, {'action': '적립'},
+                       {'exceptions': '온라인 제외'}, {'cap': '월 통합 5천원'}):
+            result = compare_fact_groups(left, normalise_fact({**self.raw, **fields}))
+            self.assertTrue(any(x['status'] != 'pass' for x in result.values()))
+        self.assertEqual(compare_role_field(left, normalise_fact({**self.raw, 'condition': '전월 실적 300000원 이상입니다'}), 'condition')['status'], 'pass')
+
+    def test_numeric_order_does_not_override_bound_predicates(self):
+        a = normalise_fact({**self.raw, 'condition': '전월 실적 30만원 이상 및 건당 1만원 이상'})
+        b = normalise_fact({**self.raw, 'condition': '건당 10000원 이상 및 전월 실적 300000원 이상'})
+        self.assertEqual(compare_role_field(a, b, 'condition')['status'], 'pass')
+        self.assertEqual(compare_role_field(a, b, 'condition')['numeric_observation'], 'same_after_supported_reordering')
+        for text in ('전월 실적 1만원 이상 및 건당 30만원 이상',
+                     '전월 실적 30만원 이상 또는 건당 1만원 이상',
+                     '전월 실적 30만원 이상 및 건당 1만원 이상 온라인 제외'):
+            b = normalise_fact({**self.raw, 'condition': text})
+            self.assertNotEqual(compare_role_field(a, b, 'condition')['status'], 'pass')
+
+    def test_punctuation_spelling_preserves_meaningful_signs(self):
+        self.assertEqual(self.key(target='‘나한테 진심’'), self.key(target="'나한테 진심'"))
+        self.assertEqual(self.key(target='CU・GS25'), self.key(target='CU·GS25'))
+        self.assertNotEqual(self.key(cap='월 -1000원'), self.key(cap='월 1000원'))
+        self.assertNotEqual(self.key(frequency='월/연 1회'), self.key(frequency='월연 1회'))
+        self.assertNotEqual(self.key(exceptions='온라인 | 오프라인'), self.key(exceptions='온라인 오프라인'))
 
 
 if __name__ == "__main__":

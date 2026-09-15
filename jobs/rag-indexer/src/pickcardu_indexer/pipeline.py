@@ -32,9 +32,12 @@ from .grounding import (
     condition_operators,
     field_comparison_key,
     fact_bundles,
+    compare_role_field,
+    compare_fact_groups,
     BUNDLE_FIELDS,
     literal_number_spans,
     material_text_key,
+    presentation_text,
 )
 from .structural import HEADING_RE, STRUCTURAL_CONTRACT, build_structural_chunks, render_pages
 
@@ -85,7 +88,7 @@ GENERIC_LAYOUT_LABELS = {
 GENERIC_LAYOUT_KEYS = {re.sub(r"\s+", "", label) for label in GENERIC_LAYOUT_LABELS}
 CHUNKING_PROFILES = {"card_page_section_benefit", "parent_child_bundle"}
 DEFAULT_CHUNKING_PROFILE = "card_page_section_benefit"
-OCR_PIPELINE_CONTRACT = "dual-lane-claim-grounding-v28"
+OCR_PIPELINE_CONTRACT = "dual-lane-claim-grounding-v32"
 
 
 class LaneRestructureRequired(ValueError):
@@ -547,7 +550,7 @@ def _check_heading_chain(provider: str, ordinal: int, ordered: list[str], regist
 
 def _fragment_format_key(value: str) -> str:
     """Normalize presentation only; numbers, units, operators and negation survive."""
-    text = normalized(EVIDENCE_FORMAT_PREFIX.sub("", unicodedata.normalize("NFKC", value))).strip()
+    text = normalized(EVIDENCE_FORMAT_PREFIX.sub("", presentation_text(value))).strip()
     return re.sub(r"(?<!\d)\s+|\s+(?!\d)", "", text)
 
 
@@ -627,7 +630,7 @@ def _same_line_fragment_range(
     projected: list[str] = []
     positions: list[tuple[int, int]] = []
     for index, character in enumerate(source_line):
-        for normalized_character in unicodedata.normalize("NFKC", character):
+        for normalized_character in presentation_text(character):
             if normalized_character.isspace():
                 if projected and projected[-1] == " ":
                     positions[-1] = (positions[-1][0], index + 1)
@@ -758,7 +761,7 @@ def _comparison_fact(raw: dict[str, Any], registry: dict[str, tuple[int, str]]) 
 def _validate_field_grounding(
     provider: str, ordinal: int, raw_fact: dict[str, Any],
     fact: dict[str, Any], registry: dict[str, tuple[int, str]],
-    card_name: str | None = None,
+    card_name: str | None = None, *, compare_values: bool = True,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Verify role-bound claims in a source witness, not a reconstructed paragraph.
 
@@ -802,13 +805,18 @@ def _validate_field_grounding(
             {"line_id": k, "fragment": registry[k][1][a:b], "char_start": a, "char_end": b}
             for k, a, b in spans]}
     source_fact = normalise_fact(source_fields)
-    for field in RELATION_FIELDS:
-        if field_comparison_key(source_fact, field) != field_comparison_key(fact, field):
-            material = (field in {"value", "unit", "action"}
-                        or typed_literals(source_fact[field]) != typed_literals(fact[field])
-                        or condition_operators(source_fact[field]) != condition_operators(fact[field]))
-            error = CriticalContentMismatch if material else ValueError
-            raise error(f"{provider} fact {ordinal} {field} material claim differs or its meaning is unresolved")
+    if compare_values:
+        for field in RELATION_FIELDS:
+            if field_comparison_key(source_fact, field) != field_comparison_key(fact, field):
+                material = (field in {"value", "unit", "action"}
+                            or typed_literals(source_fact[field]) != typed_literals(fact[field])
+                            or condition_operators(source_fact[field]) != condition_operators(fact[field]))
+                error = CriticalContentMismatch if material else ValueError
+                raise error(f"{provider} fact {ordinal} {field} material claim differs or its meaning is unresolved")
+    else:
+        # B checks the relationship of source occurrences assigned to roles.
+        # A separately checks whether the JSON preserved their actual values.
+        fact = source_fact
     # A positive verb inside an exclusion noun is not a positive benefit.
     # Preserve the polarity on that action, even if another field quotes the
     # negative text (e.g. condition='적립 제외 대상', action='적립').
@@ -1400,17 +1408,16 @@ def diagnose_lane(provider: str, payload: dict[str, Any]) -> list[dict[str, Any]
             fact_error = str(error)
             record("fact_schema", "review", fact_index=ordinal, error=fact_error)
             fact = {field: normalized(raw.get(field, "")) if isinstance(raw.get(field, ""), str) else "" for field in RELATION_FIELDS}
-        scope = raw.get("relation_scope")
-        if isinstance(scope, dict) and isinstance(scope.get("line_ids"), list):
-            declared_ids.update(x for x in scope["line_ids"] if isinstance(x, str) and x in registry)
         # Run relationships even when the lane failed earlier at identity.
         try:
             if fact_error:
                 raise ValueError(fact_error)
-            _validate_field_grounding(provider, ordinal, raw, fact, registry, identity.get("card_name"))
-            record("relationship", "checked", fact_index=ordinal)
+            witness, _ = _validate_field_grounding(provider, ordinal, raw, fact, registry, identity.get("card_name"), compare_values=False)
+            declared_ids.update(witness['line_ids'])
+            record("relationship", "checked", fact_index=ordinal, values_confirmed=False)
         except ValueError as error:
             record("relationship", "review", fact_index=ordinal, error=str(error),
+                   category="critical_content_mismatch" if isinstance(error, CriticalContentMismatch) else "verification_unresolved",
                    remaining_checks="not_checked_after_first_dependent_failure")
 
         supplied_fields = raw.get("field_evidence")
@@ -1431,7 +1438,9 @@ def diagnose_lane(provider: str, payload: dict[str, Any]) -> list[dict[str, Any]
             # Each fragment is independent too; collect every invalid location.
             for index, fragment in enumerate(supplied):
                 try:
-                    fragments.append(_resolve_field_fragment(fragment, registry))
+                    resolved_fragment = _resolve_field_fragment(fragment, registry)
+                    fragments.append(resolved_fragment)
+                    declared_ids.add(resolved_fragment[0])
                 except ValueError as error:
                     complete = False
                     record("fragment", "review", fact_index=ordinal, field=field,
@@ -1459,11 +1468,13 @@ def diagnose_lane(provider: str, payload: dict[str, Any]) -> list[dict[str, Any]
                 record("field_comparison", "not_checked", fact_index=ordinal, field=field,
                        error="value/unit comparison requires both source fields")
                 continue
-            equal = field_comparison_key(source_fields, field) == field_comparison_key(fact, field)
-            critical = field != "benefit_type" and (field in {"value", "unit"} or typed_literals(source_fields[field]) != typed_literals(fact[field]) or condition_operators(source_fields[field]) != condition_operators(fact[field]))
+            comparison = compare_role_field(source_fields, fact, field)
+            equal = comparison['status'] == 'pass'
+            critical = comparison['status'] == 'difference'
             record("field_comparison", "source_match" if equal else "review", fact_index=ordinal,
                    field=field, source=source_fields[field], value=fact[field],
                    category="source_match_only" if equal else "critical_content_mismatch" if critical else "verification_unresolved",
+                   comparison=comparison,
                    relationship_proven=False)
 
         # Bundle values are independently comparable even when the source's
@@ -1504,7 +1515,49 @@ def diagnose_lane(provider: str, payload: dict[str, Any]) -> list[dict[str, Any]
         if line_id not in declared_ids | ignored_ids and _critical_source_line(line):
             record("unclaimed_source_line", "review", line_id=line_id, source=line,
                    error="critical source line has no declared fact/identity/ignore reference")
-    record("grounded_coverage", "not_checked", error="strict lane rejected; declared references are not proof of complete grounded coverage")
+    # C inventories declarations independently of A/B. A declared reference is
+    # not proof that its value or relationship is correct; those remain A/B.
+    coverage_errors = [c for c in checks if c['check'] in {
+        'ignored_source_lines', 'ignored_source_line', 'unclaimed_source_line'}
+        and c['status'] in {'review', 'not_checked'}]
+    record("declared_coverage", "review" if coverage_errors else "checked",
+           approval_eligible=False, relationship_proven=False,
+           error="important source disposition needs review" if coverage_errors else "")
+    if not any(c['status'] in {'review', 'not_checked'} for c in checks):
+        # Provenance, duplicate scopes or another strict invariant may reject
+        # a lane even when its material observations individually succeeded.
+        record('strict_lane_rejection', 'review', error=result.get('error', 'strict lane validation failed'))
+    return result
+
+
+def _own_check_groups(outcome: Any) -> dict[str, Any]:
+    """Independent A/B/C observations, never an alternate canonical gate."""
+    names = ('A_values', 'B_relationships', 'C_coverage', 'prerequisites')
+    if isinstance(outcome, list):
+        return {name: {'status': 'pass', 'issue_count': 0,
+                       'check_count': None, 'checked_count': None, 'matched_count': None,
+                       'not_checked_count': 0, 'counts_overlap': True,
+                       'note': 'strict lane validation passed'} for name in names}
+    checks = outcome.get('independent_checks', [])
+    groups: dict[str, list[dict[str, Any]]] = {name: [] for name in names}
+    for check in checks:
+        name = check['check']
+        group = ('B_relationships' if name == 'relationship' else
+                 'C_coverage' if name in {'ignored_source_lines', 'ignored_source_line',
+                    'unclaimed_source_line', 'declared_coverage'} else
+                 'A_values' if name in {'field_comparison', 'field_source', 'fragment', 'value_bundle'} else
+                 'prerequisites')
+        groups[group].append(check)
+    result = {}
+    for name, items in groups.items():
+        failures = [c for c in items if c['status'] in {'review', 'not_checked'}]
+        # Absence of an executable check is not evidence of success.
+        result[name] = {'status': 'review' if failures else 'pass' if items else 'not_checked',
+                        'check_count': len(items), 'issue_count': len(failures),
+                        'checked_count': sum(c['status'] != 'not_checked' for c in items),
+                        'matched_count': sum(c['status'] in {'checked', 'source_match'} for c in items),
+                        'not_checked_count': sum(c['status'] == 'not_checked' for c in items),
+                        'counts_overlap': True}
     return result
 
 
@@ -1663,6 +1716,24 @@ def diagnostic_json_comparison(luna_payload: dict[str, Any], upstage_payload: di
         comparisons.append({'match': 'ambiguous' if options else 'unmatched', 'luna_fact_index': None,
                             'upstage_fact_index': j, 'candidate_count': len(options), 'candidate_indices': options,
                             'upstage_locations': _review_locations(upstage_payload, j)})
+    # Layered observations explain WHICH role differs. They do not promote an
+    # unresolved qualifier or a merely value-matched candidate to full equality.
+    group_counts = {name: Counter() for name in BUNDLE_FIELDS}
+    for item in comparisons:
+        i, j = item['luna_fact_index'], item['upstage_fact_index']
+        if i is None or j is None:
+            continue
+        groups = compare_fact_groups(left[i], right[j])
+        item['groups'] = groups
+        item['core_status'] = groups['benefit']['status']
+        item['qualification_status'] = ('pass' if all(g['status'] == 'pass' for name, g in groups.items() if name != 'benefit') else 'review')
+        for name, group in groups.items():
+            group_counts[name][group['status']] += 1
+        for difference in item.get('differences', []):
+            difference['comparison'] = compare_role_field(left[i], right[j], difference['field'])
+    result['group_counts'] = {name: dict(counts) for name, counts in group_counts.items()}
+    result['paired_count'] = sum('groups' in item for item in comparisons)
+    result['pairing_note'] = 'Only exact relations or unique target/action pairs are compared; ambiguous and unmatched entries remain review. Group pass is not PDF approval.'
     identity_equal = result['identity']['luna'] == result['identity']['upstage'] and all(result['identity']['luna'].values())
     duplicates = {'luna': sum(n - 1 for n in luna_relations.values() if n > 1),
                   'upstage': sum(n - 1 for n in upstage_relations.values() if n > 1)}
@@ -1681,7 +1752,7 @@ def validation_summary(payloads: dict[str, dict[str, Any]], outcomes: dict[str, 
     for provider in ('luna', 'upstage'):
         outcome = outcomes[f'{provider}_text_to_json']
         if isinstance(outcome, list):
-            own[provider] = {'status': 'pass', 'issues': []}
+            own[provider] = {'status': 'pass', 'issues': [], 'groups': _own_check_groups(outcome)}
             continue
         issues = []
         # Keep content mismatches, unresolved relationships and unavailable checks separate.
@@ -1700,7 +1771,7 @@ def validation_summary(payloads: dict[str, dict[str, Any]], outcomes: dict[str, 
                 item['locations'] = [{'line_id': check['line_id'], 'quote': check.get('source', ''), 'location_verified': False}]
             issues.append(item)
         own[provider] = {'status': outcome.get('status', 'review'), 'error': outcome.get('error'),
-                         'issues': issues, 'approval_eligible': False}
+                         'issues': issues, 'approval_eligible': False, 'groups': _own_check_groups(outcome)}
     json_result = outcomes['normalized_json_diagnostic_comparison']
     json_status = json_result.get('comparison_status', 'review')
     own_status = 'blocked' if any(x['status'] == 'blocked' for x in own.values()) else 'review' if any(x['status'] != 'pass' for x in own.values()) else 'pass'

@@ -36,6 +36,13 @@ def normalized(value: object) -> str:
     return " ".join(unicodedata.normalize("NFKC", str(value)).split())
 
 
+def presentation_text(value: str) -> str:
+    """Comparison-only punctuation spelling; retain logical separators/signs."""
+    return unicodedata.normalize('NFKC', value).translate(str.maketrans({
+        '‘': "'", '’': "'", '“': '"', '”': '"', '・': '·',
+    }))
+
+
 def _decimal(text: str) -> str | None:
     try:
         return format(Decimal(text.replace(",", "")).normalize(), "f")
@@ -167,7 +174,7 @@ def material_text_key(value: str) -> str:
     amounts and unknown lexical content remain significant. This is not a
     sentence-level semantic model and does not guess unknown paraphrases.
     """
-    text = normalized(value)
+    text = normalized(presentation_text(value))
     # Only an explicit editorial reference; '(앱 결제만)' remains material.
     text = re.sub(r"\((?:자세한|상세한)\s*내용은\s*안내\s*참고\)", "", text)
     text = re.sub(r"[※•]", " ", text)
@@ -265,6 +272,41 @@ def fact_bundles(fact: dict[str, Any]) -> dict[str, dict[str, str]]:
     """Named role mappings; each qualifier remains attached to ONE benefit."""
     return {group: {field: field_comparison_key(fact, field) for field in fields}
             for group, fields in BUNDLE_FIELDS.items()}
+
+
+def compare_role_field(left: dict[str, Any], right: dict[str, Any], field: str) -> dict[str, Any]:
+    """Separate typed observations from supported equivalence in ONE role.
+
+    Equal amounts alone never establish equal predicates. Unknown residuals,
+    nonnumeric exceptions and qualifiers remain unresolved, not discarded.
+    """
+    a, b = field_comparison_key(left, field), field_comparison_key(right, field)
+    literal = re.compile(r'<(?:number|ratio|KRW):[^>]+>')
+    numbers_a, numbers_b = literal.findall(_literal_key(left, field)), literal.findall(_literal_key(right, field))
+    numeric_equal = numbers_a == numbers_b
+    operators_equal = condition_operators(str(left.get(field, ''))) == condition_operators(str(right.get(field, '')))
+    equal = a == b
+    numeric = ('not_applicable' if not numbers_a and not numbers_b else
+               'same' if numeric_equal else 'different')
+    if equal and not numeric_equal:
+        numeric = 'same_after_supported_reordering'
+    # Reordered supported AND atoms can match despite different raw literal
+    # order. The full role key, never a bag of numbers, establishes that case.
+    return {'status': 'pass' if equal else 'difference' if not numeric_equal or not operators_equal else 'unresolved',
+            'basis': 'supported_role_equivalence' if equal else 'typed_or_operator_difference' if not numeric_equal or not operators_equal else 'meaning_unresolved',
+            'numeric_observation': numeric, 'operators_equal': operators_equal,
+            'left_literals': numbers_a, 'right_literals': numbers_b,
+            'raw_equal': normalized(left.get(field, '')) == normalized(right.get(field, ''))}
+
+
+def compare_fact_groups(left: dict[str, Any], right: dict[str, Any]) -> dict[str, Any]:
+    result = {}
+    for name, fields in BUNDLE_FIELDS.items():
+        comparisons = {field: compare_role_field(left, right, field) for field in fields}
+        statuses = {item['status'] for item in comparisons.values()}
+        result[name] = {'status': 'pass' if statuses == {'pass'} else 'difference' if 'difference' in statuses else 'unresolved',
+                        'fields': comparisons}
+    return result
 
 
 def relation_key(fact: dict[str, Any]) -> tuple[str, ...]:
