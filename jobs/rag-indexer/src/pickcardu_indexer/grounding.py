@@ -15,7 +15,7 @@ from typing import Any
 
 STRUCTURE_SCHEMA_VERSION = "field-evidence-relation-v6"
 NORMALIZATION_CONTRACT = "typed-facts-v2"
-CHUNKING_CONTRACT = "source-grounded-raw-span-v6"
+CHUNKING_CONTRACT = "ocr-paragraph-label-window-v1"
 RELATION_FIELDS = (
     "benefit_type", "action", "target", "condition", "value", "unit",
     "cap", "frequency", "period", "exceptions",

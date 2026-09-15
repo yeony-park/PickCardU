@@ -42,6 +42,18 @@ def parser() -> argparse.ArgumentParser:
     index.add_argument("--fake-vectors", action="store_true", help="explicit test-only deterministic vectors")
     index.add_argument("--allow-preview", action="store_true", help="build a non-activatable partial preview from approved documents")
 
+    chunk_preview = subcommands.add_parser(
+        "chunk-preview",
+        help="materialize development-only Luna OCR chunks without validation approval or embeddings",
+    )
+    chunk_preview.add_argument("--run-id", required=True)
+    chunk_preview.add_argument(
+        "--development-unvalidated-luna",
+        action="store_true",
+        help="explicitly acknowledge that PDF pass is assumed only for this development artifact",
+    )
+    add_profile(chunk_preview)
+
     legacy = subcommands.add_parser("run", help="legacy local-fixture OCR+index command")
     legacy.add_argument("--source-manifest", type=Path, required=True)
     legacy.add_argument("--luna-json-dir", type=Path, required=True)
@@ -144,6 +156,13 @@ def main(argv: list[str] | None = None) -> int:
             if not arguments.fake_vectors and adapter is None:
                 raise RuntimeError("index requires --confirm-embedding or explicit test-only --fake-vectors")
             json_output(indexer.index(arguments.run_id, allow_preview=arguments.allow_preview, fake_vectors=arguments.fake_vectors, profile=arguments.profile, embedding_adapter=adapter))
+        elif arguments.command == "chunk-preview":
+            if not arguments.development_unvalidated_luna:
+                raise RuntimeError("chunk-preview requires --development-unvalidated-luna")
+            json_output(indexer.development_unvalidated_luna_chunk_preview(
+                arguments.run_id,
+                profile=arguments.profile,
+            ))
         elif arguments.command == "run":
             adapter = embedding_adapter(arguments)
             config = {"profile": arguments.profile, "fake_vectors": arguments.fake_vectors, "allow_partial": arguments.allow_partial, "embedding_model": adapter.model if adapter else None, "embedding_dimension": adapter.dimension if adapter else None}

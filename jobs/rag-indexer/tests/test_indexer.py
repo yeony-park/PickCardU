@@ -314,6 +314,9 @@ class IndexerTest(unittest.TestCase):
 
     def test_dual_lane_release_resume_and_pointer(self) -> None:
         result = self.execute_indexer()
+        document = self.indexer.state.document(result["run_id"], self.document_id)
+        canonical = json.loads(Path(document["canonical_path"]).read_text(encoding="utf-8"))
+        self.assertEqual(canonical["structure_provider"], "luna")
         release_id = result["release_id"]
         self.assertIsInstance(release_id, str)
         self.assertEqual(result["status"]["run"]["status"], "test_only_published")
@@ -321,9 +324,10 @@ class IndexerTest(unittest.TestCase):
         manifest = json.loads((release / "manifest.json").read_text(encoding="utf-8"))
         self.assertEqual(manifest["document_ids"], [self.document_id])
         self.assertEqual(manifest["coverage"], {"included_document_ids": [self.document_id], "omitted_document_ids": [], "partial": False})
+        self.assertEqual(manifest["chunking_audit"][self.document_id]["mapped_facts"], 1)
         connection = sqlite3.connect(release / "corpus.sqlite")
-        self.assertEqual(connection.execute("SELECT COUNT(*) FROM chunks").fetchone()[0], 4)
-        self.assertEqual(connection.execute("SELECT COUNT(*) FROM chunks_fts").fetchone()[0], 4)
+        self.assertEqual(connection.execute("SELECT COUNT(*) FROM chunks").fetchone()[0], 5)
+        self.assertEqual(connection.execute("SELECT COUNT(*) FROM chunks_fts").fetchone()[0], 5)
         connection.close()
         with self.assertRaisesRegex(RuntimeError, "production"):
             self.indexer.activate(str(release_id))
@@ -810,6 +814,9 @@ class IndexerTest(unittest.TestCase):
         self.assertEqual(normalized["status"]["run"]["status"], "normalized")
         validated = self.indexer.staged_ocr(self.manifest, config=config, providers=adapters, stage="validate")
         self.assertEqual(validated["status"]["run"]["status"], "canonical_approved")
+        approved_document = self.indexer.state.document(validated["run_id"], self.document_id)
+        canonical = json.loads(Path(approved_document["canonical_path"]).read_text(encoding="utf-8"))
+        self.assertEqual(canonical["structure_provider"], "luna")
 
         empty_structurer = FakeStructurer()
         empty_adapters = {
@@ -1489,6 +1496,43 @@ class IndexerTest(unittest.TestCase):
         self.assertEqual(len(run_ids), 2)
         self.assertIn(first["run_id"], run_ids)
 
+    def test_development_unvalidated_chunk_preview_is_state_isolated(self) -> None:
+        review_id, _after = self.open_relation_review()
+        review = self.indexer.state.review(review_id)
+        run_id = str(review["run_id"])
+        before_document = dict(self.indexer.state.document(run_id, self.document_id))
+        before_reviews = [dict(row) for row in self.indexer.state.reviews(run_id)]
+        before_releases = list(self.indexer.state.status(run_id)["releases"])
+
+        result = self.indexer.development_unvalidated_luna_chunk_preview(run_id)
+
+        preview = Path(result["path"])
+        manifest = json.loads((preview / "manifest.json").read_text(encoding="utf-8"))
+        chunks = [json.loads(line) for line in (preview / "chunks.jsonl").read_text(encoding="utf-8").splitlines()]
+        self.assertEqual(manifest["artifact_status"], "development_unvalidated")
+        self.assertEqual(manifest["validation_assumption"], "pdf_pass_assumed_for_development_only")
+        self.assertFalse(manifest["activation_eligible"])
+        self.assertFalse(manifest["embedding_performed"])
+        self.assertEqual(manifest["document_count"], 1)
+        self.assertEqual({chunk["level"] for chunk in chunks}, {"card", "page", "section", "benefit"})
+        self.assertEqual(dict(self.indexer.state.document(run_id, self.document_id)), before_document)
+        self.assertEqual([dict(row) for row in self.indexer.state.reviews(run_id)], before_reviews)
+        self.assertEqual(self.indexer.state.status(run_id)["releases"], before_releases)
+        self.assertFalse((self.root / "runtime/active-index.json").exists())
+
+        normalized_path = self.indexer.state.artifact_path(run_id, self.document_id, "normalized_json", "luna")
+        stale_payload = json.loads(normalized_path.read_text(encoding="utf-8"))
+        stale_payload["source_pdf_sha256"] = "0" * 64
+        stale_path = self.root / "stale-luna-normalized.json"
+        write_json(stale_path, stale_payload)
+        stale_hash = hashlib.sha256(stale_path.read_bytes()).hexdigest()
+        self.indexer.state.record_artifact(
+            run_id, self.document_id, "normalized_json", "luna",
+            str(stale_path), stale_hash, {},
+        )
+        with self.assertRaisesRegex(RuntimeError, "source PDF provenance mismatch"):
+            self.indexer.development_unvalidated_luna_chunk_preview(run_id)
+
     def test_resolved_review_retry_is_fully_immutable(self) -> None:
         review_id, after = self.open_relation_review()
         result = self.indexer.resolve_review(review_id, "reviewer", "reason", after, self.luna_dir, self.upstage_dir)
@@ -1606,7 +1650,7 @@ class IndexerTest(unittest.TestCase):
         self.assertNotEqual(serving.stat().st_mode & 0o200, 0)
         import chromadb
         collection = chromadb.PersistentClient(path=str(serving)).get_collection("card_page_section_benefit")
-        self.assertEqual(len(collection.get(include=[])["ids"]), 4)
+        self.assertEqual(len(collection.get(include=[])["ids"]), 5)
 
     def test_serving_version_is_revalidated_and_never_replaced(self) -> None:
         result = self.execute_indexer()

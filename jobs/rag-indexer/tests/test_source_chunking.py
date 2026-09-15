@@ -15,27 +15,34 @@ from pickcardu_indexer.pipeline import Indexer, OCR_PIPELINE_CONTRACT, CHUNKING_
 
 
 class SourceChunkingTests(unittest.TestCase):
-    def test_original_heading_groups_raw_spans_and_source_tampering_blocks(self):
+    def test_historical_label_window_uses_raw_ocr_and_source_tampering_blocks(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            source = root / "normalized.json"
-            source.write_text(json.dumps({"pages": [{"page": 1, "text":
-                "Issuer Card\n## 생활 혜택\n### 일상 할인\n편의점  10% 할인\n전월 실적 30만원 이상\n통신비 5% 할인"
-            }]}), encoding="utf-8")
+            source = root / "ocr.txt"
+            source.write_text(
+                "=== PAGE 1 ===\nIssuer Card\n\n## 생활 혜택\n\n### 일상 할인\n"
+                "편의점  10% 할인\n전월 실적 30만원 이상\n\n통신비 5% 할인",
+                encoding="utf-8",
+            )
             source_hash = hashlib.sha256(source.read_bytes()).hexdigest()
-            def fact(ids, quote):
-                ref = {"page": 1, "quote": quote}
-                return {"fact": {"target": "SYNTHETIC MUST NOT APPEAR"},
-                        "evidence_refs": {"upstage": ref, "luna": ref},
-                        "relation_scope_refs": {"upstage": {"line_ids": ids, "evidence": ref}}}
+            def fact(ids, target, value):
+                refs = {
+                    "target": [{"line_id": ids[0], "fragment": target}],
+                    "value": [{"line_id": ids[0], "fragment": value}],
+                }
+                return {
+                    "fact": {"target": target, "value": value, "condition": "SYNTHETIC MUST NOT APPEAR"},
+                    "field_evidence_refs": {"upstage": refs},
+                    "relation_scope_refs": {"upstage": {"line_ids": ids}},
+                }
             canonical = root / "canonical.json"
             canonical.write_text(json.dumps({
                 "pipeline_contract": OCR_PIPELINE_CONTRACT,
                 "chunking_contract": CHUNKING_CONTRACT,
                 "structure_provider": "upstage",
                 "identity": {"issuer_name": "Issuer", "card_name": "Card"},
-                "facts": [fact(["P0001-L0006"], "통신비 5% 할인"),
-                          fact(["P0001-L0004", "P0001-L0005"], "편의점 10% 할인 전월 실적 30만원 이상")],
+                "facts": [fact(["P0001-L0008"], "통신비", "5%"),
+                          fact(["P0001-L0006", "P0001-L0007"], "편의점", "10%")],
             }), encoding="utf-8")
             canonical_hash = hashlib.sha256(canonical.read_bytes()).hexdigest()
             indexer = Indexer.__new__(Indexer)
@@ -47,15 +54,15 @@ class SourceChunkingTests(unittest.TestCase):
             chunks, _ = indexer._chunks("fixture", documents)
             sections = [chunk for chunk in chunks if chunk["level"] == "section"]
             benefits = [chunk for chunk in chunks if chunk["level"] == "benefit"]
-            self.assertEqual(len(sections), 1)
-            self.assertEqual(sections[0]["metadata"]["section"], "생활 혜택 > 일상 할인")
-            self.assertEqual(sections[0]["text"], "편의점  10% 할인\n전월 실적 30만원 이상\n통신비 5% 할인")
+            section = next(chunk for chunk in sections if chunk["metadata"]["section"] == "일상 할인")
+            self.assertIn("편의점  10% 할인", section["text"])
             self.assertEqual(len(benefits), 2)
-            self.assertIn("편의점  10% 할인\n전월 실적 30만원 이상", [chunk["text"] for chunk in benefits])
+            self.assertTrue(all("편의점  10% 할인" in chunk["text"] for chunk in benefits))
+            self.assertTrue(all("통신비 5% 할인" in chunk["text"] for chunk in benefits))
             self.assertNotIn("SYNTHETIC", json.dumps(chunks))
-            self.assertIn("생활 혜택 > 일상 할인", sections[0]["metadata"]["reranker_text"])
-            source.write_text("{}", encoding="utf-8")
-            with self.assertRaisesRegex(RuntimeError, "source hash mismatch"):
+            self.assertIn("일상 할인", section["metadata"]["reranker_text"])
+            source.write_text("changed", encoding="utf-8")
+            with self.assertRaisesRegex(RuntimeError, "OCR text hash mismatch"):
                 indexer._chunks("fixture", documents)
 
 

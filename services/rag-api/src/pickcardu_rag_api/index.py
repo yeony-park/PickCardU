@@ -19,7 +19,7 @@ from pickcardu_rag.retrieval import LEXICAL_CONTRACT, lexical_terms
 
 
 CHUNKING_CONTRACTS = {
-    "card_page_section_benefit": "source-grounded-raw-span-v6",
+    "card_page_section_benefit": "ocr-paragraph-label-window-v1",
     "parent_child_bundle": "structural_heading_parent_child_v1",
 }
 
@@ -282,8 +282,6 @@ class ActiveIndexLoader:
             if chunk.level in {"section", "bundle"}:
                 if chunk.level != expected_aggregate_level:
                     raise RuntimeError("aggregate level does not match the chunking profile")
-                if not chunk.child_ids:
-                    raise RuntimeError("aggregate chunk has no benefit children")
                 for child_id in chunk.child_ids:
                     child = chunks_by_id.get(child_id)
                     if (

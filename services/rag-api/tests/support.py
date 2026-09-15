@@ -59,7 +59,7 @@ def build_release(runtime: Path) -> dict[str, Any]:
         "schema_version": "rag_index_release_v1",
         "release_id": release_id,
         "strategy": "card_page_section_benefit",
-        "chunking_contract": "source-grounded-raw-span-v6",
+        "chunking_contract": "ocr-paragraph-label-window-v1",
         "lexical_contract": LEXICAL_CONTRACT,
         "release_status": "production",
         "distance_contract": "squared_l2",

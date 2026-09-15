@@ -39,7 +39,12 @@ from .grounding import (
     material_text_key,
     presentation_text,
 )
+from .benefit import BENEFIT_CHUNKING_CONTRACT, build_benefit_chunks
 from .structural import HEADING_RE, STRUCTURAL_CONTRACT, build_structural_chunks, render_pages
+
+
+if CHUNKING_CONTRACT != BENEFIT_CHUNKING_CONTRACT:
+    raise RuntimeError("benefit chunking contract constants are inconsistent")
 
 
 NUMBER = re.compile(r"\d+(?:[,.]\d+)?")
@@ -214,20 +219,6 @@ def _critical_source_line(line: str) -> bool:
     """Include data rows whose benefit/action is expressed in their header."""
     return bool(CRITICAL_RELATION_LINE.search(line) or RISKY_IGNORED_LINE.search(line)
                 or line.lstrip().startswith("|") and NUMBER_TOKEN.search(line))
-
-
-def evidence_pages(value: Any) -> list[int]:
-    pages: set[int] = set()
-    if isinstance(value, dict):
-        page = value.get("page")
-        if isinstance(page, int) and not isinstance(page, bool) and page >= 1:
-            pages.add(page)
-        for nested in value.values():
-            pages.update(evidence_pages(nested))
-    elif isinstance(value, list):
-        for nested in value:
-            pages.update(evidence_pages(nested))
-    return sorted(pages)
 
 
 def validate_fact_evidence(fact: dict[str, str], quote: str, context: str) -> None:
@@ -2250,7 +2241,7 @@ class Indexer:
             document_id,
             canonical,
             _canonical_identity(luna_payload, upstage_payload),
-            structure_provider="upstage",
+            structure_provider="luna",
         )
 
     def index(
@@ -2415,7 +2406,7 @@ class Indexer:
             document_id,
             canonical,
             _canonical_identity(luna_payload, upstage_payload),
-            structure_provider="upstage",
+            structure_provider="luna",
         )
 
     def _write_canonical(
@@ -2484,47 +2475,6 @@ class Indexer:
         approved = self.state.resolve_with_canonical(review_id, reviewer, reason, audit, str(canonical_path), canonical_sha256, len(canonical), now())
         return {"review_id": review_id, "canonical_path": str(canonical_path), "canonical_approved": approved, "luna_sha256": sha256_file(luna_path), "upstage_sha256": sha256_file(upstage_path)}
 
-    @staticmethod
-    def _chunk_record(
-        document_id: str,
-        identity: dict[str, Any],
-        level: str,
-        local_key: str,
-        text: str,
-        evidence_refs: Any,
-        *,
-        section: str | None = None,
-        parent_id: str | None = None,
-        child_ids: list[str] | None = None,
-        source_pages: list[int] | None = None,
-    ) -> dict[str, Any]:
-        chunk_id = sha256_bytes(f"{document_id}:{level}:{local_key}:{text}".encode())[:32]
-        path_title = " > ".join(str(value) for value in (identity.get("issuer_name"), identity.get("card_name"), level, section) if value)
-        pages = evidence_pages(evidence_refs) if source_pages is None else sorted(set(source_pages))
-        if not pages:
-            raise ValueError("chunk requires source page provenance")
-        reranker_text = f"[문서 경로] {path_title}\n[본문]\n{text}"
-        return {
-            "chunk_id": chunk_id,
-            "document_id": document_id,
-            "level": level,
-            "text": text,
-            "metadata": {
-                "document_id": document_id,
-                "level": level,
-                "issuer_name": identity.get("issuer_name"),
-                "card_name": identity.get("card_name"),
-                "section": section,
-                "parent_id": parent_id,
-                "child_ids": child_ids or [],
-                "source_pages": pages,
-                "retrieval_text": text,
-                "reranker_text": reranker_text,
-                "evidence_refs": evidence_refs,
-                "related_chunk_ids": [],
-            },
-        }
-
     def _chunks(
         self,
         run_id: str,
@@ -2542,26 +2492,20 @@ class Indexer:
                 raise RuntimeError("canonical artifact hash mismatch")
             payload = json.loads(canonical_path.read_text(encoding="utf-8"))
             if payload.get("pipeline_contract") != OCR_PIPELINE_CONTRACT or payload.get("chunking_contract") != CHUNKING_CONTRACT:
-                raise RuntimeError("legacy canonical is not eligible for v6 chunking")
+                raise RuntimeError("canonical artifact is not eligible for the current chunking contract")
             identity = payload.get("identity", {})
             document_ids.append(document_id)
             facts = list(payload["facts"])
-            if not facts:
-                continue
             provider = payload.get("structure_provider")
             if provider not in {"luna", "upstage"}:
                 raise RuntimeError("chunking requires an approved source provider")
-            lane_path = self.state.artifact_path(run_id, document_id, "normalized_json", provider)
-            if sha256_file(lane_path) != self.state.artifact_hash(run_id, document_id, "normalized_json", provider):
-                raise RuntimeError("chunking source hash mismatch")
-            lane = json.loads(lane_path.read_text(encoding="utf-8"))
-            registry = _line_registry({row["page"]: row["text"] for row in lane["pages"]})
-            source_order = {line_id: ordinal for ordinal, line_id in enumerate(registry)}
-            facts.sort(key=lambda item: min(
-                (source_order.get(line_id, len(registry)) for line_id in item.get("relation_scope_refs", {}).get(provider, {}).get("line_ids", [])),
-                default=len(registry),
-            ))
             if profile == "parent_child_bundle":
+                if not facts:
+                    continue
+                lane_path = self.state.artifact_path(run_id, document_id, "normalized_json", provider)
+                if sha256_file(lane_path) != self.state.artifact_hash(run_id, document_id, "normalized_json", provider):
+                    raise RuntimeError("chunking source hash mismatch")
+                lane = json.loads(lane_path.read_text(encoding="utf-8"))
                 raw = render_pages(lane.get("pages", []))
                 structural, _hierarchy, audit = build_structural_chunks(
                     raw,
@@ -2582,77 +2526,127 @@ class Indexer:
                     chunk["metadata"]["canonical_scope_coverage"] = [quote for quote in approved_scopes if normalized(quote) in normalized(chunk["text"])]
                 chunks.extend(structural)
                 continue
-            card_text = " ".join(value for value in (identity.get("issuer_name"), identity.get("card_name")) if value)
-            chunks.append(
-                self._chunk_record(
-                    document_id,
-                    identity,
-                    "card",
-                    "card",
-                    card_text,
-                    identity.get("evidence_refs") or facts[0]["evidence_refs"],
-                )
+            ocr_path = self.state.artifact_path(run_id, document_id, "ocr_text", provider)
+            ocr_hash = self.state.artifact_hash(run_id, document_id, "ocr_text", provider)
+            if sha256_file(ocr_path) != ocr_hash:
+                raise RuntimeError("chunking OCR text hash mismatch")
+            produced, _audit = build_benefit_chunks(
+                ocr_path.read_text(encoding="utf-8"),
+                document_id=document_id,
+                issuer=str(identity.get("issuer_name", "")),
+                card_name=str(identity.get("card_name", "")),
+                facts=facts,
+                provider=provider,
+                ocr_text_sha256=ocr_hash,
             )
-            grouped: dict[str, list[tuple[int, dict[str, Any], str]]] = {}
-            pages: dict[int, list[tuple[int, dict[str, Any], str]]] = {}
-            heading_by_line: dict[str, str] = {}
-            headings: list[tuple[int, str]] = []
-            for line_id, (page_number, source_line) in registry.items():
-                match = re.match(r"^\s{0,3}(#{1,6})\s+(.+?)\s*#*\s*$", source_line)
-                if match:
-                    depth = len(match[1])
-                    headings = [item for item in headings if item[0] < depth]
-                    headings.append((depth, match[2]))
-                heading_by_line[line_id] = " > ".join(item[1] for item in headings) or f"페이지 {page_number}"
-            for index, item in enumerate(facts):
-                selected_scope = item.get("relation_scope_refs", {}).get(provider)
-                if not isinstance(selected_scope, dict) or not isinstance(selected_scope.get("evidence"), dict):
-                    raise RuntimeError("canonical fact lacks approved source relation_scope")
-                line_ids = selected_scope.get("line_ids", [])
-                if not line_ids or any(line_id not in registry for line_id in line_ids):
-                    raise RuntimeError("canonical source scope has invalid OCR line IDs")
-                text = "\n".join(registry[line_id][1] for line_id in line_ids)
-                if normalized(text) != normalized(selected_scope["evidence"].get("quote", "")):
-                    raise RuntimeError("canonical source scope does not match its OCR lines")
-                source_heading = heading_by_line[line_ids[0]]
-                grouped.setdefault(source_heading, []).append((index, item, text))
-                for page in sorted({registry[line_id][0] for line_id in line_ids}):
-                    page_text = "\n".join(registry[line_id][1] for line_id in line_ids if registry[line_id][0] == page)
-                    pages.setdefault(page, []).append((index, item, page_text))
-            if profile == "card_page_section_benefit":
-                for page, rows in pages.items():
-                    chunks.append(
-                        self._chunk_record(
-                            document_id,
-                            identity,
-                            "page",
-                            str(page),
-                            "\n".join(row[2] for row in rows),
-                            [row[1]["evidence_refs"] for row in rows],
-                            source_pages=[page],
-                        )
-                    )
-                for section, rows in grouped.items():
-                    child_ids = [
-                        sha256_bytes(f"{document_id}:benefit:{index}:{text}".encode())[:32]
-                        for index, _item, text in rows
-                    ]
-                    section_record = self._chunk_record(
-                        document_id,
-                        identity,
-                        "section",
-                        section,
-                        "\n".join(row[2] for row in rows),
-                        [row[1]["evidence_refs"] for row in rows],
-                        section=section,
-                        child_ids=child_ids,
-                    )
-                    chunks.append(section_record)
-                    for index, item, text in rows:
-                        chunks.append(self._chunk_record(
-                            document_id, identity, "benefit", str(index), text, item["evidence_refs"], section=section, parent_id=section_record["chunk_id"]
-                        ))
+            chunks.extend(produced)
         return sorted(chunks, key=lambda item: item["chunk_id"]), sorted(document_ids)
+
+    def development_unvalidated_luna_chunk_preview(
+        self,
+        run_id: str,
+        *,
+        profile: str = DEFAULT_CHUNKING_PROFILE,
+    ) -> dict[str, Any]:
+        """Materialize OCR chunks without changing review, release, or active-index state."""
+        if profile != "card_page_section_benefit":
+            raise ValueError("development unvalidated preview currently supports only card_page_section_benefit")
+        documents = self.state.documents(run_id)
+        if not documents:
+            raise RuntimeError("development preview requires an existing OCR run")
+
+        chunks: list[dict[str, Any]] = []
+        audits: dict[str, dict[str, Any]] = {}
+        sources: list[dict[str, Any]] = []
+        for document in documents:
+            document_id = str(document["document_id"])
+            source_path = Path(str(document["source_path"]))
+            if not source_path.is_file() or sha256_file(source_path) != str(document["source_hash"]):
+                raise RuntimeError(f"source PDF hash mismatch: {document_id}")
+            ocr_path = self.state.artifact_path(run_id, document_id, "ocr_text", "luna")
+            ocr_hash = self.state.artifact_hash(run_id, document_id, "ocr_text", "luna")
+            normalized_path = self.state.artifact_path(run_id, document_id, "normalized_json", "luna")
+            normalized_hash = self.state.artifact_hash(run_id, document_id, "normalized_json", "luna")
+            if sha256_file(ocr_path) != ocr_hash or sha256_file(normalized_path) != normalized_hash:
+                raise RuntimeError(f"Luna OCR artifact hash mismatch: {document_id}")
+            payload = json.loads(normalized_path.read_text(encoding="utf-8"))
+            if payload.get("document_id") != document_id or payload.get("provider") != "luna":
+                raise RuntimeError(f"Luna normalized artifact identity mismatch: {document_id}")
+            if payload.get("source_pdf_sha256") != str(document["source_hash"]):
+                raise RuntimeError(f"Luna normalized artifact source PDF provenance mismatch: {document_id}")
+            identity = payload.get("identity")
+            facts = payload.get("facts")
+            if not isinstance(identity, dict) or not isinstance(facts, list):
+                raise RuntimeError(f"Luna normalized artifact schema mismatch: {document_id}")
+            produced, audit = build_benefit_chunks(
+                ocr_path.read_text(encoding="utf-8"),
+                document_id=document_id,
+                issuer=str(identity.get("issuer_name", "")),
+                card_name=str(identity.get("card_name", "")),
+                facts=facts,
+                provider="luna",
+                ocr_text_sha256=ocr_hash,
+            )
+            chunks.extend(produced)
+            audits[document_id] = audit
+            sources.append({
+                "document_id": document_id,
+                "validation_status": str(document["status"]),
+                "source_pdf_sha256": str(document["source_hash"]),
+                "luna_ocr_text_sha256": ocr_hash,
+                "luna_normalized_json_sha256": normalized_hash,
+            })
+
+        chunks.sort(key=lambda item: item["chunk_id"])
+        chunk_bytes = "".join(canonical_json(chunk) + "\n" for chunk in chunks).encode("utf-8")
+        audit_value = {
+            "documents": audits,
+            "level_counts": dict(Counter(chunk["level"] for chunk in chunks)),
+            "facts": sum(int(value["facts"]) for value in audits.values()),
+            "mapped_facts": sum(int(value["mapped_facts"]) for value in audits.values()),
+            "unmapped_facts": sum(len(value["unmapped_fact_indices"]) for value in audits.values()),
+            "ambiguous_facts": sum(len(value["ambiguous_fact_indices"]) for value in audits.values()),
+            "truncated_benefit_windows": sum(int(value["truncated_benefit_windows"]) for value in audits.values()),
+        }
+        audit_bytes = (canonical_json(audit_value) + "\n").encode("utf-8")
+        corpus_hash = sha256_bytes(chunk_bytes)
+        basis = {
+            "run_id": run_id,
+            "strategy": profile,
+            "chunking_contract": BENEFIT_CHUNKING_CONTRACT,
+            "sources": sources,
+            "corpus_sha256": corpus_hash,
+            "audit_sha256": sha256_bytes(audit_bytes),
+        }
+        preview_id = "chunk_preview_" + sha256_bytes(canonical_json(basis).encode())[:16]
+        preview_root = (
+            self.runtime_root / "working" / run_id / "development-unvalidated"
+            / profile / preview_id
+        )
+        manifest = {
+            "schema_version": "rag_development_chunk_preview_v1",
+            "preview_id": preview_id,
+            **basis,
+            "artifact_status": "development_unvalidated",
+            "validation_assumption": "pdf_pass_assumed_for_development_only",
+            "assumed_provider": "luna",
+            "activation_eligible": False,
+            "embedding_performed": False,
+            "document_count": len(documents),
+            "chunk_count": len(chunks),
+        }
+        write_immutable(preview_root / "chunks.jsonl", chunk_bytes)
+        write_immutable(preview_root / "audit.json", audit_bytes)
+        write_immutable(
+            preview_root / "manifest.json",
+            (canonical_json(manifest) + "\n").encode("utf-8"),
+        )
+        return {
+            "preview_id": preview_id,
+            "path": str(preview_root),
+            "manifest": manifest,
+            "audit": audit_value,
+        }
 
     def publish(
         self,
@@ -2763,6 +2757,11 @@ class Indexer:
                 "corpus_sqlite_sha256": sha256_file(corpus_path),
                 "chroma_tree_sha256": tree_hash(temporary_root / "chroma"),
                 "coverage": {"included_document_ids": document_ids, "omitted_document_ids": omitted, "partial": bool(omitted)},
+                "chunking_audit": {
+                    chunk["document_id"]: chunk["metadata"]["chunking_audit"]
+                    for chunk in chunks
+                    if chunk["level"] == "card" and "chunking_audit" in chunk["metadata"]
+                },
             }
             manifest_path = temporary_root / "manifest.json"
             manifest_path.write_text(canonical_json(manifest) + "\n", encoding="utf-8")
