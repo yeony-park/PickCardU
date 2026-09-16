@@ -320,11 +320,12 @@ class OpenAIEmbeddingAdapter:
     def embed_documents(self, texts: list[str]) -> tuple[np.ndarray, dict[str, Any]]:
         if not texts or any(not isinstance(text, str) or not text.strip() for text in texts):
             raise ValueError("document embedding requires non-empty texts")
+        unique_texts = list(dict.fromkeys(texts))
         vectors: list[list[float]] = []
         provider_usage: list[dict[str, Any]] = []
         client = self._get_client()
-        for start in range(0, len(texts), self.batch_size):
-            batch = texts[start : start + self.batch_size]
+        for start in range(0, len(unique_texts), self.batch_size):
+            batch = unique_texts[start : start + self.batch_size]
             response = client.embeddings.create(
                 input=batch,
                 model=self.model,
@@ -343,14 +344,18 @@ class OpenAIEmbeddingAdapter:
                 provider_usage.append(dict(usage))
             else:
                 provider_usage.append({})
-        array = np.asarray(vectors, dtype=np.float32)
-        if array.shape != (len(texts), self.dimension) or not np.isfinite(array).all():
+        unique_array = np.asarray(vectors, dtype=np.float32)
+        if unique_array.shape != (len(unique_texts), self.dimension) or not np.isfinite(unique_array).all():
             raise ValueError("embedding response shape or finiteness mismatch")
+        positions = {text: index for index, text in enumerate(unique_texts)}
+        array = unique_array[[positions[text] for text in texts]]
         return array, {
             "provider_called": True,
             "model": self.model,
             "dimension": self.dimension,
             "item_count": len(texts),
+            "transmitted_item_count": len(unique_texts),
+            "exact_duplicate_count": len(texts) - len(unique_texts),
             "request_count": len(provider_usage),
             "batch_size": self.batch_size,
             "provider_usage": provider_usage,
@@ -2606,7 +2611,9 @@ class Indexer:
             "mapped_facts": sum(int(value["mapped_facts"]) for value in audits.values()),
             "unmapped_facts": sum(len(value["unmapped_fact_indices"]) for value in audits.values()),
             "ambiguous_facts": sum(len(value["ambiguous_fact_indices"]) for value in audits.values()),
-            "truncated_benefit_windows": sum(int(value["truncated_benefit_windows"]) for value in audits.values()),
+            "mid_text_truncation_windows": sum(int(value["mid_text_truncation_windows"]) for value in audits.values()),
+            "neighbor_omission_windows": sum(int(value["neighbor_omission_windows"]) for value in audits.values()),
+            "oversized_core_windows": sum(int(value["oversized_core_windows"]) for value in audits.values()),
         }
         audit_bytes = (canonical_json(audit_value) + "\n").encode("utf-8")
         corpus_hash = sha256_bytes(chunk_bytes)

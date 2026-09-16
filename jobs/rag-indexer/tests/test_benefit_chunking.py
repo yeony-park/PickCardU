@@ -73,6 +73,40 @@ class BenefitChunkingTests(unittest.TestCase):
         self.assertEqual(audit["unmapped_fact_indices"], [0])
         self.assertEqual(audit["ambiguous_fact_indices"], [1])
 
+    def test_long_neighbors_are_omitted_without_cutting_the_core(self) -> None:
+        core = "편의점 10% 할인\n" + "조건 안내 " * 200
+        following = "다음 문단 " * 400
+        raw = f"=== PAGE 1 ===\n짧은 앞 문단\n\n{core}\n\n{following}"
+        chunks, audit = build_benefit_chunks(
+            raw,
+            document_id="issuer/card",
+            issuer="Issuer",
+            card_name="Card",
+            facts=[fact("편의점", "10%")],
+        )
+        benefit = next(chunk for chunk in chunks if chunk["level"] == "benefit")
+        self.assertIn(core.strip(), benefit["text"])
+        self.assertNotIn(following.strip(), benefit["text"])
+        self.assertEqual(benefit["metadata"]["omitted_neighbors"], ["next"])
+        self.assertEqual(audit["mid_text_truncation_windows"], 0)
+        self.assertEqual(audit["neighbor_omission_windows"], 1)
+
+    def test_oversized_core_is_kept_complete(self) -> None:
+        core = "편의점 10% 할인\n" + "핵심 조건 " * 600
+        raw = f"=== PAGE 1 ===\n{core}"
+        chunks, audit = build_benefit_chunks(
+            raw,
+            document_id="issuer/card",
+            issuer="Issuer",
+            card_name="Card",
+            facts=[fact("편의점", "10%")],
+        )
+        benefit = next(chunk for chunk in chunks if chunk["level"] == "benefit")
+        self.assertEqual(benefit["text"], core.strip())
+        self.assertTrue(benefit["metadata"]["oversized_core"])
+        self.assertEqual(audit["mid_text_truncation_windows"], 0)
+        self.assertEqual(audit["oversized_core_windows"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

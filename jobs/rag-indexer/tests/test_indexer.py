@@ -396,14 +396,17 @@ class IndexerTest(unittest.TestCase):
     def test_openai_embedding_adapter_batches_and_restores_response_order(self) -> None:
         client = FakeEmbeddingClient()
         adapter = OpenAIEmbeddingAdapter(api_key=None, batch_size=2, client=client)
-        vectors, usage = adapter.embed_documents(["one", "two", "three"])
-        self.assertEqual(vectors.shape, (3, 1536))
-        self.assertEqual(vectors[:, 0].tolist(), [1.0, 2.0, 1.0])
+        vectors, usage = adapter.embed_documents(["one", "two", "one", "three"])
+        self.assertEqual(vectors.shape, (4, 1536))
+        self.assertEqual(vectors[:, 0].tolist(), [1.0, 2.0, 1.0, 1.0])
         self.assertEqual([call["input"] for call in client.calls], [["one", "two"], ["three"]])
         self.assertTrue(all(call["model"] == "text-embedding-3-small" for call in client.calls))
         self.assertTrue(all(call["dimensions"] == 1536 for call in client.calls))
         self.assertTrue(all(call["encoding_format"] == "float" for call in client.calls))
         self.assertEqual(usage["request_count"], 2)
+        self.assertEqual(usage["item_count"], 4)
+        self.assertEqual(usage["transmitted_item_count"], 3)
+        self.assertEqual(usage["exact_duplicate_count"], 1)
         self.assertEqual(usage["provider_usage"], [{"total_tokens": 2}, {"total_tokens": 1}])
 
     def test_live_lane_artifacts_are_separate_resumable_and_auditable(self) -> None:

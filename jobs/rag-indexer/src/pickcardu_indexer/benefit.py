@@ -214,7 +214,6 @@ def build_benefit_chunks(
     grouped: dict[tuple[int, str], dict[str, Any]] = {}
     unmapped: list[int] = []
     ambiguous: list[int] = []
-    truncated = 0
     for fact_index, item in enumerate(facts):
         if not isinstance(item, dict):
             unmapped.append(fact_index)
@@ -238,10 +237,21 @@ def build_benefit_chunks(
             continue
         score, page, core, paragraph_index = winners[0]
         paragraphs = [part.strip() for part in re.split(r"\n\s*\n", pages[page]) if part.strip()]
-        full_window = "\n\n".join(paragraphs[max(0, paragraph_index - 1):paragraph_index + 2])
-        if len(full_window) > BENEFIT_MAX_CHARS:
-            truncated += 1
-        text = full_window[:BENEFIT_MAX_CHARS]
+        selected = [core]
+        omitted_neighbors: list[str] = []
+        if paragraph_index:
+            previous = paragraphs[paragraph_index - 1]
+            if len(previous) + len(core) + 2 <= BENEFIT_MAX_CHARS:
+                selected.insert(0, previous)
+            else:
+                omitted_neighbors.append("previous")
+        if paragraph_index + 1 < len(paragraphs):
+            following = paragraphs[paragraph_index + 1]
+            if len("\n\n".join([*selected, following])) <= BENEFIT_MAX_CHARS:
+                selected.append(following)
+            else:
+                omitted_neighbors.append("next")
+        text = "\n\n".join(selected)
         section_index = next(
             (index for index, (_section, section_text) in enumerate(section_texts[page], 1) if _normalized(core) in _normalized(section_text)),
             1,
@@ -250,6 +260,8 @@ def build_benefit_chunks(
         group = grouped.setdefault(key, {
             "text": text, "core": core, "page": page, "section_index": section_index,
             "fact_indices": [], "selector_scores": [],
+            "omitted_neighbors": omitted_neighbors,
+            "oversized_core": len(core) > BENEFIT_MAX_CHARS,
         })
         group["fact_indices"].append(fact_index)
         group["selector_scores"].append(score)
@@ -271,6 +283,8 @@ def build_benefit_chunks(
                 "selector_scores": group["selector_scores"],
                 "ocr_text_sha256": source_hash,
                 "selection_method": "unique_positive_label_paragraph_with_page_neighbors",
+                "omitted_neighbors": group["omitted_neighbors"],
+                "oversized_core": group["oversized_core"],
             },
         )
         chunks.append(benefit)
@@ -289,7 +303,9 @@ def build_benefit_chunks(
         "unmapped_fact_indices": unmapped,
         "ambiguous_fact_indices": ambiguous,
         "merged_benefit_windows": sum(max(0, len(group["fact_indices"]) - 1) for group in grouped.values()),
-        "truncated_benefit_windows": truncated,
+        "mid_text_truncation_windows": 0,
+        "neighbor_omission_windows": sum(bool(group["omitted_neighbors"]) for group in grouped.values()),
+        "oversized_core_windows": sum(bool(group["oversized_core"]) for group in grouped.values()),
         "level_counts": dict(Counter(row["level"] for row in chunks)),
     }
     for chunk in chunks:
