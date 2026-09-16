@@ -41,6 +41,11 @@ def parser() -> argparse.ArgumentParser:
     index.add_argument("--confirm-embedding", action="store_true", help="allow retrieval_text to be sent to OpenAI embeddings")
     index.add_argument("--fake-vectors", action="store_true", help="explicit test-only deterministic vectors")
     index.add_argument("--allow-preview", action="store_true", help="build a non-activatable partial preview from approved documents")
+    index.add_argument(
+        "--assume-pdf-pass",
+        action="store_true",
+        help="build an operational release from Luna OCR while validation remains unresolved",
+    )
 
     chunk_preview = subcommands.add_parser(
         "chunk-preview",
@@ -152,10 +157,19 @@ def main(argv: list[str] | None = None) -> int:
         if arguments.command == "ocr":
             json_output(run_ocr(indexer, arguments))
         elif arguments.command == "index":
+            if arguments.allow_preview and arguments.assume_pdf_pass:
+                raise RuntimeError("--allow-preview and --assume-pdf-pass are mutually exclusive")
             adapter = embedding_adapter(arguments)
             if not arguments.fake_vectors and adapter is None:
                 raise RuntimeError("index requires --confirm-embedding or explicit test-only --fake-vectors")
-            json_output(indexer.index(arguments.run_id, allow_preview=arguments.allow_preview, fake_vectors=arguments.fake_vectors, profile=arguments.profile, embedding_adapter=adapter))
+            json_output(indexer.index(
+                arguments.run_id,
+                allow_preview=arguments.allow_preview,
+                fake_vectors=arguments.fake_vectors,
+                profile=arguments.profile,
+                embedding_adapter=adapter,
+                assume_pdf_pass=arguments.assume_pdf_pass,
+            ))
         elif arguments.command == "chunk-preview":
             if not arguments.development_unvalidated_luna:
                 raise RuntimeError("chunk-preview requires --development-unvalidated-luna")

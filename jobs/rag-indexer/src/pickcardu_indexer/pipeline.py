@@ -2257,6 +2257,7 @@ class Indexer:
         fake_vectors: bool,
         profile: str = DEFAULT_CHUNKING_PROFILE,
         embedding_adapter: EmbeddingAdapter | None = None,
+        assume_pdf_pass: bool = False,
     ) -> dict[str, Any]:
         release_id = self.publish(
             run_id,
@@ -2264,9 +2265,11 @@ class Indexer:
             fake_vectors=fake_vectors,
             profile=profile,
             embedding_adapter=embedding_adapter,
+            assume_pdf_pass=assume_pdf_pass,
         )
         manifest = json.loads((Path(str(self.state.release(release_id)["path"])) / "manifest.json").read_text(encoding="utf-8"))
-        self.state.set_run_status(run_id, f"{manifest['release_status']}_published", now())
+        status = "operational_unvalidated_published" if manifest.get("source_validation") == "assumed_pdf_pass" else f"{manifest['release_status']}_published"
+        self.state.set_run_status(run_id, status, now())
         return {"run_id": run_id, "release_id": release_id, "status": self.state.status(run_id)}
 
     def _document_root(self, run_id: str, document_id: str) -> Path:
@@ -2663,20 +2666,43 @@ class Indexer:
         fake_vectors: bool,
         profile: str = DEFAULT_CHUNKING_PROFILE,
         embedding_adapter: EmbeddingAdapter | None = None,
+        assume_pdf_pass: bool = False,
     ) -> str:
         if fake_vectors and embedding_adapter is not None:
             raise ValueError("fake vectors and an embedding adapter are mutually exclusive")
         if not fake_vectors and embedding_adapter is None:
             raise RuntimeError("embedding is blocked: inject an approved adapter or use explicit test-only --fake-vectors")
         all_documents = self.state.documents(run_id)
-        approved = [row for row in all_documents if row["status"] == "canonical_approved"]
-        omitted = [str(row["document_id"]) for row in all_documents if row["status"] != "canonical_approved"]
-        if omitted and not allow_partial:
-            raise RuntimeError("release blocked: documents are not canonical_approved")
-        document_ids = [str(row["document_id"]) for row in approved]
-        if not approved or self.state.unresolved_count(run_id, document_ids):
-            raise RuntimeError("release blocked: unresolved review or no approved documents")
-        chunks, document_ids = self._chunks(run_id, approved, profile)
+        source_preview_id: str | None = None
+        if assume_pdf_pass:
+            if allow_partial:
+                raise ValueError("assumed PDF pass cannot be combined with a partial release")
+            preview = self.development_unvalidated_luna_chunk_preview(run_id, profile=profile)
+            preview_root = Path(str(preview["path"]))
+            preview_manifest = json.loads((preview_root / "manifest.json").read_text(encoding="utf-8"))
+            chunk_bytes = (preview_root / "chunks.jsonl").read_bytes()
+            if (
+                preview_manifest.get("preview_id") != preview.get("preview_id")
+                or preview_manifest.get("run_id") != run_id
+                or preview_manifest.get("strategy") != profile
+                or preview_manifest.get("corpus_sha256") != sha256_bytes(chunk_bytes)
+            ):
+                raise RuntimeError("development preview provenance mismatch")
+            chunks = [json.loads(line) for line in chunk_bytes.decode("utf-8").splitlines() if line]
+            document_ids = sorted(str(row["document_id"]) for row in all_documents)
+            omitted: list[str] = []
+            source_validation = "assumed_pdf_pass"
+            source_preview_id = str(preview["preview_id"])
+        else:
+            approved = [row for row in all_documents if row["status"] == "canonical_approved"]
+            omitted = [str(row["document_id"]) for row in all_documents if row["status"] != "canonical_approved"]
+            if omitted and not allow_partial:
+                raise RuntimeError("release blocked: documents are not canonical_approved")
+            document_ids = [str(row["document_id"]) for row in approved]
+            if not approved or self.state.unresolved_count(run_id, document_ids):
+                raise RuntimeError("release blocked: unresolved review or no approved documents")
+            chunks, document_ids = self._chunks(run_id, approved, profile)
+            source_validation = "canonical_approved"
         if not chunks:
             raise RuntimeError("release blocked: no benefit chunks")
         if fake_vectors:
@@ -2693,7 +2719,7 @@ class Indexer:
             vector_mode = "approved_adapter"
         corpus_hash = sha256_bytes(canonical_json(chunks).encode())
         release_id = "release_" + sha256_bytes(
-            f"{run_id}:{corpus_hash}:{embedding_model}:{dimension}:{release_status}:{LEXICAL_CONTRACT}".encode()
+            f"{run_id}:{corpus_hash}:{embedding_model}:{dimension}:{release_status}:{source_validation}:{source_preview_id}:{LEXICAL_CONTRACT}".encode()
         )[:16]
         final_root = self.runtime_root / "index-release" / release_id
         if final_root.exists():
@@ -2702,6 +2728,8 @@ class Indexer:
                 manifest.get("embedding_model") != embedding_model
                 or manifest.get("embedding_dimension") != dimension
                 or manifest.get("release_status") != release_status
+                or manifest.get("source_validation") != source_validation
+                or manifest.get("source_preview_id") != source_preview_id
                 or manifest.get("lexical_contract") != LEXICAL_CONTRACT
             ):
                 raise RuntimeError("existing release embedding contract mismatch")
@@ -2748,6 +2776,8 @@ class Indexer:
                 "lexical_contract": LEXICAL_CONTRACT,
                 "vector_mode": vector_mode,
                 "release_status": release_status,
+                "source_validation": source_validation,
+                "source_preview_id": source_preview_id,
                 "distance_contract": "squared_l2",
                 "corpus_hash": corpus_hash,
                 "scope_document_ids": document_ids,

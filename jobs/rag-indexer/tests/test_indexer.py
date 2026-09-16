@@ -4,6 +4,7 @@ import gc
 import json
 import hashlib
 import os
+import shutil
 import sqlite3
 import sys
 import tempfile
@@ -1535,6 +1536,51 @@ class IndexerTest(unittest.TestCase):
         )
         with self.assertRaisesRegex(RuntimeError, "source PDF provenance mismatch"):
             self.indexer.development_unvalidated_luna_chunk_preview(run_id)
+
+    def test_assumed_pdf_pass_builds_traceable_operational_release(self) -> None:
+        review_id, _after = self.open_relation_review()
+        run_id = str(self.indexer.state.review(review_id)["run_id"])
+        adapter = DeterministicEmbeddingAdapter()
+
+        indexed = self.indexer.index(
+            run_id,
+            allow_preview=False,
+            fake_vectors=False,
+            embedding_adapter=adapter,
+            assume_pdf_pass=True,
+        )
+
+        release_id = indexed["release_id"]
+        manifest = json.loads((self.root / "runtime/index-release" / release_id / "manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(manifest["release_status"], "production")
+        self.assertEqual(manifest["source_validation"], "assumed_pdf_pass")
+        self.assertTrue(manifest["source_preview_id"].startswith("chunk_preview_"))
+        self.assertEqual(manifest["coverage"]["included_document_ids"], [self.document_id])
+        self.assertEqual(indexed["status"]["run"]["status"], "operational_unvalidated_published")
+        self.assertTrue((self.root / "runtime/index-release" / release_id / "corpus.sqlite").is_file())
+        self.assertTrue((self.root / "runtime/index-release" / release_id / "chroma").is_dir())
+
+        preview = self.indexer.development_unvalidated_luna_chunk_preview(run_id)
+        source = Path(preview["path"])
+        variant_id = "chunk_preview_0000000000000000"
+        variant = source.parent / variant_id
+        shutil.copytree(source, variant)
+        variant_manifest = json.loads((variant / "manifest.json").read_text(encoding="utf-8"))
+        variant_manifest["preview_id"] = variant_id
+        write_json(variant / "manifest.json", variant_manifest)
+        with mock.patch.object(
+            self.indexer,
+            "development_unvalidated_luna_chunk_preview",
+            return_value={"preview_id": variant_id, "path": str(variant)},
+        ):
+            variant_indexed = self.indexer.index(
+                run_id,
+                allow_preview=False,
+                fake_vectors=False,
+                embedding_adapter=adapter,
+                assume_pdf_pass=True,
+            )
+        self.assertNotEqual(variant_indexed["release_id"], release_id)
 
     def test_resolved_review_retry_is_fully_immutable(self) -> None:
         review_id, after = self.open_relation_review()
