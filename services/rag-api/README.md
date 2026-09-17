@@ -15,9 +15,6 @@ active pointer가 처음 로드되거나 다른 release로 바뀔 때만 SQLite�
 
 현재 온라인 검증은 citation 소유권과 응답 schema만 확인하며, 생성된 문장의 의미가 근거와 완전히 같은지 판정하는 별도 LLM 채점기는 운영 경로에 넣지 않았습니다. 그 정확성은 holdout/LLM 평가 단계에서 검증해야 합니다. 또한 검색 점수의 calibration이 아직 끝나지 않아 “검색 단계에서 무조건 정답 없음”을 결정하는 score threshold도 두지 않았습니다. 검색 근거가 전혀 없거나 LLM이 `insufficient_evidence`를 반환하면 카드·추천·근거 목록을 비워 결과가 추천처럼 보이지 않게 합니다.
 
-```bash
-PYTHONPATH=services/rag-api/src:packages/rag-core/src \
-  conda run -n skn25 python -m pickcardu_rag_api
-```
+프론트엔드와 함께 실행할 때는 저장소 루트에서 `npm run dev`를 사용합니다. 백엔드만 실행하려면 로컬 패키지를 설치한 Python 환경에서 `python -m pickcardu_rag_api`를 실행합니다. 두 실행 방식 모두 루트 `.env`를 자동으로 읽으며 이미 설정된 환경변수를 덮어쓰지 않습니다.
 
 현재 단계는 로컬 개발용입니다. production 설정은 시작 단계에서 차단되며, 외부 embedding/LLM 호출은 `OPENAI_API_KEY`가 명시된 실제 요청에서만 발생합니다. 로그인·프로필·대화 저장·Developer Lab은 이 서비스 범위에 없습니다.

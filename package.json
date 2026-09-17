@@ -1,0 +1,12 @@
+{
+  "name": "pickcardu",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "test:dev": "node --test scripts/dev.test.mjs"
+  }
+}

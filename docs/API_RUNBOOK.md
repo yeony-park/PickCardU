@@ -74,12 +74,22 @@ sha256sum data/rag/runtime/index-release/RELEASE_ID/manifest.json
 
 ## 5. FastAPI 실행
 
+로컬에서 프론트엔드와 FastAPI를 함께 실행할 때는 저장소 루트에서 다음 명령을 사용한다.
+
 ```bash
-PYTHONPATH=services/rag-api/src:packages/rag-core/src \
-  python -m pickcardu_rag_api
+npm run dev
 ```
 
-기본 bind 주소는 `127.0.0.1:8000`이다. 실행 환경에서 지속적으로 서비스하려면 해당 환경의 프로세스 관리자 또는 컨테이너 정책을 사용한다.
+루트 실행기는 현재 활성화된 Python 환경을 사용하며, FastAPI에 필요한 소스 경로를 내부적으로 설정한다. FastAPI 진입점은 루트 `.env`가 있으면 자동으로 읽되 이미 설정된 셸 환경변수는 덮어쓰지 않는다. Next.js는 `http://localhost:3000`, FastAPI는 `http://127.0.0.1:8000`에서 실행된다. `Ctrl+C`로 두 프로세스를 함께 종료한다.
+
+백엔드만 별도로 실행할 때는 로컬 패키지를 먼저 설치한 뒤 다음 명령을 사용한다.
+
+```bash
+python -m pip install -e "packages/rag-core[reranker]" -e services/rag-api
+python -m pickcardu_rag_api
+```
+
+백엔드 진입점도 루트 `.env`를 자동으로 읽고 기존 환경변수를 우선한다. 기본 bind 주소는 `127.0.0.1:8000`이다. 실행 환경에서 지속적으로 서비스하려면 해당 환경의 프로세스 관리자 또는 컨테이너 정책을 사용한다.
 
 ## 6. Health 점검
 

@@ -2,6 +2,7 @@
 .env
 __pycache__/
 *.pyc
+*.egg-info/
 .venv/
 chroma_db/chroma.sqlite3
 sqlite_db/*
