@@ -135,10 +135,14 @@ def validate_grounding(answer: AnswerOutput, evidence: list[dict[str, Any]]) -> 
     chunk_to_card = {item["chunk_id"]: item["card_key"] for item in evidence}
     valid_cards = set(chunk_to_card.values())
     for item in [*answer.recommendations, *answer.claims]:
-        if item.card_key not in valid_cards or not all(
-            chunk_to_card.get(citation) == item.card_key for citation in item.citations
-        ):
-            raise ValueError("answer evidence ownership mismatch")
+        if item.card_key not in valid_cards:
+            raise ValueError("answer grounding failed: grounding_failure=unknown_card_key")
+        for citation in item.citations:
+            citation_card = chunk_to_card.get(citation)
+            if citation_card is None:
+                raise ValueError("answer grounding failed: grounding_failure=unknown_citation")
+            if citation_card != item.card_key:
+                raise ValueError("answer grounding failed: grounding_failure=cross_card_citation")
     if not answer.claims:
         raise ValueError("answer has zero grounded claims")
     return answer

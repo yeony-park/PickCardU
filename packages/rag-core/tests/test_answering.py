@@ -76,6 +76,40 @@ class AnsweringTests(unittest.TestCase):
         )
         self.assertEqual(len(five.recommendations), 5)
 
+    def test_grounding_validation_reports_the_specific_relationship_failure(self) -> None:
+        cases = (
+            (
+                "unknown_card_key",
+                self.evidence,
+                {"card_key": "c2", "text": "혜택", "citations": ["k1"]},
+            ),
+            (
+                "unknown_citation",
+                self.evidence,
+                {"card_key": "c1", "text": "혜택", "citations": ["missing"]},
+            ),
+            (
+                "cross_card_citation",
+                [
+                    *self.evidence,
+                    {
+                        "card_key": "c2",
+                        "card_name": "카드2",
+                        "issuer": "발급사",
+                        "chunk_id": "k2",
+                        "text": "2%",
+                    },
+                ],
+                {"card_key": "c1", "text": "혜택", "citations": ["k2"]},
+            ),
+        )
+
+        for reason, evidence, claim in cases:
+            with self.subTest(reason=reason):
+                answer = AnswerOutput.model_validate({"answer_text": "답", "claims": [claim]})
+                with self.assertRaisesRegex(ValueError, f"grounding_failure={reason}"):
+                    validate_grounding(answer, evidence)
+
     def test_answer_payload_and_eof_retry_parity(self) -> None:
         responses = FakeResponses(incomplete_json_error(), (self.answer(), {"output_tokens": 17}))
         service = OpenAIService(api_key=None, client=types.SimpleNamespace(responses=responses))
