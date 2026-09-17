@@ -261,7 +261,9 @@ class OpenAIService:
             "recommendations와 claims를 비운 뒤 현재 등록된 카드 문서에서 확인하기 어렵다고 답하세요."
         )
         retry_instructions = (
-            f"{instructions} 이전 출력이 잘렸으므로 답변, 추천 이유, claim, 조건을 첫 시도보다 더 짧게 작성하세요."
+            f"{instructions} 이전 출력이 잘렸거나 근거 소유권 검증에 실패했습니다. "
+            "evidence의 card_key와 chunk_id 조합을 정확히 복사하고 서로 다른 카드의 citation을 섞지 마세요. "
+            "답변, 추천 이유, claim, 조건은 첫 시도보다 더 짧게 작성하세요."
         )
         request = {
             "model": self.llm_model,
@@ -304,8 +306,10 @@ class OpenAIService:
                     _with_retry_answer_usage(exc, started)
                 raise
             except ValueError as exc:
+                if attempt_count == 1:
+                    continue
                 error = LlmUngrounded(str(exc))
-                raise (_with_retry_answer_usage(error, started) if attempt_count == 2 else error) from exc
+                raise _with_retry_answer_usage(error, started) from exc
             except Exception as exc:
                 error = LlmUnavailable(f"answer generation failed: {type(exc).__name__}")
                 raise (_with_retry_answer_usage(error, started) if attempt_count == 2 else error) from exc

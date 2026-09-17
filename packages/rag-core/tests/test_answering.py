@@ -94,6 +94,23 @@ class AnsweringTests(unittest.TestCase):
             self.assertEqual(call["max_output_tokens"], 2400)
             self.assertEqual(call["timeout"], 60.0)
 
+    def test_grounding_mismatch_retries_only_the_answer_generation(self) -> None:
+        wrong = AnswerOutput.model_validate({
+            "answer_text": "답",
+            "claims": [{"card_key": "c1", "text": "x", "citations": ["other"]}],
+        })
+        responses = FakeResponses(wrong, (self.answer(), {"output_tokens": 17}))
+        service = OpenAIService(api_key=None, client=types.SimpleNamespace(responses=responses))
+
+        answer, metadata = service.answer("질문", self.evidence)
+
+        self.assertEqual(answer.answer_text, "답")
+        self.assertEqual(len(responses.calls), 2)
+        self.assertEqual(metadata["attempt_count"], 2)
+        self.assertFalse(metadata["usage_complete"])
+        self.assertEqual(metadata["usage_scope"], "successful_attempt_only")
+        self.assertNotEqual(responses.calls[0]["instructions"], responses.calls[1]["instructions"])
+
     def test_retry_final_failure_metadata_and_first_failure_no_retry(self) -> None:
         wrong = AnswerOutput.model_validate({
             "answer_text": "답", "claims": [{"card_key": "c1", "text": "x", "citations": ["other"]}]
