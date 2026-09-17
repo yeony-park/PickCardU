@@ -321,7 +321,7 @@ curl -sS http://127.0.0.1:8000/v1/answer \
 | 503 | `INDEX_UNAVAILABLE` | 예 | active pointer 또는 index를 로드·검증할 수 없을 때 |
 | 503 | `EMBEDDING_UNAVAILABLE` | 예 | 질문 embedding 호출이 실패했을 때 |
 | 503 | `RERANKER_UNAVAILABLE` | 아니요 | 로컬 reranker를 사용할 수 없을 때 |
-| 503 | `EVIDENCE_PACKAGE_TOO_LARGE` | 아니요 | 선정 근거가 허용된 답변 입력 크기를 초과할 때 |
+| 503 | `EVIDENCE_PACKAGE_TOO_LARGE` | 아니요 | 최상위 근거 청크 하나만으로도 허용된 답변 입력 크기를 초과할 때 |
 | 503 | `LLM_UNAVAILABLE` | 예 | 답변 생성 provider를 사용할 수 없을 때 |
 | 503 | `LLM_UNGROUNDED` | 예 | 답변 schema 또는 citation 소유권 검증에 실패했을 때 |
 
@@ -330,6 +330,7 @@ curl -sS http://127.0.0.1:8000/v1/answer \
 ## 5. 답변 안전 계약과 한계
 
 - LLM에는 서버가 검색한 근거만 전달한다.
+- 답변 입력 한도 안에 들어오는 순위 상위의 완전한 근거 청크만 전달한다. 다음 청크가 한도를 넘으면 거기서 멈추며 청크 본문을 중간에서 자르지 않는다.
 - recommendation과 atomic claim의 citation이 실제 검색 근거에 속하는지 검사한다.
 - citation이 같은 카드의 근거인지 검사한다.
 - 근거가 부족하면 `insufficient_evidence`로 응답한다.

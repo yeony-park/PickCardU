@@ -316,11 +316,36 @@ class RetrievalTests(unittest.TestCase):
         result = weighted_rrf({"a": [Candidate("z", 0, 1)], "b": [Candidate("a", 0, 62)]}, {"a": 1, "b": 2})
         self.assertEqual([row.chunk_id for row in result], ["z", "a"])
 
-    def test_evidence_budget_failure_does_not_substitute_or_partially_emit(self) -> None:
-        chunks = {chunk.chunk_id: chunk for chunk in self.chunks}
+    def test_evidence_budget_keeps_ranked_whole_chunk_prefix(self) -> None:
+        chunks = {
+            "a": Chunk("a", "가" * 100, "c1", "카드1", "발급사", "benefit", 1),
+            "b": Chunk("b", "나" * 100, "c2", "카드2", "발급사", "benefit", 2),
+        }
+        cards, evidence, budget = collapse_cards(
+            [Candidate("a", 2, 1), Candidate("b", 1, 2)],
+            chunks,
+            top_k=2,
+            standalone_query="질문",
+            max_payload_size=600,
+        )
+        self.assertEqual([card["card_key"] for card in cards], ["c1"])
+        self.assertEqual([item["chunk_id"] for item in evidence], ["a"])
+        self.assertEqual(budget["dropped_chunk_ids"], ["b"])
+        self.assertTrue(budget["budget_truncated"])
+        self.assertLessEqual(budget["payload_size"], 600)
+
         with self.assertRaises(EvidencePackageTooLarge):
-            collapse_cards([Candidate("b", 2, 1), Candidate("c", 1, 2)], chunks, top_k=2, max_payload_size=1)
-        cards, evidence, _ = collapse_cards([Candidate("b", 2, 1), Candidate("b", 1, 2)], chunks, top_k=3)
+            collapse_cards(
+                [Candidate("a", 2, 1)],
+                chunks,
+                top_k=1,
+                standalone_query="질문",
+                max_payload_size=300,
+            )
+
+        cards, evidence, _ = collapse_cards(
+            [Candidate("a", 2, 1), Candidate("a", 1, 2)], chunks, top_k=3
+        )
         self.assertEqual((len(cards), len(evidence)), (1, 1))
 
     def test_runtime_source_has_no_service_or_legacy_path_dependencies(self) -> None:

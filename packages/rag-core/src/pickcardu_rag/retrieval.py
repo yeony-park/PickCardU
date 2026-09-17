@@ -324,6 +324,7 @@ def collapse_cards(
     evidence: list[dict[str, Any]] = []
     by_card: dict[str, dict[str, Any]] = {}
     dropped_chunk_ids: list[str] = []
+    budget_truncated = False
     seen: set[str] = set()
     for row in rows:
         if row.chunk_id in seen:
@@ -351,10 +352,14 @@ def collapse_cards(
             "score": row.score,
         }
         if measure_answer_payload(standalone_query, [*evidence, candidate])[0] > max_payload_size:
-            raise EvidencePackageTooLarge(
-                "selected evidence exceeds the answer payload budget; no partial package returned",
-                extra={"chunk_id": chunk.chunk_id, "payload_unit_limit": max_payload_size},
-            )
+            if not evidence:
+                raise EvidencePackageTooLarge(
+                    "top-ranked evidence exceeds the answer payload budget",
+                    extra={"chunk_id": chunk.chunk_id, "payload_unit_limit": max_payload_size},
+                )
+            dropped_chunk_ids.append(chunk.chunk_id)
+            budget_truncated = True
+            break
         if card is None:
             card = {
                 "card_key": chunk.card_key,
@@ -375,6 +380,7 @@ def collapse_cards(
         "payload_size": payload_size,
         "dropped_chunk_count": len(dropped_chunk_ids),
         "dropped_chunk_ids": dropped_chunk_ids,
+        "budget_truncated": budget_truncated,
     }
 
 
@@ -590,7 +596,7 @@ class RagPipeline:
                 "lexical_contract": LEXICAL_CONTRACT,
                 "query_classifier_contract": QUERY_CLASSIFIER_CONTRACT,
                 "fused_worklist_depth": FUSED_WORKLIST_DEPTH,
-                "evidence_policy": "ranked_source_preserved_fail_on_budget_overflow",
+                "evidence_policy": "ranked_whole_chunk_prefix_with_budget_guard",
                 "latency": {"total_ms": round((time.perf_counter() - started) * 1000, 3)},
             },
         }
