@@ -234,8 +234,12 @@ class RetrievalTests(unittest.TestCase):
         self.assertIn("b", [row["chunk_id"] for row in result["evidence"]])
         from pickcardu_rag.answering import build_answer_payload
         answer_evidence = build_answer_payload("질문", result["evidence"])["evidence"]
-        for card_key, document in zip(("c1", "c2"), reranker.documents[0]):
-            self.assertEqual("\n\n".join(row["text"] for row in answer_evidence if row["card_key"] == card_key), document)
+        for card_name, document in zip(("카드1", "카드2"), reranker.documents[0]):
+            self.assertEqual(
+                "\n\n".join(row["text"] for row in answer_evidence if row["card_name"] == card_name),
+                document,
+            )
+        self.assertTrue(all("card_key" not in row and "chunk_id" not in row for row in answer_evidence))
         self.assertEqual(pipeline.chunks["a"].text, chunks[0].text)
         with self.assertRaisesRegex(ValueError, "all-query BGE"):
             pipeline.search(
