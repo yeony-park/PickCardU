@@ -4,19 +4,30 @@
 
 ## 로컬 개발 실행
 
-Python 3.11 이상 환경에 RAG 패키지 의존성을 설치하고 `apps/main`의 Node 의존성을 설치한 뒤, 저장소 루트에서 실행합니다.
+macOS 또는 Linux/WSL에서 Node.js 22.13 이상과 Python 3.11 이상을 준비합니다. 프로젝트를 처음 받은 뒤에는 사용할 Python 환경을 활성화하고 저장소 루트에서 다음 명령을 순서대로 실행합니다.
 
 ```bash
-python -m pip install -e "packages/rag-core[reranker]" -e services/rag-api
-npm --prefix apps/main install
+npm run setup
 npm run dev
 ```
 
-`npm run dev`는 Next.js와 FastAPI를 함께 실행합니다. FastAPI 진입점은 루트 `.env`를 자동으로 읽고 기존 셸 환경변수를 우선합니다. 특정 Conda 환경 이름은 가정하지 않으므로 팀원이 준비한 Python 환경을 활성화한 상태에서 실행해야 합니다.
+`npm run setup`은 잠금 파일 기준 프론트 의존성, Python RAG 의존성, 고정 BGE reranker와 고정 RAG index release를 설치·검증한 뒤 종료합니다. 현재 활성화된 Python을 사용하며 별도 환경을 만들지 않습니다. BGE는 약 2.3GB이고 RAG release 다운로드 파일은 약 64MB이므로 최초 실행에는 시간이 걸릴 수 있습니다. setup 자체는 OpenAI API를 호출하지 않습니다.
+
+최초 설정이 끝난 뒤 평소에는 저장소 루트에서 다음 명령만 실행합니다.
+
+```bash
+npm run dev
+```
+
+의존성이나 `config/dev-assets.json`의 release가 변경된 경우에는 `npm run setup`을 다시 실행합니다. `PICKCARDU_PYTHON`을 지정하지 않으면 setup과 dev 모두 현재 `PATH`의 `python`을 사용합니다. 루트 `.env`와 `OPENAI_API_KEY`는 Git으로 배포하지 않으므로 팀원이 각자 준비해야 합니다.
+
+`npm run dev`는 Next.js와 FastAPI를 함께 실행합니다. FastAPI 진입점은 루트 `.env`를 자동으로 읽고 기존 셸 환경변수를 우선합니다.
 
 - 서비스 화면: `http://localhost:3000`
 - FastAPI readiness: `http://127.0.0.1:8000/v1/health/ready`
 - 종료: 실행한 터미널에서 `Ctrl+C`
+
+상세한 자산 검증, release 활성화와 장애 확인 방법은 [RAG API 실행·운영 가이드](docs/API_RUNBOOK.md)를 참고합니다.
 
 ## 저장소 구조
 
