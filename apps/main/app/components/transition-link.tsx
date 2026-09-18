@@ -3,6 +3,7 @@
 import Link, { LinkProps } from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AnchorHTMLAttributes, MouseEvent, useEffect } from 'react';
+import { settleTransition, waitForPath } from '../../lib/view-transition';
 
 type TransitionLinkProps = LinkProps & Omit<AnchorHTMLAttributes<HTMLAnchorElement>, keyof LinkProps>;
 type ViewTransition = { finished: Promise<void> };
@@ -13,26 +14,6 @@ const pageOrder: Record<string, number> = {
   '/chat': 1,
   '/cards': 2,
 };
-
-function waitForPath(pathname: string) {
-  return new Promise<void>((resolve) => {
-    const deadline = performance.now() + 3000;
-
-    function checkPath() {
-      if (window.location.pathname === pathname) {
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-        return;
-      }
-      if (performance.now() >= deadline) {
-        resolve();
-        return;
-      }
-      requestAnimationFrame(checkPath);
-    }
-
-    requestAnimationFrame(checkPath);
-  });
-}
 
 export function TransitionLink({ href, onClick, ...props }: TransitionLinkProps) {
   const router = useRouter();
@@ -61,7 +42,7 @@ export function TransitionLink({ href, onClick, ...props }: TransitionLinkProps)
       router.push(nextHref);
       await waitForPath(nextHref);
     });
-    transition.finished.finally(() => {
+    void settleTransition(transition.finished, () => {
       delete document.documentElement.dataset.transitionDirection;
     });
   }
