@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -10,6 +12,23 @@ from pickcardu_rag_api import __main__ as entrypoint
 
 
 class EntrypointTests(unittest.TestCase):
+    def test_package_import_does_not_construct_app_before_environment_load(self) -> None:
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                (
+                    "import sys; import pickcardu_rag_api; "
+                    "print('loaded' if 'pickcardu_rag_api.main' in sys.modules else 'deferred')"
+                ),
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertEqual(result.stdout.strip(), "deferred")
+
     def test_local_env_fills_missing_values_without_overriding_shell(self) -> None:
         loader = getattr(entrypoint, "load_local_environment", None)
         self.assertTrue(callable(loader), "FastAPI entrypoint needs a local .env loader")
