@@ -5,6 +5,20 @@ import path from 'node:path';
 const scriptPath = fileURLToPath(import.meta.url);
 const defaultRepositoryRoot = path.resolve(path.dirname(scriptPath), '..');
 
+export const PYTHON_RUNTIME_CHECK = [
+  'import importlib',
+  'modules = ["chromadb", "dotenv", "fastapi", "huggingface_hub", "numpy", "openai", "pydantic", "pickcardu_rag", "pickcardu_rag_api.release_install", "torch", "transformers", "uvicorn"]',
+  'missing = []',
+  'for name in modules:',
+  '    try:',
+  '        importlib.import_module(name)',
+  '    except Exception as error:',
+  '        missing.append(f"{name} ({type(error).__name__})")',
+  'if missing:',
+  '    raise SystemExit("Missing or unusable Python runtime dependencies: " + ", ".join(missing))',
+  'print("Python runtime dependencies are available; existing versions were not changed.")',
+].join('\n');
+
 export function assertSupportedRuntime({ platform = process.platform, nodeVersion = process.versions.node } = {}) {
   if (!['darwin', 'linux'].includes(platform)) {
     throw new Error('PickCardU setup supports macOS or Linux/WSL; native Windows is not supported.');
@@ -22,6 +36,17 @@ export function createSetupSpecs(
 ) {
   const python = environment.PICKCARDU_PYTHON || 'python';
   const npm = platform === 'win32' ? 'npm.cmd' : 'npm';
+  const pythonPaths = [
+    path.join(repositoryRoot, 'services/rag-api/src'),
+    path.join(repositoryRoot, 'packages/rag-core/src'),
+  ];
+  if (environment.PYTHONPATH) {
+    pythonPaths.push(environment.PYTHONPATH);
+  }
+  const pythonEnvironment = {
+    ...environment,
+    PYTHONPATH: pythonPaths.join(path.delimiter),
+  };
   return [
     {
       name: 'Python 3.11+ check',
@@ -34,24 +59,16 @@ export function createSetupSpecs(
       env: environment,
     },
     {
+      name: 'Python runtime dependencies check',
+      command: python,
+      args: ['-c', PYTHON_RUNTIME_CHECK],
+      cwd: repositoryRoot,
+      env: pythonEnvironment,
+    },
+    {
       name: 'frontend dependencies',
       command: npm,
       args: ['--prefix', path.join(repositoryRoot, 'apps/main'), 'ci'],
-      cwd: repositoryRoot,
-      env: environment,
-    },
-    {
-      name: 'Python dependencies',
-      command: python,
-      args: [
-        '-m',
-        'pip',
-        'install',
-        '-e',
-        'packages/rag-core[reranker]',
-        '-e',
-        'services/rag-api',
-      ],
       cwd: repositoryRoot,
       env: environment,
     },
@@ -68,7 +85,7 @@ export function createSetupSpecs(
         path.join(repositoryRoot, 'data/rag/runtime'),
       ],
       cwd: repositoryRoot,
-      env: environment,
+      env: pythonEnvironment,
     },
   ];
 }

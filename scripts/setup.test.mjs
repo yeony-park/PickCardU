@@ -18,12 +18,12 @@ test('macOS와 Linux에서 Node 22.13 이상만 허용한다', () => {
   );
 });
 
-test('현재 선택한 Python으로 의존성과 자산을 순서대로 준비한다', () => {
+test('현재 Python 환경을 변경하지 않고 실행 조건과 프로젝트 로컬 자산만 준비한다', () => {
   assert.ok(setup, 'scripts/setup.mjs가 필요합니다.');
   const repositoryRoot = path.resolve('/workspace/PickCardU');
   const specs = setup.createSetupSpecs(
     repositoryRoot,
-    { PICKCARDU_PYTHON: 'team-python' },
+    { PICKCARDU_PYTHON: 'team-python', PYTHONPATH: '/shared/python' },
     'darwin',
   );
 
@@ -40,23 +40,18 @@ test('현재 선택한 Python으로 의존성과 자산을 순서대로 준비�
         cwd: repositoryRoot,
       },
       {
-        name: 'frontend dependencies',
-        command: 'npm',
-        args: ['--prefix', path.join(repositoryRoot, 'apps/main'), 'ci'],
+        name: 'Python runtime dependencies check',
+        command: 'team-python',
+        args: [
+          '-c',
+          setup.PYTHON_RUNTIME_CHECK,
+        ],
         cwd: repositoryRoot,
       },
       {
-        name: 'Python dependencies',
-        command: 'team-python',
-        args: [
-          '-m',
-          'pip',
-          'install',
-          '-e',
-          'packages/rag-core[reranker]',
-          '-e',
-          'services/rag-api',
-        ],
+        name: 'frontend dependencies',
+        command: 'npm',
+        args: ['--prefix', path.join(repositoryRoot, 'apps/main'), 'ci'],
         cwd: repositoryRoot,
       },
       {
@@ -75,6 +70,16 @@ test('현재 선택한 Python으로 의존성과 자산을 순서대로 준비�
       },
     ],
   );
+
+  assert.equal(specs.some(({ args }) => args.includes('pip')), false);
+  assert.equal(
+    specs.at(-1).env.PYTHONPATH,
+    [
+      path.join(repositoryRoot, 'services/rag-api/src'),
+      path.join(repositoryRoot, 'packages/rag-core/src'),
+      '/shared/python',
+    ].join(path.delimiter),
+  );
 });
 
 test('PICKCARDU_PYTHON이 없으면 python을 사용하고 Windows에서는 npm.cmd를 선택한다', () => {
@@ -82,8 +87,8 @@ test('PICKCARDU_PYTHON이 없으면 python을 사용하고 Windows에서는 npm.
   const specs = setup.createSetupSpecs('C:\\PickCardU', {}, 'win32');
 
   assert.equal(specs[0].command, 'python');
-  assert.equal(specs[1].command, 'npm.cmd');
-  assert.equal(specs[2].command, 'python');
+  assert.equal(specs[1].command, 'python');
+  assert.equal(specs[2].command, 'npm.cmd');
   assert.equal(specs[3].command, 'python');
 });
 

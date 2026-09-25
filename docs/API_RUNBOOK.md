@@ -26,21 +26,24 @@ npm run setup
 setup은 다음 순서로 실행되고 개발 서버를 시작하지 않는다.
 
 1. 플랫폼, Node와 Python 버전 확인
-2. `apps/main/package-lock.json` 기준 Node 의존성 설치
-3. 고정된 Python RAG/API 의존성 설치
+2. 현재 Python 환경에서 필수 RAG/API 모듈을 import할 수 있는지 확인하며 패키지는 설치·변경하지 않음
+3. `apps/main/package-lock.json` 기준 Node 의존성을 프로젝트 내부에 설치
 4. Hugging Face의 고정 revision에서 BGE reranker 다운로드와 파일별 SHA-256 검증
 5. 고정된 GitHub Release asset에서 RAG index 다운로드와 archive·manifest·내부 DB hash 검증
 6. `index-release/`, 검색용 `serving/`과 `active-index.json` 준비
 7. 실제 `ActiveIndexLoader`로 SQLite, FTS5, Chroma와 embedding identity 검증
 
-현재 자산 계약은 `config/dev-assets.json`에 있다. BGE는 `BAAI/bge-reranker-v2-m3`의 고정 commit을 사용하고, RAG DB는 `release_9854f965cbb4ba66`을 사용한다. BGE 런타임 파일은 약 2.3GB이고 RAG release archive는 64,029,451바이트다.
+현재 자산 계약은 Git에 포함된 `config/dev-assets.json`에 있다. setup은 이 계약을 읽어 BGE와 RAG release를 준비하고, 선택된 release ID와 manifest hash를 로컬 `data/rag/runtime/active-index.json`에 기록한다. BGE는 `BAAI/bge-reranker-v2-m3`의 고정 commit을 사용하고, RAG DB는 `release_9854f965cbb4ba66`을 사용한다. BGE 런타임 파일은 약 2.3GB이고 RAG release archive는 64,029,451바이트다.
+
+setup은 활성 Python/Conda 환경에 `pip install`을 실행하지 않는다. 필수 모듈이 없거나 import할 수 없으면 해당 이름을 보고하고, 프론트 설치나 대용량 자산 다운로드 전에 중단한다. 사용자는 기존 환경 관리 정책에 맞게 의존성을 준비한 뒤 setup을 다시 실행한다.
 
 정상 자산이 이미 있으면 대용량 다운로드를 생략하고 검증·활성 상태만 확인한다. 기존 release가 있지만 hash가 다르면 자동 삭제하거나 덮어쓰지 않고 실패한다. 새 release 준비가 실패하면 기존 `active-index.json`은 유지한다.
 
 setup을 다시 실행해야 하는 경우는 다음과 같다.
 
 - 처음 저장소를 받은 경우
-- Python 또는 Node 의존성 계약이 변경된 경우
+- Python 환경을 바꾼 뒤 실행 모듈 호환성을 다시 확인하려는 경우
+- 프론트 Node 의존성 계약이 변경된 경우
 - `config/dev-assets.json`의 release나 BGE revision이 변경된 경우
 - 로컬 자산이 누락된 경우
 
@@ -205,6 +208,7 @@ setup 단계에서 실패하면 오류 메시지의 첫 실패 단계를 확인�
 | setup 오류 | 확인할 항목 |
 |---|---|
 | 지원하지 않는 플랫폼/버전 | macOS 또는 Linux/WSL, Node 22.13+, Python 3.11+인지 확인 |
+| Python runtime dependencies 오류 | 현재 선택한 Python에 보고된 모듈이 설치되어 있고 import 가능한지 확인; setup은 패키지를 자동 설치하거나 버전을 변경하지 않음 |
 | BGE hash mismatch | 기존 `.cache/reranker/bge-reranker-v2-m3`가 완전한지 확인; setup은 손상된 기존 폴더를 자동 삭제하지 않음 |
 | release archive hash mismatch | 네트워크 프록시나 불완전 다운로드 여부 확인; 부분 다운로드는 활성화되지 않음 |
 | existing release is invalid | 기존 immutable release가 명세와 다름; 임의 삭제 전에 경로와 보존 필요성을 확인 |

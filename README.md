@@ -11,7 +11,7 @@ npm run setup
 npm run dev
 ```
 
-`npm run setup`은 잠금 파일 기준 프론트 의존성, Python RAG 의존성, 고정 BGE reranker와 고정 RAG index release를 설치·검증한 뒤 종료합니다. 현재 활성화된 Python을 사용하며 별도 환경을 만들지 않습니다. BGE는 약 2.3GB이고 RAG release 다운로드 파일은 약 64MB이므로 최초 실행에는 시간이 걸릴 수 있습니다. setup 자체는 OpenAI API를 호출하지 않습니다.
+`npm run setup`은 잠금 파일 기준 프론트 의존성을 프로젝트 내부에 설치하고, 현재 Python 환경에 필요한 RAG/API 모듈이 있는지 변경 없이 확인한 뒤 고정 BGE reranker와 고정 RAG index release를 설치·검증합니다. Python·Conda 환경을 만들거나 `pip install`로 기존 패키지를 변경하지 않습니다. BGE는 약 2.3GB이고 RAG release 다운로드 파일은 약 64MB이므로 최초 실행에는 시간이 걸릴 수 있습니다. setup 자체는 OpenAI API를 호출하지 않습니다.
 
 최초 설정이 끝난 뒤 평소에는 저장소 루트에서 다음 명령만 실행합니다.
 
@@ -19,7 +19,7 @@ npm run dev
 npm run dev
 ```
 
-의존성이나 `config/dev-assets.json`의 release가 변경된 경우에는 `npm run setup`을 다시 실행합니다. `PICKCARDU_PYTHON`을 지정하지 않으면 setup과 dev 모두 현재 `PATH`의 `python`을 사용합니다. 루트 `.env`와 `OPENAI_API_KEY`는 Git으로 배포하지 않으므로 팀원이 각자 준비해야 합니다.
+프론트 잠금 파일이나 `config/dev-assets.json`의 release가 변경된 경우에는 `npm run setup`을 다시 실행합니다. Python 모듈 검사에 실패하면 사용할 환경의 관리 방식에 따라 필요한 패키지를 직접 준비한 뒤 setup을 다시 실행합니다. `PICKCARDU_PYTHON`을 지정하지 않으면 setup과 dev 모두 현재 `PATH`의 `python`을 사용합니다. 루트 `.env`와 `OPENAI_API_KEY`는 Git으로 배포하지 않으므로 팀원이 각자 준비해야 합니다.
 
 `npm run dev`는 Next.js와 FastAPI를 함께 실행합니다. FastAPI 진입점은 루트 `.env`를 자동으로 읽고 기존 셸 환경변수를 우선합니다.
 
