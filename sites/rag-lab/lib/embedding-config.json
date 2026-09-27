@@ -1,0 +1,12 @@
+{
+  "model": "Xenova/multilingual-e5-small",
+  "revision": "761b726dd34fb83930e26aab4e9ac3899aa1fa78",
+  "dtype": "q8",
+  "dimensions": 384,
+  "pooling": "mean",
+  "normalize": true,
+  "max_length": 512,
+  "query_prefix": "query: ",
+  "passage_prefix": "passage: ",
+  "library": "@huggingface/transformers@3.8.1"
+}
