@@ -132,6 +132,21 @@ components:
       - citations
       title: AtomicClaim
       type: object
+    BrowserSessionRequest:
+      additionalProperties: false
+      properties: {}
+      title: BrowserSessionRequest
+      type: object
+    BrowserSessionResponse:
+      properties:
+        status:
+          const: ready
+          title: Status
+          type: string
+      required:
+      - status
+      title: BrowserSessionResponse
+      type: object
     CardResult:
       properties:
         card_key:
@@ -160,6 +175,173 @@ components:
       - rank
       - evidence_count
       title: CardResult
+      type: object
+    ChatMessage:
+      properties:
+        answer:
+          anyOf:
+          - $ref: '#/components/schemas/AnswerResponse'
+          - type: 'null'
+        client_request_id:
+          title: Client Request Id
+          type: string
+        content:
+          title: Content
+          type: string
+        created_at:
+          title: Created At
+          type: string
+        error:
+          anyOf:
+          - $ref: '#/components/schemas/ErrorResponse'
+          - type: 'null'
+        id:
+          title: Id
+          type: string
+        rewrite_usage:
+          anyOf:
+          - $ref: '#/components/schemas/ChatRewriteUsage'
+          - type: 'null'
+        role:
+          enum:
+          - user
+          - assistant
+          title: Role
+          type: string
+        seq:
+          title: Seq
+          type: integer
+        status:
+          enum:
+          - completed
+          - pending
+          - failed
+          title: Status
+          type: string
+        turn_id:
+          title: Turn Id
+          type: string
+      required:
+      - id
+      - turn_id
+      - client_request_id
+      - seq
+      - role
+      - content
+      - status
+      - created_at
+      title: ChatMessage
+      type: object
+    ChatRequest:
+      additionalProperties: false
+      properties:
+        client_request_id:
+          format: uuid
+          title: Client Request Id
+          type: string
+        profile:
+          anyOf:
+          - enum:
+            - card_page_section_benefit
+            - parent_child_bundle
+            type: string
+          - type: 'null'
+          title: Profile
+        query:
+          maxLength: 500
+          minLength: 1
+          title: Query
+          type: string
+        retry_failed:
+          default: false
+          title: Retry Failed
+          type: boolean
+        top_k:
+          default: 3
+          enum:
+          - 1
+          - 3
+          - 5
+          title: Top K
+          type: integer
+      required:
+      - query
+      - client_request_id
+      title: ChatRequest
+      type: object
+    ChatRewriteUsage:
+      properties:
+        latency_ms:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Latency Ms
+        model:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Model
+        provider_called:
+          title: Provider Called
+          type: boolean
+        usage:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Usage
+      required:
+      - provider_called
+      title: ChatRewriteUsage
+      type: object
+    Conversation:
+      properties:
+        created_at:
+          title: Created At
+          type: string
+        id:
+          title: Id
+          type: string
+        title:
+          title: Title
+          type: string
+        updated_at:
+          title: Updated At
+          type: string
+      required:
+      - id
+      - title
+      - created_at
+      - updated_at
+      title: Conversation
+      type: object
+    ConversationPage:
+      properties:
+        conversations:
+          items:
+            $ref: '#/components/schemas/Conversation'
+          title: Conversations
+          type: array
+        next_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Next Cursor
+      required:
+      - conversations
+      - next_cursor
+      title: ConversationPage
+      type: object
+    CreateConversationRequest:
+      additionalProperties: false
+      properties:
+        client_conversation_id:
+          format: uuid
+          title: Client Conversation Id
+          type: string
+      required:
+      - client_conversation_id
+      title: CreateConversationRequest
       type: object
     ErrorResponse:
       properties:
@@ -238,6 +420,27 @@ components:
       required:
       - status
       title: LiveResponse
+      type: object
+    MessagesPage:
+      properties:
+        has_pending:
+          title: Has Pending
+          type: boolean
+        messages:
+          items:
+            $ref: '#/components/schemas/ChatMessage'
+          title: Messages
+          type: array
+        next_before_seq:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Next Before Seq
+      required:
+      - messages
+      - next_before_seq
+      - has_pending
+      title: MessagesPage
       type: object
     NotReadyResponse:
       properties:
@@ -392,6 +595,21 @@ components:
       - embedding
       title: SearchUsage
       type: object
+    TurnResponse:
+      properties:
+        messages:
+          items:
+            $ref: '#/components/schemas/ChatMessage'
+          title: Messages
+          type: array
+        turn_id:
+          title: Turn Id
+          type: string
+      required:
+      - turn_id
+      - messages
+      title: TurnResponse
+      type: object
 info:
   title: PickCardU RAG API
   version: 0.1.0
@@ -432,6 +650,316 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
           description: Service Unavailable
       summary: Answer
+  /v1/browser-session:
+    post:
+      operationId: initialize_session_v1_browser_session_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BrowserSessionRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BrowserSessionResponse'
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+      summary: Initialize Session
+  /v1/conversations:
+    get:
+      operationId: conversations_v1_conversations_get
+      parameters:
+      - in: query
+        name: limit
+        required: false
+        schema:
+          default: 40
+          maximum: 100
+          minimum: 1
+          title: Limit
+          type: integer
+      - in: query
+        name: cursor
+        required: false
+        schema:
+          anyOf:
+          - maxLength: 1024
+            type: string
+          - type: 'null'
+          title: Cursor
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationPage'
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+      summary: Conversations
+    post:
+      operationId: create_conversation_v1_conversations_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateConversationRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+          description: OK
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+      summary: Create Conversation
+  /v1/conversations/{conversation_id}/messages:
+    get:
+      operationId: messages_v1_conversations__conversation_id__messages_get
+      parameters:
+      - in: path
+        name: conversation_id
+        required: true
+        schema:
+          format: uuid
+          title: Conversation Id
+          type: string
+      - in: query
+        name: limit
+        required: false
+        schema:
+          default: 50
+          maximum: 100
+          minimum: 1
+          title: Limit
+          type: integer
+      - in: query
+        name: before_seq
+        required: false
+        schema:
+          anyOf:
+          - minimum: 1
+            type: integer
+          - type: 'null'
+          title: Before Seq
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessagesPage'
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+      summary: Messages
+    post:
+      operationId: send_message_v1_conversations__conversation_id__messages_post
+      parameters:
+      - in: path
+        name: conversation_id
+        required: true
+        schema:
+          format: uuid
+          title: Conversation Id
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TurnResponse'
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+      summary: Send Message
   /v1/health/live:
     get:
       operationId: live_v1_health_live_get

@@ -21,3 +21,6 @@ test = ["httpx2==2.13.0"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+pickcardu_rag_api = ["chat_schema.sql"]

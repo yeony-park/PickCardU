@@ -6,14 +6,14 @@
 
 - API 버전: `0.1.0`
 - 기본 데이터 형식: `application/json`
-- 기준 구현: `services/rag-api/src/pickcardu_rag_api/main.py`
+- 기준 구현: `services/rag-api/src/pickcardu_rag_api/{main,chat,models,chat_models}.py`
 - 기계 판독용 계약: `packages/contracts/openapi.yaml`
 - 클라이언트 연동용 TypeScript 타입: `packages/contracts/generated/api.ts`
-- 현재 공개 경로: 4개
+- 현재 경로: 7개 URL, 9개 method/path 조합
 
 FastAPI 실행 중에는 `/docs`에서 Swagger UI, `/openapi.json`에서 런타임 OpenAPI 문서를 확인할 수 있다.
 
-> 현재 인증·사용자 프로필·대화 저장 기능은 이 API에 구현되어 있지 않다. 인증이 없는 현재 계약을 외부 공개 API 계약으로 간주하면 안 된다.
+> 계정 로그인·사용자 프로필은 미구현이다. 대화 API만 익명 브라우저 쿠키로 소유자를 구분하며 공개 서비스 인증을 대신하지 않는다. 현재 계약을 외부 공개 API 계약으로 간주하면 안 된다.
 
 실행, release 활성화, health 점검과 rollback 절차는 [`API_RUNBOOK.md`](API_RUNBOOK.md)를 참고한다. 검색·답변 내부 구조는 [`rag_pipeline.md`](rag_pipeline.md)를 참고한다.
 
@@ -26,7 +26,7 @@ FastAPI 실행 중에는 `/docs`에서 Swagger UI, `/openapi.json`에서 런타�
 | 개발 환경 예시 Base URL | `http://127.0.0.1:8000` |
 | staging Base URL | 미정 |
 | production Base URL | 미정 |
-| 인증 | 현재 없음 |
+| 인증 | 계정 인증 없음; 대화 경로는 익명 소유자 쿠키 필요 |
 | POST Content-Type | `application/json` |
 | API 경로 버전 | `/v1` |
 
@@ -44,6 +44,11 @@ FastAPI 실행 중에는 `/docs`에서 Swagger UI, `/openapi.json`에서 런타�
 | `GET` | `/v1/health/ready` | active release 로딩·무결성 확인 | 없음 |
 | `POST` | `/v1/search` | 카드와 근거 검색 | 질문 embedding 호출 |
 | `POST` | `/v1/answer` | 검색 근거 기반 답변 생성 | 질문 embedding 및 조건부 LLM 호출 |
+| `POST` | `/v1/browser-session` | 익명 세션 쿠키 발급·유지 | 없음 |
+| `GET` | `/v1/conversations` | 소유자의 저장 대화 목록 | 없음 |
+| `POST` | `/v1/conversations` | 멱등 대화 생성 | 없음 |
+| `GET` | `/v1/conversations/{conversation_id}/messages` | 질문·답변·실패 복원 | 없음 |
+| `POST` | `/v1/conversations/{conversation_id}/messages` | 질문 저장·맥락 반영·검색·답변 저장 | 조건부 rewrite 최대1회 + embedding 최대1회 + 기존 answer 최대2회 |
 
 ### 2.4 공통 질의 요청
 
@@ -306,7 +311,7 @@ curl -sS http://127.0.0.1:8000/v1/answer \
 
 ## 4. 오류 계약
 
-`POST /v1/search`와 `POST /v1/answer`의 오류 응답 형식:
+질의·대화 API의 공통 오류 응답 형식:
 
 ```json
 {
@@ -327,6 +332,15 @@ curl -sS http://127.0.0.1:8000/v1/answer \
 | 503 | `EVIDENCE_PACKAGE_TOO_LARGE` | 아니요 | 최상위 근거 청크 하나만으로도 허용된 답변 입력 크기를 초과할 때 |
 | 503 | `LLM_UNAVAILABLE` | 예 | 답변 생성 provider를 사용할 수 없을 때 |
 | 503 | `LLM_UNGROUNDED` | 예 | 답변 schema 또는 citation 소유권 검증에 실패했을 때 |
+| 401 | `BROWSER_SESSION_REQUIRED` | 아니요 | 익명 쿠키가 없거나 유효하지 않음 |
+| 403 | `ORIGIN_NOT_ALLOWED` | 아니요 | 대화 POST 출처가 허용되지 않음 |
+| 404 | `CONVERSATION_NOT_FOUND` | 아니요 | 대화 없음 또는 다른 소유자; 같은 응답으로 구분 불가 |
+| 409 | `REQUEST_ID_CONFLICT` | 아니요 | 동일 요청 ID에 다른 query/profile/top_k |
+| 409 | `TURN_IN_PROGRESS` / `CONVERSATION_BUSY` | 아니요 | 같은 질문 또는 해당 대화의 다른 질문 처리 중; 조회 우선 |
+| 409 | `TURN_ATTEMPT_STALE` | 아니요 | 만료되거나 교체된 처리 시도의 저장 거절 |
+| 503 | `CHAT_STORAGE_UNAVAILABLE` | 예 | 대화 SQLite 손상·지원하지 않는 schema·잠금·디스크 부족 등 |
+| 502 / 504 | `API_UNREACHABLE` / `API_TIMEOUT` | 예 | Next proxy 연결 실패/540초 deadline; 전송 재시도 전 저장 상태 조회 |
+| 413 | `REQUEST_TOO_LARGE` | 아니요 | Next proxy의 8KiB body 한도 초과 |
 
 `GET /v1/health/ready`의 `503`은 위 공통 오류가 아니라 `{status, reason}` 형식이다.
 
@@ -358,9 +372,78 @@ HTTP 계약의 기준은 FastAPI 경로 선언과 Pydantic request/response mode
 
 | 경로 | 역할 |
 |---|---|
-| `services/rag-api/src/pickcardu_rag_api/main.py` | FastAPI 경로와 HTTP 응답 계약의 구현 원본 |
+| `services/rag-api/src/pickcardu_rag_api/{main,chat}.py` | FastAPI 경로와 처리 원본 |
+| `services/rag-api/src/pickcardu_rag_api/{models,chat_models}.py` | Pydantic request/response 계약 원본 |
 | `packages/contracts/openapi.yaml` | 코드에서 생성한 기계 판독용 OpenAPI snapshot |
 | `packages/contracts/generated/api.ts` | 같은 OpenAPI에서 생성한 클라이언트 연동용 TypeScript 타입 |
 | `packages/contracts/README.md` | 계약 생성과 drift 검사 방법 |
 
 API 계약 변경은 구현과 Pydantic model을 먼저 수정하고, OpenAPI와 TypeScript 타입을 재생성한 뒤 drift 검사를 통과시키는 순서로 진행한다.
+
+## 8. 저장형 채팅 HTTP 계약
+
+### 8.1 세션·출처·보존
+
+브라우저는 Next.js의 같은 출처 `/api/chat/...`를 사용한다. suffix는 `/v1/...`와 같다. 예: `/api/chat/conversations` → `/v1/conversations`. 서버 측 `PICKCARDU_RAG_API_BASE_URL`로 FastAPI 주소를 지정하며 브라우저가 목적지를 정하지 않는다. Next POST는 접속한 출처와 정확히 일치하는 Origin만 허용하며 검증 후 API 자체 출처로 정규화한다. FastAPI는 API 자체 출처 또는 명시된 개발 Origin만 허용한다. 무상태 API의 기존 CORS는 유지된다.
+
+`POST /v1/browser-session`은 `{}`를 받고 `200 {"status":"ready"}`를 반환한다. 쿠키가 없거나 유효하지 않으면 32바이트 난수 토큰을 발급하며 유효한 기존 쿠키는 유지한다. 쿠키 이름은 `pickcardu_browser`, HttpOnly, SameSite=Lax, Path=/, 90일이며 사용 시 갱신한다. 로컬 HTTP이므로 Secure=false다. 원문 토큰은 JSON·URL·브라우저 저장소에 넣지 않는다. DB에는 SHA-256 해시만 저장한다.
+
+최초 다중 탭 초기화만 Web Locks로 순서를 정하며 일반 질문 전송은 잠그지 않는다. 기능 미지원 환경에서는 클라이언트 `BROWSER_SESSION_UNSUPPORTED` 안내 후 저장형 채팅을 중단한다. 브라우저 브랜드만으로 지원 여부를 판단하지 않는다.
+
+대화는 RAG와 별도 평문 로컬 SQLite에 자동 삭제 없이 저장한다. 쿠키 삭제/만료·다른 브라우저/프로필/PC에서는 DB가 남아 있어도 자동 복원되지 않는다. 모든 대화 응답(오류 포함)은 `Cache-Control: no-store`다.
+
+### 8.2 생성·목록
+
+`POST /v1/conversations`:
+
+```json
+{"client_conversation_id":"00000000-0000-4000-8000-000000000001"}
+```
+
+UUID는 한 번의 새 대화 생성에 고정한다. 신규 `201`, 같은 소유자/UUID 재전송 `200`이며 동일 Conversation을 반환한다:
+
+```json
+{"id":"00000000-0000-4000-8000-000000000002","title":"새 채팅","created_at":"2026-01-01T00:00:00+00:00","updated_at":"2026-01-01T00:00:00+00:00"}
+```
+
+예시 UUID와 시간은 설명용이다. 첫 질문 앞 32자가 제목이 되고 제목용 LLM 호출은 없다. 질문 없는 대화는 목록에 나오지 않는다.
+
+`GET /v1/conversations?limit=40&cursor=<opaque>`는 `{conversations: Conversation[], next_cursor: string|null}`을 최신 갱신순으로 반환한다. limit은 기본40, 범위1~100. 다음 페이지에 같은 cursor를 사용하며 값 자체는 접근 권한이 아니다.
+
+### 8.3 질문 전송·응답
+
+`POST /v1/conversations/{conversation_id}/messages`:
+
+```json
+{"query":"첫 번째 카드 연회비는?","client_request_id":"00000000-0000-4000-8000-000000000003","top_k":3,"profile":null,"retry_failed":false}
+```
+
+- conversation_id/client_request_id는 UUID. query/profile/top_k는 공통 질의 규칙과 같으며 기본 top_k=3, profile=null이다.
+- 질문 예약·저장을 먼저 하고 맥락·RAG·LLM 처리 중에는 DB transaction을 유지하지 않는다.
+- 최근 완료된 `answered` 대화 최대2쌍, 과거 최대5500자와 현재 질문 최대500자를 사용한다. 실제 추천 순서를 유지한다. failed/pending/근거 부족 응답은 맥락에서 제외한다.
+- 첫 질문/유효 맥락 없음은 rewrite0회. 맥락이 있으면 독립 질문도 rewrite 최대1회 추가한다. 재작성 실패는 저장된 실패가 되며 원문으로 조용히 fallback하지 않는다.
+- LLM이 DB를 직접 읽지 않는다. 서버가 제한된 이전 대화를 rewrite provider에 전달한다. 답변 provider에는 독립 질의와 **새 검색 근거만** 주며 과거 답변의 혜택·citation을 새 근거로 재사용하지 않는다.
+
+성공 `200`은 `{turn_id:string, messages:[user,assistant]}`다. ChatMessage 필드:
+
+| 필드 | 타입 / 의미 |
+|---|---|
+| id / turn_id / client_request_id | 메시지 ID / 질문·답변 쌍 ID / 재시도에도 유지하는 요청 UUID |
+| seq / role / content | 메시지 순번 / user 또는 assistant / 표시 텍스트 |
+| status | completed, pending, failed. 저장된 사용자 질문은 completed |
+| answer | assistant 완료의 기존 AnswerResponse 전체, 그 외 null |
+| rewrite_usage | assistant의 `{provider_called,model,latency_ms,usage}` 또는 null; 미제공 값은 null |
+| error | assistant 실패의 공통 ErrorResponse, 그 외 null |
+| created_at | turn 생성 시각 |
+
+`insufficient_evidence`도 completed로 저장한다. 새 실패는 `503` 또는 `409`의 ErrorResponse이며 GET으로 저장된 질문·실패를 조회할 수 있다. 실패 결과의 동일 ID 재조회는 `200` TurnResponse로 반환한다. 기존 AnswerResponse/usage에는 rewrite 필드를 추가하지 않는다.
+
+### 8.4 복원·페이지·재시도
+
+`GET /v1/conversations/{conversation_id}/messages?limit=50&before_seq=<turn-seq>`는 `{messages:ChatMessage[],next_before_seq:number|null,has_pending:boolean}`이다. limit 기본50, 범위1~100이며 **turn(질문·답변 쌍) 단위**다. 메시지는 시간순이며 user seq=turn.seq*2-1, assistant seq=turn.seq*2. 다음 과거 페이지는 next_before_seq를 그대로 사용한다. 이 값은 메시지 seq가 아니다.
+
+같은 요청 ID·같은 query/profile/top_k의 완료 재전송은 저장 결과만 반환하며 provider를 호출하지 않는다. pending은409, failed는 기본 재조회만 한다. 사용자의 명시적 실패 재시도만 `retry_failed:true`로 같은 ID를 다시 보낸다. 다른 내용으로 재사용하면409다. 대화당 pending은1개이며 서로 다른 대화는 별개다.
+
+pending lease10분이 지나면 다음 조회/쓰기에서 `TURN_INTERRUPTED` failed로 기록한다. 자동 LLM 재실행은 하지 않는다. 네트워크 오류/502/504/비JSON 응답은 결과 불명일 수 있으므로 **먼저 GET**한다. pending/완료에 대해 새 ID로 자동 전송하지 않으며 확인된 failed만 명시적으로 재시도한다. 클라이언트 `RESULT_UNKNOWN`은 자동 재전송 금지 안내다.
+
+provider 성공 후 SQLite 기록 전 프로세스 중단은 하나의 transaction으로 묶을 수 없다. 이 경우 과금 exactly-once는 보장하지 않으며 사용자가 명시적으로 재시도하면 호출이 중복될 수 있다. GET 복원·완료 재조회는 외부 API를 호출하지 않는다.

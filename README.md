@@ -29,6 +29,12 @@ npm run dev
 
 상세한 자산 검증, release 활성화와 장애 확인 방법은 [RAG API 실행·운영 가이드](docs/API_RUNBOOK.md)를 참고합니다.
 
+## 로컬 대화 저장
+
+채팅은 익명 HttpOnly 브라우저 쿠키로 식별하고 RAG 인덱스와 별도 SQLite(`data/chat/runtime/chat.sqlite`, `PICKCARDU_CHAT_DB_PATH`로 변경 가능)에 저장합니다. 실제 채팅 API 사용 시 생성하며 setup은 이 DB를 다운로드하거나 환경을 설치하지 않습니다. 쿠키 삭제/만료, 다른 브라우저·PC에서는 기존 대화가 자동 복원되지 않습니다. 로컬 평문 저장이며 자동 삭제나 계정 로그인은 없습니다.
+
+브라우저는 같은 출처 `/api/chat` proxy를 사용합니다. 최초 세션의 다중 탭 초기화에는 Web Locks가 필요하며 기능 미지원 환경은 안내 후 저장형 채팅을 중단합니다. localhost 또는 HTTPS 접속을 사용합니다. 후속 질문은 최근 완료 대화 최대2쌍을 LLM에 제공해 질문을 재작성하므로 rewrite 호출 최대1회가 추가될 수 있습니다. 조회/복원/완료 결과 재전송은 유료 API를 호출하지 않습니다. 상세 계약과 재시도·백업 제약은 [API 명세](docs/API_SPEC.md#8-저장형-채팅-http-계약)를 참고합니다.
+
 ## 저장소 구조
 
 - `apps/main`: 실제 서비스 UI. Next.js 기반이며 Vercel 배포 대상입니다.

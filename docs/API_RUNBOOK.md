@@ -106,6 +106,8 @@ sha256sum data/rag/runtime/index-release/RELEASE_ID/manifest.json
 | `PICKCARDU_EMBEDDING_MODEL` | `text-embedding-3-small` | active release의 embedding 모델과 일치해야 한다. |
 | `PICKCARDU_LLM_MODEL` | `gpt-5.6-luna` | `/v1/answer`의 답변 생성 모델이다. |
 | `PICKCARDU_BGE_MODEL_PATH` | `.cache/reranker/bge-reranker-v2-m3` | 로컬 reranker 모델 경로다. |
+| `PICKCARDU_CHAT_DB_PATH` | `data/chat/runtime/chat.sqlite` | RAG 인덱스와 분리된 대화 SQLite. 실제 채팅 API 사용 시 lazy 생성한다. |
+| `PICKCARDU_RAG_API_BASE_URL` | `http://127.0.0.1:8000` | Next 서버의 채팅 proxy 목적지. 브라우저 공개 환경변수가 아니다. |
 | `OPENAI_API_KEY` | 실제 검색·답변 시 필수 | 앱 생성과 health 확인만으로는 외부 호출이 발생하지 않는다. |
 
 setup과 dev에서 사용할 Python이 현재 `PATH`의 `python`과 다르면 `PICKCARDU_PYTHON`에 실행 파일 경로를 지정할 수 있다.
@@ -218,3 +220,34 @@ setup 단계에서 실패하면 오류 메시지의 첫 실패 단계를 확인�
 | loader validation 실패 | manifest, SQLite/FTS5, Chroma, serving marker와 active pointer 중 보고된 항목 확인 |
 
 오류 응답의 세부 계약과 `retryable` 값은 [`API_SPEC.md`](API_SPEC.md)의 오류 계약을 기준으로 한다.
+
+## 11. 대화 저장 운영
+
+채팅 SQLite는 RAG release가 아니며 `npm run setup`에서 다운로드하거나 초기화하지 않는다. 실제 대화 API 사용 시 별도로 생성한다. 앱 import/OpenAPI 생성/health만으로는 만들지 않는다. `data/chat/runtime/`는 Git 제외다. 패키지/환경 설치 동작은 추가하지 않았다.
+
+기본 포트에서는 proxy 설정 없이 루트의 `npm run dev`를 사용한다. FastAPI의 `PICKCARDU_CHAT_DB_PATH`는 루트 `.env` 또는 프로세스 환경으로 설정한다. 다른 API 포트를 사용하는 경우 Next의 `PICKCARDU_RAG_API_BASE_URL`은 실행 프로세스 환경 또는 `apps/main/.env.local`에 설정한다. 루트 `.env` 자동 읽기는 FastAPI 진입점의 기능이며 Next가 같은 파일을 자동 읽는다는 뜻은 아니다. 이 변수에 `NEXT_PUBLIC_` 접두사를 붙이거나 키를 포함하지 않는다.
+
+저장 내용은 질문, 검증된 답변 JSON, 실패 상태와 제한된 처리 메타데이터다. 로컬 평문이며 자동 삭제·계정 로그인·삭제/내보내기 UI는 없다. 브라우저 쿠키가 접근 권한이므로 삭제/만료하면 DB 백업이 있어도 자동 복원되지 않는다. 로그와 공유 파일에 쿠키·대화 원문·키를 남기지 않는다.
+
+후속 질문은 최근 answered 최대2쌍과 현재 질문을 rewrite provider에 추가 전송한다. 첫 질문은 추가 rewrite0회, 후속은 최대1회다. 기존 answer 최대2회 시도와 별개이며 테스트/운영 비용 승인을 구분한다.
+
+저장 실패 시 먼저 디스크 공간·디렉터리 쓰기 권한·DB 잠금·schema version을 확인한다. 손상/미지원 DB를 자동 삭제·재생성하지 않는다. `TURN_INTERRUPTED`는 만료된 pending 기록이며 조회 후 사용자가 명시적으로 재시도한다. 응답 유실은 완료/실패 여부를 조회하기 전 새 질문으로 전송하지 않는다.
+
+### 일관된 백업
+
+WAL 사용 중 `chat.sqlite` 파일 하나만 복사하면 최근 데이터가 빠질 수 있다. SQLite backup API를 사용한다. 원본 경로와 새 백업 경로를 확인하고 기존 백업을 덮어쓰지 않는다:
+
+```python
+from pathlib import Path
+import sqlite3
+
+source = Path("data/chat/runtime/chat.sqlite")
+destination = Path("data/chat/runtime/chat-backup.sqlite")
+if not source.is_file() or destination.exists():
+    raise SystemExit("원본 존재와 새 백업 경로를 확인하세요.")
+with sqlite3.connect(source.resolve().as_uri() + "?mode=ro", uri=True) as src:
+    with sqlite3.connect(destination) as dst:
+        src.backup(dst)
+```
+
+코드 병합은 worktree의 대화 DB를 자동 이전하지 않는다. worktree 제거 전에 대화 DB 보존/이전 여부를 별도로 확인한다. 브라우저/포트가 달라지면 기존 쿠키의 재사용 여부도 확인하며 소유자 해시를 임의로 바꾸지 않는다. 공개 배포와 production 차단 정책은 여전히 별도 작업이다.

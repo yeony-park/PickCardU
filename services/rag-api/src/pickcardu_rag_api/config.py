@@ -14,6 +14,7 @@ class Settings:
     embedding_model: str
     llm_model: str
     bge_model_path: Path
+    chat_db_path: Path | None = None
 
 
 def validate_settings(settings: Settings) -> Settings:
@@ -45,4 +46,5 @@ def load_settings(environ: dict[str, str] | None = None) -> Settings:
         bge_model_path=Path(
             source.get("PICKCARDU_BGE_MODEL_PATH", repository_root / ".cache/reranker/bge-reranker-v2-m3")
         ),
+        chat_db_path=Path(source.get('PICKCARDU_CHAT_DB_PATH', repository_root / 'data/chat/runtime/chat.sqlite')),
     ))

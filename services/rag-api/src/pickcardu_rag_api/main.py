@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any, Literal
+from pathlib import Path
+from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -9,115 +10,21 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pickcardu_rag import (
     CHUNKING_PROFILES,
-    AtomicClaim,
     AnswerOutput,
     LocalReranker,
     OpenAIService,
     RagError,
-    Recommendation,
     SearchConfig,
 )
-from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from .config import Settings, load_settings, validate_settings
 from .index import ActiveIndexLoader, ReleaseHandle
 
 
-ProfileName = Literal["card_page_section_benefit", "parent_child_bundle"]
-QueryType = Literal["proper_noun", "numeric_condition", "semantic"]
-
-
-class QueryRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    query: str = Field(min_length=1, max_length=500)
-    profile: ProfileName | None = None
-    top_k: Literal[1, 3, 5] = 3
-
-    @field_validator("query")
-    @classmethod
-    def nonempty_query(cls, value: str) -> str:
-        value = value.strip()
-        if not value:
-            raise ValueError("query must not be blank")
-        return value
-
-
-class ErrorResponse(BaseModel):
-    code: str
-    message: str
-    retryable: bool
-    request_id: str
-
-
-class LiveResponse(BaseModel):
-    status: Literal["live"]
-
-
-class ReadyResponse(BaseModel):
-    status: Literal["ready"]
-    release_id: str
-    profile: ProfileName
-    document_count: int
-    chunk_count: int
-
-
-class NotReadyResponse(BaseModel):
-    status: Literal["not_ready"]
-    reason: str
-
-
-class CardResult(BaseModel):
-    card_key: str
-    card_name: str
-    issuer: str
-    score: float
-    rank: int
-    evidence_count: int
-
-
-class EvidenceResult(BaseModel):
-    rank: int
-    card_key: str
-    card_name: str
-    issuer: str
-    chunk_id: str
-    page_num: int
-    text: str
-    section: str | None
-    level: str
-    score: float
-
-
-class SearchUsage(BaseModel):
-    embedding: dict[str, Any]
-
-
-class AnswerUsage(SearchUsage):
-    answer: dict[str, Any]
-
-
-class SearchResponse(BaseModel):
-    status: Literal["completed"]
-    release_id: str
-    profile: ProfileName
-    query_type: QueryType
-    cards: list[CardResult]
-    evidence: list[EvidenceResult]
-    usage: SearchUsage
-
-
-class AnswerResponse(BaseModel):
-    status: Literal["completed"]
-    answer_status: Literal["answered", "insufficient_evidence"]
-    release_id: str
-    profile: ProfileName
-    query_type: QueryType
-    cards: list[CardResult]
-    answer: str
-    recommendations: list[Recommendation]
-    claims: list[AtomicClaim]
-    evidence: list[EvidenceResult]
-    usage: AnswerUsage
+from .models import (
+    AnswerResponse, ErrorResponse, LiveResponse, NotReadyResponse, QueryRequest,
+    ReadyResponse, SearchResponse,
+)
 
 
 ERROR_RESPONSES = {
@@ -168,6 +75,7 @@ def create_app(
     provider: Any = None,
     index_loader: Any = None,
     reranker: Any = None,
+    chat_store: Any = None,
 ) -> FastAPI:
     settings = validate_settings(settings or load_settings())
     provider = provider or OpenAIService(
@@ -191,6 +99,12 @@ def create_app(
         request.state.request_id = request.headers.get("x-request-id") or uuid.uuid4().hex
         response = await call_next(request)
         response.headers["x-request-id"] = request.state.request_id
+        if request.url.path == '/v1/browser-session' or request.url.path.startswith('/v1/conversations'):
+            from .chat import browser_token, refresh_cookie
+            response.headers['cache-control'] = 'no-store'
+            token = browser_token(request)
+            if token:
+                refresh_cookie(response, token)
         return response
 
     @app.exception_handler(RequestValidationError)
@@ -250,8 +164,7 @@ def create_app(
             "usage": {"embedding": embedding_usage},
         })
 
-    @app.post("/v1/answer", response_model=AnswerResponse, responses=ERROR_RESPONSES)
-    def answer(payload: QueryRequest) -> AnswerResponse:
+    def generate_answer(payload: QueryRequest) -> AnswerResponse:
         handle, result, embedding_usage = _search(payload, loader, provider)
         if result["evidence"]:
             generated, answer_usage = provider.answer(payload.query, result["evidence"])
@@ -277,6 +190,17 @@ def create_app(
             "usage": {"embedding": embedding_usage, "answer": answer_usage},
         })
 
+    app.post('/v1/answer', name='answer', response_model=AnswerResponse, responses=ERROR_RESPONSES)(generate_answer)
+
+    from .chat import register_chat_routes
+    from .chat_store import ChatStore, ChatStoreError
+
+    @app.exception_handler(ChatStoreError)
+    async def chat_error(request: Request, error: ChatStoreError):
+        return _error(error.status_code, error.code, error.message, request.state.request_id, retryable=error.retryable)
+
+    path = settings.chat_db_path or Path(__file__).resolve().parents[4] / 'data/chat/runtime/chat.sqlite'
+    register_chat_routes(app, settings, chat_store if chat_store is not None else ChatStore(path), provider, generate_answer)
     return app
 
 
