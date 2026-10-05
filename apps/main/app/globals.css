@@ -899,3 +899,28 @@ a { color: inherit; text-decoration: none; }
   .product-meta { align-items: flex-start; flex-direction: column; gap: 8px; }
   .product-meta span + span::before { display: none; }
 }
+
+.mypage-search { width: 100%; padding: 13px 15px; border: 1px solid #e4e5e8; border-radius: 12px; background: #fafbfc; color: var(--ink); font: inherit; font-size: 13px; }
+.mypage-search:focus { outline: 2px solid #b8c2ff; outline-offset: 2px; }
+.mypage-search-empty { padding: 32px 0; color: var(--muted); font-size: 13px; line-height: 1.8; text-align: center; }
+
+/* Actual card catalog */
+.product-real-image { position: relative; z-index: 1; width: min(80%, 260px); height: 160px; object-fit: contain; filter: drop-shadow(0 8px 10px rgb(17 19 21 / 10%)); transition: transform 200ms ease; }
+.card-product:hover .product-real-image { transform: translateY(-3px); }
+.product-document-description { margin: 12px 0 0; color: #777b82; font-size: 12px; line-height: 1.7; }
+.product-copy .benefit-tag { align-self: flex-start; }
+.product-copy .product-detail-button { margin-top: auto; }
+.product-image-unavailable { color: #858990; font-size: 12px; }
+.cards-search-row { display: flex; margin-bottom: 18px; align-items: center; justify-content: space-between; gap: 20px; }
+.cards-search-row > div { width: min(100%, 360px); }
+.cards-search-row p { color: #858990; font-size: 12px; white-space: nowrap; }
+.cards-search-row strong { color: var(--ink); }
+.cards-load-more { display: flex; margin: 28px auto 0; padding: 14px 24px; align-items: center; gap: 24px; cursor: pointer; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); color: var(--ink); font: inherit; font-size: 13px; }
+.cards-load-more:hover { border-color: var(--ink); }
+@media (max-width: 600px) {
+  .cards-search-row { align-items: flex-start; flex-direction: column; gap: 0; }
+  .cards-search-row > div { width: 100%; }
+  .product-real-image { height: 230px; }
+}
+
+.product-image-caption { position: absolute; z-index: 1; bottom: 8px; right: 8px; left: 8px; color: #777b82; font-size: 9px; text-align: center; }

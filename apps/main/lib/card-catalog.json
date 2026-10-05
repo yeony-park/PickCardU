@@ -1,0 +1,1066 @@
+[
+  {
+    "id": "shinhan__Shinhan_Point_Plan+_20240801",
+    "issuer": "신한카드",
+    "name": "신한카드 Point Plan+",
+    "sourcePath": "data/raw/shinhan/Shinhan_Point_Plan+_20240801.pdf",
+    "image": "/cards/shinhan--shinhan-point-plan--20240801.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2731/card_img/36308/2731card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2731",
+    "pageCount": 6
+  },
+  {
+    "id": "shinhan__Shinhan_Cheoeum_20250524",
+    "issuer": "신한카드",
+    "name": "신한카드 처음",
+    "sourcePath": "data/raw/shinhan/Shinhan_Cheoeum_20250524.pdf",
+    "image": "/cards/shinhan--shinhan-cheoeum-20250524.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2694/card_img/33709/2694card_1.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2694",
+    "pageCount": 6
+  },
+  {
+    "id": "shinhan__Shinhan_Toss_Mr.Life_20251231",
+    "issuer": "신한카드",
+    "name": "토스 신한카드 Mr.Life",
+    "sourcePath": "data/raw/shinhan/Shinhan_Toss_Mr.Life_20251231.pdf",
+    "image": "/cards/shinhan--shinhan-toss-mr-life-20251231.png",
+    "imageSource": "https://static.toss.im/assets/credit-card/3480.png",
+    "imageSourcePage": "https://card-lounge.toss.im/card/1259",
+    "pageCount": 2
+  },
+  {
+    "id": "shinhan__Shinhan_Marriott_Bonvoy_The_Best_20230820",
+    "issuer": "신한카드",
+    "name": "메리어트 본보이 더 베스트 신한카드",
+    "sourcePath": "data/raw/shinhan/Shinhan_Marriott_Bonvoy_The_Best_20230820.pdf",
+    "image": "/cards/shinhan--shinhan-marriott-bonvoy-the-best-20230820.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/716/card_img/22190/716card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/716",
+    "pageCount": 11
+  },
+  {
+    "id": "shinhan__Shinhan_Deep_Oil_20231204",
+    "issuer": "신한카드",
+    "name": "신한카드 Deep Oil",
+    "sourcePath": "data/raw/shinhan/Shinhan_Deep_Oil_20231204.pdf",
+    "image": "/cards/shinhan--shinhan-deep-oil-20231204.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/39/card_img/31864/39card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/39",
+    "pageCount": 2
+  },
+  {
+    "id": "shinhan__Shinhan_Discount_Plan+_20250509",
+    "issuer": "신한카드",
+    "name": "신한카드 Discount Plan+",
+    "sourcePath": "data/raw/shinhan/Shinhan_Discount_Plan+_20250509.pdf",
+    "image": "/cards/shinhan--shinhan-discount-plan--20250509.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2835/card_img/41600/2835card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2835",
+    "pageCount": 8
+  },
+  {
+    "id": "shinhan__Shinhan_Air_One_20241224",
+    "issuer": "신한카드",
+    "name": "신한카드 Air One",
+    "sourcePath": "data/raw/shinhan/Shinhan_Air_One_20241224.pdf",
+    "image": "/cards/shinhan--shinhan-air-one-20241224.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/466/card_img/37854/466card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/466",
+    "pageCount": 2
+  },
+  {
+    "id": "shinhan__Shinhan_Haru_20250623",
+    "issuer": "신한카드",
+    "name": "신한카드 Haru(Hoshino Resorts)",
+    "sourcePath": "data/raw/shinhan/Shinhan_Haru_20250623.pdf",
+    "image": "/cards/shinhan--shinhan-haru-20250623.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2855/card_img/43765/2855card_1.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2855",
+    "pageCount": 2
+  },
+  {
+    "id": "shinhan__Shinhan_Point_Plan_20240626",
+    "issuer": "신한카드",
+    "name": "신한카드 Point Plan",
+    "sourcePath": "data/raw/shinhan/Shinhan_Point_Plan_20240626.pdf",
+    "image": "/cards/shinhan--shinhan-point-plan-20240626.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2666/card_img/32452/2666card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2666",
+    "pageCount": 2
+  },
+  {
+    "id": "shinhan__Shinhan_The_CLASSIC-S_20240422",
+    "issuer": "신한카드",
+    "name": "The CLASSIC-S",
+    "sourcePath": "data/raw/shinhan/Shinhan_The_CLASSIC-S_20240422.pdf",
+    "image": "/cards/shinhan--shinhan-the-classic-s-20240422.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/945/card_img/21598/945card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/945",
+    "pageCount": 13
+  },
+  {
+    "id": "samsung__Samsung_iD_ALL",
+    "issuer": "삼성카드",
+    "name": "삼성 iD ALL 카드",
+    "sourcePath": "data/raw/samsung/Samsung_iD_ALL.pdf",
+    "image": "/cards/samsung--samsung-id-all.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2234/card_img/27720/2234card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2234",
+    "pageCount": 8
+  },
+  {
+    "id": "samsung__Samsung_iD_GLOBAL",
+    "issuer": "삼성카드",
+    "name": "삼성 iD GLOBAL 카드",
+    "sourcePath": "data/raw/samsung/Samsung_iD_GLOBAL.pdf",
+    "image": "/cards/samsung--samsung-id-global.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2676/card_img/32887/2676card_2.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2676",
+    "pageCount": 8
+  },
+  {
+    "id": "samsung__Samsung_5_V4",
+    "issuer": "삼성카드",
+    "name": "삼성카드 5 V4",
+    "sourcePath": "data/raw/samsung/Samsung_5_V4.pdf",
+    "image": "/cards/samsung--samsung-5-v4.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/557/card_img/21262/557card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/557",
+    "pageCount": 6
+  },
+  {
+    "id": "samsung__Samsung_iD_ON",
+    "issuer": "삼성카드",
+    "name": "삼성 iD ON 카드",
+    "sourcePath": "data/raw/samsung/Samsung_iD_ON.pdf",
+    "image": "/cards/samsung--samsung-id-on.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2235/card_img/28314/2235card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2235",
+    "pageCount": 2
+  },
+  {
+    "id": "samsung__Samsung_Toss_taptap_S",
+    "issuer": "삼성카드",
+    "name": "Toss taptap S",
+    "sourcePath": "data/raw/samsung/Samsung_Toss_taptap_S.pdf",
+    "image": "/cards/samsung--samsung-toss-taptap-s.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/1889/card_img/28084/1889card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/1889",
+    "pageCount": 2
+  },
+  {
+    "id": "samsung__Samsung_iD_SIMPLE",
+    "issuer": "삼성카드",
+    "name": "삼성 iD SIMPLE 카드",
+    "sourcePath": "data/raw/samsung/Samsung_iD_SIMPLE.pdf",
+    "image": "/cards/samsung--samsung-id-simple.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2376/card_img/27725/2376card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2376",
+    "pageCount": 8
+  },
+  {
+    "id": "samsung__Samsung_&_MILEAGE_PLATINUM_(SKYPASS)",
+    "issuer": "삼성카드",
+    "name": "삼성카드 & MILEAGE PLATINUM (스카이패스)",
+    "sourcePath": "data/raw/samsung/Samsung_&_MILEAGE_PLATINUM_(SKYPASS).pdf",
+    "image": "/cards/samsung--samsung---mileage-platinum--skypass.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/49/card_img/42288/49card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/49",
+    "pageCount": 2
+  },
+  {
+    "id": "samsung__Samsung_taptap_O",
+    "issuer": "삼성카드",
+    "name": "삼성카드 taptap O",
+    "sourcePath": "data/raw/samsung/Samsung_taptap_O.pdf",
+    "image": "/cards/samsung--samsung-taptap-o.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/51/card_img/37691/51card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/51",
+    "pageCount": 2
+  },
+  {
+    "id": "samsung__Samsung_taptap_DIGITAL",
+    "issuer": "삼성카드",
+    "name": "삼성카드 taptap DIGITAL",
+    "sourcePath": "data/raw/samsung/Samsung_taptap_DIGITAL.pdf",
+    "image": "/cards/samsung--samsung-taptap-digital.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/657/card_img/27715/657card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/657",
+    "pageCount": 2
+  },
+  {
+    "id": "samsung__Samsung_iD_MOVE",
+    "issuer": "삼성카드",
+    "name": "삼성 iD MOVE 카드",
+    "sourcePath": "data/raw/samsung/Samsung_iD_MOVE.pdf",
+    "image": "/cards/samsung--samsung-id-move.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2364/card_img/28097/2364card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2364",
+    "pageCount": 8
+  },
+  {
+    "id": "kookmin__Kookmin_Friend_20210917",
+    "issuer": "KB국민카드",
+    "name": "KB국민 프랜드카드",
+    "sourcePath": "data/raw/kookmin/Kookmin_Friend_20210917.pdf",
+    "image": "/cards/kookmin--kookmin-friend-20210917.png",
+    "imageSource": "https://cdn.banksalad.com/cards/kb_2851.png",
+    "imageSourcePage": "https://www.banksalad.com/product/cards/CARD002975",
+    "pageCount": 2
+  },
+  {
+    "id": "kookmin__Kookmin_YouthRoad_SweetSleepAlpha_20210923",
+    "issuer": "KB국민카드",
+    "name": "청춘대로 꿀잠α카드",
+    "sourcePath": "data/raw/kookmin/Kookmin_YouthRoad_SweetSleepAlpha_20210923.pdf",
+    "image": "/cards/kookmin--kookmin-youthroad-sweetsleepalpha-20210923.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/144/card_img/23904/144card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/144",
+    "pageCount": 3
+  },
+  {
+    "id": "kookmin__Kookmin_AlphaOne_20210923",
+    "issuer": "KB국민카드",
+    "name": "알파원카드",
+    "sourcePath": "data/raw/kookmin/Kookmin_AlphaOne_20210923.pdf",
+    "image": "/cards/kookmin--kookmin-alphaone-20210923.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/426/card_img/20924/426card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/426",
+    "pageCount": 2
+  },
+  {
+    "id": "kookmin__Kookmin_K-Pass_20240424",
+    "issuer": "KB국민카드",
+    "name": "KB국민 K-패스카드",
+    "sourcePath": "data/raw/kookmin/Kookmin_K-Pass_20240424.pdf",
+    "image": "/cards/kookmin--kookmin-k-pass-20240424.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2555/card_img/33456/2555card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2555",
+    "pageCount": 3
+  },
+  {
+    "id": "kookmin__Kookmin_Star_B_20210923",
+    "issuer": "KB국민카드",
+    "name": "KB국민 스타B 카드",
+    "sourcePath": "data/raw/kookmin/Kookmin_Star_B_20210923.pdf",
+    "image": "/cards/kookmin--kookmin-star-b-20210923.png",
+    "imageSource": "https://static.toss.im/assets/credit-card/credit-card-new/kb_KB_스타B_카드.png",
+    "imageSourcePage": "https://card-lounge.toss.im/card/15697",
+    "pageCount": 4
+  },
+  {
+    "id": "kookmin__Kookmin_GoodDay_20251127",
+    "issuer": "KB국민카드",
+    "name": "굿데이카드",
+    "sourcePath": "data/raw/kookmin/Kookmin_GoodDay_20251127.pdf",
+    "image": "/cards/kookmin--kookmin-goodday-20251127.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/106/card_img/20264/106card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/106",
+    "pageCount": 3
+  },
+  {
+    "id": "kookmin__Kookmin_Gaon_Nuri_20240105",
+    "issuer": "KB국민카드",
+    "name": "KB국민 가온·누리(일반/올림)",
+    "sourcePath": "data/raw/kookmin/Kookmin_Gaon_Nuri_20240105.pdf",
+    "image": "/cards/kookmin--kookmin-gaon-nuri-20240105.png",
+    "imageSource": "https://cdn.banksalad.com/cards/504.png",
+    "imageSourcePage": "https://www.banksalad.com/product/cards/CARD000669",
+    "pageCount": 4,
+    "imageNote": "가온 디자인 · 가온/누리 일반·올림 상품설명서"
+  },
+  {
+    "id": "kookmin__Kookmin_My_WE_SH_20250102",
+    "issuer": "KB국민카드",
+    "name": "KB국민 My WE:SH 카드",
+    "sourcePath": "data/raw/kookmin/Kookmin_My_WE_SH_20250102.pdf",
+    "image": "/cards/kookmin--kookmin-my-we-sh-20250102.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2441/card_img/37123/2441card_3.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2441",
+    "pageCount": 10
+  },
+  {
+    "id": "kookmin__Kookmin_Coupang_Wow_20250702",
+    "issuer": "KB국민카드",
+    "name": "쿠팡 와우 카드",
+    "sourcePath": "data/raw/kookmin/Kookmin_Coupang_Wow_20250702.pdf",
+    "image": "/cards/kookmin--kookmin-coupang-wow-20250702.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2609/card_img/47154/2609card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2609",
+    "pageCount": 3
+  },
+  {
+    "id": "kookmin__Kookmin_YouthRoad_FunAlpha_20210923",
+    "issuer": "KB국민카드",
+    "name": "청춘대로 꿀잼α카드",
+    "sourcePath": "data/raw/kookmin/Kookmin_YouthRoad_FunAlpha_20210923.pdf",
+    "image": "/cards/kookmin--kookmin-youthroad-funalpha-20210923.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/145/card_img/23905/145card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/145",
+    "pageCount": 3
+  },
+  {
+    "id": "lotte__Lotte_LOCA_LIKIT_Eat",
+    "issuer": "롯데카드",
+    "name": "LOCA LIKIT Eat",
+    "sourcePath": "data/raw/lotte/Lotte_LOCA_LIKIT_Eat.pdf",
+    "image": "/cards/lotte--lotte-loca-likit-eat.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2262/card_img/20704/2262card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2262",
+    "pageCount": 8
+  },
+  {
+    "id": "lotte__Lotte_Digiloca_LAS_VEGAS",
+    "issuer": "롯데카드",
+    "name": "디지로카 Las Vegas",
+    "sourcePath": "data/raw/lotte/Lotte_Digiloca_LAS_VEGAS.pdf",
+    "image": "/cards/lotte--lotte-digiloca-las-vegas.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2707/card_img/34645/2707card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2707",
+    "pageCount": 8
+  },
+  {
+    "id": "lotte__Lotte_Digiloca_Pet",
+    "issuer": "롯데카드",
+    "name": "디지로카 Pet",
+    "sourcePath": "data/raw/lotte/Lotte_Digiloca_Pet.pdf",
+    "image": "/cards/lotte--lotte-digiloca-pet.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2713/card_img/35514/2713card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2713",
+    "pageCount": 8
+  },
+  {
+    "id": "lotte__Lotte_LotteMembers_Premium",
+    "issuer": "롯데카드",
+    "name": "롯데멤버스 카드 프리미엄",
+    "sourcePath": "data/raw/lotte/Lotte_LotteMembers_Premium.pdf",
+    "image": "/cards/lotte--lotte-lottemembers-premium.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2824/card_img/41106/2824card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2824",
+    "pageCount": 10
+  },
+  {
+    "id": "lotte__Lotte_LotteMart&MAXX",
+    "issuer": "롯데카드",
+    "name": "롯데마트&MAXX 카드",
+    "sourcePath": "data/raw/lotte/Lotte_LotteMart&MAXX.pdf",
+    "image": "/cards/lotte--lotte-lottemart-maxx.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2444/card_img/27670/2444card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2444",
+    "pageCount": 10
+  },
+  {
+    "id": "lotte__Lotte_LOCA_LIKIT_Shop",
+    "issuer": "롯데카드",
+    "name": "LOCA LIKIT Shop",
+    "sourcePath": "data/raw/lotte/Lotte_LOCA_LIKIT_Shop.pdf",
+    "image": "/cards/lotte--lotte-loca-likit-shop.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2264/card_img/20702/2264card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2264",
+    "pageCount": 8
+  },
+  {
+    "id": "lotte__Lotte_Hilton_Honors_Amex_Premium",
+    "issuer": "롯데카드",
+    "name": "힐튼 아너스 아멕스 프리미엄",
+    "sourcePath": "data/raw/lotte/Lotte_Hilton_Honors_Amex_Premium.pdf",
+    "image": "/cards/lotte--lotte-hilton-honors-amex-premium.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2786/card_img/38997/2786card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2786",
+    "pageCount": 10
+  },
+  {
+    "id": "lotte__Lotte_LOKA_LIKIT_1.2",
+    "issuer": "롯데카드",
+    "name": "LOCA LIKIT 1.2",
+    "sourcePath": "data/raw/lotte/Lotte_LOKA_LIKIT_1.2.pdf",
+    "image": "/cards/lotte--lotte-loka-likit-1-2.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2261/card_img/21011/2261card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2261",
+    "pageCount": 9
+  },
+  {
+    "id": "lotte__Lotte_Digiloca_PARIS",
+    "issuer": "롯데카드",
+    "name": "디지로카 Paris",
+    "sourcePath": "data/raw/lotte/Lotte_Digiloca_PARIS.pdf",
+    "image": "/cards/lotte--lotte-digiloca-paris.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2633/card_img/31798/2633card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2633",
+    "pageCount": 8
+  },
+  {
+    "id": "lotte__Lotte_DIGILOCA_SKYPASS",
+    "issuer": "롯데카드",
+    "name": "DIGILOCA SKYPASS",
+    "sourcePath": "data/raw/lotte/Lotte_DIGILOCA_SKYPASS.pdf",
+    "image": "/cards/lotte--lotte-digiloca-skypass.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2888/card_img/44161/2888card_1.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2888",
+    "pageCount": 7
+  },
+  {
+    "id": "lotte__Lotte_Digiloca_MONACO",
+    "issuer": "롯데카드",
+    "name": "디지로카 Monaco",
+    "sourcePath": "data/raw/lotte/Lotte_Digiloca_MONACO.pdf",
+    "image": "/cards/lotte--lotte-digiloca-monaco.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2634/card_img/31799/2634card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2634",
+    "pageCount": 12
+  },
+  {
+    "id": "lotte__Lotte_Digiloca_Edu",
+    "issuer": "롯데카드",
+    "name": "디지로카 Edu",
+    "sourcePath": "data/raw/lotte/Lotte_Digiloca_Edu.pdf",
+    "image": "/cards/lotte--lotte-digiloca-edu.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2714/card_img/35527/2714card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2714",
+    "pageCount": 8
+  },
+  {
+    "id": "lotte__Lotte_Digiloca_LONDON",
+    "issuer": "롯데카드",
+    "name": "디지로카 London",
+    "sourcePath": "data/raw/lotte/Lotte_Digiloca_LONDON.pdf",
+    "image": "/cards/lotte--lotte-digiloca-london.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2632/card_img/41192/2632card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2632",
+    "pageCount": 10
+  },
+  {
+    "id": "lotte__Lotte_LOCA_LIKIT_Play",
+    "issuer": "롯데카드",
+    "name": "LOCA LIKIT Play",
+    "sourcePath": "data/raw/lotte/Lotte_LOCA_LIKIT_Play.pdf",
+    "image": "/cards/lotte--lotte-loca-likit-play.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2263/card_img/20703/2263card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2263",
+    "pageCount": 8
+  },
+  {
+    "id": "NH__NH_Namu_NH",
+    "issuer": "NH농협카드",
+    "name": "나무 NH농협카드",
+    "sourcePath": "data/raw/NH/NH_Namu_NH.pdf",
+    "image": "/cards/nh--nh-namu-nh.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2490/card_img/28433/2490card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2490",
+    "pageCount": 2
+  },
+  {
+    "id": "NH__NH_zgm_Self",
+    "issuer": "NH농협카드",
+    "name": "zgm 스스로카드",
+    "sourcePath": "data/raw/NH/NH_zgm_Self.pdf",
+    "image": "/cards/nh--nh-zgm-self.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/3019/card_img/49801/3019card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/3019",
+    "pageCount": 1
+  },
+  {
+    "id": "NH__NH_SKYPASS",
+    "issuer": "NH농협카드",
+    "name": "스카이패스카드",
+    "sourcePath": "data/raw/NH/NH_SKYPASS.pdf",
+    "image": "/cards/nh--nh-skypass.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/158/card_img/23910/158card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/158",
+    "pageCount": 2
+  },
+  {
+    "id": "NH__NH_AllWonderful",
+    "issuer": "NH농협카드",
+    "name": "NH올원더풀카드",
+    "sourcePath": "data/raw/NH/NH_AllWonderful.pdf",
+    "image": "/cards/nh--nh-allwonderful.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/3018/card_img/49799/3018card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/3018",
+    "pageCount": 3
+  },
+  {
+    "id": "NH__NH_Olbareun_Earth",
+    "issuer": "NH농협카드",
+    "name": "올바른지구 카드",
+    "sourcePath": "data/raw/NH/NH_Olbareun_Earth.pdf",
+    "image": "/cards/nh--nh-olbareun-earth.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2336/card_img/24298/2336card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2336",
+    "pageCount": 2
+  },
+  {
+    "id": "NH__NH_zgm_living",
+    "issuer": "NH농협카드",
+    "name": "zgm living카드",
+    "sourcePath": "data/raw/NH/NH_zgm_living.pdf",
+    "image": "/cards/nh--nh-zgm-living.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2649/card_img/32141/2649card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2649",
+    "pageCount": 2
+  },
+  {
+    "id": "NH__NH_SOHO_Dasaroi_OIL",
+    "issuer": "NH농협카드",
+    "name": "SOHO 다사로이OIL카드",
+    "sourcePath": "data/raw/NH/NH_SOHO_Dasaroi_OIL.pdf",
+    "image": "/cards/nh--nh-soho-dasaroi-oil.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2366/card_img/25047/2366card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2366",
+    "pageCount": 2
+  },
+  {
+    "id": "NH__NH_Olbareun_FLEX",
+    "issuer": "NH농협카드",
+    "name": "올바른 FLEX 카드",
+    "sourcePath": "data/raw/NH/NH_Olbareun_FLEX.pdf",
+    "image": "/cards/nh--nh-olbareun-flex.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/666/card_img/47865/666card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/666",
+    "pageCount": 2
+  },
+  {
+    "id": "NH__NH_zgm_shopping",
+    "issuer": "NH농협카드",
+    "name": "zgm shopping카드",
+    "sourcePath": "data/raw/NH/NH_zgm_shopping.pdf",
+    "image": "/cards/nh--nh-zgm-shopping.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2648/card_img/32138/2648card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2648",
+    "pageCount": 2
+  },
+  {
+    "id": "NH__NH_Olbareun_OIL&PASS",
+    "issuer": "NH농협카드",
+    "name": "올바른 OIL&PASS",
+    "sourcePath": "data/raw/NH/NH_Olbareun_OIL&PASS.pdf",
+    "image": "/cards/nh--nh-olbareun-oil-pass.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/652/card_img/21415/652card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/652",
+    "pageCount": 2
+  },
+  {
+    "id": "BC__BC_Biz_AirMoney",
+    "issuer": "BC카드",
+    "name": "Biz Air Money",
+    "sourcePath": "data/raw/BC/BC_Biz_AirMoney.pdf",
+    "image": null,
+    "imageSource": null,
+    "imageSourcePage": null,
+    "pageCount": 2
+  },
+  {
+    "id": "BC__BC_BizCorporate",
+    "issuer": "BC카드",
+    "name": "Biz 법인카드",
+    "sourcePath": "data/raw/BC/BC_BizCorporate.pdf",
+    "image": "/cards/bc--bc-bizcorporate.png",
+    "imageSource": "https://www.hanacard.co.kr/ATTACH/COP/images/card/11623_BC_BIZ_CORPORATE.png",
+    "imageSourcePage": "https://www.hanacard.co.kr/OCI01001010D.web?CD_PD_SEQ=79",
+    "pageCount": 2,
+    "imageNote": "하나카드 발행 BC BIZ CORPORATE 디자인"
+  },
+  {
+    "id": "BC__BC_K_FRIST",
+    "issuer": "BC카드",
+    "name": "BC K FIRST",
+    "sourcePath": "data/raw/BC/BC_K_FRIST.pdf",
+    "image": "/cards/bc--bc-k-frist.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2489/card_img/28439/2489card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2489",
+    "pageCount": 2
+  },
+  {
+    "id": "BC__BC_ON&OFF",
+    "issuer": "BC카드",
+    "name": "BC 바로 ON&OFF",
+    "sourcePath": "data/raw/BC/BC_ON&OFF.pdf",
+    "image": "/cards/bc--bc-on-off.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2591/card_img/30912/2591card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2591",
+    "pageCount": 2
+  },
+  {
+    "id": "BC__BC_Green_v2",
+    "issuer": "BC카드",
+    "name": "그린카드v2",
+    "sourcePath": "data/raw/BC/BC_Green_v2.pdf",
+    "image": "/cards/bc--bc-green-v2.png",
+    "imageSource": "https://ccsg.hku.hk/sisc/images/story/Eco%20Money.png",
+    "imageSourcePage": "https://ccsg.hku.hk/sisc/kh-inspiring-stories-detail.php?kid=15",
+    "pageCount": 6
+  },
+  {
+    "id": "BC__BC_Shopping&",
+    "issuer": "BC카드",
+    "name": "BC 쇼핑앤",
+    "sourcePath": "data/raw/BC/BC_Shopping&.pdf",
+    "image": "/cards/bc--bc-shopping.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2340/card_img/24315/2340card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2340",
+    "pageCount": 2
+  },
+  {
+    "id": "BC__BC_Baro_KaPick",
+    "issuer": "BC카드",
+    "name": "BC 바로 KaPick",
+    "sourcePath": "data/raw/BC/BC_Baro_KaPick.pdf",
+    "image": "/cards/bc--bc-baro-kapick.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2724/card_img/36084/2724card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2724",
+    "pageCount": 2
+  },
+  {
+    "id": "BC__BC_KBank_SIMPLE",
+    "issuer": "BC카드",
+    "name": "케이뱅크 SIMPLE 카드",
+    "sourcePath": "data/raw/BC/BC_KBank_SIMPLE.pdf",
+    "image": "/cards/bc--bc-kbank-simple.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2211/card_img/21774/2211card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2211",
+    "pageCount": 2
+  },
+  {
+    "id": "BC__BC_Business_Sky",
+    "issuer": "BC카드",
+    "name": "Business Sky",
+    "sourcePath": "data/raw/BC/BC_Business_Sky.pdf",
+    "image": "/cards/bc--bc-business-sky.png",
+    "imageSource": "https://corp.bccard.com/images/cardproduct/img_card_006.png",
+    "imageSourcePage": "https://corp.bccard.com/",
+    "pageCount": 4
+  },
+  {
+    "id": "BC__BC_Baro_Clear_Plus",
+    "issuer": "BC카드",
+    "name": "BC 바로 클리어 플러스",
+    "sourcePath": "data/raw/BC/BC_Baro_Clear_Plus.pdf",
+    "image": "/cards/bc--bc-baro-clear-plus.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2346/card_img/32523/2346card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2346",
+    "pageCount": 2
+  },
+  {
+    "id": "hana__Hana_One_More_SOHO",
+    "issuer": "하나카드",
+    "name": "하나 더 소호",
+    "sourcePath": "data/raw/hana/Hana_One_More_SOHO.pdf",
+    "image": "/cards/hana--hana-one-more-soho.png",
+    "imageSource": "https://www.hanacard.co.kr/ATTACH/NEW_HOMEPAGE/images/cardinfo/card_img/15280.png",
+    "imageSourcePage": "https://www.hanacard.co.kr/OPI41000000D.web?CARD_CDOE=15280&CD_PD_SEQ=18409",
+    "pageCount": 2
+  },
+  {
+    "id": "hana__Hana_JadeClassic",
+    "issuer": "하나카드",
+    "name": "JADE Classic",
+    "sourcePath": "data/raw/hana/Hana_JadeClassic.pdf",
+    "image": "/cards/hana--hana-jadeclassic.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2657/card_img/32434/2657card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2657",
+    "pageCount": 6
+  },
+  {
+    "id": "hana__Hana_OneMoreNext_Members",
+    "issuer": "하나카드",
+    "name": "하나더넥스트 멤버스",
+    "sourcePath": "data/raw/hana/Hana_OneMoreNext_Members.pdf",
+    "image": "/cards/hana--hana-onemorenext-members.png",
+    "imageSource": "https://m.vip.hanacard.co.kr/ATTACH/NEW_MOBILE/images/cardinfo/card_img/15299.png",
+    "imageSourcePage": "https://m.vip.hanacard.co.kr/MKCDCM1000M.web?CD_PD_SEQ=18370",
+    "pageCount": 2
+  },
+  {
+    "id": "hana__Hana_Travellog_SKYPASS",
+    "issuer": "하나카드",
+    "name": "트래블로그 SKYPASS 신용카드",
+    "sourcePath": "data/raw/hana/Hana_Travellog_SKYPASS.pdf",
+    "image": "/cards/hana--hana-travellog-skypass.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2729/card_img/36137/2729card_1.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2729",
+    "pageCount": 2
+  },
+  {
+    "id": "hana__Hana_Everyones_Shinsegae",
+    "issuer": "하나카드",
+    "name": "모두의 신세계 하나카드",
+    "sourcePath": "data/raw/hana/Hana_Everyones_Shinsegae.pdf",
+    "image": "/cards/hana--hana-everyones-shinsegae.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2288/card_img/22720/2288card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2288",
+    "pageCount": 1
+  },
+  {
+    "id": "hana__Hana_Travellog",
+    "issuer": "하나카드",
+    "name": "트래블로그 신용카드",
+    "sourcePath": "data/raw/hana/Hana_Travellog.pdf",
+    "image": "/cards/hana--hana-travellog.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2529/card_img/29020/2529card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2529",
+    "pageCount": 2
+  },
+  {
+    "id": "hana__Hana_OneStore_1",
+    "issuer": "하나카드",
+    "name": "원스토어 1 하나카드",
+    "sourcePath": "data/raw/hana/Hana_OneStore_1.pdf",
+    "image": "/cards/hana--hana-onestore-1.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2301/card_img/23131/2301card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2301",
+    "pageCount": 1
+  },
+  {
+    "id": "hana__Hana_SKYPASS_Amex_Platinum",
+    "issuer": "하나카드",
+    "name": "하나 스카이패스 아멕스 플래티늄 카드",
+    "sourcePath": "data/raw/hana/Hana_SKYPASS_Amex_Platinum.pdf",
+    "image": "/cards/hana--hana-skypass-amex-platinum.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2237/card_img/20939/2237card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2237",
+    "pageCount": 2
+  },
+  {
+    "id": "hana__Hana_WonderCard2.0",
+    "issuer": "하나카드",
+    "name": "원더카드 2.0",
+    "sourcePath": "data/raw/hana/Hana_WonderCard2.0.pdf",
+    "image": "/cards/hana--hana-wondercard2-0.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2446/card_img/50177/2446card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2446",
+    "pageCount": 16,
+    "imageNote": "FREE 디자인 · 혜택팩별 조건은 상품설명서에서 확인"
+  },
+  {
+    "id": "hana__Hana_JadeFirst",
+    "issuer": "하나카드",
+    "name": "JADE First",
+    "sourcePath": "data/raw/hana/Hana_JadeFirst.pdf",
+    "image": "/cards/hana--hana-jadefirst.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2704/card_img/34571/2704card_1.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2704",
+    "pageCount": 8
+  },
+  {
+    "id": "ibk__IBK_Point3.8(Credit)",
+    "issuer": "IBK기업은행",
+    "name": "IBK포인트3.8(신용)",
+    "sourcePath": "data/raw/ibk/IBK_Point3.8(Credit).pdf",
+    "image": "/cards/ibk--ibk-point3-8-credit.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2778/card_img/40256/2778card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2778",
+    "pageCount": 6
+  },
+  {
+    "id": "ibk__IBK_DailyWith",
+    "issuer": "IBK기업은행",
+    "name": "Daily With(데일리위드)카드",
+    "sourcePath": "data/raw/ibk/IBK_DailyWith.pdf",
+    "image": "/cards/ibk--ibk-dailywith.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/655/card_img/21418/655card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/655",
+    "pageCount": 6
+  },
+  {
+    "id": "ibk__IBK_i-Mileage",
+    "issuer": "IBK기업은행",
+    "name": "I-Mileage",
+    "sourcePath": "data/raw/ibk/IBK_i-Mileage.pdf",
+    "image": "/cards/ibk--ibk-i-mileage.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2674/card_img/32666/2674card_2.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2674",
+    "pageCount": 6
+  },
+  {
+    "id": "ibk__IBK_Bliss5",
+    "issuer": "IBK기업은행",
+    "name": "BLISS.5",
+    "sourcePath": "data/raw/ibk/IBK_Bliss5.pdf",
+    "image": "/cards/ibk--ibk-bliss5.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/773/card_img/22247/773card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/773",
+    "pageCount": 48,
+    "imageNote": "포인트형 디자인 · 포인트/마일리지형 상품설명서"
+  },
+  {
+    "id": "ibk__IBK_Everyday_Joy_Credit",
+    "issuer": "IBK기업은행",
+    "name": "일상의 기쁨카드(신용)",
+    "sourcePath": "data/raw/ibk/IBK_Everyday_Joy_Credit.pdf",
+    "image": "/cards/ibk--ibk-everyday-joy-credit.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/266/card_img/23586/266card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/266",
+    "pageCount": 2
+  },
+  {
+    "id": "ibk__IBK_iAll",
+    "issuer": "IBK기업은행",
+    "name": "I-ALL",
+    "sourcePath": "data/raw/ibk/IBK_iAll.pdf",
+    "image": "/cards/ibk--ibk-iall.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2482/card_img/28405/2482card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2482",
+    "pageCount": 8
+  },
+  {
+    "id": "ibk__IBK_I-Anywhere_Green",
+    "issuer": "IBK기업은행",
+    "name": "I-어디로든 그린카드",
+    "sourcePath": "data/raw/ibk/IBK_I-Anywhere_Green.pdf",
+    "image": "/cards/ibk--ibk-i-anywhere-green.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2610/card_img/31261/2610card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2610",
+    "pageCount": 6
+  },
+  {
+    "id": "ibk__IBK_KPass(Credit)",
+    "issuer": "IBK기업은행",
+    "name": "K-패스 (신용)",
+    "sourcePath": "data/raw/ibk/IBK_KPass(Credit).pdf",
+    "image": "/cards/ibk--ibk-kpass-credit.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2559/card_img/45648/2559card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2559",
+    "pageCount": 6
+  },
+  {
+    "id": "ibk__IBK_IBKPoint(Credit)",
+    "issuer": "IBK기업은행",
+    "name": "IBK포인트(신용)",
+    "sourcePath": "data/raw/ibk/IBK_IBKPoint(Credit).pdf",
+    "image": "/cards/ibk--ibk-ibkpoint-credit.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2779/card_img/39564/2779card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2779",
+    "pageCount": 6
+  },
+  {
+    "id": "ibk__IBK_IBK-Hybrid",
+    "issuer": "IBK기업은행",
+    "name": "IBK-Hybrid(하이브리드)카드",
+    "sourcePath": "data/raw/ibk/IBK_IBK-Hybrid.pdf",
+    "image": "/cards/ibk--ibk-ibk-hybrid.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/269/card_img/20492/269card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/269",
+    "pageCount": 4
+  },
+  {
+    "id": "hyundai__Hyundai_The_Orange_20260330",
+    "issuer": "현대카드",
+    "name": "현대카드 the Orange",
+    "sourcePath": "data/raw/hyundai/Hyundai_The_Orange_20260330.pdf",
+    "image": "/cards/hyundai--hyundai-the-orange-20260330.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2944/card_img/47603/2944card_1.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2944",
+    "pageCount": 16
+  },
+  {
+    "id": "hyundai__Hyundai_S_250827",
+    "issuer": "현대카드",
+    "name": "현대카드S",
+    "sourcePath": "data/raw/hyundai/Hyundai_S_250827.pdf",
+    "image": "/cards/hyundai--hyundai-s-250827.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2881/card_img/49416/2881card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2881",
+    "pageCount": 11
+  },
+  {
+    "id": "hyundai__Hyundai_T_20260319",
+    "issuer": "현대카드",
+    "name": "현대카드T",
+    "sourcePath": "data/raw/hyundai/Hyundai_T_20260319.pdf",
+    "image": "/cards/hyundai--hyundai-t-20260319.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2882/card_img/49417/2882card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2882",
+    "pageCount": 10
+  },
+  {
+    "id": "hyundai__Hyundai_M",
+    "issuer": "현대카드",
+    "name": "현대카드 M",
+    "sourcePath": "data/raw/hyundai/Hyundai_M.pdf",
+    "image": "/cards/hyundai--hyundai-m.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2669/card_img/49134/2669card_1.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2669",
+    "pageCount": 13
+  },
+  {
+    "id": "hyundai__Hyundai_H_250827",
+    "issuer": "현대카드",
+    "name": "현대카드H",
+    "sourcePath": "data/raw/hyundai/Hyundai_H_250827.pdf",
+    "image": "/cards/hyundai--hyundai-h-250827.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2879/card_img/49414/2879card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2879",
+    "pageCount": 11
+  },
+  {
+    "id": "hyundai__Hyundai_O_250827",
+    "issuer": "현대카드",
+    "name": "현대카드O",
+    "sourcePath": "data/raw/hyundai/Hyundai_O_250827.pdf",
+    "image": "/cards/hyundai--hyundai-o-250827.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2880/card_img/49415/2880card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2880",
+    "pageCount": 11
+  },
+  {
+    "id": "hyundai__Hyundai_The_Red_20260330",
+    "issuer": "현대카드",
+    "name": "현대카드 the Red",
+    "sourcePath": "data/raw/hyundai/Hyundai_The_Red_20260330.pdf",
+    "image": "/cards/hyundai--hyundai-the-red-20260330.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2751/card_img/36944/2751card_2.jpg",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2751",
+    "pageCount": 16
+  },
+  {
+    "id": "hyundai__Hyundai_D_250827",
+    "issuer": "현대카드",
+    "name": "현대카드D",
+    "sourcePath": "data/raw/hyundai/Hyundai_D_250827.pdf",
+    "image": "/cards/hyundai--hyundai-d-250827.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2878/card_img/49413/2878card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2878",
+    "pageCount": 10
+  },
+  {
+    "id": "hyundai__Hyundai_OliveYoung_20260323",
+    "issuer": "현대카드",
+    "name": "올리브영 현대카드",
+    "sourcePath": "data/raw/hyundai/Hyundai_OliveYoung_20260323.pdf",
+    "image": "/cards/hyundai--hyundai-oliveyoung-20260323.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2764/card_img/37948/2764card_1.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2764",
+    "pageCount": 10
+  },
+  {
+    "id": "hyundai__Hyundai_BlueMembers_F_M2_20260323",
+    "issuer": "현대카드",
+    "name": "HYUNDAI BLUEmembers Family M2 Edition2",
+    "sourcePath": "data/raw/hyundai/Hyundai_BlueMembers_F_M2_20260323.pdf",
+    "image": "/cards/hyundai--hyundai-bluemembers-f-m2-20260323.png",
+    "imageSource": "https://static.toss.im/assets/credit-card/credit-card-new/HYUNDAI%20BLUE%20members%20Family%20M2%20Edition2.png",
+    "imageSourcePage": "https://card-lounge.toss.im/card/17839",
+    "pageCount": 21
+  },
+  {
+    "id": "woori__Woori_Classic_EVERY_MILE_SKYPASS",
+    "issuer": "우리카드",
+    "name": "카드의정석 EVERY MILE SKYPASS",
+    "sourcePath": "data/raw/woori/Woori_Classic_EVERY_MILE_SKYPASS.pdf",
+    "image": "/cards/woori--woori-classic-every-mile-skypass.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2553/card_img/44235/2553card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2553",
+    "pageCount": 2
+  },
+  {
+    "id": "woori__Woori_7CORE",
+    "issuer": "우리카드",
+    "name": "카드의정석2 7CORE",
+    "sourcePath": "data/raw/woori/Woori_7CORE.pdf",
+    "image": "/cards/woori--woori-7core.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2851/card_img/43400/2851.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2851",
+    "pageCount": 2
+  },
+  {
+    "id": "woori__Woori_Classic2",
+    "issuer": "우리카드",
+    "name": "카드의정석2",
+    "sourcePath": "data/raw/woori/Woori_Classic2.pdf",
+    "image": "/cards/woori--woori-classic2.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2848/card_img/48533/2848card_2.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2848",
+    "pageCount": 8
+  },
+  {
+    "id": "woori__Woori_D4_Classic_II_",
+    "issuer": "우리카드",
+    "name": "DA카드의정석Ⅱ",
+    "sourcePath": "data/raw/woori/Woori_D4_Classic_II_.pdf",
+    "image": "/cards/woori-da-classic-ii.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2655/card_img/32217/2655card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2655",
+    "pageCount": 2
+  },
+  {
+    "id": "woori__Woori_Classic_TEN",
+    "issuer": "우리카드",
+    "name": "카드의정석 TEN",
+    "sourcePath": "data/raw/woori/Woori_Classic_TEN.pdf",
+    "image": "/cards/woori--woori-classic-ten.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2699/card_img/34252/2699card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2699",
+    "pageCount": 2
+  },
+  {
+    "id": "woori__Woori_Classic2_WonderLife",
+    "issuer": "우리카드",
+    "name": "카드의정석2 원더라이프",
+    "sourcePath": "data/raw/woori/Woori_Classic2_WonderLife.pdf",
+    "image": "/cards/woori--woori-classic2-wonderlife.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2994/card_img/49069/2994card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2994",
+    "pageCount": 2
+  },
+  {
+    "id": "woori__Woori_D4_Classic_II",
+    "issuer": "우리카드",
+    "name": "D4카드의정석Ⅱ",
+    "sourcePath": "data/raw/woori/Woori_D4_Classic_II.pdf",
+    "image": "/cards/woori--woori-d4-classic-ii.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2686/card_img/33272/2686card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2686",
+    "pageCount": 2
+  },
+  {
+    "id": "woori__Woori_Classic_EVERY_POINT",
+    "issuer": "우리카드",
+    "name": "카드의정석 EVERY POINT",
+    "sourcePath": "data/raw/woori/Woori_Classic_EVERY_POINT.pdf",
+    "image": "/cards/woori--woori-classic-every-point.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2689/card_img/33241/2689card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2689",
+    "pageCount": 2
+  },
+  {
+    "id": "woori__Woori_UniMile",
+    "issuer": "우리카드",
+    "name": "우리카드 UniMile",
+    "sourcePath": "data/raw/woori/Woori_UniMile.pdf",
+    "image": "/cards/woori--woori-unimile.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2924/card_img/45828/2924card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2924",
+    "pageCount": 2
+  },
+  {
+    "id": "woori__Woori_Classic_SHOPPING+",
+    "issuer": "우리카드",
+    "name": "카드의정석 SHOPPING+",
+    "sourcePath": "data/raw/woori/Woori_Classic_SHOPPING+.pdf",
+    "image": "/cards/woori--woori-classic-shopping.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2687/card_img/50550/2687card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2687",
+    "pageCount": 2
+  },
+  {
+    "id": "woori__Woori_Classic_EVERY_DISCOUNT",
+    "issuer": "우리카드",
+    "name": "카드의정석 EVERY DISCOUNT",
+    "sourcePath": "data/raw/woori/Woori_Classic_EVERY_DISCOUNT.pdf",
+    "image": "/cards/woori--woori-classic-every-discount.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2719/card_img/46400/2719card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2719",
+    "pageCount": 2
+  },
+  {
+    "id": "woori__Woori_ALL_Woori_Infinite",
+    "issuer": "우리카드",
+    "name": "ALL 우리카드 Infinite",
+    "sourcePath": "data/raw/woori/Woori_ALL_Woori_Infinite.pdf",
+    "image": "/cards/woori--woori-all-woori-infinite.png",
+    "imageSource": "https://d1c5n4ri2guedi.cloudfront.net/card/2613/card_img/31307/2613card.png",
+    "imageSourcePage": "https://www.card-gorilla.com/card/detail/2613",
+    "pageCount": 11
+  }
+]
