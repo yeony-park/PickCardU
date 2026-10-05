@@ -168,6 +168,60 @@ class ChatApiTest(unittest.TestCase):
         self.send(other)
         self.assertEqual(len(self.provider.rewrites), 1)
 
+    def test_list_recall_uses_stored_order_without_index_or_answer_calls(self):
+        from pickcardu_rag_api.index import ActiveIndexLoader
+        self.session()
+        cid = self.conversation().json()['id']
+        self.provider.recommend_all = True
+        self.assertEqual(self.send(cid).status_code, 200)
+        self.provider.rewrite_result = {'standalone_query': '과거 목록 이름 확인', 'scope': 'previous',
+                                        'operation': 'recall', 'selected_refs': ['t1r2', 't1r1']}
+        payload = {'query': '위에 카드 두 개가 뭐지?', 'client_request_id': str(uuid.uuid4())}
+        with patch.object(ActiveIndexLoader, 'load', side_effect=RuntimeError('index unavailable')):
+            response = self.send(cid, payload)
+            self.assertEqual(response.status_code, 200, response.text)
+            recalled = response.json()['messages'][1]['answer']
+            self.assertEqual(recalled['answer'], '이전에 안내한 카드 목록입니다.\n1. Card A · Issuer\n2. Card B · Issuer')
+            self.assertEqual(recalled['answer_status'], 'answered')
+            self.assertEqual(recalled['claims'], [])
+            self.assertEqual(recalled['recommendations'], [])
+            self.assertEqual(recalled['evidence'], [])
+            self.assertEqual(recalled['usage']['answer']['reason'], 'conversation_card_recall')
+            self.assertEqual(recalled['release_id'], 'release_fixture')
+            self.assertEqual(recalled['profile'], 'card_page_section_benefit')
+            self.assertEqual(self.send(cid, payload).json(), response.json())
+            restored = self.client.get(f'/v1/conversations/{cid}/messages').json()['messages'][-1]['answer']
+            self.assertEqual(restored, recalled)
+            self.provider.rewrite_result['selected_refs'] = ['t1r2']
+            single = self.send(cid).json()['messages'][1]['answer']
+            self.assertEqual(single['answer'], '이전에 안내한 카드 목록입니다.\n2. Card B · Issuer')
+            self.assertNotIn('할인', single['answer'])
+        self.assertEqual(len(self.provider.embedding_queries), 1)
+        self.assertEqual(len(self.provider.answer_inputs), 1)
+        self.assertEqual(len(self.provider.rewrites), 2)
+        self.provider.rewrite_result = {'standalone_query': 'Card B 연회비와 이름?', 'scope': 'previous',
+                                        'operation': 'retrieve', 'selected_refs': ['t1r2']}
+        result = self.send(cid, {'query': '두번째 카드 이름하고 연회비는?', 'client_request_id': str(uuid.uuid4())})
+        self.assertEqual(result.status_code, 200, result.text)
+        self.assertEqual(len(self.provider.embedding_queries), 2)
+        self.assertEqual(len(self.provider.answer_inputs), 2)
+
+    def test_recall_cannot_bypass_scope_validation(self):
+        self.session()
+        cid = self.conversation().json()['id']
+        self.send(cid)
+        for scope, refs in (('global', []), ('previous', []), ('previous', ['t1r1', 't1r1'])):
+            with self.subTest(scope=scope, refs=refs):
+                self.provider.rewrite_result = {'standalone_query': '이름 확인', 'scope': scope,
+                                                'operation': 'recall', 'selected_refs': refs}
+                response = self.send(cid)
+                self.assertEqual(response.status_code, 200, response.text)
+                answer = response.json()['messages'][1]['answer']
+                self.assertEqual(answer['answer_status'], 'insufficient_evidence')
+                self.assertEqual(answer['usage']['answer']['reason'], 'clarification_required')
+        self.assertEqual(len(self.provider.embedding_queries), 1)
+        self.assertEqual(len(self.provider.answer_inputs), 1)
+
     def test_scoped_followup_keeps_both_targets_then_global_search_is_unrestricted(self):
         self.session()
         cid = self.conversation().json()['id']

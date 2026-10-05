@@ -19,7 +19,7 @@ from typing import Any, Callable, Iterable, Literal, Mapping, Protocol, Sequence
 
 import numpy as np
 
-from .answering import ANSWER_PAYLOAD_UNIT_LIMIT, measure_answer_payload
+from .answering import answer_payload_limit, measure_answer_payload
 from .errors import EvidencePackageTooLarge, RerankerUnavailable
 
 
@@ -144,6 +144,7 @@ class SearchConfig:
     reranker: Literal["off", "bge", "gte"] = "bge"
     reranker_route: Literal["selective", "all"] = "selective"
     target_card_keys: tuple[str, ...] | None = None
+    answer_payload_bytes: int = field(default_factory=answer_payload_limit)
 
     def __post_init__(self) -> None:
         if not isinstance(self.profile, str) or not self.profile.strip() or not 0.0 <= self.vector_weight <= 1.0:
@@ -154,6 +155,8 @@ class SearchConfig:
             raise ValueError("unsupported reranker route")
         if min(self.component_depth, self.candidate_depth, self.top_k) < 1:
             raise ValueError("search depths and top_k must be positive")
+        if type(self.answer_payload_bytes) is not int or self.answer_payload_bytes <= 0:
+            raise ValueError('answer payload byte limit must be a positive integer')
         if self.target_card_keys is not None and (
             not isinstance(self.target_card_keys, tuple) or not 1 <= len(self.target_card_keys) <= 5
             or any(not isinstance(key, str) or not key.strip() for key in self.target_card_keys)
@@ -337,9 +340,12 @@ def collapse_cards(
     top_k: int,
     standalone_query: str = "",
     max_evidence_per_card: int = 5,
-    max_payload_size: int = ANSWER_PAYLOAD_UNIT_LIMIT,
+    max_payload_size: int | None = None,
     skip_oversized: bool = False,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, Any]]:
+    max_payload_size = answer_payload_limit() if max_payload_size is None else max_payload_size
+    if type(max_payload_size) is not int or max_payload_size <= 0:
+        raise ValueError('answer payload byte limit must be a positive integer')
     cards: list[dict[str, Any]] = []
     evidence: list[dict[str, Any]] = []
     by_card: dict[str, dict[str, Any]] = {}
@@ -519,8 +525,9 @@ class RagPipeline:
         self.profile = profile
 
     def search(
-        self, query: str, query_embedding: np.ndarray | None = None, config: SearchConfig = SearchConfig()
+        self, query: str, query_embedding: np.ndarray | None = None, config: SearchConfig | None = None
     ) -> dict[str, Any]:
+        config = SearchConfig() if config is None else config
         if config.profile != self.profile.identifier:
             raise ValueError("search profile does not match the registered chunking contract")
         started = time.perf_counter()
@@ -619,6 +626,7 @@ class RagPipeline:
         cards, evidence, budget = collapse_cards(
             hydrated, answer_chunks, top_k=max(config.top_k, len(keys or ())), standalone_query=query,
             skip_oversized=keys is not None,
+            max_payload_size=config.answer_payload_bytes,
         )
         return {
             "query_type": query_type,

@@ -15,6 +15,7 @@ from pickcardu_rag import (
     OpenAIService,
     RagError,
     SearchConfig,
+    answer_payload_limit,
 )
 
 from .config import Settings, load_settings, validate_settings
@@ -47,6 +48,7 @@ def _search(
     provider: Any,
     *,
     target_card_keys: tuple[str, ...] | None = None,
+    answer_payload_bytes: int | None = None,
 ) -> tuple[ReleaseHandle, dict[str, Any], dict[str, Any]]:
     handle = loader.load()
     profile = payload.profile or handle.manifest["strategy"]
@@ -72,6 +74,7 @@ def _search(
             reranker="bge",
             reranker_route="all" if profile == "parent_child_bundle" else "selective",
             target_card_keys=target_card_keys,
+            answer_payload_bytes=answer_payload_limit() if answer_payload_bytes is None else answer_payload_bytes,
         ),
     )
     return handle, result, embedding_usage
@@ -90,7 +93,10 @@ def create_app(
         api_key=settings.openai_api_key,
         embedding_model=settings.embedding_model,
         llm_model=settings.llm_model,
+        answer_payload_bytes=settings.answer_payload_bytes,
     )
+    if getattr(provider, 'answer_payload_bytes', settings.answer_payload_bytes) != settings.answer_payload_bytes:
+        raise ValueError('provider and search answer payload byte limits must match')
     reranker = reranker or LocalReranker(str(settings.bge_model_path))
     loader = index_loader or ActiveIndexLoader(settings.index_runtime_root, reranker=reranker)
     app = FastAPI(title="PickCardU RAG API", version="0.1.0")
@@ -161,7 +167,7 @@ def create_app(
 
     @app.post("/v1/search", response_model=SearchResponse, responses=ERROR_RESPONSES)
     def search(payload: QueryRequest) -> SearchResponse:
-        handle, result, embedding_usage = _search(payload, loader, provider)
+        handle, result, embedding_usage = _search(payload, loader, provider, answer_payload_bytes=settings.answer_payload_bytes)
         return SearchResponse.model_validate({
             "status": "completed",
             "release_id": handle.release_id,
@@ -181,7 +187,8 @@ def create_app(
             result = {'query_type': 'semantic', 'cards': [], 'evidence': [], 'trace': {}}
             embedding_usage = {'provider_called': False}
         else:
-            handle, result, embedding_usage = _search(payload, loader, provider, target_card_keys=target_card_keys)
+            handle, result, embedding_usage = _search(payload, loader, provider, target_card_keys=target_card_keys,
+                                                     answer_payload_bytes=settings.answer_payload_bytes)
         counts = {key: sum(e['card_key'] == key for e in result['evidence']) for key in target_card_keys or ()}
         missing = [key for key, count in counts.items() if count == 0]
         if clarification:

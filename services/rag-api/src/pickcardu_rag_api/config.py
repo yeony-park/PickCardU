@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from pickcardu_rag.answering import ANSWER_PAYLOAD_UNIT_LIMIT, answer_payload_limit
 
 
 @dataclass(frozen=True)
@@ -15,6 +16,7 @@ class Settings:
     llm_model: str
     bge_model_path: Path
     chat_db_path: Path | None = None
+    answer_payload_bytes: int = ANSWER_PAYLOAD_UNIT_LIMIT
 
 
 def validate_settings(settings: Settings) -> Settings:
@@ -22,6 +24,8 @@ def validate_settings(settings: Settings) -> Settings:
         raise ValueError("production deployment is not configured; use development or test")
     if not settings.allowed_origins:
         raise ValueError("at least one allowed origin is required")
+    if type(settings.answer_payload_bytes) is not int or settings.answer_payload_bytes <= 0:
+        raise ValueError('answer payload byte limit must be a positive integer')
     return settings
 
 
@@ -47,4 +51,5 @@ def load_settings(environ: dict[str, str] | None = None) -> Settings:
             source.get("PICKCARDU_BGE_MODEL_PATH", repository_root / ".cache/reranker/bge-reranker-v2-m3")
         ),
         chat_db_path=Path(source.get('PICKCARDU_CHAT_DB_PATH', repository_root / 'data/chat/runtime/chat.sqlite')),
+        answer_payload_bytes=answer_payload_limit(source),
     ))

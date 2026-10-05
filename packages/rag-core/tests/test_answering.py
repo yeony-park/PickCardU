@@ -3,10 +3,11 @@ from __future__ import annotations
 import json
 import types
 import unittest
+from unittest.mock import patch
 
 from pydantic import ValidationError
 
-from pickcardu_rag import AnswerOutput, OpenAIService, completed_context, validate_grounding
+from pickcardu_rag import AnswerOutput, OpenAIService, completed_context, measure_answer_payload, validate_grounding
 from pickcardu_rag.errors import LlmUnavailable, LlmUngrounded
 
 
@@ -34,6 +35,37 @@ def incomplete_json_error() -> ValidationError:
 
 class AnsweringTests(unittest.TestCase):
     evidence = [{"card_key": "c1", "card_name": "카드1", "issuer": "발급사", "chunk_id": "k1", "text": "1%"}]
+
+    def test_provider_budget_uses_environment_and_rejects_before_network(self):
+        evidence = [{**self.evidence[0], 'text': '가' * 5000}]
+        for limit, allowed in (('64000', True), ('12000', False)):
+            with self.subTest(limit=limit), patch.dict('os.environ', {'PICKCARDU_ANSWER_PAYLOAD_BYTES': limit}):
+                responses = FakeResponses(self.generated_answer())
+                service = OpenAIService(api_key=None, client=types.SimpleNamespace(responses=responses))
+                if allowed:
+                    answer, _ = service.answer('혜택 알려줘', evidence)
+                    self.assertEqual(answer.claims[0].citations, ['k1'])
+                    self.assertEqual(len(responses.calls), 1)
+                else:
+                    with self.assertRaisesRegex(LlmUnavailable, '12000'):
+                        service.answer('혜택 알려줘', evidence)
+                    self.assertEqual(responses.calls, [])
+
+    def test_provider_accepts_exact_budget_and_rejects_one_byte_over(self):
+        size = measure_answer_payload('혜택', self.evidence)[0]
+        for cap, allowed in ((size, True), (size - 1, False)):
+            with self.subTest(cap=cap):
+                responses = FakeResponses(self.generated_answer())
+                service = OpenAIService(api_key=None, answer_payload_bytes=cap,
+                                        client=types.SimpleNamespace(responses=responses))
+                if allowed:
+                    answer, _ = service.answer('혜택', self.evidence)
+                    self.assertEqual(answer.claims[0].card_key, 'c1')
+                else:
+                    with self.assertRaises(LlmUnavailable):
+                        service.answer('혜택', self.evidence)
+                    self.assertEqual(responses.calls, [])
+
 
     def answer(self) -> AnswerOutput:
         return AnswerOutput.model_validate({

@@ -197,7 +197,7 @@ curl -sS http://127.0.0.1:8000/v1/search \
 - 질문 문자열을 OpenAI embedding API로 전송한다.
 - 답변 생성 API에는 질문과 검색된 근거의 요청 내부 ID(`e1`, `e2`, ...), 카드명, 카드사, 본문을 전송한다.
 - 원본 `card_key`와 `chunk_id`는 답변 생성 API에 전송하지 않는다. 서버가 내부 ID를 원본 카드·청크에 다시 연결하고, 각 citation이 실제 검색 근거이며 하나의 카드에만 속하는지 검증한다.
-- 답변 입력 payload는 보수적으로 UTF-8 12,000 bytes 이하로 제한한다.
+- 질문과 근거 JSON의 답변 입력 payload는 기본 UTF-8 **64,000 bytes** 이하로 제한한다. 서버 설정 `PICKCARDU_ANSWER_PAYLOAD_BYTES`로 양의 정수 상한을 변경할 수 있으며, 검색 근거 구성과 provider 전송 직전 검사가 같은 값을 사용한다. 클라이언트 요청 필드가 아니며 무제한 모드는 제공하지 않는다. 이 바이트 예산은 시스템 지침·출력 공간까지 포함하는 모델의 토큰 한도와 다르다.
 
 이 요청 내부 ID는 LLM 출력 검증에만 사용하며 HTTP 응답에는 노출하지 않는다. 클라이언트는 아래 응답 계약대로 원본 `card_key`와 `chunk_id` 기반 citation을 받는다.
 
@@ -424,6 +424,9 @@ UUID는 한 번의 새 대화 생성에 고정한다. 신규 `201`, 같은 소�
 - 첫 질문/유효 맥락 없음은 rewrite0회. 맥락이 있으면 독립 질문도 rewrite 최대1회 추가한다. 재작성 실패는 저장된 실패가 되며 원문으로 조용히 fallback하지 않는다.
 - LLM이 DB를 직접 읽지 않는다. 서버가 제한된 이전 대화를 rewrite provider에 전달한다. 답변 provider에는 독립 질의와 **새 검색 근거만** 주며 과거 답변의 혜택·citation을 새 근거로 재사용하지 않는다.
 - 기존 rewrite 호출 하나에서 `global`(전체 검색), `previous`(이전 카드 범위), `clarification`(대상 확인)을 함께 판단한다. 특정 문장 일치 방식이 아니다. 예: “저 카드 중”, “저것들 중”, “두 번째 것”은 문맥과 추천 순서로 해석하고, “그러면 주유 혜택 카드 추천”은 새 전체 검색으로 판단하도록 지시한다. 실제 모델의 모든 표현 인식률을 보장하는 것은 아니다.
+- 같은 rewrite 출력의 `operation=retrieve|recall`로 새 상품 사실 검색과 이전 목록 확인을 구분한다. `previous+recall`은 “위 카드 3개가 뭐지?”, “두 번째 카드 이름?”, “아까 추천한 발급사는?”처럼 저장된 카드명·발급사·목록 순서만 안내한다. “이름하고 연회비”, 실적·혜택·종류·조건·추천 이유·비교는 `retrieve`로 새 근거 검색을 유지한다. `global+recall`이나 잘못된 ref 조합은 확인 질문으로 닫는다.
+- 목록 확인은 소유 대화의 검증된 ref 메타데이터를 원래 순서/번호로 조합하며 검색·embedding·답변 LLM·활성 index loader를 호출하지 않는다. 문맥 판별 rewrite는 여전히 최대1회 호출한다. 예전 혜택 설명·추천 이유·citation을 복사하거나 새 금융 사실로 검증했다고 표시하지 않는다.
+- chat의 `usage.answer.reason=conversation_card_recall` 응답은 기록 안내 예외다. `answer_status=answered`, `query_type=proper_noun`이며 `cards/recommendations/claims/evidence`는 빈 배열이다. `release_id/profile`은 저장된 참조 메타데이터이며 현재 release로 재검색했다는 뜻이 아니다. 새 snapshot은 카드별 출처를 보존한다. 카드별 출처가 없는 과거 snapshot은 해당 snapshot을 기록한 turn의 값을 사용하므로 원래 추천 시점의 출처는 확실하지 않다. 일반 `/v1/answer`와 상품 혜택 답변은 기존 grounded claim 규칙을 유지한다. 공개 필드/enum 추가와 UI 변경은 없다.
 - rewrite에는 이전 목록의 카드명·발급사·서버 부여 짧은 ref만 전달한다. 모델이 선택한 ref를 소유 대화의 실제 card_key로 서버가 해석한다. 정상 파싱 후 중복 ref·서로 다른 목록의 혼합·불명확한 대상은 전체 검색으로 fallback하지 않고 확인 질문으로 응답한다. 허용되지 않은 ref(enum 위반)·응답 형식 위반으로 provider 파싱이 실패하거나 provider 호출 자체가 실패하면 기존 `503 LLM_UNAVAILABLE`로 처리한다. 이 경우에도 전체 검색으로 범위를 확대하지 않는다.
 - scope snapshot이 없는 기존 저장 대화는 최근 정상 완료 응답 최대2개에서 추천 목록을 읽어 참조를 복원한다. 과거 답변 전문을 추가로 보내거나 유료 호출을 늘리는 방식이 아니다. 참조 가능한 목록은 최대2개로 제한된다.
 - `previous`는 키워드와 벡터 양쪽에서 카드별 범위를 **후보 LIMIT 이전**에 적용한다. 전역 검색 뒤에 필터링하지 않는다. 기존의 검증된 임베딩을 활용하며 재임베딩·release 변경은 없다. 전역 경로는 기존 Chroma 검색을 유지하고, 범위 벡터 검색은 대상 행의 squared-L2를 사용한다.
@@ -450,8 +453,9 @@ UUID는 한 번의 새 대화 생성에 고정한다. 신규 `201`, 같은 소�
 | 항목 | 의미 |
 |---|---|
 | `conversation_scope.scope` | global / previous / clarification |
+| `conversation_scope.operation` | retrieve(새 상품 사실 검색) / recall(이전 목록의 식별정보 안내) |
 | `conversation_scope.target_card_keys` | 서버가 선택한 대상 ID 목록; global/clarification은 null |
-| `conversation_scope.reference_groups` | 최대2개 목록, 목록당 최대5개의 카드 ID·이름·발급사 snapshot. 부족/확인 응답 및 일부 카드만 안내한 뒤에도 참조 대상을 유지한다. 혜택·citation은 보존 근거로 재사용하지 않는다. |
+| `conversation_scope.reference_groups` | 최대2개 목록, 목록당 최대5개의 카드 ID·이름·발급사와 release/profile snapshot. 새 기록은 카드별 출처를 보존하며, 카드별 값이 없는 과거 기록은 snapshot 기록 turn의 값으로 보충한다(원래 추천 출처 불확실). 부족/확인/목록 안내 응답 및 일부 카드만 안내한 뒤에도 참조 대상을 유지한다. 혜택·citation은 보존 근거로 재사용하지 않는다. |
 | `retrieval.target_card_keys` | 검색에 적용한 범위; global은 null |
 | `retrieval.retrieved_card_keys` / `evidence_card_keys` | 실제 후보에서 발견된 카드 / 최종 답변 입력 근거의 카드 |
 | `retrieval.evidence_counts` / `missing_card_keys` | 비교 대상별 최종 청크 수 / 근거가 없는 대상. 조건 확인 여부나 품질 점수가 아니다. |

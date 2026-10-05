@@ -2,9 +2,33 @@ import unittest
 
 from pickcardu_rag.answering import RewriteOutput
 from pickcardu_rag_api import chat
+from pickcardu_rag_api.chat_scope import recall_answer
 
 
 class ChatScopeTest(unittest.TestCase):
+    def test_legacy_source_fallback_identifies_snapshot_turn(self):
+        legacy_card = {'card_key': 'a', 'card_name': 'A', 'issuer': '발급사'}
+        sourced_card = {'card_key': 'b', 'card_name': 'B', 'issuer': '발급사',
+                        'release_id': 'original', 'profile': 'parent_child_bundle'}
+        turn = {'state': 'completed', 'answer': {
+            'release_id': 'snapshot', 'profile': 'card_page_section_benefit',
+            'usage': {'answer': {'conversation_scope': {
+                'scope': 'previous', 'reference_groups': [[legacy_card], [sourced_card]]}}}}}
+        refs = chat.card_references([turn])
+        legacy = recall_answer(['t1r1'], refs)
+        sourced = recall_answer(['t2r1'], refs)
+        self.assertEqual((legacy.release_id, legacy.profile), ('snapshot', 'card_page_section_benefit'))
+        self.assertEqual((sourced.release_id, sourced.profile), ('original', 'parent_child_bundle'))
+
+    def test_recall_selects_the_exact_group_when_card_id_occurs_twice(self):
+        refs = [{'ref': 't1r1', 'card_key': 'a', 'card_name': '옛 이름', 'issuer': '발급사',
+                 'release_id': 'old', 'profile': 'card_page_section_benefit'},
+                {'ref': 't2r2', 'card_key': 'a', 'card_name': '새 목록 이름', 'issuer': '발급사',
+                 'release_id': 'new', 'profile': 'card_page_section_benefit'}]
+        answer = recall_answer(['t2r2'], refs)
+        self.assertEqual(answer.answer, '이전에 안내한 카드 목록입니다.\n2. 새 목록 이름 · 발급사')
+        self.assertEqual(answer.release_id, 'new')
+
     def test_refs_follow_recommendation_order_and_server_maps_ids(self):
         turn = {'seq': 1, 'state': 'completed', 'answer': {'answer_status': 'answered',
                 'cards': [{'card_key': 'a', 'card_name': 'A', 'issuer': '카드사'},

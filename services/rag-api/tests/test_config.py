@@ -25,6 +25,15 @@ def configured(environment: str = "test") -> Settings:
 
 
 class ConfigTest(unittest.TestCase):
+    def test_payload_budget_overrides_and_invalid_values_stop_startup(self):
+        for invalid in ('0', '-1', 'abc', '1.5', ''):
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                load_settings({'PICKCARDU_ANSWER_PAYLOAD_BYTES': invalid})
+        default = load_settings({})
+        self.assertEqual(default.answer_payload_bytes, 64000)
+        custom = load_settings({'PICKCARDU_ANSWER_PAYLOAD_BYTES': '96000'})
+        self.assertEqual(custom.answer_payload_bytes, 96000)
+
     def test_chat_models_import_without_starting_app_or_creating_database(self):
         result = subprocess.run([sys.executable, '-c',
             "import sys; sys.path[:0] = ['services/rag-api/src', 'packages/rag-core/src']; "

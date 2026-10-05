@@ -105,12 +105,17 @@ sha256sum data/rag/runtime/index-release/RELEASE_ID/manifest.json
 | `PICKCARDU_ALLOWED_ORIGINS` | `http://localhost:3000,http://127.0.0.1:3000` | 허용할 프론트엔드 Origin의 쉼표 구분 목록이다. |
 | `PICKCARDU_EMBEDDING_MODEL` | `text-embedding-3-small` | active release의 embedding 모델과 일치해야 한다. |
 | `PICKCARDU_LLM_MODEL` | `gpt-5.6-luna` | `/v1/answer`의 답변 생성 모델이다. |
+| `PICKCARDU_ANSWER_PAYLOAD_BYTES` | `64000` | 질문+근거 JSON의 UTF-8바이트 상한. 양의 정수만 허용하며 검색 근거 구성과 provider guard에 동일하게 적용한다. 무제한 값은 없다. |
 | `PICKCARDU_BGE_MODEL_PATH` | `.cache/reranker/bge-reranker-v2-m3` | 로컬 reranker 모델 경로다. |
 | `PICKCARDU_CHAT_DB_PATH` | `data/chat/runtime/chat.sqlite` | RAG 인덱스와 분리된 대화 SQLite. 실제 채팅 API 사용 시 lazy 생성한다. |
 | `PICKCARDU_RAG_API_BASE_URL` | `http://127.0.0.1:8000` | Next 서버의 채팅 proxy 목적지. 브라우저 공개 환경변수가 아니다. |
 | `OPENAI_API_KEY` | 실제 검색·답변 시 필수 | 앱 생성과 health 확인만으로는 외부 호출이 발생하지 않는다. |
 
 setup과 dev에서 사용할 Python이 현재 `PATH`의 `python`과 다르면 `PICKCARDU_PYTHON`에 실행 파일 경로를 지정할 수 있다.
+
+입력 예산을 조절하려면 루트 `.env`에 `PICKCARDU_ANSWER_PAYLOAD_BYTES=64000`처럼 설정한 뒤 실행 중 `npm run dev`를 종료하고 다시 실행한다. 값이 없으면 기본64,000이다. 빈 값·0·음수·소수·숫자가 아닌 값은 시작을 차단한다. 검색 실험의 `SearchConfig(answer_payload_bytes=96000)`와 provider의 `OpenAIService(answer_payload_bytes=96000, ...)`에도 같은 명시 값을 사용할 수 있다. core 단독 실행은 환경 변수를 읽지만 `.env`를 자동 로드하지는 않으므로 실험 실행기가 환경을 전달하거나 위 인자를 지정해야 한다. 값을 키우면 전달 근거·입력 토큰·비용이 증가할 수 있으며 모델의 실제 토큰 한도와 출력 여유는 별도로 확인한다. 자동 임베딩 재생성이나 release 재적재는 필요 없다.
+
+이전 카드 목록 확인(`conversation_card_recall`)은 저장된 이름·발급사·순서만 안내한다. 활성 인덱스 없이도 가능하지만 문맥 분류 rewrite는 외부 호출이므로 OpenAI 키/연결 없이 실행된다고 해석하면 안 된다. 상품 조건·혜택 질문은 기존 검색/답변 경로를 사용한다.
 
 비밀값은 `.env`를 포함한 저장소 파일에 커밋하지 않는다. 배포 환경의 secret 관리 방식을 사용한다.
 

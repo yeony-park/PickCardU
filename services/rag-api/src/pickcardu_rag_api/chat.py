@@ -10,7 +10,7 @@ from pickcardu_rag.answering import RewriteOutput, completed_context
 from pickcardu_rag.errors import LlmUnavailable, RagError
 
 from .chat_store import ChatStoreError
-from .chat_scope import card_references, reference_groups, resolve_scope
+from .chat_scope import card_references, recall_answer, reference_groups, resolve_scope
 
 COOKIE_NAME = 'pickcardu_browser'
 TOKEN_PATTERN = re.compile(r'^[A-Za-z0-9_-]{43}$')
@@ -125,7 +125,7 @@ def register_chat_routes(app, settings, store, provider, generate_answer):
                 # their last successful recommendation lists without more LLM calls.
                 anchors = store.completed_turns(owner, cid, before_seq=turn['seq'])
                 references = card_references(sorted([*anchors, *history], key=lambda item: item['seq']))
-            keys, clarification, scope = None, None, 'global'
+            keys, clarification, scope, operation = None, None, 'global', 'retrieve'
             if len(context) > 1:
                 started = time.perf_counter()
                 usage.update(provider_called=True, model=getattr(provider, 'llm_model', None))
@@ -135,15 +135,20 @@ def register_chat_routes(app, settings, store, provider, generate_answer):
                     rewritten = RewriteOutput.model_validate(rewritten)
                     keys, clarification = resolve_scope(rewritten, references)
                     scope = 'clarification' if clarification else rewritten.scope
+                    operation = 'retrieve' if clarification else rewritten.operation
                     usage.update(model=rewrite_usage.get('model', usage['model']), usage=rewrite_usage.get('usage'))
                     query = QueryRequest(query=rewritten.standalone_query, profile=payload.profile, top_k=payload.top_k)
                 except Exception as error:
                     raise LlmUnavailable('대화 맥락을 반영한 질문을 만들지 못했습니다.') from error
                 finally:
                     usage['latency_ms'] = round((time.perf_counter()-started)*1000, 3)
-            answer = generate_answer(query, target_card_keys=keys, clarification=clarification).model_dump(mode='json')
+            if operation == 'recall' and keys is not None:
+                answer = recall_answer(rewritten.selected_refs, references).model_dump(mode='json')
+            else:
+                answer = generate_answer(query, target_card_keys=keys, clarification=clarification).model_dump(mode='json')
             answer['usage']['answer']['conversation_scope'] = {
                 'scope': scope, 'target_card_keys': list(keys) if keys is not None else None,
+                'operation': operation,
                 'reference_groups': reference_groups(references) if scope != 'global' else [],
             }
         except Exception as error:

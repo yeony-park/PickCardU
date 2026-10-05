@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 
@@ -6,6 +7,23 @@ from pickcardu_rag import Chunk, InMemoryBM25Searcher, InMemorySquaredL2Searcher
 
 
 class ScopedRetrievalTest(unittest.TestCase):
+    def test_runtime_budget_default_and_environment_override_control_evidence(self):
+        chunks = [Chunk('a', '가' * 2500, 'a', 'A', 'Issuer', 'benefit', 1),
+                  Chunk('b', '나' * 2500, 'b', 'B', 'Issuer', 'benefit', 1)]
+        vectors = np.asarray([[0., 0.], [1., 1.]])
+        pipeline = RagPipeline(chunks, InMemoryBM25Searcher(chunks),
+                               InMemorySquaredL2Searcher([c.chunk_id for c in chunks], vectors,
+                                                         card_keys=[c.card_key for c in chunks]))
+        for limit, expected in ((None, {'a', 'b'}), ('12000', {'a'}), ('64000', {'a', 'b'})):
+            with self.subTest(limit=limit), patch.dict('os.environ', {}, clear=True):
+                if limit is not None:
+                    import os
+                    os.environ['PICKCARDU_ANSWER_PAYLOAD_BYTES'] = limit
+                result = pipeline.search('혜택', np.zeros(2), SearchConfig(
+                    vector_weight=1, reranker='off', target_card_keys=('a', 'b')))
+                self.assertEqual({e['card_key'] for e in result['evidence']}, expected)
+                self.assertEqual(result['trace']['evidence_budget']['payload_unit_limit'], int(limit or 64000))
+
     def test_ineligible_chunks_do_not_exhaust_scoped_fused_worklist(self):
         for card_count, page_count in ((5, 10), (2, 25)):
             with self.subTest(card_count=card_count):
@@ -50,7 +68,7 @@ class ScopedRetrievalTest(unittest.TestCase):
                   Chunk('a2', '전월실적 ' + '나' * 3500, 'a', 'A', '발급사', 'benefit', 2),
                   Chunk('b', '전월실적 30만원', 'b', 'B', '발급사', 'benefit', 1)]
         result = RagPipeline(chunks, InMemoryBM25Searcher(chunks)).search('전월실적', config=SearchConfig(
-            vector_weight=0, reranker='off', target_card_keys=('a', 'b')))
+            vector_weight=0, reranker='off', target_card_keys=('a', 'b'), answer_payload_bytes=12000))
         self.assertEqual({e['card_key'] for e in result['evidence']}, {'a', 'b'})
         self.assertTrue(result['trace']['evidence_budget']['budget_truncated'])
         self.assertLessEqual(result['trace']['evidence_budget']['payload_size'], 12000)
