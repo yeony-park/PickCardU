@@ -81,10 +81,11 @@ class ApiTest(unittest.TestCase):
                 pass
         self.temporary.cleanup()
 
-    def test_only_pipeline_endpoints_exist(self) -> None:
+    def test_pipeline_and_chat_endpoints_exist_without_account_or_lab_routes(self) -> None:
         paths = set(self.client.get("/openapi.json").json()["paths"])
         self.assertTrue({"/v1/health/live", "/v1/health/ready", "/v1/search", "/v1/answer"} <= paths)
-        self.assertFalse(any("auth" in path or "profile" in path or "conversation" in path or "lab" in path for path in paths))
+        self.assertIn('/v1/conversations', paths)
+        self.assertFalse(any("auth" in path or "profile" in path or "lab" in path for path in paths))
         self.assertEqual(self.client.get("/v1/health/live").json(), {"status": "live"})
         self.assertEqual(self.client.get("/v1/health/ready").json()["status"], "ready")
 

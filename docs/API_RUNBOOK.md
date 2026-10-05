@@ -25,9 +25,9 @@ npm run setup
 
 setup은 다음 순서로 실행되고 개발 서버를 시작하지 않는다.
 
-1. 플랫폼, Node와 Python 버전 확인
-2. 현재 Python 환경에서 필수 RAG/API 모듈을 import할 수 있는지 확인하며 패키지는 설치·변경하지 않음
-3. `apps/main/package-lock.json` 기준 Node 의존성을 프로젝트 내부에 설치
+1. 플랫폼과 Node 버전 확인
+2. `apps/main/package.json`의 dependencies/devDependencies가 프로젝트의 `node_modules`에 있는지 확인(설치·삭제·업데이트 없음)
+3. 현재 Python 버전과 필수 RAG/API 모듈을 import할 수 있는지 확인(설치·변경 없음)
 4. Hugging Face의 고정 revision에서 BGE reranker 다운로드와 파일별 SHA-256 검증
 5. 고정된 GitHub Release asset에서 RAG index 다운로드와 archive·manifest·내부 DB hash 검증
 6. `index-release/`, 검색용 `serving/`과 `active-index.json` 준비
@@ -35,7 +35,9 @@ setup은 다음 순서로 실행되고 개발 서버를 시작하지 않는다.
 
 현재 자산 계약은 Git에 포함된 `config/dev-assets.json`에 있다. setup은 이 계약을 읽어 BGE와 RAG release를 준비하고, 선택된 release ID와 manifest hash를 로컬 `data/rag/runtime/active-index.json`에 기록한다. BGE는 `BAAI/bge-reranker-v2-m3`의 고정 commit을 사용하고, RAG DB는 `release_9854f965cbb4ba66`을 사용한다. BGE 런타임 파일은 약 2.3GB이고 RAG release archive는 64,029,451바이트다.
 
-setup은 활성 Python/Conda 환경에 `pip install`을 실행하지 않는다. 필수 모듈이 없거나 import할 수 없으면 해당 이름을 보고하고, 프론트 설치나 대용량 자산 다운로드 전에 중단한다. 사용자는 기존 환경 관리 정책에 맞게 의존성을 준비한 뒤 setup을 다시 실행한다.
+setup은 `npm ci`, `npm install`, `pip install`을 실행하지 않고 기존 프론트/Python 패키지와 환경을 변경하지 않는다. 필수 프론트 패키지가 없거나 메타데이터를 읽을 수 없으면 해당 이름을 보고하고 Python 검사 및 자산 다운로드 전에 중단한다. Python 필수 모듈이 없거나 import할 수 없어도 자산 다운로드 전에 중단한다. 사용자는 기존 환경 관리 정책에 맞게 의존성을 직접 준비한 뒤 setup을 다시 실행한다.
+
+프론트 검사는 프로젝트 로컬 패키지 메타데이터의 존재·가독성을 확인한다. 선언 버전과 설치 버전의 일치나 간접 의존성 전체의 호환성을 보장하지 않으며, 버전이 달라도 자동 교체하지 않는다. 실행·빌드 검증은 별도로 진행한다.
 
 정상 자산이 이미 있으면 대용량 다운로드를 생략하고 검증·활성 상태만 확인한다. 기존 release가 있지만 hash가 다르면 자동 삭제하거나 덮어쓰지 않고 실패한다. 새 release 준비가 실패하면 기존 `active-index.json`은 유지한다.
 
@@ -43,7 +45,7 @@ setup을 다시 실행해야 하는 경우는 다음과 같다.
 
 - 처음 저장소를 받은 경우
 - Python 환경을 바꾼 뒤 실행 모듈 호환성을 다시 확인하려는 경우
-- 프론트 Node 의존성 계약이 변경된 경우
+- 프론트 의존성을 직접 준비한 뒤 설치 여부를 다시 확인하려는 경우
 - `config/dev-assets.json`의 release나 BGE revision이 변경된 경우
 - 로컬 자산이 누락된 경우
 
@@ -104,6 +106,8 @@ sha256sum data/rag/runtime/index-release/RELEASE_ID/manifest.json
 | `PICKCARDU_EMBEDDING_MODEL` | `text-embedding-3-small` | active release의 embedding 모델과 일치해야 한다. |
 | `PICKCARDU_LLM_MODEL` | `gpt-5.6-luna` | `/v1/answer`의 답변 생성 모델이다. |
 | `PICKCARDU_BGE_MODEL_PATH` | `.cache/reranker/bge-reranker-v2-m3` | 로컬 reranker 모델 경로다. |
+| `PICKCARDU_CHAT_DB_PATH` | `data/chat/runtime/chat.sqlite` | RAG 인덱스와 분리된 대화 SQLite. 실제 채팅 API 사용 시 lazy 생성한다. |
+| `PICKCARDU_RAG_API_BASE_URL` | `http://127.0.0.1:8000` | Next 서버의 채팅 proxy 목적지. 브라우저 공개 환경변수가 아니다. |
 | `OPENAI_API_KEY` | 실제 검색·답변 시 필수 | 앱 생성과 health 확인만으로는 외부 호출이 발생하지 않는다. |
 
 setup과 dev에서 사용할 Python이 현재 `PATH`의 `python`과 다르면 `PICKCARDU_PYTHON`에 실행 파일 경로를 지정할 수 있다.
@@ -208,6 +212,7 @@ setup 단계에서 실패하면 오류 메시지의 첫 실패 단계를 확인�
 | setup 오류 | 확인할 항목 |
 |---|---|
 | 지원하지 않는 플랫폼/버전 | macOS 또는 Linux/WSL, Node 22.13+, Python 3.11+인지 확인 |
+| Missing or unreadable frontend packages | `apps/main/node_modules`의 보고된 패키지를 직접 준비; setup은 설치·삭제·업데이트하지 않으며 자산 다운로드 전에 중단 |
 | Python runtime dependencies 오류 | 현재 선택한 Python에 보고된 모듈이 설치되어 있고 import 가능한지 확인; setup은 패키지를 자동 설치하거나 버전을 변경하지 않음 |
 | BGE hash mismatch | 기존 `.cache/reranker/bge-reranker-v2-m3`가 완전한지 확인; setup은 손상된 기존 폴더를 자동 삭제하지 않음 |
 | release archive hash mismatch | 네트워크 프록시나 불완전 다운로드 여부 확인; 부분 다운로드는 활성화되지 않음 |
@@ -215,3 +220,34 @@ setup 단계에서 실패하면 오류 메시지의 첫 실패 단계를 확인�
 | loader validation 실패 | manifest, SQLite/FTS5, Chroma, serving marker와 active pointer 중 보고된 항목 확인 |
 
 오류 응답의 세부 계약과 `retryable` 값은 [`API_SPEC.md`](API_SPEC.md)의 오류 계약을 기준으로 한다.
+
+## 11. 대화 저장 운영
+
+채팅 SQLite는 RAG release가 아니며 `npm run setup`에서 다운로드하거나 초기화하지 않는다. 실제 대화 API 사용 시 별도로 생성한다. 앱 import/OpenAPI 생성/health만으로는 만들지 않는다. `data/chat/runtime/`는 Git 제외다. 패키지/환경 설치 동작은 추가하지 않았다.
+
+기본 포트에서는 proxy 설정 없이 루트의 `npm run dev`를 사용한다. FastAPI의 `PICKCARDU_CHAT_DB_PATH`는 루트 `.env` 또는 프로세스 환경으로 설정한다. 다른 API 포트를 사용하는 경우 Next의 `PICKCARDU_RAG_API_BASE_URL`은 실행 프로세스 환경 또는 `apps/main/.env.local`에 설정한다. 루트 `.env` 자동 읽기는 FastAPI 진입점의 기능이며 Next가 같은 파일을 자동 읽는다는 뜻은 아니다. 이 변수에 `NEXT_PUBLIC_` 접두사를 붙이거나 키를 포함하지 않는다.
+
+저장 내용은 질문, 검증된 답변 JSON, 실패 상태와 제한된 처리 메타데이터다. 로컬 평문이며 자동 삭제·계정 로그인·삭제/내보내기 UI는 없다. 브라우저 쿠키가 접근 권한이므로 삭제/만료하면 DB 백업이 있어도 자동 복원되지 않는다. 로그와 공유 파일에 쿠키·대화 원문·키를 남기지 않는다.
+
+후속 질문은 최근 answered 최대2쌍과 현재 질문을 rewrite provider에 추가 전송한다. 첫 질문은 추가 rewrite0회, 후속은 최대1회다. 기존 answer 최대2회 시도와 별개이며 테스트/운영 비용 승인을 구분한다.
+
+저장 실패 시 먼저 디스크 공간·디렉터리 쓰기 권한·DB 잠금·schema version을 확인한다. 손상/미지원 DB를 자동 삭제·재생성하지 않는다. `TURN_INTERRUPTED`는 만료된 pending 기록이며 조회 후 사용자가 명시적으로 재시도한다. 응답 유실은 완료/실패 여부를 조회하기 전 새 질문으로 전송하지 않는다.
+
+### 일관된 백업
+
+WAL 사용 중 `chat.sqlite` 파일 하나만 복사하면 최근 데이터가 빠질 수 있다. SQLite backup API를 사용한다. 원본 경로와 새 백업 경로를 확인하고 기존 백업을 덮어쓰지 않는다:
+
+```python
+from pathlib import Path
+import sqlite3
+
+source = Path("data/chat/runtime/chat.sqlite")
+destination = Path("data/chat/runtime/chat-backup.sqlite")
+if not source.is_file() or destination.exists():
+    raise SystemExit("원본 존재와 새 백업 경로를 확인하세요.")
+with sqlite3.connect(source.resolve().as_uri() + "?mode=ro", uri=True) as src:
+    with sqlite3.connect(destination) as dst:
+        src.backup(dst)
+```
+
+코드 병합은 worktree의 대화 DB를 자동 이전하지 않는다. worktree 제거 전에 대화 DB 보존/이전 여부를 별도로 확인한다. 브라우저/포트가 달라지면 기존 쿠키의 재사용 여부도 확인하며 소유자 해시를 임의로 바꾸지 않는다. 공개 배포와 production 차단 정책은 여전히 별도 작업이다.

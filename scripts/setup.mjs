@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -29,13 +30,28 @@ export function assertSupportedRuntime({ platform = process.platform, nodeVersio
   }
 }
 
+export function checkFrontendDependencies(applicationRoot) {
+  const manifest = JSON.parse(readFileSync(path.join(applicationRoot, 'package.json'), 'utf8'));
+  const names = Object.keys({ ...manifest.dependencies, ...manifest.devDependencies });
+  const missing = names.filter((name) => {
+    try {
+      const installed = JSON.parse(readFileSync(path.join(applicationRoot, 'node_modules', name, 'package.json'), 'utf8'));
+      return installed.name !== name || typeof installed.version !== 'string' || !installed.version;
+    } catch {
+      return true;
+    }
+  });
+  if (missing.length) {
+    throw new Error(`Missing or unreadable frontend packages: ${missing.join(', ')}. Prepare frontend dependencies manually in ${applicationRoot}, then rerun setup. Setup does not install, remove, or update packages.`);
+  }
+  return names;
+}
+
 export function createSetupSpecs(
   repositoryRoot = defaultRepositoryRoot,
   environment = process.env,
-  platform = process.platform,
 ) {
   const python = environment.PICKCARDU_PYTHON || 'python';
-  const npm = platform === 'win32' ? 'npm.cmd' : 'npm';
   const pythonPaths = [
     path.join(repositoryRoot, 'services/rag-api/src'),
     path.join(repositoryRoot, 'packages/rag-core/src'),
@@ -48,6 +64,13 @@ export function createSetupSpecs(
     PYTHONPATH: pythonPaths.join(path.delimiter),
   };
   return [
+    {
+      name: 'frontend dependencies check',
+      command: process.execPath,
+      args: [scriptPath, '--check-frontend', path.join(repositoryRoot, 'apps/main')],
+      cwd: repositoryRoot,
+      env: environment,
+    },
     {
       name: 'Python 3.11+ check',
       command: python,
@@ -64,13 +87,6 @@ export function createSetupSpecs(
       args: ['-c', PYTHON_RUNTIME_CHECK],
       cwd: repositoryRoot,
       env: pythonEnvironment,
-    },
-    {
-      name: 'frontend dependencies',
-      command: npm,
-      args: ['--prefix', path.join(repositoryRoot, 'apps/main'), 'ci'],
-      cwd: repositoryRoot,
-      env: environment,
     },
     {
       name: 'RAG assets',
@@ -120,7 +136,13 @@ export async function runSetup(repositoryRoot = defaultRepositoryRoot) {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
   try {
-    await runSetup();
+    if (process.argv[2] === '--check-frontend') {
+      if (!process.argv[3]) throw new Error('An application directory is required for --check-frontend.');
+      const names = checkFrontendDependencies(path.resolve(process.argv[3]));
+      console.log(`[setup] Frontend packages available: ${names.join(', ')}. Existing versions were not changed; version compatibility was not checked.`);
+    } else {
+      await runSetup();
+    }
   } catch (error) {
     console.error(`[setup] ${error instanceof Error ? error.message : String(error)}`);
     process.exitCode = 1;

@@ -4,21 +4,37 @@ export interface components {
     "AnswerResponse": { "answer": string; "answer_status": "answered" | "insufficient_evidence"; "cards": Array<components["schemas"]["CardResult"]>; "claims": Array<components["schemas"]["AtomicClaim"]>; "evidence": Array<components["schemas"]["EvidenceResult"]>; "profile": "card_page_section_benefit" | "parent_child_bundle"; "query_type": "proper_noun" | "numeric_condition" | "semantic"; "recommendations": Array<components["schemas"]["Recommendation"]>; "release_id": string; "status": "completed"; "usage": components["schemas"]["AnswerUsage"]; };
     "AnswerUsage": { "answer": { [key: string]: unknown; }; "embedding": { [key: string]: unknown; }; };
     "AtomicClaim": { "card_key": string; "citations": Array<string>; "conditions"?: Array<string>; "text": string; "unit"?: string | null; "value"?: string | number | number | null; };
+    "BrowserSessionRequest": {  };
+    "BrowserSessionResponse": { "status": "ready"; };
     "CardResult": { "card_key": string; "card_name": string; "evidence_count": number; "issuer": string; "rank": number; "score": number; };
+    "ChatMessage": { "answer"?: components["schemas"]["AnswerResponse"] | null; "client_request_id": string; "content": string; "created_at": string; "error"?: components["schemas"]["ErrorResponse"] | null; "id": string; "rewrite_usage"?: components["schemas"]["ChatRewriteUsage"] | null; "role": "user" | "assistant"; "seq": number; "status": "completed" | "pending" | "failed"; "turn_id": string; };
+    "ChatRequest": { "client_request_id": string; "profile"?: "card_page_section_benefit" | "parent_child_bundle" | null; "query": string; "retry_failed"?: boolean; "top_k"?: 1 | 3 | 5; };
+    "ChatRewriteUsage": { "latency_ms"?: number | null; "model"?: string | null; "provider_called": boolean; "usage"?: { [key: string]: unknown; } | null; };
+    "Conversation": { "created_at": string; "id": string; "title": string; "updated_at": string; };
+    "ConversationPage": { "conversations": Array<components["schemas"]["Conversation"]>; "next_cursor": string | null; };
+    "CreateConversationRequest": { "client_conversation_id": string; };
     "ErrorResponse": { "code": string; "message": string; "request_id": string; "retryable": boolean; };
     "EvidenceResult": { "card_key": string; "card_name": string; "chunk_id": string; "issuer": string; "level": string; "page_num": number; "rank": number; "score": number; "section": string | null; "text": string; };
     "LiveResponse": { "status": "live"; };
+    "MessagesPage": { "has_pending": boolean; "messages": Array<components["schemas"]["ChatMessage"]>; "next_before_seq": number | null; };
     "NotReadyResponse": { "reason": string; "status": "not_ready"; };
     "QueryRequest": { "profile"?: "card_page_section_benefit" | "parent_child_bundle" | null; "query": string; "top_k"?: 1 | 3 | 5; };
     "ReadyResponse": { "chunk_count": number; "document_count": number; "profile": "card_page_section_benefit" | "parent_child_bundle"; "release_id": string; "status": "ready"; };
     "Recommendation": { "card_key": string; "citations": Array<string>; "reason": string; };
     "SearchResponse": { "cards": Array<components["schemas"]["CardResult"]>; "evidence": Array<components["schemas"]["EvidenceResult"]>; "profile": "card_page_section_benefit" | "parent_child_bundle"; "query_type": "proper_noun" | "numeric_condition" | "semantic"; "release_id": string; "status": "completed"; "usage": components["schemas"]["SearchUsage"]; };
     "SearchUsage": { "embedding": { [key: string]: unknown; }; };
+    "TurnResponse": { "messages": Array<components["schemas"]["ChatMessage"]>; "turn_id": string; };
   };
 }
 
 export interface operations {
   "POST /v1/answer": { requestBody: components["schemas"]["QueryRequest"]; responses: { "200": components["schemas"]["AnswerResponse"]; "409": components["schemas"]["ErrorResponse"]; "422": components["schemas"]["ErrorResponse"]; "503": components["schemas"]["ErrorResponse"]; }; };
+  "POST /v1/browser-session": { requestBody: components["schemas"]["BrowserSessionRequest"]; responses: { "200": components["schemas"]["BrowserSessionResponse"]; "401": components["schemas"]["ErrorResponse"]; "403": components["schemas"]["ErrorResponse"]; "404": components["schemas"]["ErrorResponse"]; "409": components["schemas"]["ErrorResponse"]; "422": components["schemas"]["ErrorResponse"]; "503": components["schemas"]["ErrorResponse"]; }; };
+  "GET /v1/conversations": { requestBody: never; responses: { "200": components["schemas"]["ConversationPage"]; "401": components["schemas"]["ErrorResponse"]; "403": components["schemas"]["ErrorResponse"]; "404": components["schemas"]["ErrorResponse"]; "409": components["schemas"]["ErrorResponse"]; "422": components["schemas"]["ErrorResponse"]; "503": components["schemas"]["ErrorResponse"]; }; };
+  "POST /v1/conversations": { requestBody: components["schemas"]["CreateConversationRequest"]; responses: { "200": components["schemas"]["Conversation"]; "201": components["schemas"]["Conversation"]; "401": components["schemas"]["ErrorResponse"]; "403": components["schemas"]["ErrorResponse"]; "404": components["schemas"]["ErrorResponse"]; "409": components["schemas"]["ErrorResponse"]; "422": components["schemas"]["ErrorResponse"]; "503": components["schemas"]["ErrorResponse"]; }; };
+  "DELETE /v1/conversations/{conversation_id}": { requestBody: never; responses: { "204": unknown; "401": components["schemas"]["ErrorResponse"]; "403": components["schemas"]["ErrorResponse"]; "404": components["schemas"]["ErrorResponse"]; "409": components["schemas"]["ErrorResponse"]; "422": components["schemas"]["ErrorResponse"]; "503": components["schemas"]["ErrorResponse"]; }; };
+  "GET /v1/conversations/{conversation_id}/messages": { requestBody: never; responses: { "200": components["schemas"]["MessagesPage"]; "401": components["schemas"]["ErrorResponse"]; "403": components["schemas"]["ErrorResponse"]; "404": components["schemas"]["ErrorResponse"]; "409": components["schemas"]["ErrorResponse"]; "422": components["schemas"]["ErrorResponse"]; "503": components["schemas"]["ErrorResponse"]; }; };
+  "POST /v1/conversations/{conversation_id}/messages": { requestBody: components["schemas"]["ChatRequest"]; responses: { "200": components["schemas"]["TurnResponse"]; "401": components["schemas"]["ErrorResponse"]; "403": components["schemas"]["ErrorResponse"]; "404": components["schemas"]["ErrorResponse"]; "409": components["schemas"]["ErrorResponse"]; "422": components["schemas"]["ErrorResponse"]; "503": components["schemas"]["ErrorResponse"]; }; };
   "GET /v1/health/live": { requestBody: never; responses: { "200": components["schemas"]["LiveResponse"]; }; };
   "GET /v1/health/ready": { requestBody: never; responses: { "200": components["schemas"]["ReadyResponse"]; "503": components["schemas"]["NotReadyResponse"]; }; };
   "POST /v1/search": { requestBody: components["schemas"]["QueryRequest"]; responses: { "200": components["schemas"]["SearchResponse"]; "409": components["schemas"]["ErrorResponse"]; "422": components["schemas"]["ErrorResponse"]; "503": components["schemas"]["ErrorResponse"]; }; };

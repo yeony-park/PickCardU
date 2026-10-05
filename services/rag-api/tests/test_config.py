@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -24,15 +25,25 @@ def configured(environment: str = "test") -> Settings:
 
 
 class ConfigTest(unittest.TestCase):
+    def test_chat_models_import_without_starting_app_or_creating_database(self):
+        result = subprocess.run([sys.executable, '-c',
+            "import sys; sys.path[:0] = ['services/rag-api/src', 'packages/rag-core/src']; "
+            "import pickcardu_rag_api.chat_models; assert 'pickcardu_rag_api.main' not in sys.modules"],
+            cwd=ROOT, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_production_is_explicitly_unsupported(self) -> None:
         with self.assertRaisesRegex(ValueError, "production deployment is not configured"):
             validate_settings(configured("production"))
 
-    def test_environment_contract_has_no_auth_or_user_database(self) -> None:
+    def test_environment_contract_has_separate_chat_database_without_account_auth(self) -> None:
         settings = load_settings({"PICKCARDU_ENV": "test", "PICKCARDU_ALLOWED_ORIGINS": "http://testserver"})
         self.assertEqual(settings.environment, "test")
         self.assertFalse(hasattr(settings, "database_path"))
         self.assertFalse(hasattr(settings, "cookie_secure"))
+        self.assertEqual(settings.chat_db_path, ROOT / 'data/chat/runtime/chat.sqlite')
+        overridden = load_settings({'PICKCARDU_CHAT_DB_PATH': '/tmp/pickcardu-test-chat.sqlite'})
+        self.assertEqual(overridden.chat_db_path, Path('/tmp/pickcardu-test-chat.sqlite'))
 
 
 if __name__ == "__main__":

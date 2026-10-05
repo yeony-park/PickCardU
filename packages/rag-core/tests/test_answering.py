@@ -155,6 +155,51 @@ class AnsweringTests(unittest.TestCase):
             "text": "1%",
         }])
 
+    def test_longer_answer_and_recommendation_round_trip_without_truncation(self) -> None:
+        for field, text in (("answer_text", "설명" * 599 + "요."), ("reason", "추천" * 199 + "요.")):
+            with self.subTest(field=field):
+                generated = self.generated_answer()
+                if field == "answer_text":
+                    generated[field] = text
+                else:
+                    generated["recommendations"][0][field] = text
+                responses = FakeResponses(generated, generated)
+                answer, metadata = OpenAIService(
+                    api_key=None, client=types.SimpleNamespace(responses=responses),
+                ).answer("질문", self.evidence)
+                actual = answer.answer_text if field == "answer_text" else answer.recommendations[0].reason
+                self.assertEqual(actual, text)
+                self.assertEqual(metadata["attempt_count"], 1)
+                self.assertEqual(answer.recommendations[0].citations, ["k1"])
+                for model, payload in ((responses.calls[0]["text_format"], generated), (AnswerOutput, answer.model_dump())):
+                    if field == "answer_text":
+                        payload[field] = text + "!"
+                    else:
+                        payload["recommendations"][0][field] = text + "!"
+                    with self.assertRaises(ValidationError):
+                        model.model_validate(payload)
+
+    def test_prompt_examples_match_the_provider_output_contract(self) -> None:
+        responses = FakeResponses(self.generated_answer())
+        OpenAIService(api_key=None, client=types.SimpleNamespace(responses=responses)).answer("질문", self.evidence)
+        request = responses.calls[0]
+        instructions = request["instructions"]
+        examples = []
+        decoder = json.JSONDecoder()
+        for index, character in enumerate(instructions):
+            if character != "{":
+                continue
+            try:
+                value, _ = decoder.raw_decode(instructions[index:])
+            except json.JSONDecodeError:
+                continue
+            if isinstance(value, dict) and "answer_status" in value:
+                examples.append(request["text_format"].model_validate(value))
+        self.assertEqual([example.answer_status for example in examples], ["answered", "insufficient_evidence"])
+        self.assertEqual(examples[0].recommendations[0].citations, ["e1"])
+        self.assertEqual(examples[1].recommendations, [])
+        self.assertEqual(examples[1].claims, [])
+
     def test_grounding_mismatch_retries_only_the_answer_generation(self) -> None:
         evidence = [
             *self.evidence,
