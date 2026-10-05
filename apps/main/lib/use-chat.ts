@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ChatApiError, createConversation, getMessages, initializeBrowser, listConversations, sendMessage,
+  ChatApiError, createConversation, deleteConversation, getMessages, initializeBrowser, listConversations, sendMessage,
   type ChatMessage, type Conversation,
 } from './chat-api';
 import { isCurrentConversation, isDefiniteRejection, mergeMessages, reconcileMessages } from './chat-state';
@@ -37,18 +37,22 @@ export function useChat() {
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(false);
   const [sendingGeneration, setSendingGeneration] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const selected = useRef<string | null>(null);
   const generation = useRef(0);
   const activeSends = useRef(new Set<number>());
+  const deleting = useRef<string | null>(null);
+  const deletedIds = useRef(new Set<string>());
   const mounted = useRef(false);
 
   const refreshConversations = useCallback(async (cursor?: string) => {
     const page = await listConversations(cursor);
     if (!mounted.current) return;
+    const incoming = page.conversations.filter(item => !deletedIds.current.has(item.id));
     setConversations(current => cursor
-      ? [...new Map([...current, ...page.conversations].map(item => [item.id, item])).values()]
-      : page.conversations);
+      ? [...new Map([...current, ...incoming].map(item => [item.id, item])).values()]
+      : incoming);
     setConversationCursor(page.next_cursor);
   }, []);
 
@@ -140,7 +144,8 @@ export function useChat() {
   async function sendQuestion(question: string, retryMessage?: ChatMessage): Promise<boolean> {
     const value = question.trim();
     const requestGeneration = generation.current;
-    if (!ready || loading || !value || value.length > 500 || hasPending || resultUnknown || activeSends.current.has(requestGeneration)) return false;
+    if (!ready || loading || !value || value.length > 500 || hasPending || resultUnknown || activeSends.current.has(requestGeneration)
+      || (deleting.current !== null && deleting.current === selected.current)) return false;
     activeSends.current.add(requestGeneration);
     setSendingGeneration(requestGeneration);
     setError('');
@@ -222,10 +227,38 @@ export function useChat() {
     void selectConversation(null);
   }
 
+  // True only when deletion reset the currently selected conversation.
+  async function removeConversation(id: string): Promise<boolean> {
+    if (!ready || deleting.current !== null || (selected.current === id
+      && (hasPending || resultUnknown || activeSends.current.has(generation.current)))) return false;
+    deleting.current = id;
+    setDeletingId(id);
+    try {
+      try { await deleteConversation(id); }
+      catch (failure) {
+        if (!(failure instanceof ChatApiError) || failure.code !== 'CONVERSATION_NOT_FOUND') throw failure;
+      }
+      if (!mounted.current) return false;
+      deletedIds.current.add(id);
+      setConversations(current => current.filter(item => item.id !== id));
+      if (selected.current === id) {
+        startNewChat();
+        return true;
+      }
+      return false;
+    } catch (failure) {
+      if (mounted.current) setError(errorText(failure));
+      return false;
+    } finally {
+      deleting.current = null;
+      if (mounted.current) setDeletingId(null);
+    }
+  }
+
   return {
-    conversations, conversationCursor, selectedId, messages, beforeSeq, ready, loading, error,
-    busy: hasPending || resultUnknown || sendingGeneration !== null,
-    startNewChat, selectConversation, sendQuestion, refreshMessages,
+    conversations, conversationCursor, selectedId, messages, beforeSeq, ready, loading, error, deletingId,
+    busy: hasPending || resultUnknown || sendingGeneration !== null || (deletingId !== null && deletingId === selectedId),
+    startNewChat, selectConversation, sendQuestion, refreshMessages, removeConversation,
     loadOlderMessages, loadMoreConversations: () => conversationCursor
       ? refreshConversations(conversationCursor).catch(failure => { if (mounted.current) setError(errorText(failure)); }) : Promise.resolve(),
   };

@@ -8,6 +8,9 @@ type ConversationListProps = {
   onLoadMore: () => void;
   onNewChat: () => void;
   onSelect: (id: string) => void;
+  onDelete: (id: string) => void;
+  deletingId: string | null;
+  blockedDeleteId: string | null;
   selectedId: string | null;
 };
 
@@ -23,7 +26,7 @@ function updatedLabel(value: string) {
 }
 
 export function ConversationList({
-  conversations, hasMore, onLoadMore, onNewChat, onSelect, selectedId,
+  conversations, hasMore, onLoadMore, onNewChat, onSelect, onDelete, deletingId, blockedDeleteId, selectedId,
 }: ConversationListProps) {
   return (
     <>
@@ -33,16 +36,25 @@ export function ConversationList({
       </div>
       <div className="history-list">
         {conversations.length ? conversations.map((conversation) => (
-          <button
-            aria-current={selectedId === conversation.id ? 'page' : undefined}
-            className={selectedId === conversation.id ? 'active' : undefined}
-            key={conversation.id}
-            onClick={() => onSelect(conversation.id)}
-            type="button"
-          >
-            <span>{updatedLabel(conversation.updated_at)}</span>
-            <strong>{conversation.title}</strong>
-          </button>
+          <div className="history-item" key={conversation.id}>
+            <button
+              aria-current={selectedId === conversation.id ? 'page' : undefined}
+              className={selectedId === conversation.id ? 'active' : undefined}
+              onClick={() => onSelect(conversation.id)}
+              type="button"
+            >
+              <span>{updatedLabel(conversation.updated_at)}</span>
+              <strong>{conversation.title}</strong>
+            </button>
+            <button
+              aria-label={`${conversation.title} 대화 삭제`}
+              className="history-delete"
+              disabled={deletingId !== null || blockedDeleteId === conversation.id}
+              onClick={() => onDelete(conversation.id)}
+              title={blockedDeleteId === conversation.id ? '답변 처리 상태를 확인한 뒤 삭제할 수 있어요.' : '대화 삭제'}
+              type="button"
+            >×</button>
+          </div>
         )) : <p className="history-empty">아직 저장된 대화가 없어요.</p>}
         {hasMore ? (
           <button className="history-more" onClick={onLoadMore} type="button">이전 대화 더보기</button>

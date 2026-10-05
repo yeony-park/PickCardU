@@ -113,6 +113,13 @@ class ChatStore:
         with self._connection() as db:
             return dict(self._owned(db, owner_hash, conversation_id))
 
+    def delete_conversation(self, owner_hash: str, conversation_id: str) -> None:
+        with self._connection(write=True) as db:
+            self._owned(db, owner_hash, conversation_id)
+            if db.execute("SELECT 1 FROM turns WHERE conversation_id=? AND state='pending'", (conversation_id,)).fetchone():
+                raise ChatStoreError(409, 'CONVERSATION_BUSY', '답변 생성 중인 대화는 삭제할 수 없습니다.')
+            db.execute('DELETE FROM conversations WHERE id=? AND owner_hash=?', (conversation_id, owner_hash))
+
     def list_conversations(self, owner_hash: str, *, limit: int = 40, cursor: str | None = None) -> dict:
         boundary = None
         if cursor:

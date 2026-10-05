@@ -55,3 +55,22 @@ test('unknown result never retries a paid send automatically', async () => {
   assert.equal(posts, 1);
   assert.equal(gets, 1);
 });
+
+test('delete targets one conversation and accepts empty 204 without retry', async () => {
+  const { createChatClient, ChatApiError } = await client();
+  const calls: string[] = [];
+  const api = createChatClient({ fetchImpl: async (input, options) => {
+    calls.push(String(input));
+    assert.equal(options?.method, 'DELETE');
+    assert.equal(options?.body, undefined);
+    assert.equal(options?.credentials, 'same-origin');
+    return new Response(null, { status: 204 });
+  } });
+  assert.equal(typeof api.deleteConversation, 'function');
+  assert.equal(await api.deleteConversation('c1'), undefined);
+  assert.deepEqual(calls, ['/api/chat/conversations/c1']);
+  let attempts = 0;
+  const unavailable = createChatClient({ fetchImpl: async () => { attempts++; throw Error('connection lost'); } });
+  await assert.rejects(unavailable.deleteConversation('c1'), (error: unknown) => error instanceof ChatApiError && error.code === 'API_UNREACHABLE');
+  assert.equal(attempts, 1);
+});

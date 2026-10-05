@@ -827,6 +827,57 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
           description: Service Unavailable
       summary: Create Conversation
+  /v1/conversations/{conversation_id}:
+    delete:
+      operationId: delete_conversation_v1_conversations__conversation_id__delete
+      parameters:
+      - in: path
+        name: conversation_id
+        required: true
+        schema:
+          format: uuid
+          title: Conversation Id
+          type: string
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+      summary: Delete Conversation
   /v1/conversations/{conversation_id}/messages:
     get:
       operationId: messages_v1_conversations__conversation_id__messages_get

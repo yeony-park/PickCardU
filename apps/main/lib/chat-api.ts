@@ -29,16 +29,17 @@ function failure(code: string, message: string, retryable = true) {
 export function createChatClient(options: { fetchImpl?: typeof fetch; locks?: LockRunner | null } = {}) {
   let initialization: Promise<void> | undefined;
 
-  async function request<T>(path: string, body?: unknown): Promise<T> {
+  async function request<T>(path: string, body?: unknown, method = body === undefined ? 'GET' : 'POST'): Promise<T> {
     let response: Response;
     try {
       response = await (options.fetchImpl ?? fetch)(`/api/chat/${path}`, {
-        method: body === undefined ? 'GET' : 'POST', credentials: 'same-origin', cache: 'no-store',
+        method, credentials: 'same-origin', cache: 'no-store',
         ...(body === undefined ? {} : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
       });
     } catch {
       throw failure('API_UNREACHABLE', 'API 연결이 끊겼습니다. 저장 상태를 확인해 주세요.');
     }
+    if (response.status === 204) return undefined as T;
     let result: unknown;
     try { result = await response.json(); }
     catch { throw failure('INVALID_RESPONSE', '서버 응답을 확인할 수 없습니다. 저장 상태를 다시 확인해 주세요.'); }
@@ -83,8 +84,9 @@ export function createChatClient(options: { fetchImpl?: typeof fetch; locks?: Lo
     initializeBrowser, getMessages, sendMessage,
     listConversations: (cursor?: string): Promise<ConversationPage> => request(`conversations${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`),
     createConversation: (id: string): Promise<Conversation> => request('conversations', { client_conversation_id: id }),
+    deleteConversation: (id: string): Promise<void> => request(`conversations/${encodeURIComponent(id)}`, undefined, 'DELETE'),
   };
 }
 
 const client = createChatClient();
-export const { initializeBrowser, getMessages, sendMessage, listConversations, createConversation } = client;
+export const { initializeBrowser, getMessages, sendMessage, listConversations, createConversation, deleteConversation } = client;

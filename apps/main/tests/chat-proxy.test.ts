@@ -82,3 +82,27 @@ test('GET forwards supported pagination without a request body', async () => {
   assert.equal(new URL(received).search, '?limit=2&before_seq=4');
   assert.equal(init?.body, undefined);
 });
+
+test('DELETE forwards only a single UUID conversation with same-origin protection and empty 204', async () => {
+  const run = await proxy();
+  let calls = 0;
+  const fetchImpl = async (input: string | URL | Request, options?: RequestInit) => {
+    calls++;
+    assert.equal(String(input), `http://127.0.0.1:8000/v1/conversations/${cid}`);
+    assert.equal(options?.method, 'DELETE');
+    assert.equal(options?.body, undefined);
+    assert.equal(new Headers(options?.headers).get('Origin'), 'http://127.0.0.1:8000');
+    return new Response(null, { status: 204 });
+  };
+  const request = (origin='http://localhost:3000') => new Request(`http://localhost:3000/api/chat/conversations/${cid}`, { method: 'DELETE', headers: { Origin: origin } });
+  const response = await run(request(), ['conversations', cid], { fetchImpl });
+  assert.equal(response.status, 204);
+  assert.equal(await response.text(), '');
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  assert.equal((await run(request('http://evil.example'), ['conversations', cid], { fetchImpl })).status, 403);
+  for (const path of [['conversations'], ['browser-session'], ['conversations', cid, 'messages']]) {
+    assert.equal((await run(request(), path, { fetchImpl })).status, 405);
+  }
+  assert.equal((await run(request(), ['conversations', '..'], { fetchImpl })).status, 404);
+  assert.equal(calls, 1);
+});

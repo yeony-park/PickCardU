@@ -370,6 +370,22 @@ a { color: inherit; text-decoration: none; }
 }
 .history-list button.active { background: #eef1ff; color: #2f3d91; }
 .history-list button:hover { background: #f0f1f3; }
+.history-item { position: relative; min-width: 0; }
+.history-item > button:not(.history-delete) { padding-right: 44px; }
+.history-list .history-delete {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  color: #979ba1;
+  font-size: 18px;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(-50%);
+}
+.history-list .history-delete:disabled { cursor: not-allowed; opacity: 0.45; }
 .history-list button:focus-visible,
 .history-heading button:focus-visible,
 .mobile-chat-tools button:focus-visible,

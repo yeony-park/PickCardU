@@ -384,13 +384,13 @@ API 계약 변경은 구현과 Pydantic model을 먼저 수정하고, OpenAPI와
 
 ### 8.1 세션·출처·보존
 
-브라우저는 Next.js의 같은 출처 `/api/chat/...`를 사용한다. suffix는 `/v1/...`와 같다. 예: `/api/chat/conversations` → `/v1/conversations`. 서버 측 `PICKCARDU_RAG_API_BASE_URL`로 FastAPI 주소를 지정하며 브라우저가 목적지를 정하지 않는다. Next POST는 접속한 출처와 정확히 일치하는 Origin만 허용하며 검증 후 API 자체 출처로 정규화한다. FastAPI는 API 자체 출처 또는 명시된 개발 Origin만 허용한다. 무상태 API의 기존 CORS는 유지된다.
+브라우저는 Next.js의 같은 출처 `/api/chat/...`를 사용한다. suffix는 `/v1/...`와 같다. 예: `/api/chat/conversations` → `/v1/conversations`. 서버 측 `PICKCARDU_RAG_API_BASE_URL`로 FastAPI 주소를 지정하며 브라우저가 목적지를 정하지 않는다. Next POST·DELETE는 접속한 출처와 정확히 일치하는 Origin만 허용하며 검증 후 API 자체 출처로 정규화한다. FastAPI는 API 자체 출처 또는 명시된 개발 Origin만 허용한다. 허용 Origin 정책은 유지하며 CORS 허용 메서드는 GET·POST·DELETE다.
 
 `POST /v1/browser-session`은 `{}`를 받고 `200 {"status":"ready"}`를 반환한다. 쿠키가 없거나 유효하지 않으면 32바이트 난수 토큰을 발급하며 유효한 기존 쿠키는 유지한다. 쿠키 이름은 `pickcardu_browser`, HttpOnly, SameSite=Lax, Path=/, 90일이며 사용 시 갱신한다. 로컬 HTTP이므로 Secure=false다. 원문 토큰은 JSON·URL·브라우저 저장소에 넣지 않는다. DB에는 SHA-256 해시만 저장한다.
 
 최초 다중 탭 초기화만 Web Locks로 순서를 정하며 일반 질문 전송은 잠그지 않는다. 기능 미지원 환경에서는 클라이언트 `BROWSER_SESSION_UNSUPPORTED` 안내 후 저장형 채팅을 중단한다. 브라우저 브랜드만으로 지원 여부를 판단하지 않는다.
 
-대화는 RAG와 별도 평문 로컬 SQLite에 자동 삭제 없이 저장한다. 쿠키 삭제/만료·다른 브라우저/프로필/PC에서는 DB가 남아 있어도 자동 복원되지 않는다. 모든 대화 응답(오류 포함)은 `Cache-Control: no-store`다.
+대화는 RAG와 별도 평문 로컬 SQLite에 자동 삭제 없이 저장한다. 사용자가 명시적으로 삭제한 대화는 해당 메시지와 함께 제거한다(8.5). 쿠키 삭제/만료·다른 브라우저/프로필/PC에서는 DB가 남아 있어도 자동 복원되지 않는다. 모든 대화 응답(오류 포함)은 `Cache-Control: no-store`다.
 
 ### 8.2 생성·목록
 
@@ -447,3 +447,14 @@ UUID는 한 번의 새 대화 생성에 고정한다. 신규 `201`, 같은 소�
 pending lease10분이 지나면 다음 조회/쓰기에서 `TURN_INTERRUPTED` failed로 기록한다. 자동 LLM 재실행은 하지 않는다. 네트워크 오류/502/504/비JSON 응답은 결과 불명일 수 있으므로 **먼저 GET**한다. pending/완료에 대해 새 ID로 자동 전송하지 않으며 확인된 failed만 명시적으로 재시도한다. 클라이언트 `RESULT_UNKNOWN`은 자동 재전송 금지 안내다.
 
 provider 성공 후 SQLite 기록 전 프로세스 중단은 하나의 transaction으로 묶을 수 없다. 이 경우 과금 exactly-once는 보장하지 않으며 사용자가 명시적으로 재시도하면 호출이 중복될 수 있다. GET 복원·완료 재조회는 외부 API를 호출하지 않는다.
+
+### 8.5 단일 대화 삭제
+
+`DELETE /v1/conversations/{conversation_id}`는 본인 브라우저 쿠키 소유의 대화와 해당 질문·답변을 삭제한다. 요청 본문은 없고 성공은 **본문 없는 `204 No Content`**다. Next 경로는 `DELETE /api/chat/conversations/{conversation_id}`다. 전체 대화 삭제나 RAG 인덱스 삭제는 지원하지 않는다.
+
+- 소유권 확인·pending 검사·삭제는 동일 SQLite 쓰기 transaction에서 수행하며, 메시지는 기존 FK cascade로 함께 제거한다.
+- 세션 없음은 `401 BROWSER_SESSION_REQUIRED`, 허용되지 않은 Origin은 `403 ORIGIN_NOT_ALLOWED`, 다른 소유자 또는 이미 삭제된 대화는 `404 CONVERSATION_NOT_FOUND`다.
+- 답변 생성 중인 pending 대화는 `409 CONVERSATION_BUSY`로 거부한다. 만료된 pending은 기존 메시지 조회의 lease 처리를 거친 후 삭제할 수 있다.
+- 형식이 잘못된 UUID는 `422`, 저장소 오류는 `503 CHAT_STORAGE_UNAVAILABLE`다. 모든 오류는 공통 ErrorResponse다.
+- 삭제는 휴지통·실행 취소 없이 영구 삭제한다. 클라이언트는 삭제 전 확인하고 성공 후에만 목록을 제거한다. 현재 대화를 삭제하면 빈 채팅 화면으로 돌아간다.
+- 삭제 자체에는 embedding·LLM 호출이 없다. 실패 또는 결과 불명 시 자동 재전송하지 않는다. 이미 삭제된 404는 클라이언트에서 목록 정리에 사용할 수 있다.

@@ -124,6 +124,31 @@ class ChatStoreTest(unittest.TestCase):
             self.assertEqual(len(self.store.completed_turns('a', chat['id'], before_seq=2)), 1)
             self.assertEqual(len(self.store.list_turns('a', chat['id'])['turns']), 1)
 
+    def test_delete_is_owner_scoped_and_removes_only_that_conversation_and_turns(self):
+        chat, other = self.chat(), self.chat(draft='other')
+        self.finish(self.reserve(chat))
+        self.finish(self.reserve(other))
+        self.assertTrue(callable(getattr(self.store, 'delete_conversation', None)))
+        self.assert_code('CONVERSATION_NOT_FOUND', lambda: self.store.delete_conversation('b', chat['id']))
+        self.assertEqual(len(self.store.list_turns('a', chat['id'])['turns']), 1)
+        self.store.delete_conversation('a', chat['id'])
+        self.assert_code('CONVERSATION_NOT_FOUND', lambda: self.store.list_turns('a', chat['id']))
+        self.assertEqual([c['id'] for c in self.Store(self.path).list_conversations('a')['conversations']], [other['id']])
+        with sqlite3.connect(self.path) as db:
+            self.assertEqual(db.execute('SELECT count(*) FROM turns WHERE conversation_id=?', (chat['id'],)).fetchone()[0], 0)
+            self.assertEqual(db.execute('SELECT count(*) FROM turns WHERE conversation_id=?', (other['id'],)).fetchone()[0], 1)
+        self.assert_code('CONVERSATION_NOT_FOUND', lambda: self.store.delete_conversation('a', chat['id']))
+
+    def test_delete_pending_conversation_is_rejected_without_removing_rows(self):
+        chat = self.chat()
+        reservation = self.reserve(chat)
+        self.assertTrue(callable(getattr(self.store, 'delete_conversation', None)))
+        self.assert_code('CONVERSATION_BUSY', lambda: self.store.delete_conversation('a', chat['id']))
+        self.assertEqual(self.store.list_turns('a', chat['id'])['turns'][0]['state'], 'pending')
+        self.finish(reservation)
+        self.store.delete_conversation('a', chat['id'])
+        self.assert_code('CONVERSATION_NOT_FOUND', lambda: self.reserve(chat, 'new-request'))
+
 
 if __name__ == '__main__':
     unittest.main()

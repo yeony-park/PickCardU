@@ -62,7 +62,7 @@ def register_chat_routes(app, settings, store, provider, generate_answer):
     errors = {status: {'model': ErrorResponse} for status in (401, 403, 404, 409, 422, 503)}
 
     def require_owner(request):
-        if request.method == 'POST':
+        if request.method in ('POST', 'DELETE'):
             origin = request.headers.get('origin')
             own_origin = str(request.base_url).rstrip('/')
             if origin not in (*settings.allowed_origins, own_origin):
@@ -90,6 +90,11 @@ def register_chat_routes(app, settings, store, provider, generate_answer):
         result = store.create_conversation(require_owner(request), str(payload.client_conversation_id))
         response.status_code = 201 if result['_created'] else 200
         return result
+
+    @app.delete('/v1/conversations/{conversation_id}', status_code=204, responses=errors)
+    def delete_conversation(conversation_id: UUID, request: Request):
+        store.delete_conversation(require_owner(request), str(conversation_id))
+        return Response(status_code=204)
 
     @app.get('/v1/conversations/{conversation_id}/messages', response_model=MessagesPage, responses=errors)
     def messages(conversation_id: UUID, request: Request, limit: int = Query(50, ge=1, le=100),

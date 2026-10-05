@@ -12,3 +12,7 @@ export async function GET(request: Request, context: Context) {
 export async function POST(request: Request, context: Context) {
   return proxyChatRequest(request, (await context.params).path);
 }
+
+export async function DELETE(request: Request, context: Context) {
+  return proxyChatRequest(request, (await context.params).path);
+}

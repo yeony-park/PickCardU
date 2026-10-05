@@ -105,6 +105,42 @@ class ChatApiTest(unittest.TestCase):
         conflict = self.send(cid, {**payload, 'top_k': 5})
         self.assertEqual(conflict.status_code, 409)
 
+    def test_delete_requires_owner_and_origin_and_removes_only_one_chat(self):
+        self.session()
+        cid, kept = self.conversation().json()['id'], self.conversation().json()['id']
+        self.send(cid)
+        self.send(kept)
+        path = f'/v1/conversations/{cid}'
+        foreign = TestClient(self.app)
+        self.addCleanup(foreign.close)
+        self.session(foreign)
+        self.assertEqual(foreign.delete(path, headers=self.headers).status_code, 404)
+        self.assertEqual(self.client.delete(path, headers={'Origin': 'http://evil.example'}).status_code, 403)
+        anonymous = TestClient(self.app)
+        self.addCleanup(anonymous.close)
+        self.assertEqual(anonymous.delete(path, headers=self.headers).status_code, 401)
+        self.assertEqual(self.client.get(f'{path}/messages').status_code, 200)
+        result = self.client.delete(path, headers=self.headers)
+        self.assertEqual(result.status_code, 204, result.text)
+        self.assertEqual(result.content, b'')
+        self.assertEqual(result.headers['cache-control'], 'no-store')
+        self.assertEqual(self.client.get(f'{path}/messages').status_code, 404)
+        self.assertEqual([c['id'] for c in self.client.get('/v1/conversations').json()['conversations']], [kept])
+        self.assertEqual(self.client.delete(path, headers=self.headers).status_code, 404)
+        self.assertEqual(len(self.provider.answer_inputs), 2)
+
+    def test_delete_pending_returns_conflict_without_provider_call(self):
+        import hashlib
+        self.session()
+        cid = self.conversation().json()['id']
+        owner = hashlib.sha256(self.client.cookies.get('pickcardu_browser').encode()).hexdigest()
+        self.store.reserve_turn(owner, cid, str(uuid.uuid4()), {'query': '처리 중', 'top_k': 3, 'profile': None})
+        result = self.client.delete(f'/v1/conversations/{cid}', headers=self.headers)
+        self.assertEqual(result.status_code, 409, result.text)
+        self.assertEqual(result.json()['code'], 'CONVERSATION_BUSY')
+        self.assertTrue(self.client.get(f'/v1/conversations/{cid}/messages').json()['has_pending'])
+        self.assertEqual(self.provider.answer_inputs, [])
+
     def test_followup_rewrites_once_uses_fresh_evidence_and_isolates_other_chat(self):
         self.session()
         cid = self.conversation().json()['id']

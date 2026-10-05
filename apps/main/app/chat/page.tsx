@@ -91,6 +91,16 @@ export default function ChatPage() {
     requestAnimationFrame(() => historyButton.current?.focus());
   }
 
+  async function deleteChat(id: string) {
+    if (!window.confirm('이 대화와 메시지를 삭제할까요? 삭제한 내용은 복원할 수 없습니다.')) return;
+    if (await chat.removeConversation(id)) {
+      viewGeneration.current += 1;
+      setQuestion('');
+      setHistoryOpen(false);
+      requestAnimationFrame(() => composer.current?.focus());
+    }
+  }
+
   const history = (
     <ConversationList
       conversations={chat.conversations}
@@ -98,6 +108,9 @@ export default function ChatPage() {
       onLoadMore={() => void chat.loadMoreConversations()}
       onNewChat={newChat}
       onSelect={selectConversation}
+      onDelete={(id) => void deleteChat(id)}
+      deletingId={chat.deletingId}
+      blockedDeleteId={chat.busy ? chat.selectedId : null}
       selectedId={chat.selectedId}
     />
   );

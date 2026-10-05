@@ -29,16 +29,18 @@ export async function proxyChatRequest(
 ): Promise<Response> {
   const session = path.length === 1 && path[0] === 'browser-session';
   const conversations = path.length === 1 && path[0] === 'conversations';
+  const conversation = path.length === 2 && path[0] === 'conversations' && UUID.test(path[1]);
   const messages = path.length === 3 && path[0] === 'conversations' && UUID.test(path[1]) && path[2] === 'messages';
-  if (!session && !conversations && !messages) return error(404, 'NOT_FOUND', '허용되지 않은 API 경로입니다.');
-  if (!['GET', 'POST'].includes(request.method) || (session && request.method !== 'POST')) {
+  if (!session && !conversations && !conversation && !messages) return error(404, 'NOT_FOUND', '허용되지 않은 API 경로입니다.');
+  const allowedMethods = conversation ? ['DELETE'] : session ? ['POST'] : ['GET', 'POST'];
+  if (!allowedMethods.includes(request.method)) {
     return error(405, 'METHOD_NOT_ALLOWED', '허용되지 않은 요청 메서드입니다.');
   }
   const incoming = new URL(request.url);
   // Next may normalize Request.url to localhost despite an actual 127.0.0.1 Host.
   // Use the HTTP Host, not untrusted X-Forwarded-Host, and still require exact Origin.
   const incomingOrigin = `${incoming.protocol}//${request.headers.get('host') ?? incoming.host}`;
-  if (request.method === 'POST' && request.headers.get('origin') !== incomingOrigin) {
+  if (['POST', 'DELETE'].includes(request.method) && request.headers.get('origin') !== incomingOrigin) {
     return error(403, 'ORIGIN_NOT_ALLOWED', '허용되지 않은 요청 출처입니다.');
   }
   let body: string | undefined;
@@ -64,7 +66,7 @@ export async function proxyChatRequest(
       if (!allowedQuery.includes(key) || request.method !== 'GET') return error(422, 'INVALID_REQUEST', '허용되지 않은 조회 조건입니다.');
       upstreamUrl.searchParams.append(key, value);
     }
-    if (request.method === 'POST') headers.set('Origin', base.origin);
+    if (['POST', 'DELETE'].includes(request.method)) headers.set('Origin', base.origin);
     const upstream = await (options.fetchImpl ?? fetch)(upstreamUrl.toString(), {
       method: request.method, headers, body, cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(540_000),
     });
@@ -73,7 +75,7 @@ export async function proxyChatRequest(
     if (issuedCookie?.startsWith('pickcardu_browser=')) responseHeaders.set('Set-Cookie', issuedCookie);
     const requestId = upstream.headers.get('x-request-id');
     if (requestId) responseHeaders.set('x-request-id', requestId);
-    return new Response(await upstream.text(), { status: upstream.status, headers: responseHeaders });
+    return new Response(upstream.status === 204 ? null : await upstream.text(), { status: upstream.status, headers: responseHeaders });
   } catch (cause) {
     const timeout = cause instanceof Error && ['TimeoutError', 'AbortError'].includes(cause.name);
     return timeout
