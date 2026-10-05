@@ -900,9 +900,86 @@ a { color: inherit; text-decoration: none; }
   .product-meta span + span::before { display: none; }
 }
 
+.mypage-content { padding-top: 40px; }
+.mypage-intro { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.mypage-intro .cards-intro > p:last-child { margin-top: 14px; padding-left: 16px; line-height: 1.7; }
+.mypage-add-button {
+  display: inline-flex;
+  padding: 13px 22px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ink);
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 680;
+  white-space: nowrap;
+  transition: background 160ms ease, transform 160ms ease;
+}
+.mypage-add-button > span { font-size: 20px; font-weight: 400; }
+.mypage-add-button:hover { background: #3449bd; transform: translateY(-2px); }
+.mypage-list-heading { display: flex; margin-top: 42px; padding-bottom: 18px; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid #e2e4e8; }
+.mypage-list-heading h2 { display: flex; margin: 0; align-items: center; gap: 9px; font-size: 17px; font-weight: 650; letter-spacing: -0.035em; }
+.mypage-list-heading h2 span { padding: 4px 9px; border-radius: 999px; background: #e9edff; color: #5168e9; font-size: 11px; }
+.mypage-list-heading p { margin: 0; color: var(--muted); font-size: 12px; }
+.mypage-feedback { display: flex; min-height: 28px; padding-top: 9px; align-items: center; gap: 12px; color: #596170; font-size: 12px; }
+.mypage-feedback button { padding: 0; cursor: pointer; border: 0; background: transparent; color: #4358d6; font: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.mypage-error { color: #b63346; font-size: 12px; line-height: 1.6; }
+.mypage-card-list { margin-top: 10px; }
+.mypage-card-list .product-visual-wrap { min-height: 228px; }
+.mypage-remove-button { display: flex; width: 100%; margin-top: auto; padding: 12px 4px 2px; cursor: pointer; align-items: center; justify-content: space-between; border: 0; border-top: 1px solid var(--line); background: transparent; color: #767a80; font: inherit; font-size: 12px; }
+.mypage-remove-button:hover { color: #b63346; }
+.mypage-remove-button span { font-size: 19px; }
+.mypage-empty { display: flex; padding: 32px 24px 50px; align-items: center; flex-direction: column; text-align: center; }
+.mypage-empty-art { position: relative; width: 180px; height: 175px; margin-bottom: 22px; }
+.mypage-empty-art > span { position: absolute; top: 12px; left: 19px; display: flex; width: 100px; height: 150px; padding: 16px; border: 1px solid rgb(17 19 21 / 7%); border-radius: 16px; box-shadow: 0 16px 25px rgb(29 35 48 / 8%); flex-direction: column; justify-content: space-between; transform: rotate(-15deg); }
+.mypage-empty-art > span + span { top: 6px; left: 60px; transform: rotate(12deg); }
+.mypage-empty-art i { width: 24px; height: 18px; border: 1px solid rgb(17 19 21 / 20%); border-radius: 5px; background: rgb(255 255 255 / 35%); }
+.mypage-empty-art strong { font-size: 22px; line-height: 0.95; letter-spacing: -0.06em; }
+.mypage-empty h3 { margin: 0; font-size: 22px; font-weight: 620; letter-spacing: -0.05em; }
+.mypage-empty .mypage-add-button { margin-top: 24px; }
+.mypage-dialog { width: min(560px, calc(100% - 32px)); max-height: calc(100dvh - 48px); padding: 28px; overflow-y: auto; border: 1px solid var(--line); border-radius: 24px; background: #fff; color: var(--ink); box-shadow: 0 28px 100px rgb(17 19 21 / 18%); }
+.mypage-dialog::backdrop { background: rgb(17 19 21 / 36%); backdrop-filter: blur(5px); }
+.mypage-dialog-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.mypage-dialog-heading .eyebrow { margin-bottom: 10px; font-size: 9px; }
+.mypage-dialog-heading h2 { margin: 0; font-size: 24px; font-weight: 620; letter-spacing: -0.05em; }
+.mypage-dialog-close { display: grid; width: 30px; height: 30px; padding: 0; cursor: pointer; place-items: center; flex-shrink: 0; border: 0; border-radius: 50%; background: #f3f4f6; color: #62666e; font-size: 24px; }
+.mypage-dialog-description { margin: 14px 0 20px; color: var(--muted); font-size: 12px; line-height: 1.7; }
 .mypage-search { width: 100%; padding: 13px 15px; border: 1px solid #e4e5e8; border-radius: 12px; background: #fafbfc; color: var(--ink); font: inherit; font-size: 13px; }
 .mypage-search:focus { outline: 2px solid #b8c2ff; outline-offset: 2px; }
+.mypage-registration-list { margin-top: 12px; }
+.mypage-registration-item { display: flex; padding: 12px 0; align-items: center; gap: 14px; }
+.mypage-registration-item + .mypage-registration-item { border-top: 1px solid var(--line); }
+.mypage-mini-card { display: grid; width: 52px; height: 56px; flex-shrink: 0; place-items: center; }
+.mypage-mini-card img { width: 52px; height: 56px; object-fit: contain; }
+.mypage-registration-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 5px; }
+.mypage-registration-copy span { color: var(--muted); font-size: 10px; }
+.mypage-registration-copy strong { font-size: 13px; font-weight: 650; overflow-wrap: anywhere; }
+.mypage-registration-item button { padding: 8px 12px; cursor: pointer; flex-shrink: 0; border: 0; border-radius: 999px; background: var(--ink); color: #fff; font: inherit; font-size: 11px; }
+.mypage-registration-item button:disabled { cursor: default; background: #efffd5; color: #49651b; }
 .mypage-search-empty { padding: 32px 0; color: var(--muted); font-size: 13px; line-height: 1.8; text-align: center; }
+.mypage-dialog-feedback { min-height: 20px; margin-top: 12px; color: #5168e9; font-size: 11px; }
+.mypage-page button:focus-visible, .mypage-page a:focus-visible { outline: 2px solid #6378f5; outline-offset: 4px; }
+
+@media (max-width: 760px) {
+  .mypage-content { padding-top: 32px; }
+  .mypage-intro { align-items: flex-start; flex-direction: column; gap: 20px; }
+  .mypage-list-heading { margin-top: 32px; align-items: flex-start; flex-direction: column; }
+  .mypage-card-list .product-visual-wrap { min-height: 270px; }
+  .mypage-dialog { padding: 20px; }
+  .mypage-dialog-heading h2 { font-size: 21px; }
+}
+
+@media (max-width: 430px) {
+  .site-header { padding-right: 14px; padding-left: 14px; }
+  .site-header nav { gap: 10px; }
+  .mypage-registration-item { gap: 10px; }
+  .mypage-registration-item button { padding: 8px 10px; }
+}
 
 /* Actual card catalog */
 .product-real-image { position: relative; z-index: 1; width: min(80%, 260px); height: 160px; object-fit: contain; filter: drop-shadow(0 8px 10px rgb(17 19 21 / 10%)); transition: transform 200ms ease; }
