@@ -20,7 +20,7 @@ button, textarea { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
 a { color: inherit; text-decoration: none; }
 ::selection { background: #dce3ff; }
-.page-shell { min-height: 100svh; overflow: hidden; background: #fff; }
+.page-shell { min-height: 100svh; overflow: hidden; background: var(--paper); }
 .sr-only {
   position: absolute;
   width: 1px;
@@ -215,7 +215,7 @@ a { color: inherit; text-decoration: none; }
   display: flex;
   padding: 24px 18px;
   border-right: 1px solid var(--line);
-  background: #fafbfc;
+  background: var(--paper);
   flex-direction: column;
 }
 .history-heading {
@@ -413,7 +413,7 @@ a { color: inherit; text-decoration: none; }
 }
 .suggestion-grid button b { position: absolute; right: 14px; bottom: 12px; color: #9a9ea4; font-size: 13px; }
 
-.cards-page { background: #f6f7f8; }
+.cards-page { background: var(--paper); }
 .cards-content {
   width: min(100% - 48px, 1280px);
   margin: 0 auto;
