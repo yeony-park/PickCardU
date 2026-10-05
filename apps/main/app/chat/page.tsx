@@ -145,8 +145,8 @@ export default function ChatPage() {
               />
               {chat.error ? <p className="chat-status-error" role="alert">{chat.error}</p> : null}
               <ChatComposer
-                disabled={!chat.ready || chat.loading}
-                sendDisabled={chat.busy}
+                disabled={false}
+                sendDisabled={!chat.ready || chat.loading || chat.busy}
                 inputRef={composer}
                 onChange={setQuestion}
                 onSubmit={() => void send()}
@@ -161,8 +161,8 @@ export default function ChatPage() {
                 소비 습관이나 원하는 혜택을 편하게 알려주세요. 근거가 분명한 카드만 골라드릴게요.
               </p>
               <ChatComposer
-                disabled={!chat.ready || chat.loading}
-                sendDisabled={chat.busy}
+                disabled={false}
+                sendDisabled={!chat.ready || chat.loading || chat.busy}
                 inputRef={composer}
                 onChange={setQuestion}
                 onSubmit={() => void send()}
