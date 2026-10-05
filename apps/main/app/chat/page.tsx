@@ -101,12 +101,12 @@ export default function ChatPage() {
           </div>
         </aside>
         <section className="chat-hero" aria-labelledby="chat-title">
-          <div className="assistant-orb" aria-hidden="true"><span /></div>
+          <div className="assistant-logo brand-mark" aria-hidden="true"><i /><i /></div>
           <h1 id="chat-title">
             What matters most<br /><span>when you use a card?</span>
           </h1>
           <p className="chat-description">
-            소비 습관이나 원하는 혜택을 편하게 알려주세요. 근거가 분명한 카드만 골라드릴게요.
+            소비 습관이나 원하는 혜택을 편하게 알려주세요.
           </p>
           <form className="chat-composer" onSubmit={submit}>
             <label className="sr-only" htmlFor="card-question">PickCardU에 질문하기</label>
@@ -127,6 +127,43 @@ export default function ChatPage() {
               >↑</button>
             </div>
           </form>
+          {!submitted && (
+            <details className="chat-survey">
+              <summary>
+                <div><strong>PickCardU가 처음인가요?</strong><span>소비 패턴 알려주기</span></div>
+                <span className="survey-toggle" aria-hidden="true">+</span>
+              </summary>
+              <div className="survey-fields">
+                <div className="survey-spending">
+                  <label htmlFor="survey-monthly-spending">월 평균 카드 사용 금액</label>
+                  <select id="survey-monthly-spending" name="monthly-spending" defaultValue="">
+                    <option value="" disabled>선택해 주세요</option>
+                    <option value="under-30">30만원 미만</option>
+                    <option value="30-50">30만원 이상 ~ 50만원 미만</option>
+                    <option value="50-100">50만원 이상 ~ 100만원 미만</option>
+                    <option value="100-200">100만원 이상 ~ 200만원 미만</option>
+                    <option value="over-200">200만원 이상</option>
+                  </select>
+                </div>
+                <fieldset>
+                  <legend>자주 쓰는 소비 영역 <span>여러 개 선택 가능</span></legend>
+                  <div className="survey-options">
+                    {['쇼핑', '배달·외식', '카페', '교통', '주유', '여행'].map((category) => (
+                      <label key={category}><input type="checkbox" name="spending-category" value={category} /><span>{category}</span></label>
+                    ))}
+                  </div>
+                </fieldset>
+                <fieldset>
+                  <legend>원하는 혜택 <span>여러 개 선택 가능</span></legend>
+                  <div className="survey-options">
+                    {['할인', '포인트 적립', '항공 마일리지'].map((benefit) => (
+                      <label key={benefit}><input type="checkbox" name="preferred-benefit" value={benefit} /><span>{benefit}</span></label>
+                    ))}
+                  </div>
+                </fieldset>
+              </div>
+            </details>
+          )}
           {submitted ? (
             <p className="submit-preview"><span>내 질문</span>{submitted}</p>
           ) : null}
