@@ -214,7 +214,7 @@ curl -sS http://127.0.0.1:8000/v1/answer \
 | 필드 | 타입 | 설명 |
 |---|---|---|
 | `answer_status` | string | `answered` 또는 `insufficient_evidence`다. |
-| `answer` | string | 근거 기반 한국어 답변이다. 최대 400자다. |
+| `answer` | string | 근거 기반 한국어 답변이다. 답변 생성 상한은 1,200자다. |
 | `recommendations` | array | 최대 5개 추천과 근거 citation을 담는다. |
 | `claims` | array | 최대 5개 원자 주장과 조건·수치·근거 citation을 담는다. |
 | `cards` | array | 답변에 사용된 검색 카드 목록이다. |
@@ -222,7 +222,7 @@ curl -sS http://127.0.0.1:8000/v1/answer \
 | `usage.embedding` | object | 질문 embedding 사용량과 지연 정보다. |
 | `usage.answer` | object | 답변 모델, 시도 횟수, 입력 크기, 사용량과 지연 정보다. |
 
-추천과 claim에는 `card_key`와 1~2개의 `citations`가 필요하다. claim은 선택적으로 `value`, `unit`, 최대 2개의 `conditions`를 포함한다. 서버는 citation이 실제 검색 근거이며 동일 카드에 속하는지 검사한다.
+추천과 claim에는 `card_key`와 1~2개의 `citations`가 필요하다. 카드별 추천 이유 `reason`은 최대 400자, claim의 `text`는 최대 120자다. claim은 선택적으로 `value`, `unit`, 최대 2개의 `conditions`를 포함한다. 서버는 citation이 실제 검색 근거이며 동일 카드에 속하는지 검사한다. 글자 수는 상한이지 답변 길이의 목표가 아니며, 실제 설명은 질문과 확인된 근거에 따라 달라진다.
 
 `answered` 응답 예시:
 

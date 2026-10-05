@@ -531,7 +531,7 @@ components:
           title: Citations
           type: array
         reason:
-          maxLength: 100
+          maxLength: 400
           minLength: 1
           title: Reason
           type: string
