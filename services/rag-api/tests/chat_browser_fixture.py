@@ -7,6 +7,7 @@ from pathlib import Path
 
 import uvicorn
 from pickcardu_rag.errors import LlmUnavailable
+from pickcardu_rag.answering import RewriteOutput
 from pickcardu_rag_api.chat_store import ChatStore
 from pickcardu_rag_api.main import create_app
 from support import FakeProvider, FakeReranker, build_release, settings
@@ -17,16 +18,16 @@ class BrowserProvider(FakeProvider):
         super().__init__()
         self.failed_queries = set()
 
-    def rewrite(self, context):
-        return context[-1]['content'], {'model': 'fixture', 'usage': {'total_tokens': 0}}
+    def rewrite(self, context, *, references=None):
+        return RewriteOutput(standalone_query=context[-1]['content']), {'model': 'fixture', 'usage': {'total_tokens': 0}}
 
-    def answer(self, query, evidence):
+    def answer(self, query, evidence, *, comparison=False):
         if '대기' in query:
             time.sleep(3)
         if '실패' in query and query not in self.failed_queries:
             self.failed_queries.add(query)
             raise LlmUnavailable('테스트용 실패')
-        return super().answer(query, evidence)
+        return super().answer(query, evidence, comparison=comparison)
 
 
 def main():

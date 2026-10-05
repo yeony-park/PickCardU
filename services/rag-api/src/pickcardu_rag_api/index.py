@@ -15,7 +15,7 @@ from urllib.parse import quote
 
 import numpy as np
 from pickcardu_rag import CHUNKING_PROFILES, Candidate, Chunk, RagPipeline, SearchConfig
-from pickcardu_rag.retrieval import LEXICAL_CONTRACT, lexical_terms
+from pickcardu_rag.retrieval import LEXICAL_CONTRACT, InMemorySquaredL2Searcher, lexical_terms
 
 
 CHUNKING_CONTRACTS = {
@@ -94,7 +94,7 @@ class SQLiteFTSSearcher:
     def __init__(self, path: Path) -> None:
         self.path = path
 
-    def search(self, query: str, *, limit: int) -> list[Candidate]:
+    def search(self, query: str, *, limit: int, card_keys: tuple[str, ...] | None = None) -> list[Candidate]:
         tokens = list(dict.fromkeys(lexical_terms(query)))
         if not tokens:
             return []
@@ -102,9 +102,12 @@ class SQLiteFTSSearcher:
         uri = f"file:{quote(str(self.path))}?mode=ro&immutable=1"
         connection = sqlite3.connect(uri, uri=True)
         try:
+            scope = "" if card_keys is None else (
+                " AND chunk_id IN (SELECT chunk_id FROM chunks WHERE document_id IN ("
+                + ",".join("?" for _ in card_keys) + "))")
             rows = connection.execute(
-                "SELECT chunk_id,bm25(chunks_fts) score FROM chunks_fts WHERE chunks_fts MATCH ? ORDER BY score,chunk_id LIMIT ?",
-                (expression, limit),
+                "SELECT chunk_id,bm25(chunks_fts) score FROM chunks_fts WHERE chunks_fts MATCH ?"
+                + scope + " ORDER BY score,chunk_id LIMIT ?", (expression, *(card_keys or ()), limit),
             ).fetchall()
         finally:
             connection.close()
@@ -112,11 +115,17 @@ class SQLiteFTSSearcher:
 
 
 class ChromaVectorSearcher:
-    def __init__(self, collection: Any, embedding_model: str) -> None:
+    def __init__(self, collection: Any, embedding_model: str, *, chunks: list[Chunk], embeddings: np.ndarray) -> None:
         self.collection = collection
         self.embedding_model = embedding_model
+        # Reuse the release-validated matrix; do not trust mutable Chroma metadata.
+        # ponytail: scoped L2 retains one matrix; use validated native filtering if releases outgrow RAM.
+        self.scoped = InMemorySquaredL2Searcher([c.chunk_id for c in chunks], embeddings,
+                                               card_keys=[c.card_key for c in chunks], embedding_model=embedding_model)
 
-    def search(self, query_embedding: np.ndarray, *, limit: int) -> list[Candidate]:
+    def search(self, query_embedding: np.ndarray, *, limit: int, card_keys: tuple[str, ...] | None = None) -> list[Candidate]:
+        if card_keys is not None:
+            return self.scoped.search(query_embedding, limit=limit, card_keys=card_keys)
         output = self.collection.query(query_embeddings=[np.asarray(query_embedding, dtype=np.float32).tolist()], n_results=limit, include=["distances"])
         ids, distances = output["ids"][0], output["distances"][0]
         if len(ids) != len(distances) or not np.isfinite(np.asarray(distances, dtype=np.float64)).all():
@@ -340,7 +349,7 @@ class ActiveIndexLoader:
         pipeline = RagPipeline(
             chunks,
             SQLiteFTSSearcher(corpus_path),
-            ChromaVectorSearcher(collection, manifest["embedding_model"]),
+            ChromaVectorSearcher(collection, manifest["embedding_model"], chunks=chunks, embeddings=stored_embeddings),
             self.reranker,
             profile=CHUNKING_PROFILES[manifest["strategy"]],
         )

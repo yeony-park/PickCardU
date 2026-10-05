@@ -19,6 +19,8 @@ from support import FakeProvider, FakeReranker, build_release, settings  # noqa:
 
 class EmptyHandle:
     release_id = "empty"
+    chunks = ()
+    catalog = ()
     manifest = {
         "strategy": "card_page_section_benefit",
         "document_ids": [],
@@ -169,6 +171,16 @@ class ApiTest(unittest.TestCase):
         self.provider.embedding_model = "different-embedding-model"
         response = self.client.post("/v1/search", json={"query": "카페"})
         self.assertEqual(response.status_code, 409)
+        self.assertEqual(self.provider.embedding_queries, [])
+
+    def test_removed_scope_card_abstains_before_embedding_instead_of_comparing_remaining_cards(self):
+        from pickcardu_rag_api.main import QueryRequest, _search
+        loader = ActiveIndexLoader(self.root / 'runtime', reranker=self.reranker)
+        _, result, usage = _search(QueryRequest(query='이전 카드 비교'), loader, self.provider,
+                                   target_card_keys=('issuer/card-a', 'removed/card'))
+        self.assertEqual(result['evidence'], [])
+        self.assertEqual(result['trace']['unavailable_card_keys'], ['removed/card'])
+        self.assertFalse(usage['provider_called'])
         self.assertEqual(self.provider.embedding_queries, [])
 
 

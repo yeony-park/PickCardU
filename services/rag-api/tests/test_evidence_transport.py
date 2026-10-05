@@ -35,7 +35,7 @@ class EndpointEvidenceTest(unittest.TestCase):
 
                 handle = types.SimpleNamespace(release_id="fixture", manifest={
                     "strategy": "card_page_section_benefit", "embedding_model": "text-embedding-3-small",
-                }, search=search)
+                }, search=search, chunks=(chunk, leaf), catalog=())
                 provider = FakeProvider()
                 app = create_app(settings(Path(directory)), provider=provider,
                                  index_loader=types.SimpleNamespace(load=lambda: handle), reranker=FakeReranker())

@@ -101,13 +101,13 @@ class Candidate:
 
 
 class LexicalSearcher(Protocol):
-    def search(self, query: str, *, limit: int) -> list[Candidate]: ...
+    def search(self, query: str, *, limit: int, card_keys: tuple[str, ...] | None = None) -> list[Candidate]: ...
 
 
 class VectorSearcher(Protocol):
     embedding_model: str | None
 
-    def search(self, query_embedding: np.ndarray, *, limit: int) -> list[Candidate]: ...
+    def search(self, query_embedding: np.ndarray, *, limit: int, card_keys: tuple[str, ...] | None = None) -> list[Candidate]: ...
 
 
 class Reranker(Protocol):
@@ -143,6 +143,7 @@ class SearchConfig:
     top_k: int = 3
     reranker: Literal["off", "bge", "gte"] = "bge"
     reranker_route: Literal["selective", "all"] = "selective"
+    target_card_keys: tuple[str, ...] | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.profile, str) or not self.profile.strip() or not 0.0 <= self.vector_weight <= 1.0:
@@ -153,6 +154,12 @@ class SearchConfig:
             raise ValueError("unsupported reranker route")
         if min(self.component_depth, self.candidate_depth, self.top_k) < 1:
             raise ValueError("search depths and top_k must be positive")
+        if self.target_card_keys is not None and (
+            not isinstance(self.target_card_keys, tuple) or not 1 <= len(self.target_card_keys) <= 5
+            or any(not isinstance(key, str) or not key.strip() for key in self.target_card_keys)
+            or len(set(self.target_card_keys)) != len(self.target_card_keys)
+        ):
+            raise ValueError("target card keys must be 1-5 unique non-empty IDs")
 
 
 def normalize_text(text: str) -> str:
@@ -253,13 +260,15 @@ class InMemoryBM25Searcher:
         self.chunk_ids = tuple(chunk.chunk_id for chunk in chunks)
         self.index = BM25(chunk.text for chunk in chunks)
 
-    def search(self, query: str, *, limit: int) -> list[Candidate]:
+    def search(self, query: str, *, limit: int, card_keys: tuple[str, ...] | None = None) -> list[Candidate]:
         scores = self.index.scores(normalized_tokens(query))
-        return rank_scores(scores, self.chunk_ids, descending=True, limit=limit)
+        indices = [i for i, chunk in enumerate(self.chunks) if card_keys is None or chunk.card_key in card_keys]
+        return rank_scores([scores[i] for i in indices], [self.chunk_ids[i] for i in indices], descending=True, limit=limit)
 
 
 class InMemorySquaredL2Searcher:
-    def __init__(self, chunk_ids: Sequence[str], embeddings: np.ndarray, *, embedding_model: str | None = None) -> None:
+    def __init__(self, chunk_ids: Sequence[str], embeddings: np.ndarray, *, embedding_model: str | None = None,
+                 card_keys: Sequence[str] | None = None) -> None:
         self.chunk_ids = tuple(chunk_ids)
         self.embeddings = np.asarray(embeddings, dtype=np.float32)
         if self.embeddings.ndim != 2 or self.embeddings.shape[0] != len(self.chunk_ids):
@@ -267,8 +276,18 @@ class InMemorySquaredL2Searcher:
         if not np.isfinite(self.embeddings).all():
             raise ValueError("embeddings must be finite")
         self.embedding_model = embedding_model
+        self.card_keys = None if card_keys is None else tuple(card_keys)
+        if self.card_keys is not None and len(self.card_keys) != len(self.chunk_ids):
+            raise ValueError("card keys must match embedding rows")
 
-    def search(self, query_embedding: np.ndarray, *, limit: int) -> list[Candidate]:
+    def search(self, query_embedding: np.ndarray, *, limit: int, card_keys: tuple[str, ...] | None = None) -> list[Candidate]:
+        if card_keys is not None:
+            if self.card_keys is None:
+                raise ValueError("scoped vector search requires validated card identities")
+            indices = [i for i, key in enumerate(self.card_keys) if key in card_keys]
+            if not indices:
+                return []
+            return squared_l2_rank(query_embedding, self.embeddings[indices], [self.chunk_ids[i] for i in indices], limit)
         return squared_l2_rank(query_embedding, self.embeddings, self.chunk_ids, limit)
 
 def weighted_rrf(
@@ -319,6 +338,7 @@ def collapse_cards(
     standalone_query: str = "",
     max_evidence_per_card: int = 5,
     max_payload_size: int = ANSWER_PAYLOAD_UNIT_LIMIT,
+    skip_oversized: bool = False,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, Any]]:
     cards: list[dict[str, Any]] = []
     evidence: list[dict[str, Any]] = []
@@ -352,13 +372,15 @@ def collapse_cards(
             "score": row.score,
         }
         if measure_answer_payload(standalone_query, [*evidence, candidate])[0] > max_payload_size:
-            if not evidence:
+            if not evidence and not skip_oversized:
                 raise EvidencePackageTooLarge(
                     "top-ranked evidence exceeds the answer payload budget",
                     extra={"chunk_id": chunk.chunk_id, "payload_unit_limit": max_payload_size},
                 )
             dropped_chunk_ids.append(chunk.chunk_id)
             budget_truncated = True
+            if skip_oversized:
+                continue
             break
         if card is None:
             card = {
@@ -391,6 +413,13 @@ def _candidate_dict(row: Candidate) -> dict[str, Any]:
     if row.prior_rank is not None:
         result["prior_rank"] = row.prior_rank
     return result
+
+
+def _card_balanced(rows: Sequence[Candidate], chunks: Mapping[str, Chunk], keys: tuple[str, ...]) -> list[Candidate]:
+    """Preserve each card's ranking while allocating candidate/evidence slots fairly."""
+    groups = [[row for row in rows if chunks[row.chunk_id].card_key == key] for key in keys]
+    ordered = [group[i] for i in range(max(map(len, groups), default=0)) for group in groups if i < len(group)]
+    return [replace(row, rank=i) for i, row in enumerate(ordered, 1)]
 
 
 def parent_child_bundles(
@@ -496,20 +525,31 @@ class RagPipeline:
             raise ValueError("search profile does not match the registered chunking contract")
         started = time.perf_counter()
         query_type = classify_query(query)
-        lexical = self.lexical_searcher.search(query, limit=config.component_depth)
+        keys = config.target_card_keys
+        lexical = (self.lexical_searcher.search(query, limit=config.component_depth) if keys is None else
+                   [row for key in keys for row in self.lexical_searcher.search(query, limit=config.component_depth, card_keys=(key,))])
         vector: list[Candidate] = []
         if config.vector_weight:
             if query_embedding is None or self.vector_searcher is None:
                 raise ValueError("vector searcher and query embedding are required")
-            vector = self.vector_searcher.search(query_embedding, limit=config.component_depth)
+            vector = (self.vector_searcher.search(query_embedding, limit=config.component_depth) if keys is None else
+                      [row for key in keys for row in self.vector_searcher.search(query_embedding, limit=config.component_depth, card_keys=(key,))])
+        if keys is not None and any(self.chunks[row.chunk_id].card_key not in keys for row in [*lexical, *vector]):
+            raise ValueError("search adapter returned a card outside the trusted scope")
         components: dict[str, Sequence[Candidate]] = {"bm25": lexical}
         weights = {"bm25": 1.0 - config.vector_weight}
         if vector:
             components["vector"] = vector
             weights["vector"] = config.vector_weight
-        fused = weighted_rrf(components, weights)[:FUSED_WORKLIST_DEPTH]
+        fused = weighted_rrf(components, weights)
+        if keys is not None:
+            # Scoped comparisons must not lose a card's usable evidence to
+            # page/header rows occupying the bounded fused worklist.
+            fused = [row for row in fused if self.chunks[row.chunk_id].level in self.profile.eligible_levels]
+            fused = _card_balanced(fused, self.chunks, keys)
+        fused = fused[:FUSED_WORKLIST_DEPTH]
         leaf = [row for row in fused if self.chunks[row.chunk_id].level in self.profile.eligible_levels][
-            : config.candidate_depth
+            : max(config.candidate_depth, len(keys or ()))
         ]
         reranker_trace = None
         bundle_trace: list[dict[str, Any]] = []
@@ -574,8 +614,11 @@ class RagPipeline:
                 reranked = [Candidate(**{**row.__dict__, "rank": rank}) for rank, row in enumerate(reranked, 1)]
             # Preserve the actual ranked section/benefit; do not substitute children.
             hydrated = reranked
+        if keys is not None:
+            hydrated = _card_balanced(hydrated, answer_chunks, keys)
         cards, evidence, budget = collapse_cards(
-            hydrated, answer_chunks, top_k=config.top_k, standalone_query=query
+            hydrated, answer_chunks, top_k=max(config.top_k, len(keys or ())), standalone_query=query,
+            skip_oversized=keys is not None,
         )
         return {
             "query_type": query_type,
@@ -592,11 +635,14 @@ class RagPipeline:
                 "reranker": reranker_trace,
                 "card": cards,
                 "evidence_budget": budget,
+                "scope": {"target_card_keys": list(keys) if keys is not None else None,
+                          "evidence_counts": {key: sum(e['card_key'] == key for e in evidence) for key in keys or ()},
+                          "missing_card_keys": [key for key in keys or () if not any(e['card_key'] == key for e in evidence)]},
                 "profile": self.profile.identifier,
                 "lexical_contract": LEXICAL_CONTRACT,
                 "query_classifier_contract": QUERY_CLASSIFIER_CONTRACT,
                 "fused_worklist_depth": FUSED_WORKLIST_DEPTH,
-                "evidence_policy": "ranked_whole_chunk_prefix_with_budget_guard",
+                "evidence_policy": "card_balanced_whole_chunks_with_budget_guard" if keys is not None else "ranked_whole_chunk_prefix_with_budget_guard",
                 "latency": {"total_ms": round((time.perf_counter() - started) * 1000, 3)},
             },
         }

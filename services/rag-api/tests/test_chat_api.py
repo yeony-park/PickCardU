@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
-from pickcardu_rag.answering import AnswerOutput
+from pickcardu_rag.answering import AnswerOutput, AtomicClaim, Recommendation, RewriteOutput
 from pickcardu_rag.errors import LlmUnavailable
 from pickcardu_rag_api.chat_store import ChatStore, ChatStoreError
 from pickcardu_rag_api.main import create_app
@@ -19,16 +19,27 @@ class ChatProvider(FakeProvider):
     def __init__(self):
         super().__init__()
         self.rewrites = []
-        self.rewrite_result = 'Card A 연회비는?'
+        self.rewrite_result = RewriteOutput(standalone_query='Card A 연회비는?')
         self.fail_answer = False
+        self.recommend_all = False
+        self.insufficient = False
+        self.references = []
 
-    def rewrite(self, context):
+    def rewrite(self, context, *, references=None):
         self.rewrites.append(context)
+        self.references.append(references)
         return self.rewrite_result, {'model': self.llm_model, 'usage': {'total_tokens': 3}}
 
-    def answer(self, query, evidence):
+    def answer(self, query, evidence, *, comparison=False):
         if self.fail_answer:
             raise LlmUnavailable('secret provider detail')
+        if self.recommend_all or self.insufficient:
+            self.answer_inputs.append((query, evidence))
+            if self.insufficient:
+                return AnswerOutput(answer_status='insufficient_evidence', answer_text='전월실적 조건은 확인하지 못했습니다.'), {'attempt_count': 1}
+            return AnswerOutput(answer_text='두 카드를 안내합니다.',
+                                recommendations=[Recommendation(card_key=e['card_key'], reason=e['text'], citations=[e['chunk_id']]) for e in evidence],
+                                claims=[AtomicClaim(card_key=e['card_key'], text=e['text'], citations=[e['chunk_id']]) for e in evidence]), {'attempt_count': 1}
         return super().answer(query, evidence)
 
 
@@ -157,6 +168,70 @@ class ChatApiTest(unittest.TestCase):
         self.send(other)
         self.assertEqual(len(self.provider.rewrites), 1)
 
+    def test_scoped_followup_keeps_both_targets_then_global_search_is_unrestricted(self):
+        self.session()
+        cid = self.conversation().json()['id']
+        self.provider.recommend_all = True
+        self.assertEqual(self.send(cid).status_code, 200)
+        self.provider.rewrite_result = RewriteOutput(standalone_query='Card B 전월실적은?', scope='previous',
+                                                    selected_refs=['t1r2'])
+        result = self.send(cid, {'query': '두번째 것 조건은?', 'top_k': 1, 'client_request_id': str(uuid.uuid4())})
+        self.assertEqual(result.status_code, 200, result.text)
+        self.assertEqual({e['card_key'] for e in result.json()['messages'][1]['answer']['evidence']}, {'issuer/card-b'})
+        self.assertEqual({e['card_key'] for e in self.provider.answer_inputs[-1][1]}, {'issuer/card-b'})
+        self.provider.rewrite_result = RewriteOutput(standalone_query='주유 혜택 카드 추천')
+        result = self.send(cid)
+        self.assertEqual(result.status_code, 200, result.text)
+        self.assertEqual({e['card_key'] for e in self.provider.answer_inputs[-1][1]}, {'issuer/card-a', 'issuer/card-b'})
+        self.assertIsNone(result.json()['messages'][1]['answer']['usage']['answer']['conversation_scope']['target_card_keys'])
+
+    def test_clarification_is_saved_replayed_without_search_or_answer_calls(self):
+        self.session()
+        cid = self.conversation().json()['id']
+        self.send(cid)
+        self.provider.rewrite_result = RewriteOutput(standalone_query='그 카드?', scope='clarification',
+                                                    clarification_question='어떤 카드를 말씀하시나요?')
+        payload = {'query': '그거 어때?', 'client_request_id': str(uuid.uuid4())}
+        response, replay = self.send(cid, payload), self.send(cid, payload)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json(), replay.json())
+        answer = response.json()['messages'][1]['answer']
+        self.assertEqual(answer['answer'], '어떤 카드를 말씀하시나요?')
+        self.assertEqual(answer['answer_status'], 'insufficient_evidence')
+        self.assertEqual(len(self.provider.embedding_queries), 1)
+        self.assertEqual(len(self.provider.answer_inputs), 1)
+        self.assertEqual(len(self.provider.rewrites), 1)
+
+    def test_insufficient_followups_preserve_targets_and_diagnostics_for_more_than_two_turns(self):
+        self.session()
+        cid = self.conversation().json()['id']
+        self.provider.recommend_all = True
+        self.send(cid)
+        self.provider.insufficient = True
+        self.provider.rewrite_result = RewriteOutput(standalone_query='Card A와 Card B 전월실적?', scope='previous',
+                                                    selected_refs=['t1r1', 't1r2'])
+        for question in ('저 카드 중 실적은?', '저것들 모두 없어?', '두 개가 뭐라고?'):
+            result = self.send(cid, {'query': question, 'top_k': 1, 'client_request_id': str(uuid.uuid4())})
+            self.assertEqual(result.status_code, 200, result.text)
+            answer = result.json()['messages'][1]['answer']
+            self.assertEqual(answer['cards'], [])
+            self.assertEqual(answer['evidence'], [])
+            diagnostic = answer['usage']['answer']['retrieval']
+            self.assertEqual(diagnostic['target_card_keys'], ['issuer/card-a', 'issuer/card-b'])
+            self.assertEqual(diagnostic['evidence_counts'], {'issuer/card-a': 1, 'issuer/card-b': 1})
+        self.assertEqual([r['card_name'] for r in self.provider.references[-1]], ['Card A', 'Card B'])
+
+    def test_invalid_ref_asks_for_target_without_global_fallback(self):
+        self.session()
+        cid = self.conversation().json()['id']
+        self.send(cid)
+        self.provider.rewrite_result = RewriteOutput(standalone_query='없는 카드?', scope='previous', selected_refs=['invented'])
+        response = self.send(cid)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()['messages'][1]['answer']['answer_status'], 'insufficient_evidence')
+        self.assertEqual(len(self.provider.embedding_queries), 1)
+        self.assertEqual(len(self.provider.answer_inputs), 1)
+
     def test_invalid_rewrite_saves_failure_without_embedding_or_fallback(self):
         self.session()
         cid = self.conversation().json()['id']
@@ -201,7 +276,7 @@ class ChatApiTest(unittest.TestCase):
         self.assertEqual(len(self.provider.embedding_queries), 1)
         self.assertTrue(self.client.get(f'/v1/conversations/{cid}/messages').json()['has_pending'])
 
-    def test_insufficient_response_is_saved_restored_and_excluded_from_rewrite(self):
+    def test_insufficient_response_is_saved_restored_and_not_treated_as_confirmed_facts(self):
         self.session()
         cid = self.conversation().json()['id']
         insufficient = AnswerOutput(answer_status='insufficient_evidence', answer_text='근거가 부족합니다.')
@@ -215,4 +290,47 @@ class ChatApiTest(unittest.TestCase):
         self.assertEqual(assistant['answer']['recommendations'], [])
         self.assertEqual(len(self.provider.embedding_queries), 1)
         self.assertEqual(self.send(cid).status_code, 200)
-        self.assertEqual(self.provider.rewrites, [])
+        self.assertEqual(len(self.provider.rewrites), 1)
+        self.assertIn('조건이 없다고 확인한 것이 아닙니다.', self.provider.rewrites[0][1]['content'])
+        self.assertEqual(self.provider.references[0], [])
+
+    def test_partial_comparison_evidence_abstains_without_answer_llm(self):
+        from pickcardu_rag_api.index import ReleaseHandle
+        self.session()
+        cid = self.conversation().json()['id']
+        self.provider.recommend_all = True
+        self.send(cid)
+        self.provider.rewrite_result = RewriteOutput(standalone_query='두 카드 비교', scope='previous',
+                                                    selected_refs=['t1r1', 't1r2'])
+        original = ReleaseHandle.search
+        def drop_second(handle, *args):
+            result = original(handle, *args)
+            result['evidence'] = [e for e in result['evidence'] if e['card_key'] != 'issuer/card-b']
+            return result
+        with patch.object(ReleaseHandle, 'search', drop_second):
+            response = self.send(cid)
+        self.assertEqual(response.status_code, 200, response.text)
+        answer = response.json()['messages'][1]['answer']
+        self.assertEqual(answer['answer_status'], 'insufficient_evidence')
+        self.assertIn('Card B', answer['answer'])
+        self.assertEqual(answer['usage']['answer']['reason'], 'missing_target_evidence')
+        self.assertEqual(answer['usage']['answer']['retrieval']['missing_card_keys'], ['issuer/card-b'])
+        self.assertEqual(len(self.provider.answer_inputs), 1)
+        self.assertEqual(len(self.provider.embedding_queries), 2)
+
+    def test_legacy_recommendations_are_available_after_two_unscoped_insufficient_turns(self):
+        self.session()
+        cid = self.conversation().json()['id']
+        self.provider.recommend_all = True
+        self.send(cid)
+        self.provider.insufficient = True
+        self.provider.rewrite_result = RewriteOutput(standalone_query='전월실적 비교')
+        self.send(cid)
+        self.send(cid)
+        self.provider.rewrite_result = RewriteOutput(standalone_query='Card A와 Card B 비교', scope='previous',
+                                                    selected_refs=['t1r1', 't1r2'])
+        response = self.send(cid)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual([r['card_name'] for r in self.provider.references[-1]], ['Card A', 'Card B'])
+        self.assertEqual(response.json()['messages'][1]['answer']['usage']['answer']['conversation_scope']['scope'], 'previous')
+        self.assertEqual(len(self.provider.embedding_queries), 4)

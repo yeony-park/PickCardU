@@ -45,6 +45,8 @@ def _search(
     payload: QueryRequest,
     loader: Any,
     provider: Any,
+    *,
+    target_card_keys: tuple[str, ...] | None = None,
 ) -> tuple[ReleaseHandle, dict[str, Any], dict[str, Any]]:
     handle = loader.load()
     profile = payload.profile or handle.manifest["strategy"]
@@ -52,6 +54,11 @@ def _search(
         raise ValueError("requested profile does not match the active index")
     if getattr(provider, "embedding_model", None) != handle.manifest["embedding_model"]:
         raise ValueError("runtime embedding model does not match the active index")
+    if target_card_keys is not None:
+        unavailable = [key for key in target_card_keys if key not in handle.manifest['document_ids']]
+        if unavailable:
+            return handle, {'query_type': 'semantic', 'cards': [], 'evidence': [],
+                            'trace': {'unavailable_card_keys': unavailable}}, {'provider_called': False}
     vector, embedding_usage = provider.embed(payload.query)
     result = handle.search(
         payload.query,
@@ -64,6 +71,7 @@ def _search(
             top_k=payload.top_k,
             reranker="bge",
             reranker_route="all" if profile == "parent_child_bundle" else "selective",
+            target_card_keys=target_card_keys,
         ),
     )
     return handle, result, embedding_usage
@@ -164,16 +172,51 @@ def create_app(
             "usage": {"embedding": embedding_usage},
         })
 
-    def generate_answer(payload: QueryRequest) -> AnswerResponse:
-        handle, result, embedding_usage = _search(payload, loader, provider)
-        if result["evidence"]:
-            generated, answer_usage = provider.answer(payload.query, result["evidence"])
+    def _generate_answer(payload: QueryRequest, *, target_card_keys: tuple[str, ...] | None = None,
+                         clarification: str | None = None) -> AnswerResponse:
+        if clarification:
+            handle = loader.load()
+            if payload.profile is not None and payload.profile != handle.manifest['strategy']:
+                raise ValueError('requested profile does not match the active index')
+            result = {'query_type': 'semantic', 'cards': [], 'evidence': [], 'trace': {}}
+            embedding_usage = {'provider_called': False}
+        else:
+            handle, result, embedding_usage = _search(payload, loader, provider, target_card_keys=target_card_keys)
+        counts = {key: sum(e['card_key'] == key for e in result['evidence']) for key in target_card_keys or ()}
+        missing = [key for key, count in counts.items() if count == 0]
+        if clarification:
+            generated = AnswerOutput(answer_status='insufficient_evidence', answer_text=clarification)
+            answer_usage = {'provider_called': False, 'reason': 'clarification_required'}
+        elif missing:
+            catalog = {card['card_key']: card['card_name'] for card in handle.catalog}
+            names = ', '.join(catalog.get(key, '이전 추천 카드') for key in missing)
+            generated = AnswerOutput(answer_status='insufficient_evidence',
+                answer_text=f'{names}의 질문 관련 근거를 확보하지 못해 요청하신 카드 전체를 비교하기 어렵습니다. 조건이 없다는 뜻은 아닙니다.')
+            answer_usage = {'provider_called': False, 'reason': 'missing_target_evidence'}
+        elif result["evidence"]:
+            if target_card_keys is None:
+                generated, answer_usage = provider.answer(payload.query, result["evidence"])
+            else:
+                generated, answer_usage = provider.answer(payload.query, result["evidence"], comparison=True)
         else:
             generated = AnswerOutput(
                 answer_status="insufficient_evidence",
                 answer_text="현재 등록된 카드 문서에서는 질문을 뒷받침할 근거를 확인하기 어렵습니다.",
             )
             answer_usage = {"provider_called": False}
+        trace = result.get('trace', {})
+        chunks = {chunk.chunk_id: chunk.card_key for chunk in handle.chunks}
+        retrieved_ids = {row['chunk_id'] for name in ('bm25', 'vector') for row in trace.get(name, [])}
+        answer_usage = {**answer_usage, 'retrieval': {
+            'target_card_keys': list(target_card_keys) if target_card_keys is not None else None,
+            'retrieved_card_keys': sorted({chunks[key] for key in retrieved_ids if key in chunks}),
+            'evidence_card_keys': list(dict.fromkeys(e['card_key'] for e in result['evidence'])),
+            'evidence_counts': counts,
+            'missing_card_keys': missing,
+            'unavailable_card_keys': trace.get('unavailable_card_keys', []),
+            'evidence_budget': trace.get('evidence_budget'),
+            'stages': {name: [row['chunk_id'] for row in trace.get(name, [])] for name in ('bm25', 'vector', 'rrf', 'leaf', 'rerank')},
+        }}
         visible_cards = [] if generated.answer_status == "insufficient_evidence" else result["cards"]
         visible_evidence = [] if generated.answer_status == "insufficient_evidence" else result["evidence"]
         return AnswerResponse.model_validate({
@@ -190,6 +233,9 @@ def create_app(
             "usage": {"embedding": embedding_usage, "answer": answer_usage},
         })
 
+    def generate_answer(payload: QueryRequest) -> AnswerResponse:
+        return _generate_answer(payload)
+
     app.post('/v1/answer', name='answer', response_model=AnswerResponse, responses=ERROR_RESPONSES)(generate_answer)
 
     from .chat import register_chat_routes
@@ -200,7 +246,7 @@ def create_app(
         return _error(error.status_code, error.code, error.message, request.state.request_id, retryable=error.retryable)
 
     path = settings.chat_db_path or Path(__file__).resolve().parents[4] / 'data/chat/runtime/chat.sqlite'
-    register_chat_routes(app, settings, chat_store if chat_store is not None else ChatStore(path), provider, generate_answer)
+    register_chat_routes(app, settings, chat_store if chat_store is not None else ChatStore(path), provider, _generate_answer)
     return app
 
 

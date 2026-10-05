@@ -208,10 +208,12 @@ class ChatStore:
             return {'turns': [_turn(row) for row in reversed(page)],
                     'next_before_seq': page[-1]['seq'] if len(rows) > limit else None, 'has_pending': pending}
 
-    def completed_turns(self, owner_hash: str, conversation_id: str, *, before_seq: int, limit: int = 2) -> list[dict]:
+    def completed_turns(self, owner_hash: str, conversation_id: str, *, before_seq: int, limit: int = 2,
+                        include_insufficient: bool = False) -> list[dict]:
         with self._connection() as db:
             self._owned(db, owner_hash, conversation_id)
+            status_filter = "" if include_insufficient else "AND json_extract(answer_json,'$.answer_status')='answered' "
             rows = db.execute("SELECT * FROM turns WHERE conversation_id=? AND seq<? AND state='completed' "
-                              "AND json_extract(answer_json,'$.answer_status')='answered' ORDER BY seq DESC LIMIT ?",
+                              + status_filter + "ORDER BY seq DESC LIMIT ?",
                               (conversation_id, before_seq, limit)).fetchall()
             return [_turn(row) for row in reversed(rows)]

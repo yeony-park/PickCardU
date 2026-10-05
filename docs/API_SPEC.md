@@ -420,9 +420,16 @@ UUID는 한 번의 새 대화 생성에 고정한다. 신규 `201`, 같은 소�
 
 - conversation_id/client_request_id는 UUID. query/profile/top_k는 공통 질의 규칙과 같으며 기본 top_k=3, profile=null이다.
 - 질문 예약·저장을 먼저 하고 맥락·RAG·LLM 처리 중에는 DB transaction을 유지하지 않는다.
-- 최근 완료된 `answered` 대화 최대2쌍, 과거 최대5500자와 현재 질문 최대500자를 사용한다. 실제 추천 순서를 유지한다. failed/pending/근거 부족 응답은 맥락에서 제외한다.
+- 최근 완료된 대화 최대2쌍, 과거 최대5500자와 현재 질문 최대500자를 사용한다. 실제 추천 순서를 유지한다. failed/pending은 제외한다. 근거 부족·확인 질문은 **미확인 정보**로 표시해 질의 재작성에 전달하며, 혜택의 긍정 근거로 취급하지 않는다.
 - 첫 질문/유효 맥락 없음은 rewrite0회. 맥락이 있으면 독립 질문도 rewrite 최대1회 추가한다. 재작성 실패는 저장된 실패가 되며 원문으로 조용히 fallback하지 않는다.
 - LLM이 DB를 직접 읽지 않는다. 서버가 제한된 이전 대화를 rewrite provider에 전달한다. 답변 provider에는 독립 질의와 **새 검색 근거만** 주며 과거 답변의 혜택·citation을 새 근거로 재사용하지 않는다.
+- 기존 rewrite 호출 하나에서 `global`(전체 검색), `previous`(이전 카드 범위), `clarification`(대상 확인)을 함께 판단한다. 특정 문장 일치 방식이 아니다. 예: “저 카드 중”, “저것들 중”, “두 번째 것”은 문맥과 추천 순서로 해석하고, “그러면 주유 혜택 카드 추천”은 새 전체 검색으로 판단하도록 지시한다. 실제 모델의 모든 표현 인식률을 보장하는 것은 아니다.
+- rewrite에는 이전 목록의 카드명·발급사·서버 부여 짧은 ref만 전달한다. 모델이 선택한 ref를 소유 대화의 실제 card_key로 서버가 해석한다. 정상 파싱 후 중복 ref·서로 다른 목록의 혼합·불명확한 대상은 전체 검색으로 fallback하지 않고 확인 질문으로 응답한다. 허용되지 않은 ref(enum 위반)·응답 형식 위반으로 provider 파싱이 실패하거나 provider 호출 자체가 실패하면 기존 `503 LLM_UNAVAILABLE`로 처리한다. 이 경우에도 전체 검색으로 범위를 확대하지 않는다.
+- scope snapshot이 없는 기존 저장 대화는 최근 정상 완료 응답 최대2개에서 추천 목록을 읽어 참조를 복원한다. 과거 답변 전문을 추가로 보내거나 유료 호출을 늘리는 방식이 아니다. 참조 가능한 목록은 최대2개로 제한된다.
+- `previous`는 키워드와 벡터 양쪽에서 카드별 범위를 **후보 LIMIT 이전**에 적용한다. 전역 검색 뒤에 필터링하지 않는다. 기존의 검증된 임베딩을 활용하며 재임베딩·release 변경은 없다. 전역 경로는 기존 Chroma 검색을 유지하고, 범위 벡터 검색은 대상 행의 squared-L2를 사용한다.
+- 비교 카드별 후보와 최종 근거를 순서대로 번갈아 배치한다. 비교 대상이 요청 top_k보다 많으면 **검색 근거용 카드 상한**은 대상 수(최대5)까지 확보한다. 이는 새 카드 추천 범위를 넓히거나 추천 개수를 반드시 채운다는 의미가 아니다.
+- 대상 카드 중 하나라도 최종 근거가 없으면 답변 LLM을 호출하지 않고 `insufficient_evidence`로 반환한다. 현재 release에 대상 ID가 없으면 embedding도 호출하지 않는다. 청크가 있다는 것만으로 질문한 조건이 확인되었다고 판단하지 않으며, 답변 모델은 카드별 조건 미확인을 밝히도록 지시한다. 현재 서버 검증이 의미적 사실 일치를 보장하는 것은 아니다.
+- 확인 질문은 UI 변경 없이 기존 `200` TurnResponse의 completed assistant 메시지로 저장된다. `answer_status=insufficient_evidence`, 카드·추천·주장·근거는 빈 배열이며 embedding/답변 LLM은 호출하지 않는다. 기존 UI에서 “근거 부족” 표시와 함께 확인 질문이 보일 수 있다.
 
 성공 `200`은 `{turn_id:string, messages:[user,assistant]}`다. ChatMessage 필드:
 
@@ -437,6 +444,22 @@ UUID는 한 번의 새 대화 생성에 고정한다. 신규 `201`, 같은 소�
 | created_at | turn 생성 시각 |
 
 `insufficient_evidence`도 completed로 저장한다. 새 실패는 `503` 또는 `409`의 ErrorResponse이며 GET으로 저장된 질문·실패를 조회할 수 있다. 실패 결과의 동일 ID 재조회는 `200` TurnResponse로 반환한다. 기존 AnswerResponse/usage에는 rewrite 필드를 추가하지 않는다.
+
+검색 진단은 기존 확장 가능 dict인 `answer.usage.answer`에 저장된다. 부족 응답에서 외부 `cards/evidence`가 비어도 다음 값으로 검색과 대상의 실제 상태를 확인할 수 있다. API 비밀키·문서 본문·전체 대화 전문은 진단에 넣지 않는다.
+
+| 항목 | 의미 |
+|---|---|
+| `conversation_scope.scope` | global / previous / clarification |
+| `conversation_scope.target_card_keys` | 서버가 선택한 대상 ID 목록; global/clarification은 null |
+| `conversation_scope.reference_groups` | 최대2개 목록, 목록당 최대5개의 카드 ID·이름·발급사 snapshot. 부족/확인 응답 및 일부 카드만 안내한 뒤에도 참조 대상을 유지한다. 혜택·citation은 보존 근거로 재사용하지 않는다. |
+| `retrieval.target_card_keys` | 검색에 적용한 범위; global은 null |
+| `retrieval.retrieved_card_keys` / `evidence_card_keys` | 실제 후보에서 발견된 카드 / 최종 답변 입력 근거의 카드 |
+| `retrieval.evidence_counts` / `missing_card_keys` | 비교 대상별 최종 청크 수 / 근거가 없는 대상. 조건 확인 여부나 품질 점수가 아니다. |
+| `retrieval.unavailable_card_keys` | 현재 활성 release에 존재하지 않는 이전 대상 ID |
+| `retrieval.stages` | bm25/vector/rrf/leaf/rerank 단계별 chunk ID. scoped component 순위는 카드 안에서 계산한다. |
+| `retrieval.evidence_budget` | payload 크기·한도·예산 제외 ID·truncation. scoped는 큰 청크를 건너뛰고 다른 카드의 온전한 청크가 들어갈 여지를 남긴다. |
+
+`conversation_scope`는 대화 응답에만 존재한다. 공개 `/v1/search`, `/v1/answer` 요청에는 ref나 target_card_keys를 추가하지 않았다. 클라이언트가 범위를 직접 신뢰 입력으로 전달하지 않는다. 유료 실제 호출 없이 실행하는 테스트는 서버의 분기·범위 격리·저장·호출 수를 검증하며, 자연어 판별과 최종 답변 품질은 별도 실호출 검증 대상이다.
 
 ### 8.4 복원·페이지·재시도
 

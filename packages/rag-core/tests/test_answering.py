@@ -51,6 +51,31 @@ class AnsweringTests(unittest.TestCase):
             "claims": [{"text": "혜택", "citations": citations}],
         }
 
+    def test_rewrite_selects_only_supplied_refs_in_one_call(self):
+        responses = FakeResponses({'standalone_query': '전월실적 조건이 가장 적은 카드는?',
+                                   'scope': 'previous', 'selected_refs': ['t1r2'], 'clarification_question': ''})
+        service = OpenAIService(api_key=None, client=types.SimpleNamespace(responses=responses))
+        result, usage = service.rewrite([{'role': 'user', 'content': '저것들 중 두번째는?'}], references=[
+            {'ref': 't1r1', 'card_name': 'A', 'issuer': '발급사'},
+            {'ref': 't1r2', 'card_name': 'B', 'issuer': '발급사'}])
+        self.assertEqual(result.scope, 'previous')
+        self.assertEqual(result.selected_refs, ['t1r2'])
+        self.assertEqual(len(responses.calls), 1)
+        schema = responses.calls[0]['text_format']
+        with self.assertRaises(ValidationError):
+            schema.model_validate({'standalone_query': '질문', 'scope': 'previous',
+                                   'selected_refs': ['invented/card'], 'clarification_question': ''})
+        self.assertFalse(responses.calls[0]['store'])
+        self.assertEqual(responses.calls[0]['tools'], [])
+
+    def test_rewrite_unknown_reference_fails_without_retry(self):
+        responses = FakeResponses({'standalone_query': '질문', 'scope': 'previous',
+                                   'selected_refs': ['invented'], 'clarification_question': ''})
+        with self.assertRaises(LlmUnavailable):
+            OpenAIService(api_key=None, client=types.SimpleNamespace(responses=responses)).rewrite(
+                [{'role': 'user', 'content': '저거'}], references=[{'ref': 't1r1', 'card_name': 'A', 'issuer': '발급사'}])
+        self.assertEqual(len(responses.calls), 1)
+
     def test_context_and_grounding_contract(self) -> None:
         messages = []
         for index in range(3):

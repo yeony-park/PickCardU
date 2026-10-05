@@ -6,10 +6,11 @@ import time
 from uuid import UUID
 
 from fastapi import Query, Request, Response
-from pickcardu_rag.answering import completed_context
+from pickcardu_rag.answering import RewriteOutput, completed_context
 from pickcardu_rag.errors import LlmUnavailable, RagError
 
 from .chat_store import ChatStoreError
+from .chat_scope import card_references, reference_groups, resolve_scope
 
 COOKIE_NAME = 'pickcardu_browser'
 TOKEN_PATTERN = re.compile(r'^[A-Za-z0-9_-]{43}$')
@@ -25,14 +26,16 @@ def refresh_cookie(response, token):
                         samesite='lax', secure=False, path='/')
 
 
-def build_chat_context(turns: list[dict], question: str) -> list[dict[str, str]]:
+def build_chat_context(turns: list[dict], question: str, *, include_insufficient: bool = False) -> list[dict[str, str]]:
     messages = []
     for turn in turns:
         answer = turn.get('answer') or {}
-        if turn.get('state') != 'completed' or answer.get('answer_status') != 'answered':
+        if turn.get('state') != 'completed' or (answer.get('answer_status') != 'answered' and not include_insufficient):
             continue
         cards = {card['card_key']: card for card in answer.get('cards', [])}
         text = answer.get('answer', '')
+        if answer.get('answer_status') == 'insufficient_evidence':
+            text = '이전 질문은 근거 부족 또는 대상 확인 요청입니다. 조건이 없다고 확인한 것이 아닙니다.\n' + text
         for index, recommendation in enumerate(answer.get('recommendations', []), 1):
             card = cards.get(recommendation['card_key'], {})
             text += f"\n{index}. {card.get('card_name', recommendation['card_key'])} · {card.get('issuer', '')}: {recommendation['reason']}"
@@ -114,22 +117,35 @@ def register_chat_routes(app, settings, store, provider, generate_answer):
             return {'turn_id': turn['id'], 'messages': turn_messages(turn)}
         usage = {'provider_called': False, 'model': None, 'latency_ms': None, 'usage': None}
         try:
-            history = store.completed_turns(owner, cid, before_seq=turn['seq'])
-            context = build_chat_context(history, payload.query)
+            history = store.completed_turns(owner, cid, before_seq=turn['seq'], include_insufficient=True)
+            context = build_chat_context(history, payload.query, include_insufficient=True)
+            references = card_references(history)
+            if not references and history:
+                # Older saved conversations do not have scope snapshots. Recover
+                # their last successful recommendation lists without more LLM calls.
+                anchors = store.completed_turns(owner, cid, before_seq=turn['seq'])
+                references = card_references(sorted([*anchors, *history], key=lambda item: item['seq']))
+            keys, clarification, scope = None, None, 'global'
             if len(context) > 1:
                 started = time.perf_counter()
                 usage.update(provider_called=True, model=getattr(provider, 'llm_model', None))
                 try:
-                    standalone, rewrite_usage = provider.rewrite(context)
-                    if not isinstance(standalone, str) or not 1 <= len(standalone.strip()) <= 500:
-                        raise LlmUnavailable('Invalid rewritten question')
+                    rewritten, rewrite_usage = provider.rewrite(context, references=[
+                        {name: ref[name] for name in ('ref', 'card_name', 'issuer')} for ref in references])
+                    rewritten = RewriteOutput.model_validate(rewritten)
+                    keys, clarification = resolve_scope(rewritten, references)
+                    scope = 'clarification' if clarification else rewritten.scope
                     usage.update(model=rewrite_usage.get('model', usage['model']), usage=rewrite_usage.get('usage'))
-                    query = QueryRequest(query=standalone, profile=payload.profile, top_k=payload.top_k)
+                    query = QueryRequest(query=rewritten.standalone_query, profile=payload.profile, top_k=payload.top_k)
                 except Exception as error:
                     raise LlmUnavailable('대화 맥락을 반영한 질문을 만들지 못했습니다.') from error
                 finally:
                     usage['latency_ms'] = round((time.perf_counter()-started)*1000, 3)
-            answer = generate_answer(query).model_dump(mode='json')
+            answer = generate_answer(query, target_card_keys=keys, clarification=clarification).model_dump(mode='json')
+            answer['usage']['answer']['conversation_scope'] = {
+                'scope': scope, 'target_card_keys': list(keys) if keys is not None else None,
+                'reference_groups': reference_groups(references) if scope != 'global' else [],
+            }
         except Exception as error:
             if isinstance(error, ChatStoreError):
                 failure = error
