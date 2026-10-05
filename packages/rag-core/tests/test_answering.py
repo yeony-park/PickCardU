@@ -257,6 +257,44 @@ class AnsweringTests(unittest.TestCase):
         self.assertEqual(examples[1].recommendations, [])
         self.assertEqual(examples[1].claims, [])
 
+    def test_partial_comparison_example_round_trips_only_confirmed_claims(self) -> None:
+        evidence = [
+            {**self.evidence[0], 'text': '여행 적립은 전월실적 30만 원 이상'},
+            {'card_key': 'c2', 'card_name': '카드2', 'issuer': '발급사',
+             'chunk_id': 'k2', 'text': '여행 적립은 전월실적 100만 원 이상'},
+            {'card_key': 'c3', 'card_name': '카드3', 'issuer': '발급사',
+             'chunk_id': 'k3', 'text': '여행자 보험 제공'},
+        ]
+        responses = FakeResponses(self.generated_answer())
+        OpenAIService(api_key=None, client=types.SimpleNamespace(responses=responses)).answer(
+            '세 카드의 전월실적을 비교해줘', evidence, comparison=True)
+        request = responses.calls[0]
+        examples = []
+        decoder = json.JSONDecoder()
+        for index, character in enumerate(request['instructions']):
+            if character != '{':
+                continue
+            try:
+                value, _ = decoder.raw_decode(request['instructions'][index:])
+            except json.JSONDecodeError:
+                continue
+            if isinstance(value, dict) and 'answer_status' in value:
+                request['text_format'].model_validate(value)
+                examples.append(value)
+        self.assertEqual(len(examples), 3)
+        partial = examples[-1]
+        self.assertEqual(partial['answer_status'], 'answered')
+        responses = FakeResponses(partial)
+        answer, usage = OpenAIService(
+            api_key=None, client=types.SimpleNamespace(responses=responses),
+        ).answer('세 카드의 전월실적을 비교해줘', evidence, comparison=True)
+        self.assertEqual([(claim.card_key, claim.citations) for claim in answer.claims],
+                         [('c1', ['k1']), ('c2', ['k2'])])
+        self.assertEqual([claim.value for claim in answer.claims], [300000, 1000000])
+        self.assertEqual(answer.recommendations, [])
+        self.assertEqual(usage['attempt_count'], 1)
+        self.assertIs(validate_grounding(answer, evidence), answer)
+
     def test_grounding_mismatch_retries_only_the_answer_generation(self) -> None:
         evidence = [
             *self.evidence,

@@ -179,7 +179,7 @@ export function useChat() {
         }
       }
       try {
-        const result = await sendMessage(cid, { query: value, client_request_id: requestId, top_k: 3, retry_failed: Boolean(retryMessage) });
+        const result = await sendMessage(cid, { query: value, client_request_id: requestId, top_k: 5, retry_failed: Boolean(retryMessage) });
         if (currentRequest()) setMessages(current => reconcileMessages(current, result.messages));
       } catch (failure) {
         // Server failures may have saved the question. Prefer that authoritative state.
