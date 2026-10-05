@@ -13,6 +13,10 @@ export function isDefiniteRejection(code: string): boolean {
     'BROWSER_SESSION_REQUIRED', 'CONVERSATION_NOT_FOUND', 'REQUEST_TOO_LARGE'].includes(code);
 }
 
+export function restoreDraftAfterFailedSend(currentDraft: string, sentQuestion: string): string {
+  return currentDraft || sentQuestion;
+}
+
 export function reconcileMessages(current: ChatMessage[], incoming: ChatMessage[]): ChatMessage[] {
   const requests = new Set(incoming.map(message => message.client_request_id));
   // Completed server turns are immutable; a delayed poll may still report pending.

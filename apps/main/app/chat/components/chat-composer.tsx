@@ -4,22 +4,24 @@ import { FormEvent, KeyboardEvent, RefObject } from 'react';
 
 type ChatComposerProps = {
   disabled: boolean;
+  sendDisabled: boolean;
   inputRef: RefObject<HTMLTextAreaElement | null>;
   onChange: (value: string) => void;
   onSubmit: () => void;
   value: string;
 };
 
-export function ChatComposer({ disabled, inputRef, onChange, onSubmit, value }: ChatComposerProps) {
+export function ChatComposer({ disabled, sendDisabled, inputRef, onChange, onSubmit, value }: ChatComposerProps) {
+  const blocked = disabled || sendDisabled;
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!disabled && value.trim()) onSubmit();
+    if (!blocked && value.trim()) onSubmit();
   }
 
   function submitOnEnter(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault();
-      event.currentTarget.form?.requestSubmit();
+      if (!blocked) event.currentTarget.form?.requestSubmit();
     }
   }
 
@@ -43,8 +45,8 @@ export function ChatComposer({ disabled, inputRef, onChange, onSubmit, value }: 
           My Page에 저장된 카드도 함께 고려해요. {value.length}/500
         </span>
         <button
-          aria-label={disabled ? '질문을 보낼 수 없음' : '질문 보내기'}
-          disabled={disabled || !value.trim()}
+          aria-label={blocked ? '질문을 보낼 수 없음' : '질문 보내기'}
+          disabled={blocked || !value.trim()}
           type="submit"
         >↑</button>
       </div>

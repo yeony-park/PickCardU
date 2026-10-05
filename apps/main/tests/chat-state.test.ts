@@ -42,3 +42,10 @@ test('explicit pre-reservation rejection is distinct from uncertain storage or n
     assert.equal(state.isDefiniteRejection(code), false, code);
   }
 });
+
+test('failed send restores its question only when no newer draft exists', async () => {
+  const { restoreDraftAfterFailedSend } = await import('../lib/chat-state.ts');
+  assert.equal(typeof restoreDraftAfterFailedSend, 'function');
+  assert.equal(restoreDraftAfterFailedSend('미리 작성한 다음 질문', '실패한 질문'), '미리 작성한 다음 질문');
+  assert.equal(restoreDraftAfterFailedSend('', '실패한 질문'), '실패한 질문');
+});

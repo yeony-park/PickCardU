@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { ChatMessage } from '../../lib/chat-api';
+import { restoreDraftAfterFailedSend } from '../../lib/chat-state';
 import { useChat } from '../../lib/use-chat';
 import { SiteHeader } from '../components/site-header';
 import { ChatComposer } from './components/chat-composer';
@@ -65,7 +66,9 @@ export default function ChatPage() {
     const currentView = viewGeneration.current;
     if (!retry) setQuestion('');
     const sent = await chat.sendQuestion(value, retry?.message);
-    if (!sent && !retry && viewGeneration.current === currentView) setQuestion(value);
+    if (!sent && !retry && viewGeneration.current === currentView) {
+      setQuestion(current => restoreDraftAfterFailedSend(current, value));
+    }
   }
 
   function newChat() {
@@ -129,7 +132,8 @@ export default function ChatPage() {
               />
               {chat.error ? <p className="chat-status-error" role="alert">{chat.error}</p> : null}
               <ChatComposer
-                disabled={!chat.ready || chat.loading || chat.busy}
+                disabled={!chat.ready || chat.loading}
+                sendDisabled={chat.busy}
                 inputRef={composer}
                 onChange={setQuestion}
                 onSubmit={() => void send()}
@@ -144,7 +148,8 @@ export default function ChatPage() {
                 소비 습관이나 원하는 혜택을 편하게 알려주세요. 근거가 분명한 카드만 골라드릴게요.
               </p>
               <ChatComposer
-                disabled={!chat.ready || chat.loading || chat.busy}
+                disabled={!chat.ready || chat.loading}
+                sendDisabled={chat.busy}
                 inputRef={composer}
                 onChange={setQuestion}
                 onSubmit={() => void send()}
