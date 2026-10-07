@@ -1,6 +1,6 @@
 import { TransitionLink } from './transition-link';
 
-type SiteHeaderProps = { active: 'home' | 'chat' | 'cards' };
+type SiteHeaderProps = { active: 'home' | 'chat' | 'cards' | 'mypage' };
 
 export function SiteHeader({ active }: SiteHeaderProps) {
   return (
@@ -13,7 +13,7 @@ export function SiteHeader({ active }: SiteHeaderProps) {
         <TransitionLink className={active === 'home' ? 'active' : ''} href="/">Home</TransitionLink>
         <TransitionLink className={active === 'chat' ? 'active' : ''} href="/chat">Chat</TransitionLink>
         <TransitionLink className={active === 'cards' ? 'active' : ''} href="/cards">Cards</TransitionLink>
-        <span aria-disabled="true">My Page</span>
+        <TransitionLink className={active === 'mypage' ? 'active' : ''} href="/mypage" aria-current={active === 'mypage' ? 'page' : undefined}>My Page</TransitionLink>
       </nav>
     </header>
   );

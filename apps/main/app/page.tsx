@@ -1,32 +1,34 @@
+import Image from 'next/image';
+import { cardProducts } from '../lib/card-products';
 import { TransitionLink } from './components/transition-link';
 import { SiteHeader } from './components/site-header';
 
-const cards = [
-  { tone: 'card-blue', brand: 'TRAVEL', name: 'Sky Pass', rate: '2.0x' },
-  { tone: 'card-lime', brand: 'DAILY', name: 'Everyday', rate: '1.5%' },
-  { tone: 'card-coral', brand: 'DINING', name: 'Table', rate: '5.0%' },
-  { tone: 'card-lilac', brand: 'SHOP', name: 'Weekend', rate: '3.0%' },
-  { tone: 'card-mint', brand: 'MILEAGE', name: 'Voyage', rate: '1.8x' },
-  { tone: 'card-silver', brand: 'PREMIUM', name: 'Signature', rate: '4.0%' },
+const featuredCardIds = [
+  'hyundai__Hyundai_M',
+  'lotte__Lotte_Hilton_Honors_Amex_Premium',
+  'BC__BC_ON&OFF',
+  'hana__Hana_JadeFirst',
+  'woori__Woori_Classic2',
+  'kookmin__Kookmin_Coupang_Wow_20250702',
 ];
+const cards = featuredCardIds.flatMap((id) => cardProducts.filter((card) => card.id === id));
 
 function CardMarquee() {
   return (
-    <div className="card-marquee" aria-label="추천 카드 미리보기">
+    <div className="card-marquee" aria-label="카드사별 대표 카드 미리보기">
       <div className="card-track">
         {[0, 1].map((setIndex) => (
           <div className="card-set" aria-hidden={setIndex === 1} key={setIndex}>
             {cards.map((card) => (
-              <article className={`credit-card ${card.tone}`} key={`${setIndex}-${card.name}`}>
-                <div className="card-topline">
-                  <span>{card.brand}</span>
-                  <span className="card-chip" aria-hidden="true" />
-                </div>
-                <div className="card-rate">{card.rate}</div>
-                <div className="card-bottomline">
-                  <span>{card.name}</span>
-                  <span>PickCardU</span>
-                </div>
+              <article className="credit-card" key={`${setIndex}-${card.id}`}>
+                <Image
+                  src={card.image!}
+                  alt={setIndex === 0 ? `${card.issuer} · ${card.name}` : ''}
+                  width={205}
+                  height={320}
+                  sizes="(max-width: 760px) 148px, 205px"
+                  loading="eager"
+                />
               </article>
             ))}
           </div>

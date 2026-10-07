@@ -42,7 +42,7 @@ export function ChatComposer({ disabled, sendDisabled, inputRef, onChange, onSub
       />
       <div className="composer-actions">
         <span className="saved-card-note" id="question-limit">
-          My Page에 저장된 카드도 함께 고려해요. {value.length}/500
+          보유 카드 이름을 질문에 함께 적어주세요. {value.length}/500
         </span>
         <button
           aria-label={blocked ? '질문을 보낼 수 없음' : '질문 보내기'}

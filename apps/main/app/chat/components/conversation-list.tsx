@@ -62,7 +62,7 @@ export function ConversationList({
       </div>
       <div className="history-card-note">
         <strong>내 카드</strong>
-        <span>My Page에 저장한 카드를 추천에 함께 반영해요.</span>
+        <span>등록 카드는 이 브라우저의 My Page에 저장돼요.</span>
       </div>
     </>
   );

@@ -13,6 +13,7 @@ const pageOrder: Record<string, number> = {
   '/': 0,
   '/chat': 1,
   '/cards': 2,
+  '/mypage': 3,
 };
 
 export function TransitionLink({ href, onClick, ...props }: TransitionLinkProps) {

@@ -1,0 +1,8 @@
+{
+  "repository": "https://github.com/yeony-park/PickCardU",
+  "ref": "main",
+  "commit": "096d30ba5c7d317d6d2db3897be31db64cc4b8b3",
+  "directory": "data/raw",
+  "document_count": 106,
+  "chunk_corpus_sha256": "2d95f92f1cfc5c7e99d688a2e0522b823453496546de3099569ea5fa65b852a1"
+}
