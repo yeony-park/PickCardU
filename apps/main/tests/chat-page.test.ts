@@ -86,3 +86,26 @@ for (const fixture of cases) test(`${fixture.name}: drafting is allowed and send
   (form.props.onSubmit as (event: FormEvent<HTMLFormElement>) => void)({ preventDefault() {} } as FormEvent<HTMLFormElement>);
   assert.equal(sends, fixture.blocked ? 0 : 1);
 });
+
+test('team onboarding is confined to the empty view without replacing the chat composer', () => {
+  state = {
+    conversations: [], conversationCursor: null, selectedId: null, messages: [], beforeSeq: null,
+    ready: false, loading: false, error: '', deletingId: null, busy: false,
+    sendQuestion: async () => false, startNewChat() {},
+    selectConversation: async () => {}, refreshMessages: async () => {},
+    loadOlderMessages: async () => {}, loadMoreConversations: async () => {},
+    removeConversation: async () => false,
+  };
+  captured = undefined;
+  const empty = renderToStaticMarkup(createElement(page.exports.default));
+  assert.match(empty, /assistant-logo brand-mark/);
+  assert.match(empty, /id="survey-monthly-spending"/);
+  assert.ok(captured);
+  assert.equal(captured.disabled, false);
+  assert.equal(captured.sendDisabled, true);
+  state = { ...state, ready: true, selectedId: '00000000-0000-4000-8000-000000000001' };
+  const thread = renderToStaticMarkup(createElement(page.exports.default));
+  assert.match(thread, /chat-thread/);
+  assert.match(thread, /PickCardU와 대화/);
+  assert.doesNotMatch(thread, /survey-monthly-spending/);
+});
