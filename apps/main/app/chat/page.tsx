@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import type { ChatMessage } from '../../lib/chat-api';
+import type { ChatMessage, SurveyContext } from '../../lib/chat-api';
 import { restoreDraftAfterFailedSend } from '../../lib/chat-state';
 import { useChat } from '../../lib/use-chat';
 import { SiteHeader } from '../components/site-header';
@@ -176,7 +176,15 @@ export default function ChatPage() {
                 <div className="survey-fields">
                   <div className="survey-spending">
                     <label htmlFor="survey-monthly-spending">월 평균 카드 사용 금액</label>
-                    <select id="survey-monthly-spending" name="monthly-spending" defaultValue="">
+                    <select
+                      id="survey-monthly-spending"
+                      name="monthly-spending"
+                      onChange={(event) => {
+                        const monthlySpending = (event.target.value || null) as SurveyContext['monthly_spending'];
+                        chat.setSurveyDraft(current => ({ ...(current ?? {}), monthly_spending: monthlySpending }));
+                      }}
+                      value={chat.surveyDraft?.monthly_spending ?? ''}
+                    >
                       <option value="" disabled>선택해 주세요</option>
                       <option value="under-30">30만원 미만</option>
                       <option value="30-50">30만원 이상 ~ 50만원 미만</option>
@@ -188,16 +196,50 @@ export default function ChatPage() {
                   <fieldset>
                     <legend>자주 쓰는 소비 영역 <span>여러 개 선택 가능</span></legend>
                     <div className="survey-options">
-                      {['쇼핑', '배달·외식', '카페', '교통', '주유', '여행'].map((category) => (
-                        <label key={category}><input type="checkbox" name="spending-category" value={category} /><span>{category}</span></label>
+                      {(['쇼핑', '배달·외식', '카페', '교통', '주유', '여행'] as const).map((category) => (
+                        <label key={category}><input
+                          checked={chat.surveyDraft?.spending_categories?.includes(category) ?? false}
+                          name="spending-category"
+                          onChange={(event) => {
+                            const checked = event.target.checked;
+                            chat.setSurveyDraft(current => {
+                              const categories = current?.spending_categories ?? [];
+                              return {
+                                ...(current ?? {}),
+                                spending_categories: checked
+                                  ? categories.includes(category) ? categories : [...categories, category]
+                                  : categories.filter(item => item !== category),
+                              };
+                            });
+                          }}
+                          type="checkbox"
+                          value={category}
+                        /><span>{category}</span></label>
                       ))}
                     </div>
                   </fieldset>
                   <fieldset>
                     <legend>원하는 혜택 <span>여러 개 선택 가능</span></legend>
                     <div className="survey-options">
-                      {['할인', '포인트 적립', '항공 마일리지'].map((benefit) => (
-                        <label key={benefit}><input type="checkbox" name="preferred-benefit" value={benefit} /><span>{benefit}</span></label>
+                      {(['할인', '포인트 적립', '항공 마일리지'] as const).map((benefit) => (
+                        <label key={benefit}><input
+                          checked={chat.surveyDraft?.preferred_benefits?.includes(benefit) ?? false}
+                          name="preferred-benefit"
+                          onChange={(event) => {
+                            const checked = event.target.checked;
+                            chat.setSurveyDraft(current => {
+                              const benefits = current?.preferred_benefits ?? [];
+                              return {
+                                ...(current ?? {}),
+                                preferred_benefits: checked
+                                  ? benefits.includes(benefit) ? benefits : [...benefits, benefit]
+                                  : benefits.filter(item => item !== benefit),
+                              };
+                            });
+                          }}
+                          type="checkbox"
+                          value={benefit}
+                        /><span>{benefit}</span></label>
                       ))}
                     </div>
                   </fieldset>

@@ -1,9 +1,13 @@
 import type { components } from '../../../packages/contracts/generated/api';
+import { buildWalletContext } from './registered-cards.ts';
 
 export type Conversation = components['schemas']['Conversation'];
 export type ChatMessage = components['schemas']['ChatMessage'];
 export type ChatRequest = components['schemas']['ChatRequest'];
 export type MessagesPage = components['schemas']['MessagesPage'];
+export type SurveyContext = components['schemas']['SurveyContext'];
+export type WalletContext = components['schemas']['WalletContext'];
+export type TurnInputSnapshot = components['schemas']['TurnInputSnapshot'];
 type ErrorBody = components['schemas']['ErrorResponse'];
 type TurnResponse = components['schemas']['TurnResponse'];
 type ConversationPage = components['schemas']['ConversationPage'];
@@ -24,6 +28,18 @@ export class ChatApiError extends Error {
 
 function failure(code: string, message: string, retryable = true) {
   return new ChatApiError({ code, message, retryable, request_id: '' });
+}
+
+export function buildTurnRequest(query: string, requestId: string, rawWallet: string | null | undefined,
+  retryMessage?: ChatMessage): ChatRequest {
+  if (retryMessage) {
+    if (!retryMessage.input_snapshot) {
+      throw failure('INVALID_RESPONSE', '원래 질문 정보를 불러온 뒤 다시 시도해 주세요.', false);
+    }
+    return { ...retryMessage.input_snapshot, client_request_id: retryMessage.client_request_id, retry_failed: true };
+  }
+  return { query: query.trim(), profile: null, top_k: 5, client_request_id: requestId,
+    wallet_context: buildWalletContext(rawWallet), retry_failed: false };
 }
 
 export function createChatClient(options: { fetchImpl?: typeof fetch; locks?: LockRunner | null } = {}) {
@@ -83,7 +99,9 @@ export function createChatClient(options: { fetchImpl?: typeof fetch; locks?: Lo
   return {
     initializeBrowser, getMessages, sendMessage,
     listConversations: (cursor?: string): Promise<ConversationPage> => request(`conversations${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`),
-    createConversation: (id: string): Promise<Conversation> => request('conversations', { client_conversation_id: id }),
+    createConversation: (id: string, surveyContext?: SurveyContext | null): Promise<Conversation> =>
+      request('conversations', { client_conversation_id: id,
+        ...(surveyContext === undefined ? {} : { survey_context: surveyContext }) }),
     deleteConversation: (id: string): Promise<void> => request(`conversations/${encodeURIComponent(id)}`, undefined, 'DELETE'),
   };
 }

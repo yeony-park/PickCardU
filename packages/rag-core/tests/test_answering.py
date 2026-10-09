@@ -36,6 +36,40 @@ def incomplete_json_error() -> ValidationError:
 class AnsweringTests(unittest.TestCase):
     evidence = [{"card_key": "c1", "card_name": "카드1", "issuer": "발급사", "chunk_id": "k1", "text": "1%"}]
 
+    def test_personalization_payload_matches_provider_input_and_budget_guard(self):
+        context = {'survey_context': {'monthly_spending': '30-50', 'spending_categories': ['카페'],
+                                     'preferred_benefits': ['할인']}}
+        responses = FakeResponses(self.generated_answer())
+        service = OpenAIService(api_key=None, client=types.SimpleNamespace(responses=responses))
+        self.assertIn('personalization_context', __import__('inspect').signature(service.answer).parameters)
+        size = measure_answer_payload('혜택', self.evidence, context)[0]
+        service.answer_payload_bytes = size
+        service.answer('혜택', self.evidence, personalization_context=context)
+        transmitted = responses.calls[0]['input'][0]['content']
+        self.assertEqual(len(transmitted.encode('utf-8')), size)
+        self.assertEqual(json.loads(transmitted)['personalization_context'], context)
+        self.assertEqual(json.loads(transmitted)['standalone_query'], '혜택')
+        self.assertIn('전월실적', responses.calls[0]['instructions'])
+        rejected = FakeResponses(self.generated_answer())
+        service = OpenAIService(api_key=None, answer_payload_bytes=size-1, client=types.SimpleNamespace(responses=rejected))
+        with self.assertRaises(LlmUnavailable):
+            service.answer('혜택', self.evidence, personalization_context=context)
+        self.assertEqual(rejected.calls, [])
+
+    def test_rewrite_returns_personalization_decision_with_availability_only(self):
+        responses = FakeResponses({'standalone_query': '내 소비 패턴 추천', 'scope': 'global', 'selected_refs': [],
+            'use_survey': True, 'use_wallet': False, 'wallet_operation': 'none',
+            'wallet_compare_scope': 'relevant', 'overridden_survey_fields': [], 'clarification_question': ''})
+        service = OpenAIService(api_key=None, client=types.SimpleNamespace(responses=responses))
+        self.assertIn('personalization_availability', __import__('inspect').signature(service.rewrite).parameters)
+        result, _ = service.rewrite([{'role': 'user', 'content': '내 소비패턴 기준 추천해줘'}],
+            personalization_availability={'survey_available': True, 'wallet_status': 'empty', 'wallet_card_count': 0})
+        self.assertTrue(result.use_survey)
+        self.assertEqual(len(responses.calls), 1)
+        self.assertIn('survey_available', responses.calls[0]['instructions'])
+        self.assertFalse(responses.calls[0]['store'])
+        self.assertEqual(responses.calls[0]['tools'], [])
+
     def test_provider_budget_uses_environment_and_rejects_before_network(self):
         evidence = [{**self.evidence[0], 'text': '가' * 5000}]
         for limit, allowed in (('64000', True), ('12000', False)):

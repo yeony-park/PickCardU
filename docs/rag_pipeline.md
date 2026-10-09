@@ -133,3 +133,20 @@ Recall@1/3/5, MRR@10, nDCG@10, p50/p95 검색 시간을 기록합니다. 골드�
 키 값은 `.env`에서 읽고 산출물이나 로그에 기록하지 않습니다. 임베딩과 생성 단계는 위 전송 범위에 대한 승인을 확인한 뒤 실행합니다.
 
 실제 전수 실행과 현재 baseline 수치는 `data/rag/reports/pipeline_performance.md`에서 확인할 수 있습니다.
+
+온라인 채팅의 개인화 경로는 다음 절을 따른다. 위 오프라인 실험/작업 도구와 별개이며 HTTP 소비자는 `API_SPEC.md`를 기준으로 한다.
+
+## 저장형 채팅의 온라인 개인화 경로
+
+`/chat → Next 같은 출처 proxy → FastAPI conversation/turn 예약 → 의도 판별 → 검색 → 답변 → 서버 근거 검증 → 저장` 흐름을 사용한다. RAG release·청킹·기존 embedding은 변경하지 않는다.
+
+- 설문은 채팅 SQLite의 conversation에 처음 한 번 저장한다. 같은 대화에서 복원하고 새 채팅에서는 초기화한다. My Page 원본은 localStorage 이름 목록이며, 새 질문마다 정확한 sourcePath 기반 document_id로 변환해 request snapshot을 저장한다.
+- 첫 질문은 설문 또는 ready/needs_review wallet이 있으면 기존 rewrite provider를1회 호출한다. 설정 없는 일반 질문은0회이며 명백한 설정 누락 표현은 좁은 서버 확인 규칙만 적용한다. 후속 질문은 최근 완료 최대2쌍/과거5,500자의 기존 rewrite1회에 개인화 판별을 통합한다.
+- 판별 입력은 질문·bounded 대화·참조 이름/발급사/ref·설정의 존재/상태/보유 수다. 설문값·보유 상세는 판별 전에 전달하지 않는다. `use_survey/use_wallet`, 조회/비교와 기존 global/previous/clarification·retrieve/recall을 서버가 검증한다. 일반 global 질문은 현재 원문을 사용해 과거 개인화 조건의 재유입을 막는다.
+- 현재 질문의 명시 조건과 겹치는 설문 차원은 적용 context에서 제외한다. 나머지 소비 영역·혜택 enum만 검색 힌트로 사용한다. 답변용 standalone_query(최대500자)와 retrieval_query(최대1,024자)를 분리하며 월 사용액 구간을 강제 전월실적 필터로 바꾸지 않는다.
+- 보유 조회는 최대106장의 허용 집합을 BM25/vector 후보 제한 전에 적용한다. 보유/신규 비교는 신규 집합에서 보유 키를 먼저 제외하고 같은 질문 embedding을 재사용한다. 최종 입력에 양쪽 온전한 근거를1개씩 먼저 예약하며 하나라도 없으면 답변 provider를 호출하지 않는다. 모든 보유 카드의 정밀 조회/비교는 최대5개이고 초과하면 확인 질문을 한다.
+- 답변용 query+적용 context+근거 전체 JSON의 UTF-8 bytes를 collapse와 provider 직전의 동일 serializer로 측정한다. 기본64,000 한도는 기존 환경 설정으로 조절하며, proxy8,192-byte 요청 한도와 구분한다. 문자열/질문/청크를 임의로 잘라 예산을 맞추지 않는다.
+- 확정 query/대상/적용 context와 ordered recall을 turns.execution_context_json에 저장한다. 같은 request identity의 명시적 실패 재시도만 이를 재사용한다. 현재 release의 실제 적용 키와 새 금융 근거는 다시 확인하며 과거 답변·실행 snapshot을 혜택 근거로 재사용하지 않는다.
+- recall은 서버 저장 카드명·발급사·원래 순서만 안내한다. index loader·검색·embedding·답변 provider 없이 처리하고, 실패 후에도 저장된 순서를 사용한다. 정상 금융 답변은 기존 citation 존재·카드 소유권·출력 계약 검증을 유지한다.
+
+구조화된 출력은 분류 형식을 제한하는 수단이지 의미적 정답을 보장하는 수단이 아니다. 공식 [Structured Outputs 문서](https://developers.openai.com/api/docs/guides/structured-outputs)도 잘못된 내용이 나올 수 있음을 명시한다. 가짜 provider 검증은 저장·범위·호출 수·바이트 가드를 확인하며, 실제 다양한 표현의 분류 정확도·추천 품질·추가 비용/지연은 별도 실호출 평가 대상이다.

@@ -10,6 +10,9 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .chat_migration import ensure_chat_schema
+from .chat_models import ExecutionContext, normalize_survey_context
+
 
 class ChatStoreError(Exception):
     def __init__(self, status_code: int, code: str, message: str, retryable: bool = False):
@@ -27,10 +30,22 @@ def _json(value) -> str:
 
 def _turn(row: sqlite3.Row) -> dict:
     result = dict(row)
-    for key in ('request', 'answer', 'rewrite_usage', 'error'):
+    for key in ('request', 'answer', 'rewrite_usage', 'error', 'execution_context'):
         raw = result.pop(key + '_json')
         result[key] = json.loads(raw) if raw else None
     return result
+
+
+def _conversation(row: sqlite3.Row) -> dict:
+    result = dict(row)
+    raw = result.pop('survey_context_json')
+    result['survey_context'] = json.loads(raw) if raw else None
+    return result
+
+
+def normalize_turn_request(request: dict) -> dict:
+    # v1 never stored this optional field. Keep its raw JSON intact on replay.
+    return {**request, 'wallet_context': request.get('wallet_context')}
 
 
 class ChatStore:
@@ -46,19 +61,8 @@ class ChatStore:
             db.row_factory = sqlite3.Row
             db.execute('PRAGMA foreign_keys=ON')
             db.execute('PRAGMA busy_timeout=5000')
-            version = db.execute('PRAGMA user_version').fetchone()[0]
-            if version not in (0, 1):
-                raise sqlite3.DatabaseError('unsupported chat schema')
-            if version == 0:
-                db.execute('BEGIN IMMEDIATE')
-                # Recheck under the lock: two first requests may initialize together.
-                if db.execute('PRAGMA user_version').fetchone()[0] == 0:
-                    if db.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchone():
-                        raise sqlite3.DatabaseError('unknown existing database')
-                    schema = Path(__file__).with_name('chat_schema.sql').read_text(encoding='utf-8')
-                    for statement in schema.split(';'):
-                        if statement.strip():
-                            db.execute(statement)
+            ensure_chat_schema(db)
+            if db.in_transaction:
                 db.commit()
             db.execute('SELECT owner_hash, client_conversation_id FROM conversations LIMIT 0')
             db.execute('SELECT attempt_id, lease_expires_at FROM turns LIMIT 0')
@@ -97,21 +101,26 @@ class ChatStore:
                    (_json({'code': 'TURN_INTERRUPTED', 'message': '답변 처리가 중단됐습니다. 다시 시도할 수 있습니다.',
                            'retryable': True, 'request_id': 'interrupted'}), _now(), conversation_id, time.time()))
 
-    def create_conversation(self, owner_hash: str, client_conversation_id: str) -> dict:
+    def create_conversation(self, owner_hash: str, client_conversation_id: str, survey_context=None) -> dict:
+        survey = normalize_survey_context(survey_context)
         with self._connection(write=True) as db:
             existing = db.execute('SELECT * FROM conversations WHERE owner_hash=? AND client_conversation_id=?',
                                   (owner_hash, client_conversation_id)).fetchone()
             created = existing is None
+            if existing is not None and _conversation(existing)['survey_context'] != survey:
+                raise ChatStoreError(409, 'CONVERSATION_CONTEXT_CONFLICT', '동일 대화 ID의 설문 내용이 다릅니다.')
             if created:
                 cid, now = str(uuid.uuid4()), _now()
-                db.execute('INSERT INTO conversations VALUES(?,?,?,?,?,?)',
-                           (cid, owner_hash, client_conversation_id, '새 채팅', now, now))
+                db.execute('INSERT INTO conversations(id,owner_hash,client_conversation_id,title,'
+                           'created_at,updated_at,survey_context_json) VALUES(?,?,?,?,?,?,?)',
+                           (cid, owner_hash, client_conversation_id, '새 채팅', now, now,
+                            _json(survey) if survey is not None else None))
                 existing = self._owned(db, owner_hash, cid)
-            return {**dict(existing), '_created': created}
+            return {**_conversation(existing), '_created': created}
 
     def get_conversation(self, owner_hash: str, conversation_id: str) -> dict:
         with self._connection() as db:
-            return dict(self._owned(db, owner_hash, conversation_id))
+            return _conversation(self._owned(db, owner_hash, conversation_id))
 
     def delete_conversation(self, owner_hash: str, conversation_id: str) -> None:
         with self._connection(write=True) as db:
@@ -138,7 +147,7 @@ class ChatStore:
             rows = db.execute(query + ' ORDER BY updated_at DESC,id DESC LIMIT ?', [*params, limit+1]).fetchall()
             page = rows[:limit]
             next_cursor = base64.urlsafe_b64encode(_json([page[-1]['updated_at'], page[-1]['id']]).encode()).decode() if len(rows) > limit else None
-            return {'conversations': [dict(row) for row in page], 'next_cursor': next_cursor}
+            return {'conversations': [_conversation(row) for row in page], 'next_cursor': next_cursor}
 
     def reserve_turn(self, owner_hash: str, conversation_id: str, client_request_id: str,
                      request: dict, *, retry_failed: bool = False) -> dict:
@@ -149,7 +158,7 @@ class ChatStore:
             existing = db.execute('SELECT * FROM turns WHERE conversation_id=? AND client_request_id=?',
                                   (conversation_id, client_request_id)).fetchone()
             if existing is not None:
-                if existing['request_json'] != serialized:
+                if normalize_turn_request(json.loads(existing['request_json'])) != normalize_turn_request(request):
                     raise ChatStoreError(409, 'REQUEST_ID_CONFLICT', '동일 요청 ID의 내용이 다릅니다.')
                 if existing['state'] == 'pending':
                     raise ChatStoreError(409, 'TURN_IN_PROGRESS', '이 질문의 답변을 처리하고 있습니다.')
@@ -174,6 +183,18 @@ class ChatStore:
             db.execute('UPDATE conversations SET updated_at=? WHERE id=?', (now, conversation_id))
             return {'turn': _turn(db.execute('SELECT * FROM turns WHERE id=?', (tid,)).fetchone()),
                     'attempt_id': attempt, 'should_run': True}
+
+    def save_execution_context(self, turn_id: str, attempt_id: str, execution_context: dict) -> None:
+        context = ExecutionContext.model_validate(execution_context).model_dump(mode='json')
+        with self._connection(write=True) as db:
+            row = db.execute('SELECT * FROM turns WHERE id=?', (turn_id,)).fetchone()
+            if row is None or row['state'] != 'pending' or row['attempt_id'] != attempt_id or row['lease_expires_at'] <= time.time():
+                raise ChatStoreError(409, 'TURN_ATTEMPT_STALE', '이 답변 처리 시도는 더 이상 유효하지 않습니다.')
+            if row['execution_context_json'] is not None:
+                if json.loads(row['execution_context_json']) != context:
+                    raise ChatStoreError(409, 'TURN_EXECUTION_CONFLICT', '확정된 질문 실행 조건은 변경할 수 없습니다.')
+                return
+            db.execute('UPDATE turns SET execution_context_json=? WHERE id=?', (_json(context), turn_id))
 
     def _finish(self, turn_id, attempt_id, *, answer=None, error=None, standalone_query=None, rewrite_usage=None):
         with self._connection(write=True) as db:

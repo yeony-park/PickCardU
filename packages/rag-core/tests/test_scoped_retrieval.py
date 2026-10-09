@@ -3,10 +3,100 @@ from unittest.mock import patch
 
 import numpy as np
 
-from pickcardu_rag import Chunk, InMemoryBM25Searcher, InMemorySquaredL2Searcher, RagPipeline, SearchConfig
+from pickcardu_rag import Candidate, Chunk, InMemoryBM25Searcher, InMemorySquaredL2Searcher, RagPipeline, SearchConfig
+from pickcardu_rag.answering import measure_answer_payload
 
 
 class ScopedRetrievalTest(unittest.TestCase):
+    def test_wallet_lookup_filters_before_candidate_cut_without_precision_limit(self):
+        chunks = [Chunk(f'x{i}', '카페 할인', 'other', '다른 카드', '발급사', 'benefit', 1) for i in range(60)]
+        chunks.append(Chunk('owned', '카페 할인', 'owned', '보유 카드', '발급사', 'benefit', 1))
+        vectors = np.asarray([[0., 0.]] * 60 + [[1., 1.]])
+        pipeline = RagPipeline(chunks, InMemoryBM25Searcher(chunks),
+            InMemorySquaredL2Searcher([c.chunk_id for c in chunks], vectors, card_keys=[c.card_key for c in chunks]))
+        keys = ('owned', *(f'wallet{i}' for i in range(105)))
+        result = pipeline.search('카페', np.zeros(2), SearchConfig(
+            vector_weight=1, component_depth=1, candidate_depth=1, reranker='off',
+            wallet_card_keys=keys, wallet_operation='lookup'))
+        self.assertEqual([e['chunk_id'] for e in result['evidence']], ['owned'])
+        with self.assertRaises(ValueError):
+            SearchConfig(target_card_keys=keys)
+
+    def test_compare_excludes_owned_before_cut_and_keeps_both_whole_evidence(self):
+        chunks = [Chunk(f'o{i}', '카페 10% 할인', 'owned', '보유 카드', '발급사', 'benefit', 1) for i in range(60)]
+        chunks.append(Chunk('new', '카페 15% 할인', 'new', '새 카드', '발급사', 'benefit', 1))
+        pipeline = RagPipeline(chunks, InMemoryBM25Searcher(chunks),
+            InMemorySquaredL2Searcher([c.chunk_id for c in chunks], np.asarray([[0., 0.]] * 60 + [[1., 1.]]),
+                                      card_keys=[c.card_key for c in chunks]))
+        result = pipeline.search('카페', np.zeros(2), SearchConfig(
+            vector_weight=1, component_depth=1, candidate_depth=2, reranker='off', top_k=5,
+            wallet_card_keys=('owned',), new_card_keys=('new',), wallet_operation='compare'))
+        self.assertEqual({e['card_key'] for e in result['evidence']}, {'owned', 'new'})
+        self.assertEqual(result['trace']['scope']['missing_required_groups'], [])
+        self.assertIn('카페 15% 할인', [e['text'] for e in result['evidence']])
+
+    def test_compare_does_not_allow_one_sided_answer_after_payload_budget_cut(self):
+        chunks = [Chunk('a', '가' * 100, 'a', 'A', '발급사', 'benefit', 1),
+                  Chunk('b', '나' * 100, 'b', 'B', '발급사', 'benefit', 1)]
+        pipeline = RagPipeline(chunks, InMemoryBM25Searcher(chunks),
+            InMemorySquaredL2Searcher(['a', 'b'], np.asarray([[0., 0.], [1., 1.]]), card_keys=['a', 'b']))
+        result = pipeline.search('혜택', np.zeros(2), SearchConfig(
+            vector_weight=1, reranker='off', top_k=5, answer_payload_bytes=450,
+            wallet_card_keys=('a',), new_card_keys=('b',), wallet_operation='compare'))
+        self.assertTrue(result['trace']['scope']['missing_required_groups'])
+        self.assertLessEqual(result['trace']['evidence_budget']['payload_size'], 450)
+
+    def test_105_owned_cards_leave_only_the_last_catalog_card_in_new_branch(self):
+        keys = tuple(f'card{i}' for i in range(106))
+        chunks = [Chunk(f'chunk{i}', '카페 할인', key, key, '발급사', 'benefit', 1)
+                  for i, key in enumerate(keys)]
+        delegate = InMemoryBM25Searcher(chunks)
+        calls = []
+
+        class RecordingSearcher:
+            def search(self, query, *, limit, card_keys=None):
+                calls.append(set(card_keys))
+                return delegate.search(query, limit=limit, card_keys=card_keys)
+
+        result = RagPipeline(chunks, RecordingSearcher()).search('카페', config=SearchConfig(
+            vector_weight=0, reranker='off', component_depth=1, candidate_depth=2, top_k=5,
+            wallet_card_keys=keys[:105], new_card_keys=keys[105:], wallet_operation='compare'))
+        self.assertEqual(calls, [set(keys[:105]), {keys[105]}])
+        self.assertEqual({e['card_key'] for e in result['evidence']}, {keys[0], keys[105]})
+        self.assertEqual(result['trace']['scope']['missing_required_groups'], [])
+
+    def test_personalization_and_answer_query_are_included_in_the_actual_budget(self):
+        context = {'survey_context': {'monthly_spending': '50-100', 'spending_categories': ['카페'],
+                                     'preferred_benefits': ['할인']}}
+        chunks = [Chunk('a', '카페 10% 할인', 'a', 'A', '발급사', 'benefit', 1)]
+        result = RagPipeline(chunks, InMemoryBM25Searcher(chunks)).search(
+            '내게 맞는 카드\n검색 힌트: 카페 할인', config=SearchConfig(vector_weight=0, reranker='off',
+                answer_query='내게 맞는 카드', personalization_context=context))
+        size, _ = measure_answer_payload('내게 맞는 카드', result['evidence'], context)
+        self.assertEqual(result['trace']['evidence_budget']['payload_size'], size)
+
+    def test_wallet_contract_rejects_empty_duplicate_and_overlapping_new_scope(self):
+        for wallet in ((), ('a', 'a'), ('',), tuple(str(i) for i in range(107))):
+            with self.subTest(wallet=wallet), self.assertRaises(ValueError):
+                SearchConfig(wallet_card_keys=wallet, wallet_operation='lookup')
+        with self.assertRaises(ValueError):
+            SearchConfig(wallet_card_keys=('a',), new_card_keys=('a',), wallet_operation='compare')
+        with self.assertRaises(ValueError):
+            SearchConfig(wallet_card_keys=('a',), wallet_operation='none')
+
+    def test_adapter_cannot_return_owned_card_in_new_branch(self):
+        chunks = [Chunk('owned', '카페 할인', 'a', 'A', '발급사', 'benefit', 1),
+                  Chunk('new', '카페 할인', 'b', 'B', '발급사', 'benefit', 1)]
+
+        class EscapingSearcher:
+            def search(self, query, *, limit, card_keys=None):
+                return [Candidate('owned', 1., 1)]
+
+        with self.assertRaisesRegex(ValueError, 'trusted scope'):
+            RagPipeline(chunks, EscapingSearcher()).search('카페', config=SearchConfig(
+                vector_weight=0, reranker='off', wallet_card_keys=('a',), new_card_keys=('b',),
+                wallet_operation='compare'))
+
     def test_runtime_budget_default_and_environment_override_control_evidence(self):
         chunks = [Chunk('a', '가' * 2500, 'a', 'A', 'Issuer', 'benefit', 1),
                   Chunk('b', '나' * 2500, 'b', 'B', 'Issuer', 'benefit', 1)]

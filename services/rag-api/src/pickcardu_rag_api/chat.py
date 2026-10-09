@@ -11,6 +11,8 @@ from pickcardu_rag.errors import LlmUnavailable, RagError
 
 from .chat_store import ChatStoreError
 from .chat_scope import card_references, recall_answer, reference_groups, resolve_scope
+from .chat_models import ExecutionContext, TurnInputSnapshot
+from .chat_personalization import clarification_context, missing_personalization_clarification, resolve_personalization
 
 COOKIE_NAME = 'pickcardu_browser'
 TOKEN_PATTERN = re.compile(r'^[A-Za-z0-9_-]{43}$')
@@ -46,16 +48,19 @@ def build_chat_context(turns: list[dict], question: str, *, include_insufficient
 def turn_messages(turn):
     common = {'turn_id': turn['id'], 'client_request_id': turn['client_request_id'], 'created_at': turn['created_at']}
     answer, error = turn['answer'], turn['error']
-    return [
+    messages = [
         {**common, 'id': turn['id'] + ':user', 'seq': turn['seq']*2-1, 'role': 'user',
          'content': turn['query'], 'status': 'completed'},
         {**common, 'id': turn['id'] + ':assistant', 'seq': turn['seq']*2, 'role': 'assistant',
          'content': answer['answer'] if answer else (error['message'] if error else ''),
          'status': turn['state'], 'answer': answer, 'error': error, 'rewrite_usage': turn['rewrite_usage']},
     ]
+    if turn['state'] == 'failed':
+        messages[1]['input_snapshot'] = TurnInputSnapshot.model_validate(turn['request']).model_dump(mode='json')
+    return messages
 
 
-def register_chat_routes(app, settings, store, provider, generate_answer):
+def register_chat_routes(app, settings, store, provider, generate_answer, index_loader):
     from .chat_models import (
         BrowserSessionRequest, BrowserSessionResponse, ChatRequest, Conversation,
         ConversationPage, CreateConversationRequest, MessagesPage, TurnResponse,
@@ -90,7 +95,7 @@ def register_chat_routes(app, settings, store, provider, generate_answer):
     @app.post('/v1/conversations', response_model=Conversation, status_code=201,
               responses={**errors, 200: {'model': Conversation}})
     def create_conversation(payload: CreateConversationRequest, request: Request, response: Response):
-        result = store.create_conversation(require_owner(request), str(payload.client_conversation_id))
+        result = store.create_conversation(require_owner(request), str(payload.client_conversation_id), payload.survey_context)
         response.status_code = 201 if result['_created'] else 200
         return result
 
@@ -99,19 +104,24 @@ def register_chat_routes(app, settings, store, provider, generate_answer):
         store.delete_conversation(require_owner(request), str(conversation_id))
         return Response(status_code=204)
 
-    @app.get('/v1/conversations/{conversation_id}/messages', response_model=MessagesPage, responses=errors)
+    @app.get('/v1/conversations/{conversation_id}/messages', response_model=MessagesPage, responses=errors,
+             response_model_exclude_unset=True)
     def messages(conversation_id: UUID, request: Request, limit: int = Query(50, ge=1, le=100),
                  before_seq: int | None = Query(None, ge=1)):
-        page = store.list_turns(require_owner(request), str(conversation_id), limit=limit, before_seq=before_seq)
+        owner = require_owner(request)
+        page = store.list_turns(owner, str(conversation_id), limit=limit, before_seq=before_seq)
         return {'messages': [message for turn in page['turns'] for message in turn_messages(turn)],
-                'next_before_seq': page['next_before_seq'], 'has_pending': page['has_pending']}
+                'next_before_seq': page['next_before_seq'], 'has_pending': page['has_pending'],
+                'survey_context': store.get_conversation(owner, str(conversation_id))['survey_context']}
 
-    @app.post('/v1/conversations/{conversation_id}/messages', response_model=TurnResponse, responses=errors)
+    @app.post('/v1/conversations/{conversation_id}/messages', response_model=TurnResponse, responses=errors,
+              response_model_exclude_unset=True)
     def send_message(conversation_id: UUID, payload: ChatRequest, request: Request):
         owner = require_owner(request)
         cid = str(conversation_id)
         query = QueryRequest(query=payload.query, profile=payload.profile, top_k=payload.top_k)
-        reservation = store.reserve_turn(owner, cid, str(payload.client_request_id), query.model_dump(), retry_failed=payload.retry_failed)
+        original = TurnInputSnapshot(query=payload.query, profile=payload.profile, top_k=payload.top_k, wallet_context=payload.wallet_context)
+        reservation = store.reserve_turn(owner, cid, str(payload.client_request_id), original.model_dump(mode='json'), retry_failed=payload.retry_failed)
         turn, attempt = reservation['turn'], reservation['attempt_id']
         if not reservation['should_run']:
             return {'turn_id': turn['id'], 'messages': turn_messages(turn)}
@@ -125,31 +135,56 @@ def register_chat_routes(app, settings, store, provider, generate_answer):
                 # their last successful recommendation lists without more LLM calls.
                 anchors = store.completed_turns(owner, cid, before_seq=turn['seq'])
                 references = card_references(sorted([*anchors, *history], key=lambda item: item['seq']))
-            keys, clarification, scope, operation = None, None, 'global', 'retrieve'
-            if len(context) > 1:
+            execution = ExecutionContext.model_validate(turn['execution_context']) if turn['execution_context'] else None
+            survey = store.get_conversation(owner, cid)['survey_context']
+            wallet = payload.wallet_context
+            availability = {'survey_available': survey is not None, 'wallet_status': wallet.status if wallet else None,
+                            'wallet_card_count': len(wallet.card_keys) if wallet else 0}
+            first_gate = availability['survey_available'] or availability['wallet_status'] in ('ready', 'needs_review')
+            need_rewrite = len(context) > 1 or first_gate
+            if execution is None and not need_rewrite:
+                question = missing_personalization_clarification(payload.query, availability['survey_available'], availability['wallet_status'])
+                if question:
+                    execution = clarification_context(payload.query, question)
+            rewritten = RewriteOutput(standalone_query=payload.query)
+            if execution is None and need_rewrite:
                 started = time.perf_counter()
                 usage.update(provider_called=True, model=getattr(provider, 'llm_model', None))
                 try:
                     rewritten, rewrite_usage = provider.rewrite(context, references=[
-                        {name: ref[name] for name in ('ref', 'card_name', 'issuer')} for ref in references])
+                        {name: ref[name] for name in ('ref', 'card_name', 'issuer')} for ref in references],
+                        personalization_availability=availability)
                     rewritten = RewriteOutput.model_validate(rewritten)
-                    keys, clarification = resolve_scope(rewritten, references)
-                    scope = 'clarification' if clarification else rewritten.scope
-                    operation = 'retrieve' if clarification else rewritten.operation
                     usage.update(model=rewrite_usage.get('model', usage['model']), usage=rewrite_usage.get('usage'))
-                    query = QueryRequest(query=rewritten.standalone_query, profile=payload.profile, top_k=payload.top_k)
                 except Exception as error:
                     raise LlmUnavailable('대화 맥락을 반영한 질문을 만들지 못했습니다.') from error
                 finally:
                     usage['latency_ms'] = round((time.perf_counter()-started)*1000, 3)
-            if operation == 'recall' and keys is not None:
-                answer = recall_answer(rewritten.selected_refs, references).model_dump(mode='json')
+            if execution is None:
+                active_keys = index_loader.load().manifest['document_ids'] if rewritten.use_wallet else ()
+                execution = resolve_personalization(rewritten, survey, wallet, active_keys,
+                    original_query=payload.query, references=references)
+            store.save_execution_context(turn['id'], attempt, execution.model_dump(mode='json'))
+            query = QueryRequest(query=execution.standalone_query, profile=payload.profile, top_k=payload.top_k)
+            keys = tuple(execution.target_card_keys) if execution.target_card_keys is not None else None
+            if execution.operation == 'recall':
+                saved_refs = [{**item.model_dump(mode='json'), 'ref': item.source_ref} for item in execution.recall_items]
+                answer = recall_answer([item.source_ref for item in execution.recall_items], saved_refs).model_dump(mode='json')
             else:
-                answer = generate_answer(query, target_card_keys=keys, clarification=clarification).model_dump(mode='json')
+                personal = execution.personalization_context
+                wallet_keys = tuple(personal.wallet_context.card_keys) if personal and personal.wallet_context else None
+                search_operation = execution.wallet_operation
+                if execution.wallet_compare_scope == 'all_owned' and keys is not None:
+                    search_operation, wallet_keys = 'none', None
+                answer = generate_answer(query, target_card_keys=keys, clarification=execution.clarification,
+                    retrieval_query=execution.retrieval_query, wallet_card_keys=wallet_keys,
+                    wallet_operation=search_operation,
+                    personalization_context=personal.model_dump(mode='json') if personal else None).model_dump(mode='json')
             answer['usage']['answer']['conversation_scope'] = {
-                'scope': scope, 'target_card_keys': list(keys) if keys is not None else None,
-                'operation': operation,
-                'reference_groups': reference_groups(references) if scope != 'global' else [],
+                'scope': execution.scope, 'target_card_keys': list(keys) if keys is not None else None,
+                'operation': execution.operation, 'use_survey': execution.use_survey, 'use_wallet': execution.use_wallet,
+                'wallet_operation': execution.wallet_operation,
+                'reference_groups': reference_groups(references) if execution.scope != 'global' else [],
             }
         except Exception as error:
             if isinstance(error, ChatStoreError):

@@ -3,7 +3,6 @@ CREATE TABLE IF NOT EXISTS conversations (
     owner_hash TEXT NOT NULL,
     client_conversation_id TEXT NOT NULL,
     title TEXT NOT NULL DEFAULT '새 채팅',
-    survey_context_json TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     UNIQUE (owner_hash, client_conversation_id)
@@ -21,7 +20,6 @@ CREATE TABLE IF NOT EXISTS turns (
     query TEXT NOT NULL CHECK (length(query) BETWEEN 1 AND 500),
     state TEXT NOT NULL CHECK (state IN ('pending', 'completed', 'failed')),
     attempt_id TEXT NOT NULL,
-    execution_context_json TEXT,
     standalone_query TEXT,
     answer_json TEXT,
     rewrite_usage_json TEXT,
@@ -37,4 +35,4 @@ CREATE UNIQUE INDEX IF NOT EXISTS turns_one_pending_per_conversation_idx
     ON turns (conversation_id)
     WHERE state = 'pending';
 
-PRAGMA user_version = 2;
+PRAGMA user_version = 1;

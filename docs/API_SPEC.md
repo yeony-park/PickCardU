@@ -337,7 +337,9 @@ curl -sS http://127.0.0.1:8000/v1/answer \
 | 401 | `BROWSER_SESSION_REQUIRED` | 아니요 | 익명 쿠키가 없거나 유효하지 않음 |
 | 403 | `ORIGIN_NOT_ALLOWED` | 아니요 | 대화 POST 출처가 허용되지 않음 |
 | 404 | `CONVERSATION_NOT_FOUND` | 아니요 | 대화 없음 또는 다른 소유자; 같은 응답으로 구분 불가 |
-| 409 | `REQUEST_ID_CONFLICT` | 아니요 | 동일 요청 ID에 다른 query/profile/top_k |
+| 409 | `REQUEST_ID_CONFLICT` | 아니요 | 동일 요청 ID에 다른 query/profile/top_k/wallet_context |
+| 409 | `CONVERSATION_CONTEXT_CONFLICT` | 아니요 | 동일 대화 생성 UUID에 다른 설문 내용 |
+| 409 | `TURN_EXECUTION_CONFLICT` | 아니요 | 이미 확정한 내부 실행 조건의 변경 시도; 서버 진단 필요 |
 | 409 | `TURN_IN_PROGRESS` / `CONVERSATION_BUSY` | 아니요 | 같은 질문 또는 해당 대화의 다른 질문 처리 중; 조회 우선 |
 | 409 | `TURN_ATTEMPT_STALE` | 아니요 | 만료되거나 교체된 처리 시도의 저장 거절 |
 | 503 | `CHAT_STORAGE_UNAVAILABLE` | 예 | 대화 SQLite 손상·지원하지 않는 schema·잠금·디스크 부족 등 |
@@ -402,7 +404,7 @@ API 계약 변경은 구현과 Pydantic model을 먼저 수정하고, OpenAPI와
 {"client_conversation_id":"00000000-0000-4000-8000-000000000001"}
 ```
 
-UUID는 한 번의 새 대화 생성에 고정한다. 신규 `201`, 같은 소유자/UUID 재전송 `200`이며 동일 Conversation을 반환한다:
+UUID는 한 번의 새 대화 생성에 고정한다. 신규 `201`, 같은 소유자/UUID와 동일한 설문 재전송은 `200`이며 동일 Conversation을 반환한다. 선택 필드 `survey_context`는 첫 생성 때 확정하며 이후 덮어쓰지 않는다. 동일 UUID로 다른 설문을 보내면 `409 CONVERSATION_CONTEXT_CONFLICT`다. 필드 생략·null·빈 설문은 같은 의미다. 필드 상세는 8.6절을 참고한다:
 
 ```json
 {"id":"00000000-0000-4000-8000-000000000002","title":"새 채팅","created_at":"2026-01-01T00:00:00+00:00","updated_at":"2026-01-01T00:00:00+00:00"}
@@ -422,14 +424,15 @@ UUID는 한 번의 새 대화 생성에 고정한다. 신규 `201`, 같은 소�
 
 - conversation_id/client_request_id는 UUID. query/profile/top_k는 공통 질의 규칙과 같으며 기본 top_k=3, profile=null이다.
 - 사용자 웹 `/chat`은 `top_k=5`를 명시해서 최대5개 카드 후보를 요청한다. API에서 필드를 생략했을 때의 기본값3은 유지한다. 실제 추천 개수는 관련 근거와 답변 판단에 따라5개보다 적을 수 있다.
+- 선택 필드 `wallet_context`는 이번 질문 시점의 My Page 보유 목록 snapshot이다. 일반 질문에도 요청/재시도 보존용으로 저장될 수 있지만, 개인화·내 카드 의도로 판별한 경우에만 검색/답변에 적용한다. 적용 의도는 클라이언트가 지정하지 않는다.
 - 질문 예약·저장을 먼저 하고 맥락·RAG·LLM 처리 중에는 DB transaction을 유지하지 않는다.
 - 최근 완료된 대화 최대2쌍, 과거 최대5500자와 현재 질문 최대500자를 사용한다. 실제 추천 순서를 유지한다. failed/pending은 제외한다. 근거 부족·확인 질문은 **미확인 정보**로 표시해 질의 재작성에 전달하며, 혜택의 긍정 근거로 취급하지 않는다.
-- 첫 질문/유효 맥락 없음은 rewrite0회. 맥락이 있으면 독립 질문도 rewrite 최대1회 추가한다. 재작성 실패는 저장된 실패가 되며 원문으로 조용히 fallback하지 않는다.
-- LLM이 DB를 직접 읽지 않는다. 서버가 제한된 이전 대화를 rewrite provider에 전달한다. 답변 provider에는 독립 질의와 **새 검색 근거만** 주며 과거 답변의 혜택·citation을 새 근거로 재사용하지 않는다.
+- 첫 질문/유효 맥락 없음은 설문이 없고 wallet이 null/empty이면 rewrite0회다. 설문이 있거나 wallet이 ready/needs_review이면 의도 판별 rewrite1회가 추가된다. 후속 질문은 기존 rewrite1회에 개인화 판별을 통합하며 추가 분류 호출을 하지 않는다. 설정이 없는 첫 질문의 명백한 내 카드/내 소비 패턴 요청은 제한적인 서버 규칙으로 설정 확인을 안내한다. 폭넓은 무설정 표현 판별은 보장하지 않는다. 재작성 실패는 저장된 실패가 되며 원문으로 조용히 fallback하지 않는다.
+- LLM이 DB를 직접 읽지 않는다. 서버가 제한된 이전 대화와 설정의 존재 여부/상태/보유 수를 rewrite provider에 전달한다. 실제 설문값·보유 상세는 판별 입력에 넣지 않는다. 답변 provider에는 독립 질의·새 검색 근거와 적용 결정된 개인화 context만 주며 과거 답변의 혜택·citation을 새 근거로 재사용하지 않는다.
 - 기존 rewrite 호출 하나에서 `global`(전체 검색), `previous`(이전 카드 범위), `clarification`(대상 확인)을 함께 판단한다. 특정 문장 일치 방식이 아니다. 예: “저 카드 중”, “저것들 중”, “두 번째 것”은 문맥과 추천 순서로 해석하고, “그러면 주유 혜택 카드 추천”은 새 전체 검색으로 판단하도록 지시한다. 실제 모델의 모든 표현 인식률을 보장하는 것은 아니다.
 - 같은 rewrite 출력의 `operation=retrieve|recall`로 새 상품 사실 검색과 이전 목록 확인을 구분한다. `previous+recall`은 “위 카드 3개가 뭐지?”, “두 번째 카드 이름?”, “아까 추천한 발급사는?”처럼 저장된 카드명·발급사·목록 순서만 안내한다. “이름하고 연회비”, 실적·혜택·종류·조건·추천 이유·비교는 `retrieve`로 새 근거 검색을 유지한다. `global+recall`이나 잘못된 ref 조합은 확인 질문으로 닫는다.
 - 목록 확인은 소유 대화의 검증된 ref 메타데이터를 원래 순서/번호로 조합하며 검색·embedding·답변 LLM·활성 index loader를 호출하지 않는다. 문맥 판별 rewrite는 여전히 최대1회 호출한다. 예전 혜택 설명·추천 이유·citation을 복사하거나 새 금융 사실로 검증했다고 표시하지 않는다.
-- chat의 `usage.answer.reason=conversation_card_recall` 응답은 기록 안내 예외다. `answer_status=answered`, `query_type=proper_noun`이며 `cards/recommendations/claims/evidence`는 빈 배열이다. `release_id/profile`은 저장된 참조 메타데이터이며 현재 release로 재검색했다는 뜻이 아니다. 새 snapshot은 카드별 출처를 보존한다. 카드별 출처가 없는 과거 snapshot은 해당 snapshot을 기록한 turn의 값을 사용하므로 원래 추천 시점의 출처는 확실하지 않다. 일반 `/v1/answer`와 상품 혜택 답변은 기존 grounded claim 규칙을 유지한다. 공개 필드/enum 추가와 UI 변경은 없다.
+- chat의 `usage.answer.reason=conversation_card_recall` 응답은 기록 안내 예외다. `answer_status=answered`, `query_type=proper_noun`이며 `cards/recommendations/claims/evidence`는 빈 배열이다. `release_id/profile`은 저장된 참조 메타데이터이며 현재 release로 재검색했다는 뜻이 아니다. 새 snapshot은 카드별 출처를 보존한다. 카드별 출처가 없는 과거 snapshot은 해당 snapshot을 기록한 turn의 값을 사용하므로 원래 추천 시점의 출처는 확실하지 않다. 일반 `/v1/answer`와 상품 혜택 답변은 기존 grounded claim 규칙을 유지한다.
 - rewrite에는 이전 목록의 카드명·발급사·서버 부여 짧은 ref만 전달한다. 모델이 선택한 ref를 소유 대화의 실제 card_key로 서버가 해석한다. 정상 파싱 후 중복 ref·서로 다른 목록의 혼합·불명확한 대상은 전체 검색으로 fallback하지 않고 확인 질문으로 응답한다. 허용되지 않은 ref(enum 위반)·응답 형식 위반으로 provider 파싱이 실패하거나 provider 호출 자체가 실패하면 기존 `503 LLM_UNAVAILABLE`로 처리한다. 이 경우에도 전체 검색으로 범위를 확대하지 않는다.
 - scope snapshot이 없는 기존 저장 대화는 최근 정상 완료 응답 최대2개에서 추천 목록을 읽어 참조를 복원한다. 과거 답변 전문을 추가로 보내거나 유료 호출을 늘리는 방식이 아니다. 참조 가능한 목록은 최대2개로 제한된다.
 - `previous`는 키워드와 벡터 양쪽에서 카드별 범위를 **후보 LIMIT 이전**에 적용한다. 전역 검색 뒤에 필터링하지 않는다. 기존의 검증된 임베딩을 활용하며 재임베딩·release 변경은 없다. 전역 경로는 기존 Chroma 검색을 유지하고, 범위 벡터 검색은 대상 행의 squared-L2를 사용한다.
@@ -444,10 +447,11 @@ UUID는 한 번의 새 대화 생성에 고정한다. 신규 `201`, 같은 소�
 | id / turn_id / client_request_id | 메시지 ID / 질문·답변 쌍 ID / 재시도에도 유지하는 요청 UUID |
 | seq / role / content | 메시지 순번 / user 또는 assistant / 표시 텍스트 |
 | status | completed, pending, failed. 저장된 사용자 질문은 completed |
-| answer | assistant 완료의 기존 AnswerResponse 전체, 그 외 null |
-| rewrite_usage | assistant의 `{provider_called,model,latency_ms,usage}` 또는 null; 미제공 값은 null |
-| error | assistant 실패의 공통 ErrorResponse, 그 외 null |
+| answer | assistant 완료의 기존 AnswerResponse 전체, 그 외 생략 또는 null |
+| rewrite_usage | assistant의 `{provider_called,model,latency_ms,usage}` 또는 null; 미제공 필드는 생략 가능 |
+| error | assistant 실패의 공통 ErrorResponse, 그 외 생략 또는 null |
 | created_at | turn 생성 시각 |
+| input_snapshot | failed assistant에만 반환하는 원래 `{query,profile,top_k,wallet_context}`. user/completed/pending 메시지에서는 생략하며 새 질문의 값으로 바꾸지 않는다. |
 
 `insufficient_evidence`도 completed로 저장한다. 새 실패는 `503` 또는 `409`의 ErrorResponse이며 GET으로 저장된 질문·실패를 조회할 수 있다. 실패 결과의 동일 ID 재조회는 `200` TurnResponse로 반환한다. 기존 AnswerResponse/usage에는 rewrite 필드를 추가하지 않는다.
 
@@ -457,12 +461,14 @@ UUID는 한 번의 새 대화 생성에 고정한다. 신규 `201`, 같은 소�
 |---|---|
 | `conversation_scope.scope` | global / previous / clarification |
 | `conversation_scope.operation` | retrieve(새 상품 사실 검색) / recall(이전 목록의 식별정보 안내) |
-| `conversation_scope.target_card_keys` | 서버가 선택한 대상 ID 목록; global/clarification은 null |
+| `conversation_scope.target_card_keys` | 서버가 선택한 최대5개 정밀 비교 대상 ID. 일반 global/clarification은 null; 보유 카드 전체 정밀 조회·비교는 global에서도 목록을 가질 수 있다. |
+| `conversation_scope.use_survey` / `use_wallet` / `wallet_operation` | 이번 실행의 설문·보유 정보 적용 여부와 none/lookup/compare. 일반 질문은 적용하지 않는다. |
 | `conversation_scope.reference_groups` | 최대2개 목록, 목록당 최대5개의 카드 ID·이름·발급사와 release/profile snapshot. 새 기록은 카드별 출처를 보존하며, 카드별 값이 없는 과거 기록은 snapshot 기록 turn의 값으로 보충한다(원래 추천 출처 불확실). 부족/확인/목록 안내 응답 및 일부 카드만 안내한 뒤에도 참조 대상을 유지한다. 혜택·citation은 보존 근거로 재사용하지 않는다. |
 | `retrieval.target_card_keys` | 검색에 적용한 범위; global은 null |
 | `retrieval.retrieved_card_keys` / `evidence_card_keys` | 실제 후보에서 발견된 카드 / 최종 답변 입력 근거의 카드 |
 | `retrieval.evidence_counts` / `missing_card_keys` | 비교 대상별 최종 청크 수 / 근거가 없는 대상. 조건 확인 여부나 품질 점수가 아니다. |
 | `retrieval.unavailable_card_keys` | 현재 활성 release에 존재하지 않는 이전 대상 ID |
+| `retrieval.missing_required_groups` | 보유/신규 비교의 최종 온전한 근거가 없는 쪽(owned/new). 한쪽이라도 누락되면 답변 LLM을 호출하지 않는다. |
 | `retrieval.stages` | bm25/vector/rrf/leaf/rerank 단계별 chunk ID. scoped component 순위는 카드 안에서 계산한다. |
 | `retrieval.evidence_budget` | payload 크기·한도·예산 제외 ID·truncation. scoped는 큰 청크를 건너뛰고 다른 카드의 온전한 청크가 들어갈 여지를 남긴다. |
 
@@ -470,9 +476,11 @@ UUID는 한 번의 새 대화 생성에 고정한다. 신규 `201`, 같은 소�
 
 ### 8.4 복원·페이지·재시도
 
-`GET /v1/conversations/{conversation_id}/messages?limit=50&before_seq=<turn-seq>`는 `{messages:ChatMessage[],next_before_seq:number|null,has_pending:boolean}`이다. limit 기본50, 범위1~100이며 **turn(질문·답변 쌍) 단위**다. 메시지는 시간순이며 user seq=turn.seq*2-1, assistant seq=turn.seq*2. 다음 과거 페이지는 next_before_seq를 그대로 사용한다. 이 값은 메시지 seq가 아니다.
+`GET /v1/conversations/{conversation_id}/messages?limit=50&before_seq=<turn-seq>`는 `{messages:ChatMessage[],next_before_seq:number|null,has_pending:boolean,survey_context:SurveyContext|null}`이다. limit 기본50, 범위1~100이며 **turn(질문·답변 쌍) 단위**다. 메시지는 시간순이며 user seq=turn.seq*2-1, assistant seq=turn.seq*2. 다음 과거 페이지는 next_before_seq를 그대로 사용한다. 이 값은 메시지 seq가 아니다. survey_context는 대화에 처음 저장한 값이며 구버전 대화는 null이다.
 
-같은 요청 ID·같은 query/profile/top_k의 완료 재전송은 저장 결과만 반환하며 provider를 호출하지 않는다. pending은409, failed는 기본 재조회만 한다. 사용자의 명시적 실패 재시도만 `retry_failed:true`로 같은 ID를 다시 보낸다. 다른 내용으로 재사용하면409다. 대화당 pending은1개이며 서로 다른 대화는 별개다.
+같은 요청 ID·같은 query/profile/top_k/wallet_context의 완료 재전송은 저장 결과만 반환하며 provider를 호출하지 않는다. pending은409, failed는 기본 재조회만 한다. 사용자의 명시적 실패 재시도만 `retry_failed:true`로 같은 ID를 다시 보낸다. My Page가 변경됐어도 failed input_snapshot으로 원래 body를 재구성해야 한다. 실제 body가 다르면409다. 구버전 request_json의 wallet 필드 생략과 새 null은 동일하게 비교하며 DB 원문을 덮어쓰지 않는다. 대화당 pending은1개이며 서로 다른 대화는 별개다.
+
+확정된 의도·질의·검색 대상·적용 context·목록 순서는 내부 execution snapshot으로 보존한다. 실패 재시도는 이를 재사용해 rewrite0회이며, 확정 전 판별 실패는 다시 rewrite가 필요할 수 있다. 새 상품 근거는 매번 검색하고 적용 대상의 현재 활성 ID 및 citation 소유권을 다시 검증한다. 과거 실행 snapshot을 금융 사실의 근거로 재사용하지 않는다. 원래 wallet을 적용하지 않은 일반 질문은 누락된 wallet 키 때문에 차단하지 않는다.
 
 pending lease10분이 지나면 다음 조회/쓰기에서 `TURN_INTERRUPTED` failed로 기록한다. 자동 LLM 재실행은 하지 않는다. 네트워크 오류/502/504/비JSON 응답은 결과 불명일 수 있으므로 **먼저 GET**한다. pending/완료에 대해 새 ID로 자동 전송하지 않으며 확인된 failed만 명시적으로 재시도한다. 클라이언트 `RESULT_UNKNOWN`은 자동 재전송 금지 안내다.
 
@@ -488,3 +496,50 @@ provider 성공 후 SQLite 기록 전 프로세스 중단은 하나의 transacti
 - 형식이 잘못된 UUID는 `422`, 저장소 오류는 `503 CHAT_STORAGE_UNAVAILABLE`다. 모든 오류는 공통 ErrorResponse다.
 - 삭제는 휴지통·실행 취소 없이 영구 삭제한다. 클라이언트는 삭제 전 확인하고 성공 후에만 목록을 제거한다. 현재 대화를 삭제하면 빈 채팅 화면으로 돌아간다.
 - 삭제 자체에는 embedding·LLM 호출이 없다. 실패 또는 결과 불명 시 자동 재전송하지 않는다. 이미 삭제된 404는 클라이언트에서 목록 정리에 사용할 수 있다.
+
+### 8.6 대화별 설문과 My Page 개인화
+
+설문 생성 요청 예시:
+
+```json
+{
+  "client_conversation_id": "00000000-0000-4000-8000-000000000001",
+  "survey_context": {
+    "monthly_spending": "50-100",
+    "spending_categories": ["카페", "여행"],
+    "preferred_benefits": ["할인"]
+  }
+}
+```
+
+| SurveyContext 필드 | 허용값 / 기본값 |
+|---|---|
+| monthly_spending | under-30 / 30-50 / 50-100 / 100-200 / over-200 또는 null. 단위는 월평균 카드 사용액 만 원 구간이며 기본 null |
+| spending_categories | 쇼핑 / 배달·외식 / 카페 / 교통 / 주유 / 여행 중 최대6개, 기본 [] |
+| preferred_benefits | 할인 / 포인트 적립 / 항공 마일리지 중 최대3개, 기본 [] |
+
+중복 선택·알 수 없는 값/필드는422다. 선택 배열은 화면 정의 순서로 정규화한다. 모두 비어 있으면 null이다. 저장은 첫 대화 생성 때 한 번이며 같은 대화 후속·새로고침·복원에 유지한다. 새 채팅은 초기화하고 질문 텍스트로 저장값을 자동 변경하지 않는다. 설문 편집 endpoint는 없다.
+
+질문 body의 선택 필드 wallet_context 예시: `{"status":"ready","card_keys":["issuer/card_document"]}`. 예시 키는 실제 활성 카탈로그의 정확한 document_id로 교체해야 한다.
+
+| WalletContext 필드 | 허용값 / 규칙 |
+|---|---|
+| status | ready / empty / needs_review, 필수 |
+| card_keys | 최대106개의 중복 없는 정확한 ID, 기본 []. ready는1~106개, empty/needs_review는[]만 허용. 각 키는1~64자이며 앞뒤 공백은 허용하지 않음 |
+
+카드 등록 원본은 브라우저 localStorage의 기존 이름 목록이다. 클라이언트는 카탈로그 sourcePath의 `data/raw/`·`.pdf`를 제거해 ID를 정확히 매핑한다. 이름이 모호하거나 저장값이 손상되면 needs_review이며 추측하지 않는다. 전송한 목록은 turn request snapshot으로 채팅 DB에도 저장될 수 있지만, 공통 사용자 wallet DB나 자동 동기화 기능은 아니다. 대화 삭제는 관련 snapshot도 제거한다.
+
+| 질문 | 적용·검색 정책 |
+|---|---|
+| 편의점/여행 등 일반 혜택 추천 | 저장 설문·보유 정보를 적용하지 않고 현재 원문 질문으로 전체 검색 |
+| 내 소비 패턴에 맞는 추천 | 필요한 설문 조건을 적용하고 전체 카드에서 후보 검색. 보유 카드 정보 사용이 필요하면 보유/신규 후보를 함께 비교하며 보유 목록만으로 추천을 제한하지 않음 |
+| 내 카드 혜택 | 보유 허용 집합을 키워드·벡터 후보 제한 전에 적용 |
+| 보유 카드와 새 카드 비교 | 신규 집합에서 보유 카드를 후보 제한 전에 제외. 질문 embedding은1회이며 최종 답변 입력에 양쪽 온전한 근거를 최소1개씩 확보 |
+| 보유 카드 각각의 정밀 조건 비교 | 최대5개. 6개 이상은 대상을 좁히도록 확인하며 앞5개로 조용히 자르지 않음 |
+| 이전 목록 이름·발급사 확인 | 저장된 목록 순서만 안내하고 개인화/검색/embedding/답변 LLM/index loader를 사용하지 않음 |
+
+보유 카드를 모두 포함한 활성 카탈로그에는 신규 후보가 없으므로 판별 후 embedding/답변 호출 없이 비교 불가를 안내한다. 비교에 필요한 근거용 카드 수는 요청 top_k보다 클 수 있다(최대5개 정밀 대상 또는 보유/신규 최소2개). 추천 출력은 최대5개이며 반드시 개수를 채우지 않는다.
+
+현재 질문이 명시한 금액·소비 영역·혜택은 같은 차원의 저장 설문보다 우선한다. 적용할 값만 내부 context와 검색 힌트에 사용하며, 월 사용액 구간을 전월실적 충족·정확한 소비금액·예상 혜택액으로 단정하지 않는다. 검색 query는 최대1,024자, 공개 질문/답변용 독립 query는 기존 최대500자로 구분한다. 실제 answer query+개인화 context+근거 전체의 UTF-8 JSON bytes를 같은 serializer로 측정해 설정된 한도(기본64,000)를 지킨다. HTTP proxy의8,192-byte 한도와는 별개다.
+
+실제 모델의 다양한 표현 분류 정확도와 추가 비용·지연은 자동 가짜 응답 테스트만으로 검증되지 않는다. 별도 실호출 평가가 필요하며, 설정이 있는 첫 일반 질문도 판별 비용은 발생한다.

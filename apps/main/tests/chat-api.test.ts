@@ -1,11 +1,48 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { cardProducts } from '../lib/card-products.ts';
+import type { ChatMessage, SurveyContext, TurnInputSnapshot } from '../lib/chat-api.ts';
 
 async function client() {
   const imported = await import('../lib/chat-api.ts').catch(() => null);
   assert.ok(imported, 'chat client is not implemented');
   return imported;
 }
+
+test('conversation creation sends survey once in the existing endpoint', async () => {
+  const { createChatClient } = await client();
+  const survey: SurveyContext = { monthly_spending: '30-50', spending_categories: ['카페'], preferred_benefits: ['할인'] };
+  const bodies: unknown[] = [];
+  const api = createChatClient({ fetchImpl: async (_input, options) => {
+    bodies.push(JSON.parse(String(options?.body)));
+    return Response.json({ id: 'c1', title: '새 채팅', created_at: 'now', updated_at: 'now' });
+  } });
+  await api.createConversation('00000000-0000-4000-8000-000000000001', survey);
+  assert.deepEqual(bodies[0], { client_conversation_id: '00000000-0000-4000-8000-000000000001', survey_context: survey });
+});
+
+test('retry builder ignores current draft and wallet and retains original ID/profile/top_k', async () => {
+  const imported = await client();
+  assert.equal(typeof imported.buildTurnRequest, 'function', 'turn input snapshot builder is missing');
+  const snapshot: TurnInputSnapshot = { query: '원래 질문', profile: 'parent_child_bundle', top_k: 3,
+    wallet_context: { status: 'ready', card_keys: ['issuer/card-a'] } };
+  const message: ChatMessage = { id: 'm', turn_id: 't', seq: 2, role: 'assistant', status: 'failed', content: '실패',
+    created_at: 'now', client_request_id: '00000000-0000-4000-8000-000000000002', input_snapshot: snapshot };
+  const retry = imported.buildTurnRequest('새 질문', '00000000-0000-4000-8000-000000000003', '["other"]', message);
+  assert.deepEqual(retry, { ...snapshot, client_request_id: message.client_request_id, retry_failed: true });
+});
+
+test('actual request serialization with 106 wallets and long UTF-8 query fits proxy body limit', async () => {
+  const imported = await client();
+  assert.equal(typeof imported.buildTurnRequest, 'function');
+  for (const query of ['가'.repeat(500), '😀'.repeat(250), '\u0001'.repeat(500)]) {
+    const request = imported.buildTurnRequest(query, '00000000-0000-4000-8000-000000000004',
+      JSON.stringify(cardProducts.map(card => card.name)));
+    assert.equal(request.wallet_context?.card_keys.length, 106);
+    assert.equal(request.top_k, 5);
+    assert.ok(new TextEncoder().encode(JSON.stringify(request)).byteLength <= 8192);
+  }
+});
 
 test('browser initialization uses one Web Lock and shared per-tab promise', async () => {
   const { createChatClient } = await client();

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import sqlite3
 import tempfile
 import unittest
 import uuid
@@ -24,23 +25,25 @@ class ChatProvider(FakeProvider):
         self.recommend_all = False
         self.insufficient = False
         self.references = []
+        self.availability = []
 
-    def rewrite(self, context, *, references=None):
+    def rewrite(self, context, *, references=None, personalization_availability=None):
         self.rewrites.append(context)
         self.references.append(references)
+        self.availability.append(personalization_availability)
         return self.rewrite_result, {'model': self.llm_model, 'usage': {'total_tokens': 3}}
 
-    def answer(self, query, evidence, *, comparison=False):
+    def answer(self, query, evidence, *, comparison=False, personalization_context=None):
         if self.fail_answer:
             raise LlmUnavailable('secret provider detail')
         if self.recommend_all or self.insufficient:
-            self.answer_inputs.append((query, evidence))
+            self.answer_inputs.append((query, evidence, personalization_context))
             if self.insufficient:
                 return AnswerOutput(answer_status='insufficient_evidence', answer_text='전월실적 조건은 확인하지 못했습니다.'), {'attempt_count': 1}
             return AnswerOutput(answer_text='두 카드를 안내합니다.',
                                 recommendations=[Recommendation(card_key=e['card_key'], reason=e['text'], citations=[e['chunk_id']]) for e in evidence],
                                 claims=[AtomicClaim(card_key=e['card_key'], text=e['text'], citations=[e['chunk_id']]) for e in evidence]), {'attempt_count': 1}
-        return super().answer(query, evidence)
+        return super().answer(query, evidence, comparison=comparison, personalization_context=personalization_context)
 
 
 class ChatApiTest(unittest.TestCase):
@@ -65,6 +68,173 @@ class ChatApiTest(unittest.TestCase):
 
     def send(self, cid, payload=None):
         return self.client.post(f'/v1/conversations/{cid}/messages', json=payload or {'query': '카페 카드 추천', 'client_request_id': str(uuid.uuid4())}, headers=self.headers)
+
+    def survey_conversation(self):
+        survey = {'monthly_spending': '30-50', 'spending_categories': ['카페'], 'preferred_benefits': ['할인']}
+        draft = str(uuid.uuid4())
+        result = self.client.post('/v1/conversations', headers=self.headers,
+            json={'client_conversation_id': draft, 'survey_context': survey})
+        self.assertEqual(result.status_code, 201, result.text)
+        return result.json()['id'], draft, survey
+
+    def test_survey_is_saved_restored_and_same_draft_changed_survey_conflicts(self):
+        self.session()
+        cid, draft, survey = self.survey_conversation()
+        page = self.client.get(f'/v1/conversations/{cid}/messages').json()
+        self.assertEqual(page['survey_context'], survey)
+        conflict = self.client.post('/v1/conversations', headers=self.headers,
+            json={'client_conversation_id': draft, 'survey_context': None})
+        self.assertEqual(conflict.status_code, 409)
+        self.assertEqual(conflict.json()['code'], 'CONVERSATION_CONTEXT_CONFLICT')
+        empty = self.conversation().json()['id']
+        self.assertIsNone(self.client.get(f'/v1/conversations/{empty}/messages').json()['survey_context'])
+
+    def test_first_generic_with_settings_has_one_classifier_but_no_applied_context(self):
+        self.session()
+        cid, _, _ = self.survey_conversation()
+        self.provider.rewrite_result = RewriteOutput(standalone_query='과거 카페 소비 조건을 붙인 질문')
+        result = self.send(cid, {'query': '주유 혜택 카드 추천', 'top_k': 5, 'client_request_id': str(uuid.uuid4())})
+        self.assertEqual(result.status_code, 200, result.text)
+        self.assertEqual(len(self.provider.rewrites), 1)
+        self.assertEqual(self.provider.embedding_queries, ['주유 혜택 카드 추천'])
+        self.assertIsNone(self.provider.answer_inputs[-1][2])
+        self.assertEqual(self.provider.availability[-1], {'survey_available': True, 'wallet_status': None, 'wallet_card_count': 0})
+
+    def test_first_owned_question_filters_to_wallet_and_empty_wallet_asks_without_provider(self):
+        self.session()
+        cid = self.conversation().json()['id']
+        self.provider.rewrite_result = RewriteOutput(standalone_query='내 카드 주유 혜택', use_wallet=True, wallet_operation='lookup')
+        result = self.send(cid, {'query': '내 카드 주유 혜택', 'client_request_id': str(uuid.uuid4()),
+            'wallet_context': {'status': 'ready', 'card_keys': ['issuer/card-b']}})
+        self.assertEqual(result.status_code, 200, result.text)
+        self.assertEqual(len(self.provider.rewrites), 1)
+        self.assertEqual({e['card_key'] for e in self.provider.answer_inputs[-1][1]}, {'issuer/card-b'})
+        self.assertEqual(self.provider.answer_inputs[-1][2]['wallet_context']['card_keys'], ['issuer/card-b'])
+        empty = self.conversation().json()['id']
+        before = (len(self.provider.rewrites), len(self.provider.embedding_queries), len(self.provider.answer_inputs))
+        result = self.send(empty, {'query': '내 카드 혜택', 'client_request_id': str(uuid.uuid4()),
+            'wallet_context': {'status': 'empty', 'card_keys': []}})
+        self.assertEqual(result.status_code, 200, result.text)
+        self.assertEqual(result.json()['messages'][1]['answer']['answer_status'], 'insufficient_evidence')
+        self.assertEqual((len(self.provider.rewrites), len(self.provider.embedding_queries), len(self.provider.answer_inputs)), before)
+
+    def test_failed_retry_uses_original_input_and_decision_but_changed_body_conflicts(self):
+        self.session()
+        cid, _, survey = self.survey_conversation()
+        payload = {'query': '내 소비패턴 기준 카드 추천', 'top_k': 5, 'profile': None,
+                   'client_request_id': str(uuid.uuid4()),
+                   'wallet_context': {'status': 'ready', 'card_keys': ['issuer/card-a']}}
+        self.provider.rewrite_result = RewriteOutput(standalone_query=payload['query'], use_survey=True)
+        self.provider.fail_answer = True
+        failed = self.send(cid, payload)
+        self.assertEqual(failed.status_code, 503, failed.text)
+        messages = self.client.get(f'/v1/conversations/{cid}/messages').json()['messages']
+        self.assertEqual(messages[1]['input_snapshot'], {key: payload[key] for key in ('query', 'profile', 'top_k', 'wallet_context')})
+        self.assertNotIn('input_snapshot', messages[0])
+        self.assertEqual(len(self.provider.rewrites), 1)
+        self.provider.fail_answer = False
+        self.provider.rewrite_result = RewriteOutput(standalone_query='바뀐 주유 질문')
+        conflict = self.send(cid, {**payload, 'retry_failed': True,
+                                  'wallet_context': {'status': 'ready', 'card_keys': ['issuer/card-b']}})
+        self.assertEqual(conflict.status_code, 409)
+        self.assertEqual(conflict.json()['code'], 'REQUEST_ID_CONFLICT')
+        retry = self.send(cid, {**payload, 'retry_failed': True})
+        self.assertEqual(retry.status_code, 200, retry.text)
+        self.assertEqual(len(self.provider.rewrites), 1)
+        self.assertEqual(self.provider.answer_inputs[-1][0], payload['query'])
+        self.assertEqual(self.provider.answer_inputs[-1][2]['survey_context'], survey)
+        self.assertNotIn('input_snapshot', retry.json()['messages'][1])
+        calls = (len(self.provider.rewrites), len(self.provider.embedding_queries), len(self.provider.answer_inputs))
+        replay = self.send(cid, payload)
+        self.assertEqual(replay.json(), retry.json())
+        self.assertEqual((len(self.provider.rewrites), len(self.provider.embedding_queries), len(self.provider.answer_inputs)), calls)
+
+    def test_entire_catalog_owned_new_comparison_stops_after_classifier(self):
+        self.session()
+        cid = self.conversation().json()['id']
+        self.provider.rewrite_result = RewriteOutput(standalone_query='새 카드와 비교', use_wallet=True, wallet_operation='compare')
+        result = self.send(cid, {'query': '내 카드보다 유리한 새 카드', 'client_request_id': str(uuid.uuid4()),
+            'wallet_context': {'status': 'ready', 'card_keys': ['issuer/card-a', 'issuer/card-b']}})
+        self.assertEqual(result.status_code, 200, result.text)
+        self.assertEqual(len(self.provider.rewrites), 1)
+        self.assertEqual(self.provider.embedding_queries, [])
+        self.assertEqual(self.provider.answer_inputs, [])
+
+    def test_owned_new_compare_keeps_both_groups_with_one_embedding(self):
+        self.session()
+        cid = self.conversation().json()['id']
+        self.provider.rewrite_result = RewriteOutput(standalone_query='보유 카드와 새 카드 비교',
+                                                     use_wallet=True, wallet_operation='compare')
+        result = self.send(cid, {'query': '내 카드보다 좋은 새 카드', 'top_k': 5,
+            'client_request_id': str(uuid.uuid4()), 'wallet_context': {'status': 'ready', 'card_keys': ['issuer/card-a']}})
+        self.assertEqual(result.status_code, 200, result.text)
+        self.assertEqual(len(self.provider.embedding_queries), 1)
+        self.assertEqual({row['card_key'] for row in self.provider.answer_inputs[-1][1]}, {'issuer/card-a', 'issuer/card-b'})
+        answer = result.json()['messages'][1]['answer']
+        self.assertEqual(answer['usage']['answer']['retrieval']['missing_required_groups'], [])
+
+    def test_generic_topic_after_personalized_answer_does_not_keep_previous_conditions(self):
+        self.session()
+        cid, _, _ = self.survey_conversation()
+        self.provider.rewrite_result = RewriteOutput(standalone_query='내 소비 패턴 카드 추천', use_survey=True)
+        self.assertEqual(self.send(cid, {'query': '내 소비 패턴 카드 추천', 'client_request_id': str(uuid.uuid4())}).status_code, 200)
+        self.provider.rewrite_result = RewriteOutput(standalone_query='카페 30만원 조건을 유지하며 주유 카드 추천')
+        result = self.send(cid, {'query': '그러면 주유 카드 추천', 'client_request_id': str(uuid.uuid4())})
+        self.assertEqual(result.status_code, 200, result.text)
+        self.assertEqual(len(self.provider.rewrites), 2)
+        self.assertEqual(self.provider.embedding_queries[-1], '그러면 주유 카드 추천')
+        self.assertEqual(self.provider.answer_inputs[-1][0], '그러면 주유 카드 추천')
+        self.assertIsNone(self.provider.answer_inputs[-1][2])
+
+    def test_resolved_wallet_retry_revalidates_current_release_without_reclassifying(self):
+        from dataclasses import replace
+        from pickcardu_rag_api.index import ActiveIndexLoader
+        self.session()
+        cid = self.conversation().json()['id']
+        self.provider.rewrite_result = RewriteOutput(standalone_query='내 카드 카페 혜택', use_wallet=True, wallet_operation='lookup')
+        payload = {'query': '내 카드 카페 혜택', 'client_request_id': str(uuid.uuid4()),
+                   'wallet_context': {'status': 'ready', 'card_keys': ['issuer/card-a']}}
+        self.provider.fail_answer = True
+        self.assertEqual(self.send(cid, payload).status_code, 503)
+        self.provider.fail_answer = False
+        before = (len(self.provider.rewrites), len(self.provider.embedding_queries), len(self.provider.answer_inputs))
+        original_load = ActiveIndexLoader.load
+
+        def changed_release(loader):
+            handle = original_load(loader)
+            return replace(handle, manifest={**handle.manifest, 'document_ids': ['issuer/card-b']})
+
+        with patch.object(ActiveIndexLoader, 'load', changed_release):
+            retry = self.send(cid, {**payload, 'retry_failed': True})
+        self.assertEqual(retry.status_code, 200, retry.text)
+        answer = retry.json()['messages'][1]['answer']
+        self.assertEqual(answer['answer_status'], 'insufficient_evidence')
+        self.assertEqual(answer['usage']['answer']['retrieval']['unavailable_card_keys'], ['issuer/card-a'])
+        self.assertEqual((len(self.provider.rewrites), len(self.provider.embedding_queries), len(self.provider.answer_inputs)), before)
+
+    def test_interrupted_recall_retry_uses_saved_order_without_index_or_provider(self):
+        import sqlite3
+        from pickcardu_rag_api.index import ActiveIndexLoader
+        self.session()
+        cid = self.conversation().json()['id']
+        self.provider.recommend_all = True
+        self.assertEqual(self.send(cid).status_code, 200)
+        self.provider.rewrite_result = RewriteOutput(standalone_query='이전 카드 목록', scope='previous',
+            operation='recall', selected_refs=['t1r2', 't1r1'])
+        payload = {'query': '위 카드 두 개 이름', 'client_request_id': str(uuid.uuid4())}
+        with patch.object(self.store, 'complete_turn', side_effect=ChatStoreError(503, 'CHAT_STORAGE_UNAVAILABLE', '완료 기록 실패', True)):
+            self.assertEqual(self.send(cid, payload).status_code, 503)
+        with sqlite3.connect(self.store.path) as db:
+            db.execute('UPDATE turns SET lease_expires_at=0 WHERE client_request_id=?', (payload['client_request_id'],))
+        self.client.get(f'/v1/conversations/{cid}/messages')
+        before = (len(self.provider.rewrites), len(self.provider.embedding_queries), len(self.provider.answer_inputs))
+        self.provider.rewrite_result = RewriteOutput(standalone_query='다른 목록')
+        with patch.object(ActiveIndexLoader, 'load', side_effect=RuntimeError('must not load index for recall')):
+            retry = self.send(cid, {**payload, 'retry_failed': True})
+        self.assertEqual(retry.status_code, 200, retry.text)
+        self.assertEqual(retry.json()['messages'][1]['answer']['answer'],
+                         '이전에 안내한 카드 목록입니다.\n1. Card A · Issuer\n2. Card B · Issuer')
+        self.assertEqual((len(self.provider.rewrites), len(self.provider.embedding_queries), len(self.provider.answer_inputs)), before)
 
     def test_cookie_ownership_origin_validation_and_lazy_openapi(self):
         self.app.openapi()
@@ -157,6 +327,8 @@ class ChatApiTest(unittest.TestCase):
         cid = self.conversation().json()['id']
         self.assertEqual(self.send(cid).status_code, 200)
         self.assertEqual(len(self.provider.rewrites), 0)
+        self.provider.rewrite_result = RewriteOutput(standalone_query='Card A 연회비는?',
+                                                     scope='previous', selected_refs=['t1r1'])
         second = self.send(cid, {'query': '첫 번째 카드 연회비는?', 'client_request_id': str(uuid.uuid4())})
         self.assertEqual(second.status_code, 200, second.text)
         self.assertEqual(len(self.provider.rewrites), 1)
@@ -317,6 +489,25 @@ class ChatApiTest(unittest.TestCase):
         self.assertEqual(retry.status_code, 200)
         self.assertEqual(retry.json()['turn_id'], replay.json()['turn_id'])
         self.assertEqual(len(self.client.get(f'/v1/conversations/{cid}/messages').json()['messages']), 2)
+
+    def test_retry_after_rewrite_failure_reclassifies_once_before_freezing_execution(self):
+        self.session()
+        cid, _, _ = self.survey_conversation()
+        payload = {'query': '주유 혜택 카드 추천', 'client_request_id': str(uuid.uuid4())}
+        self.provider.rewrite_result = '   '
+        self.assertEqual(self.send(cid, payload).status_code, 503)
+        with sqlite3.connect(self.root / 'chat.sqlite') as db:
+            frozen = db.execute('SELECT execution_context_json FROM turns WHERE client_request_id=?',
+                                (payload['client_request_id'],)).fetchone()
+        self.assertIsNone(frozen[0])
+        self.assertEqual(len(self.provider.rewrites), 1)
+        self.assertEqual(self.provider.embedding_queries, [])
+        self.provider.rewrite_result = RewriteOutput(standalone_query='주유 혜택 카드 추천')
+        retry = self.send(cid, {**payload, 'retry_failed': True})
+        self.assertEqual(retry.status_code, 200, retry.text)
+        self.assertEqual(len(self.provider.rewrites), 2)
+        self.assertEqual(self.provider.embedding_queries, ['주유 혜택 카드 추천'])
+        self.assertEqual(len(self.provider.answer_inputs), 1)
 
     def test_provider_success_storage_failure_remains_pending_without_rerun(self):
         self.session()

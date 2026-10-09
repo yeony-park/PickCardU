@@ -198,6 +198,10 @@ components:
         id:
           title: Id
           type: string
+        input_snapshot:
+          anyOf:
+          - $ref: '#/components/schemas/TurnInputSnapshot'
+          - type: 'null'
         rewrite_usage:
           anyOf:
           - $ref: '#/components/schemas/ChatRewriteUsage'
@@ -264,6 +268,10 @@ components:
           - 5
           title: Top K
           type: integer
+        wallet_context:
+          anyOf:
+          - $ref: '#/components/schemas/WalletContext'
+          - type: 'null'
       required:
       - query
       - client_request_id
@@ -339,6 +347,10 @@ components:
           format: uuid
           title: Client Conversation Id
           type: string
+        survey_context:
+          anyOf:
+          - $ref: '#/components/schemas/SurveyContext'
+          - type: 'null'
       required:
       - client_conversation_id
       title: CreateConversationRequest
@@ -436,6 +448,10 @@ components:
           - type: integer
           - type: 'null'
           title: Next Before Seq
+        survey_context:
+          anyOf:
+          - $ref: '#/components/schemas/SurveyContext'
+          - type: 'null'
       required:
       - messages
       - next_before_seq
@@ -595,6 +611,77 @@ components:
       - embedding
       title: SearchUsage
       type: object
+    SurveyContext:
+      additionalProperties: false
+      properties:
+        monthly_spending:
+          anyOf:
+          - enum:
+            - under-30
+            - 30-50
+            - 50-100
+            - 100-200
+            - over-200
+            type: string
+          - type: 'null'
+          title: Monthly Spending
+        preferred_benefits:
+          items:
+            enum:
+            - 할인
+            - 포인트 적립
+            - 항공 마일리지
+            type: string
+          maxItems: 3
+          title: Preferred Benefits
+          type: array
+        spending_categories:
+          items:
+            enum:
+            - 쇼핑
+            - 배달·외식
+            - 카페
+            - 교통
+            - 주유
+            - 여행
+            type: string
+          maxItems: 6
+          title: Spending Categories
+          type: array
+      title: SurveyContext
+      type: object
+    TurnInputSnapshot:
+      additionalProperties: false
+      properties:
+        profile:
+          anyOf:
+          - enum:
+            - card_page_section_benefit
+            - parent_child_bundle
+            type: string
+          - type: 'null'
+          title: Profile
+        query:
+          maxLength: 500
+          minLength: 1
+          title: Query
+          type: string
+        top_k:
+          default: 3
+          enum:
+          - 1
+          - 3
+          - 5
+          title: Top K
+          type: integer
+        wallet_context:
+          anyOf:
+          - $ref: '#/components/schemas/WalletContext'
+          - type: 'null'
+      required:
+      - query
+      title: TurnInputSnapshot
+      type: object
     TurnResponse:
       properties:
         messages:
@@ -609,6 +696,28 @@ components:
       - turn_id
       - messages
       title: TurnResponse
+      type: object
+    WalletContext:
+      additionalProperties: false
+      properties:
+        card_keys:
+          items:
+            maxLength: 64
+            minLength: 1
+            type: string
+          maxItems: 106
+          title: Card Keys
+          type: array
+        status:
+          enum:
+          - ready
+          - empty
+          - needs_review
+          title: Status
+          type: string
+      required:
+      - status
+      title: WalletContext
       type: object
 info:
   title: PickCardU RAG API

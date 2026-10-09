@@ -61,6 +61,7 @@ for (const fixture of cases) test(`${fixture.name}: drafting is allowed and send
   state = {
     conversations: [], conversationCursor: null, selectedId: null, messages: [], beforeSeq: null,
     ready: true, loading: false, error: '', deletingId: null, busy: false,
+    surveyDraft: null, setSurveyDraft() {},
     sendQuestion: async () => false, startNewChat() {},
     selectConversation: async () => {}, refreshMessages: async () => {},
     loadOlderMessages: async () => {}, loadMoreConversations: async () => {},
@@ -91,6 +92,7 @@ test('team onboarding is confined to the empty view without replacing the chat c
   state = {
     conversations: [], conversationCursor: null, selectedId: null, messages: [], beforeSeq: null,
     ready: false, loading: false, error: '', deletingId: null, busy: false,
+    surveyDraft: null, setSurveyDraft() {},
     sendQuestion: async () => false, startNewChat() {},
     selectConversation: async () => {}, refreshMessages: async () => {},
     loadOlderMessages: async () => {}, loadMoreConversations: async () => {},
@@ -108,4 +110,21 @@ test('team onboarding is confined to the empty view without replacing the chat c
   assert.match(thread, /chat-thread/);
   assert.match(thread, /PickCardU와 대화/);
   assert.doesNotMatch(thread, /survey-monthly-spending/);
+});
+
+test('existing survey controls render the current draft rather than uncontrolled defaults', () => {
+  state = {
+    conversations: [], conversationCursor: null, selectedId: null, messages: [], beforeSeq: null,
+    ready: true, loading: false, error: '', deletingId: null, busy: false,
+    surveyDraft: { monthly_spending: '30-50', spending_categories: ['카페', '교통'], preferred_benefits: ['포인트 적립'] },
+    setSurveyDraft() {}, sendQuestion: async () => false, startNewChat() {},
+    selectConversation: async () => {}, refreshMessages: async () => {},
+    loadOlderMessages: async () => {}, loadMoreConversations: async () => {}, removeConversation: async () => false,
+  };
+  const html = renderToStaticMarkup(createElement(page.exports.default));
+  assert.match(html, /<option value="30-50" selected=""/);
+  const inputs = [...html.matchAll(/<input[^>]*>/g)].map(match => match[0]);
+  const checked = inputs.filter(input => input.includes('checked=""'));
+  assert.equal(checked.length, 3);
+  for (const value of ['카페', '교통', '포인트 적립']) assert.ok(checked.some(input => input.includes(`value="${value}"`)));
 });

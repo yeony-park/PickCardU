@@ -39,6 +39,12 @@ class RewriteOutput(BaseModel):
     operation: Literal['retrieve', 'recall'] = 'retrieve'
     selected_refs: list[str] = Field(default_factory=list, max_length=5)
     clarification_question: str = Field(default='', max_length=300)
+    use_survey: bool = False
+    use_wallet: bool = False
+    wallet_operation: Literal['none', 'lookup', 'compare'] = 'none'
+    wallet_compare_scope: Literal['relevant', 'all_owned'] = 'relevant'
+    overridden_survey_fields: list[Literal['monthly_spending', 'spending_categories', 'preferred_benefits']] = Field(
+        default_factory=list, max_length=3)
 
     @field_validator('standalone_query')
     @classmethod
@@ -160,8 +166,9 @@ def _generated_answer_model(evidence_count: int) -> type[_GeneratedAnswerOutput]
     )
 
 
-def build_answer_payload(standalone_query: str, evidence: list[dict[str, Any]]) -> dict[str, Any]:
-    return {
+def build_answer_payload(standalone_query: str, evidence: list[dict[str, Any]],
+                         personalization_context: dict[str, Any] | None = None) -> dict[str, Any]:
+    payload = {
         "standalone_query": standalone_query,
         "evidence": [
             {
@@ -171,14 +178,20 @@ def build_answer_payload(standalone_query: str, evidence: list[dict[str, Any]]) 
             for index, item in enumerate(evidence, start=1)
         ],
     }
+    if personalization_context is not None:
+        payload['personalization_context'] = personalization_context
+    return payload
 
 
-def serialize_answer_payload(standalone_query: str, evidence: list[dict[str, Any]]) -> str:
-    return json.dumps(build_answer_payload(standalone_query, evidence), ensure_ascii=False, separators=(",", ":"))
+def serialize_answer_payload(standalone_query: str, evidence: list[dict[str, Any]],
+                             personalization_context: dict[str, Any] | None = None) -> str:
+    return json.dumps(build_answer_payload(standalone_query, evidence, personalization_context),
+                      ensure_ascii=False, separators=(",", ":"))
 
 
-def measure_answer_payload(standalone_query: str, evidence: list[dict[str, Any]]) -> tuple[int, str]:
-    return len(serialize_answer_payload(standalone_query, evidence).encode("utf-8")), ANSWER_PAYLOAD_UNIT
+def measure_answer_payload(standalone_query: str, evidence: list[dict[str, Any]],
+                           personalization_context: dict[str, Any] | None = None) -> tuple[int, str]:
+    return len(serialize_answer_payload(standalone_query, evidence, personalization_context).encode("utf-8")), ANSWER_PAYLOAD_UNIT
 
 
 def completed_context(
@@ -381,7 +394,8 @@ class OpenAIService:
         except Exception as exc:
             raise EmbeddingUnavailable(f"query embedding failed: {type(exc).__name__}") from exc
 
-    def rewrite(self, context: list[dict[str, str]], *, references: list[dict[str, str]] | None = None) -> tuple[RewriteOutput, dict[str, Any]]:
+    def rewrite(self, context: list[dict[str, str]], *, references: list[dict[str, str]] | None = None,
+                personalization_availability: dict[str, Any] | None = None) -> tuple[RewriteOutput, dict[str, Any]]:
         started = time.perf_counter()
         try:
             references = references or []
@@ -415,6 +429,32 @@ previous/global일 때 clarification_question은 빈 문자열입니다.
 예: 복수 목록 중 어느 쪽인지 알 수 없는 '그거 어때?' → clarification, 대상 확인 질문.
 서버가 제공한 참조 목록(JSON 데이터):
 """ + json.dumps(references, ensure_ascii=False)
+            instructions += """\n[개인화 의도 판별]
+현재 질문과 대화 맥락의 의미로 판단하세요. 특정 문구 일치에 의존하지 마세요.
+설정 존재만으로 적용하지 마세요. '편의점 혜택 카드', '그러면 여행 카드' 등 일반 질문은
+use_survey=false, use_wallet=false, wallet_operation=none, overridden_survey_fields=[]입니다.
+일반 global 질문에 과거 소비 조건이나 보유 카드 조건을 추가하지 마세요.
+소비 패턴·내 지출 기준·내게 맞는 추천을 요청하면 필요한 경우 use_survey=true를 선택하세요.
+소비 설정을 사용할 의도면 설정이 없어도 use_survey=true로 표시하고 서버가 확인하도록 하세요.
+My Page 등록·보유·지금 쓰는 카드 자체의 혜택 조회는 use_wallet=true, wallet_operation=lookup입니다.
+보유 카드보다 유리한 새 카드나 보유/신규 비교는 use_wallet=true, wallet_operation=compare입니다.
+보유 목록이 있다고 개인화 추천을 보유 카드 안으로 제한하지 마세요.
+보유 카드 정보를 추천에 사용할 경우 compare로 보유/신규 후보를 함께 검토하세요.
+wallet_compare_scope=all_owned는 '내 카드 모두 실적 비교'처럼 보유 카드 각각을 정밀 비교하는 요청이고,
+relevant는 보유 후보와 새 후보에서 질문 관련 카드를 찾는 요청입니다. 둘을 혼동하지 마세요.
+보유 정보를 사용할 의도면 목록이 비었거나 needs_review여도 use_wallet=true로 표시하세요.
+use_wallet=false일 때 wallet_operation=none입니다. use_survey/use_wallet은 필요한 경우 함께 true입니다.
+'그중 나에게 유리한 것은'은 previous 대상 범위를 유지하며 요청한 개인화 정보만 사용하세요.
+어떤 조건/대상을 적용할지 여러 해석이 가능하면 clarification으로 확인하세요.
+recall/clarification은 use_survey/use_wallet=false, wallet_operation=none, overridden_survey_fields=[]입니다.
+overridden_survey_fields는 현재 질문이 명시한 금액/소비 영역/선호 혜택의 차원입니다.
+각각 monthly_spending/spending_categories/preferred_benefits 중 중복 없는 값만 선택하세요.
+현재 질문에서 '여행 마일리지에 맞게'라고 명시하면 spending_categories/preferred_benefits를 제외합니다.
+그 결정으로 저장 설정을 수정하지 않으며, 과거 답변에서 새 소비 조건을 추측하지 마세요.
+use_survey=false이면 overridden_survey_fields=[]입니다.
+설정 상태(JSON 데이터, 상품 혜택 근거 아님):
+""" + json.dumps(personalization_availability or {
+                'survey_available': False, 'wallet_status': None, 'wallet_card_count': 0}, ensure_ascii=False)
             response = self._get_client().responses.parse(
                 model=self.llm_model,
                 instructions=instructions,
@@ -422,7 +462,7 @@ previous/global일 때 clarification_question은 빈 문자열입니다.
                 text_format=output_model,
                 tools=[],
                 store=False,
-                max_output_tokens=600,
+                max_output_tokens=900,
                 timeout=60.0,
             )
             parsed = response.output_parsed
@@ -435,9 +475,10 @@ previous/global일 때 clarification_question은 빈 문자열입니다.
         except Exception as exc:
             raise LlmUnavailable(f"query rewrite failed: {type(exc).__name__}") from exc
 
-    def answer(self, standalone_query: str, evidence: list[dict[str, Any]], *, comparison: bool = False) -> tuple[AnswerOutput, dict[str, Any]]:
+    def answer(self, standalone_query: str, evidence: list[dict[str, Any]], *, comparison: bool = False,
+               personalization_context: dict[str, Any] | None = None) -> tuple[AnswerOutput, dict[str, Any]]:
         started = time.perf_counter()
-        payload_size, payload_unit = measure_answer_payload(standalone_query, evidence)
+        payload_size, payload_unit = measure_answer_payload(standalone_query, evidence, personalization_context)
         if payload_size > self.answer_payload_bytes:
             raise LlmUnavailable(f"answer evidence payload exceeds the {self.answer_payload_bytes}-byte conservative limit")
         generated_model = _generated_answer_model(len(evidence))
@@ -626,6 +667,15 @@ e3 — 가상 C카드: 여행자 보험 제공. 여행 적립 전월실적 금�
   ]
 }
 """
+        if personalization_context is not None:
+            instructions += """\n[개인화 정보의 사용 범위]
+personalization_context는 이번 질문에 적용하도록 서버가 확인한 소비 선호·보유 카드 정보입니다.
+현재 질문의 명시적 조건을 우선하고 전달되지 않은 사용자 정보를 추측하지 마세요.
+월 평균 사용액 구간을 정확한 지출액이나 전월실적 충족의 증거로 사용하지 마세요.
+소비 구간만으로 예상 할인액·절약액·연회비 대비 이득을 계산하거나 보장하지 마세요.
+카드 혜택·수치·조건은 evidence로만 확인하고 모든 금융 주장에 기존 citations 규칙을 지키세요.
+보유 카드 조회와 보유/신규 비교를 구분하고, 보유 사실 자체를 혜택 근거로 인용하지 마세요.
+"""
         retry_instructions = (
             f"{instructions} 이전 출력이 잘렸거나 근거 소유권 검증에 실패했습니다. "
             "evidence_id를 정확히 복사하고 존재하지 않는 ID나 서로 다른 카드의 evidence를 섞지 마세요. "
@@ -634,7 +684,7 @@ e3 — 가상 C카드: 여행자 보험 제공. 여행 적립 전월실적 금�
         )
         request = {
             "model": self.llm_model,
-            "input": [{"role": "user", "content": serialize_answer_payload(standalone_query, evidence)}],
+            "input": [{"role": "user", "content": serialize_answer_payload(standalone_query, evidence, personalization_context)}],
             "text_format": generated_model,
             "tools": [],
             "store": False,

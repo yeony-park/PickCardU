@@ -18,16 +18,16 @@ class BrowserProvider(FakeProvider):
         super().__init__()
         self.failed_queries = set()
 
-    def rewrite(self, context, *, references=None):
+    def rewrite(self, context, *, references=None, personalization_availability=None):
         return RewriteOutput(standalone_query=context[-1]['content']), {'model': 'fixture', 'usage': {'total_tokens': 0}}
 
-    def answer(self, query, evidence, *, comparison=False):
+    def answer(self, query, evidence, *, comparison=False, personalization_context=None):
         if '대기' in query:
             time.sleep(3)
         if '실패' in query and query not in self.failed_queries:
             self.failed_queries.add(query)
             raise LlmUnavailable('테스트용 실패')
-        return super().answer(query, evidence, comparison=comparison)
+        return super().answer(query, evidence, comparison=comparison, personalization_context=personalization_context)
 
 
 def main():

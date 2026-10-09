@@ -49,6 +49,10 @@ def _search(
     *,
     target_card_keys: tuple[str, ...] | None = None,
     answer_payload_bytes: int | None = None,
+    retrieval_query: str | None = None,
+    wallet_card_keys: tuple[str, ...] | None = None,
+    wallet_operation: str = 'none',
+    personalization_context: dict | None = None,
 ) -> tuple[ReleaseHandle, dict[str, Any], dict[str, Any]]:
     handle = loader.load()
     profile = payload.profile or handle.manifest["strategy"]
@@ -56,14 +60,23 @@ def _search(
         raise ValueError("requested profile does not match the active index")
     if getattr(provider, "embedding_model", None) != handle.manifest["embedding_model"]:
         raise ValueError("runtime embedding model does not match the active index")
-    if target_card_keys is not None:
-        unavailable = [key for key in target_card_keys if key not in handle.manifest['document_ids']]
+    required_keys = tuple(dict.fromkeys([*(target_card_keys or ()), *(wallet_card_keys or ())]))
+    if required_keys:
+        unavailable = [key for key in required_keys if key not in handle.manifest['document_ids']]
         if unavailable:
             return handle, {'query_type': 'semantic', 'cards': [], 'evidence': [],
                             'trace': {'unavailable_card_keys': unavailable}}, {'provider_called': False}
-    vector, embedding_usage = provider.embed(payload.query)
+    new_card_keys = None
+    if wallet_operation == 'compare':
+        new_card_keys = tuple(key for key in handle.manifest['document_ids'] if key not in (wallet_card_keys or ())
+                              and (target_card_keys is None or key in target_card_keys))
+        if not new_card_keys:
+            return handle, {'query_type': 'semantic', 'cards': [], 'evidence': [],
+                            'trace': {'scope': {'missing_required_groups': ['new']}}}, {'provider_called': False}
+    query = payload.query if retrieval_query is None else retrieval_query
+    vector, embedding_usage = provider.embed(query)
     result = handle.search(
-        payload.query,
+        query,
         vector,
         SearchConfig(
             profile=profile,
@@ -75,6 +88,8 @@ def _search(
             reranker_route="all" if profile == "parent_child_bundle" else "selective",
             target_card_keys=target_card_keys,
             answer_payload_bytes=answer_payload_limit() if answer_payload_bytes is None else answer_payload_bytes,
+            wallet_card_keys=wallet_card_keys, new_card_keys=new_card_keys, wallet_operation=wallet_operation,
+            answer_query=payload.query, personalization_context=personalization_context,
         ),
     )
     return handle, result, embedding_usage
@@ -179,7 +194,9 @@ def create_app(
         })
 
     def _generate_answer(payload: QueryRequest, *, target_card_keys: tuple[str, ...] | None = None,
-                         clarification: str | None = None) -> AnswerResponse:
+                         clarification: str | None = None, retrieval_query: str | None = None,
+                         wallet_card_keys: tuple[str, ...] | None = None, wallet_operation: str = 'none',
+                         personalization_context: dict | None = None) -> AnswerResponse:
         if clarification:
             handle = loader.load()
             if payload.profile is not None and payload.profile != handle.manifest['strategy']:
@@ -188,12 +205,18 @@ def create_app(
             embedding_usage = {'provider_called': False}
         else:
             handle, result, embedding_usage = _search(payload, loader, provider, target_card_keys=target_card_keys,
-                                                     answer_payload_bytes=settings.answer_payload_bytes)
+                answer_payload_bytes=settings.answer_payload_bytes, retrieval_query=retrieval_query,
+                wallet_card_keys=wallet_card_keys, wallet_operation=wallet_operation,
+                personalization_context=personalization_context)
         counts = {key: sum(e['card_key'] == key for e in result['evidence']) for key in target_card_keys or ()}
         missing = [key for key, count in counts.items() if count == 0]
         if clarification:
             generated = AnswerOutput(answer_status='insufficient_evidence', answer_text=clarification)
             answer_usage = {'provider_called': False, 'reason': 'clarification_required'}
+        elif result.get('trace', {}).get('scope', {}).get('missing_required_groups'):
+            generated = AnswerOutput(answer_status='insufficient_evidence',
+                answer_text='보유 카드와 새 카드 양쪽의 질문 관련 근거를 확보하지 못해 비교하기 어렵습니다. 조건이 없다는 뜻은 아닙니다.')
+            answer_usage = {'provider_called': False, 'reason': 'missing_comparison_evidence'}
         elif missing:
             catalog = {card['card_key']: card['card_name'] for card in handle.catalog}
             names = ', '.join(catalog.get(key, '이전 추천 카드') for key in missing)
@@ -201,10 +224,12 @@ def create_app(
                 answer_text=f'{names}의 질문 관련 근거를 확보하지 못해 요청하신 카드 전체를 비교하기 어렵습니다. 조건이 없다는 뜻은 아닙니다.')
             answer_usage = {'provider_called': False, 'reason': 'missing_target_evidence'}
         elif result["evidence"]:
-            if target_card_keys is None:
-                generated, answer_usage = provider.answer(payload.query, result["evidence"])
-            else:
-                generated, answer_usage = provider.answer(payload.query, result["evidence"], comparison=True)
+            options = {}
+            if target_card_keys is not None or wallet_operation == 'compare':
+                options['comparison'] = True
+            if personalization_context is not None:
+                options['personalization_context'] = personalization_context
+            generated, answer_usage = provider.answer(payload.query, result["evidence"], **options)
         else:
             generated = AnswerOutput(
                 answer_status="insufficient_evidence",
@@ -221,6 +246,7 @@ def create_app(
             'evidence_counts': counts,
             'missing_card_keys': missing,
             'unavailable_card_keys': trace.get('unavailable_card_keys', []),
+            'missing_required_groups': trace.get('scope', {}).get('missing_required_groups', []),
             'evidence_budget': trace.get('evidence_budget'),
             'stages': {name: [row['chunk_id'] for row in trace.get(name, [])] for name in ('bm25', 'vector', 'rrf', 'leaf', 'rerank')},
         }}
@@ -253,7 +279,7 @@ def create_app(
         return _error(error.status_code, error.code, error.message, request.state.request_id, retryable=error.retryable)
 
     path = settings.chat_db_path or Path(__file__).resolve().parents[4] / 'data/chat/runtime/chat.sqlite'
-    register_chat_routes(app, settings, chat_store if chat_store is not None else ChatStore(path), provider, _generate_answer)
+    register_chat_routes(app, settings, chat_store if chat_store is not None else ChatStore(path), provider, _generate_answer, loader)
     return app
 
 

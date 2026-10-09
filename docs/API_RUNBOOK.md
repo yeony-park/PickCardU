@@ -232,9 +232,9 @@ setup 단계에서 실패하면 오류 메시지의 첫 실패 단계를 확인�
 
 기본 포트에서는 proxy 설정 없이 루트의 `npm run dev`를 사용한다. FastAPI의 `PICKCARDU_CHAT_DB_PATH`는 루트 `.env` 또는 프로세스 환경으로 설정한다. 다른 API 포트를 사용하는 경우 Next의 `PICKCARDU_RAG_API_BASE_URL`은 실행 프로세스 환경 또는 `apps/main/.env.local`에 설정한다. 루트 `.env` 자동 읽기는 FastAPI 진입점의 기능이며 Next가 같은 파일을 자동 읽는다는 뜻은 아니다. 이 변수에 `NEXT_PUBLIC_` 접두사를 붙이거나 키를 포함하지 않는다.
 
-저장 내용은 질문, 검증된 답변 JSON, 실패 상태와 제한된 처리 메타데이터다. 로컬 평문이며 자동 삭제·계정 로그인·삭제/내보내기 UI는 없다. 브라우저 쿠키가 접근 권한이므로 삭제/만료하면 DB 백업이 있어도 자동 복원되지 않는다. 로그와 공유 파일에 쿠키·대화 원문·키를 남기지 않는다.
+저장 내용은 질문, 검증된 답변 JSON, 실패 상태, 대화별 설문과 질문별 보유/실행 snapshot이다. 로컬 평문이며 자동 보존기간 삭제·계정 로그인·내보내기 UI는 없다. 단일 대화 삭제 UI/API는 제공한다. 브라우저 쿠키가 접근 권한이므로 삭제/만료하면 DB 백업이 있어도 자동 복원되지 않는다. 로그와 공유 파일에 쿠키·대화 원문·키를 남기지 않는다.
 
-후속 질문은 최근 answered 최대2쌍과 현재 질문을 rewrite provider에 추가 전송한다. 첫 질문은 추가 rewrite0회, 후속은 최대1회다. 기존 answer 최대2회 시도와 별개이며 테스트/운영 비용 승인을 구분한다.
+후속 질문은 최근 완료된 최대2쌍과 현재 질문을 rewrite provider에 전송한다. 근거 부족/확인 질문은 미확인 상태로 표시하며 failed/pending은 제외한다. 첫 질문은 설문 또는 ready/needs_review 보유 정보가 있으면 판별 rewrite1회, 설정 없는 일반 질문은0회다. 후속은 기존 rewrite1회에 판별을 통합한다. 확정 실행 snapshot이 있는 실패 재시도는 rewrite를 반복하지 않는다. 기존 answer 루틴의 최대2회 Responses 시도와 별개이며 테스트/운영 비용 승인을 구분한다. 판별 출력 토큰 상한은900이고 답변 생성 상한은 기존2,400을 유지한다. 추가 비용·지연은 실제 평가 전까지 미측정이다.
 
 저장 실패 시 먼저 디스크 공간·디렉터리 쓰기 권한·DB 잠금·schema version을 확인한다. 손상/미지원 DB를 자동 삭제·재생성하지 않는다. `TURN_INTERRUPTED`는 만료된 pending 기록이며 조회 후 사용자가 명시적으로 재시도한다. 응답 유실은 완료/실패 여부를 조회하기 전 새 질문으로 전송하지 않는다.
 
@@ -256,3 +256,19 @@ with sqlite3.connect(source.resolve().as_uri() + "?mode=ro", uri=True) as src:
 ```
 
 코드 병합은 worktree의 대화 DB를 자동 이전하지 않는다. worktree 제거 전에 대화 DB 보존/이전 여부를 별도로 확인한다. 브라우저/포트가 달라지면 기존 쿠키의 재사용 여부도 확인하며 소유자 해시를 임의로 바꾸지 않는다. 공개 배포와 production 차단 정책은 여전히 별도 작업이다.
+
+### Schema v2 적용과 복구
+
+현재 schema는 v2다. v1에서 conversations.survey_context_json, turns.execution_context_json nullable TEXT 두 컬럼만 추가하며 기존 행·소유자·순번·요청 JSON을 보존한다. 기존 설문/실행값은 null이다. 첫 ChatStore 접근에서 BEGIN IMMEDIATE 아래 version을 재확인해 비파괴 migration한다. 정상 v2 읽기는 migration용 쓰기 잠금을 잡지 않는다. 알 수 없는 DB/version은 자동 복구·삭제하지 않고 차단한다. RAG DB에는 이 migration을 적용하지 않는다.
+
+실제 기존 DB를 사용하는 실행 전 절차:
+
+1. 실제 PICKCARDU_CHAT_DB_PATH/기본 경로가 대상 환경의 채팅 DB인지 확인한다. worktree 적용이면 원본 프로젝트·다른 환경·외부 symlink를 가리키지 않아야 한다.
+2. 해당 DB를 사용하는 기존 v1 서비스의 실행 상태와 진행 중 turn을 확인한다. 다른 환경 서버를 종료하지 않는다. 같은 DB에 v1/v2 코드를 동시에 사용하지 않도록 실행을 조율한다.
+3. 새 경로로 위 SQLite online backup을 만든다. 백업에는 대화·설문·보유 snapshot이 포함될 수 있으므로 접근 권한을 제한하고 Git/공유 파일에 포함하지 않는다.
+4. 백업의 integrity_check=ok, user_version, conversation/turn 수와 원본의 대응 값을 확인한다. 점검 중 대화 원문·쿠키·키는 출력하지 않는다.
+5. 승인된 환경에서 v2 Store를 한 번 열고 user_version=2, integrity/foreign_key_check와 기존 행 보존을 확인한 뒤 v2 서비스로 실행한다.
+
+코드만 v1으로 되돌리면 v2 DB를 읽지 못한다. 복구가 필요하면 해당 서비스 중지, 현재 v2 DB의 별도 보존, migration 후 새 대화의 처리, v1 백업 복원 여부를 먼저 결정한다. 백업 복원은 새 대화 손실 가능성이 있으므로 별도 승인 없이 DB를 덮어쓰지 않는다. DB가 없으면 새 v2를 lazy 생성하며 기존 DB가 없는 상황을 backup 완료로 기록하지 않는다.
+
+일반 테스트는 FakeProvider와 임시 DB만 사용한다. 제한 실행 환경에서 TestClient/Node child runner가 대기하거나 실행 실패할 경우 최소 재현으로 환경 경계를 먼저 확인하고, 설치·버전 변경 없이 승인된 테스트 실행 환경을 사용한다. 실제 API키를 테스트 fixture에 연결하지 않는다.

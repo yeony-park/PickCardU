@@ -54,7 +54,7 @@ class InsufficientProvider:
 
         return np.asarray([0.0, 0.0], dtype=np.float32), {"provider_called": True}
 
-    def answer(self, query, evidence):
+    def answer(self, query, evidence, *, comparison=False, personalization_context=None):
         from pickcardu_rag import AnswerOutput
 
         self.answer_inputs.append((query, evidence))
@@ -106,7 +106,8 @@ class ApiTest(unittest.TestCase):
         body = response.json()
         self.assertEqual(body["answer_status"], "answered")
         self.assertEqual(body["recommendations"][0]["card_key"], "issuer/card-a")
-        query, evidence = self.provider.answer_inputs[0]
+        query, evidence, personalization = self.provider.answer_inputs[0]
+        self.assertIsNone(personalization)
         self.assertEqual(query, "카페 혜택 좋은 카드")
         self.assertTrue(evidence)
 

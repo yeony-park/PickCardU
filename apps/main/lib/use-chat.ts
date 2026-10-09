@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ChatApiError, createConversation, deleteConversation, getMessages, initializeBrowser, listConversations, sendMessage,
-  type ChatMessage, type Conversation,
+  ChatApiError, buildTurnRequest, createConversation, deleteConversation, getMessages, initializeBrowser, listConversations, sendMessage,
+  type ChatMessage, type Conversation, type SurveyContext,
 } from './chat-api';
 import { isCurrentConversation, isDefiniteRejection, mergeMessages, reconcileMessages } from './chat-state';
+import { registeredCardsKey } from './registered-cards';
 
 const DRAFT_KEY = 'pickcardu-chat-draft';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -33,6 +34,7 @@ export function useChat() {
   const [conversationCursor, setConversationCursor] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [surveyDraft, setSurveyDraft] = useState<SurveyContext | null>(null);
   const [beforeSeq, setBeforeSeq] = useState<number | null>(null);
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -61,6 +63,7 @@ export function useChat() {
     selected.current = id;
     setSelectedId(id);
     setMessages([]);
+    setSurveyDraft(null);
     setBeforeSeq(null);
     setSendingGeneration(null);
     setError('');
@@ -72,6 +75,7 @@ export function useChat() {
       if (mounted.current && generation.current === requestGeneration) {
         setMessages(page.messages);
         setBeforeSeq(page.next_before_seq);
+        setSurveyDraft(page.survey_context ?? null);
       }
     } catch (failure) {
       if (mounted.current && generation.current === requestGeneration) setError(errorText(failure));
@@ -152,16 +156,24 @@ export function useChat() {
     let id = selected.current;
     const requestId = retryMessage?.client_request_id ?? crypto.randomUUID();
     try {
+      let rawWallet: string | null | undefined;
+      if (!retryMessage) {
+        try { rawWallet = localStorage.getItem(registeredCardsKey); }
+        catch { /* Unavailable storage is needs_review, not an empty wallet. */ }
+      }
+      const payload = buildTurnRequest(value, requestId, rawWallet, retryMessage);
+      const survey = surveyDraft;
       if (!id) {
         const draft = draftId();
-        const conversation = await createConversation(draft);
-        id = conversation.id;
+        const conversation = await createConversation(draft, survey);
         if (sessionStorage.getItem(DRAFT_KEY) === draft) sessionStorage.removeItem(DRAFT_KEY);
-        if (mounted.current && generation.current === requestGeneration) {
-          selected.current = id;
-          setSelectedId(id);
-          updateUrl(id);
-        }
+        // Leaving this draft cancels submission, not merely its UI updates.
+        if (!mounted.current || generation.current !== requestGeneration || selected.current !== id) return false;
+        id = conversation.id;
+        selected.current = id;
+        setSelectedId(id);
+        setSurveyDraft(survey);
+        updateUrl(id);
       }
       const cid = id;
       const currentRequest = () => mounted.current && generation.current === requestGeneration && isCurrentConversation(cid, selected.current);
@@ -179,7 +191,7 @@ export function useChat() {
         }
       }
       try {
-        const result = await sendMessage(cid, { query: value, client_request_id: requestId, top_k: 5, retry_failed: Boolean(retryMessage) });
+        const result = await sendMessage(cid, payload);
         if (currentRequest()) setMessages(current => reconcileMessages(current, result.messages));
       } catch (failure) {
         // Server failures may have saved the question. Prefer that authoritative state.
@@ -257,6 +269,7 @@ export function useChat() {
 
   return {
     conversations, conversationCursor, selectedId, messages, beforeSeq, ready, loading, error, deletingId,
+    surveyDraft, setSurveyDraft,
     busy: hasPending || resultUnknown || sendingGeneration !== null || (deletingId !== null && deletingId === selectedId),
     startNewChat, selectConversation, sendQuestion, refreshMessages, removeConversation,
     loadOlderMessages, loadMoreConversations: () => conversationCursor

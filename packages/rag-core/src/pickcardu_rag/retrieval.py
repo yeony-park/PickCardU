@@ -145,6 +145,11 @@ class SearchConfig:
     reranker_route: Literal["selective", "all"] = "selective"
     target_card_keys: tuple[str, ...] | None = None
     answer_payload_bytes: int = field(default_factory=answer_payload_limit)
+    wallet_card_keys: tuple[str, ...] | None = None
+    new_card_keys: tuple[str, ...] | None = None
+    wallet_operation: Literal['none', 'lookup', 'compare'] = 'none'
+    answer_query: str | None = None
+    personalization_context: dict[str, Any] | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.profile, str) or not self.profile.strip() or not 0.0 <= self.vector_weight <= 1.0:
@@ -163,6 +168,27 @@ class SearchConfig:
             or len(set(self.target_card_keys)) != len(self.target_card_keys)
         ):
             raise ValueError("target card keys must be 1-5 unique non-empty IDs")
+        for name, keys in (('wallet', self.wallet_card_keys), ('new', self.new_card_keys)):
+            if keys is not None and (not isinstance(keys, tuple) or not 1 <= len(keys) <= 106
+                                     or any(not isinstance(key, str) or not key.strip() or key != key.strip() for key in keys)
+                                     or len(set(keys)) != len(keys)):
+                raise ValueError(f'{name} card keys must be 1-106 unique exact IDs')
+        if self.wallet_operation not in ('none', 'lookup', 'compare'):
+            raise ValueError('invalid wallet operation')
+        if self.wallet_operation == 'none' and (self.wallet_card_keys is not None or self.new_card_keys is not None):
+            raise ValueError('unused wallet must not change search scope')
+        if self.wallet_operation != 'none' and self.wallet_card_keys is None:
+            raise ValueError('wallet search requires owned keys')
+        if self.wallet_operation == 'lookup' and self.new_card_keys is not None:
+            raise ValueError('wallet lookup has no new-card branch')
+        if self.wallet_operation == 'compare' and (
+            self.new_card_keys is None or set(self.wallet_card_keys or ()) & set(self.new_card_keys)
+        ):
+            raise ValueError('wallet comparison requires a disjoint nonempty new-card scope')
+        if self.answer_query is not None and (
+            not isinstance(self.answer_query, str) or not self.answer_query.strip() or len(self.answer_query) > 500
+        ):
+            raise ValueError('invalid answer query')
 
 
 def normalize_text(text: str) -> str:
@@ -342,10 +368,39 @@ def collapse_cards(
     max_evidence_per_card: int = 5,
     max_payload_size: int | None = None,
     skip_oversized: bool = False,
+    answer_query: str | None = None,
+    personalization_context: dict[str, Any] | None = None,
+    required_card_groups: tuple[tuple[str, ...], tuple[str, ...]] | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, Any]]:
     max_payload_size = answer_payload_limit() if max_payload_size is None else max_payload_size
     if type(max_payload_size) is not int or max_payload_size <= 0:
         raise ValueError('answer payload byte limit must be a positive integer')
+    query = standalone_query if answer_query is None else answer_query
+
+    def evidence_row(row: Candidate, rank: int) -> dict[str, Any]:
+        chunk = chunks[row.chunk_id]
+        return {'rank': rank, 'card_key': chunk.card_key, 'card_name': chunk.card_name,
+                'issuer': chunk.issuer, 'chunk_id': chunk.chunk_id, 'page_num': chunk.page_num,
+                'text': chunk.text, 'section': chunk.section, 'level': chunk.level, 'score': row.score}
+
+    base_size, _ = measure_answer_payload(query, [], personalization_context)
+    if base_size > max_payload_size:
+        raise EvidencePackageTooLarge('question and personalization exceed the answer payload budget')
+    if required_card_groups is not None:
+        required = [next((row for row in rows if chunks[row.chunk_id].card_key in group), None)
+                    for group in required_card_groups]
+        selected = [row for row in required if row is not None]
+        reserved = [evidence_row(row, rank) for rank, row in enumerate(selected, 1)]
+        if len(selected) != 2 or measure_answer_payload(query, reserved, personalization_context)[0] > max_payload_size:
+            return [], [], {'payload_unit': 'utf8_bytes_conservative', 'payload_unit_limit': max_payload_size,
+                           'payload_size': base_size, 'dropped_chunk_count': len(rows),
+                           'dropped_chunk_ids': [row.chunk_id for row in rows], 'budget_truncated': bool(selected),
+                           'missing_required_groups': [name for name, row in zip(('owned', 'new'), required)
+                                                       if row is None] or ['owned', 'new']}
+        # Reserve whole evidence for both sides before optional rows consume bytes.
+        rows = [*selected, *rows]
+        top_k = max(top_k, 2)
+        skip_oversized = True
     cards: list[dict[str, Any]] = []
     evidence: list[dict[str, Any]] = []
     by_card: dict[str, dict[str, Any]] = {}
@@ -365,19 +420,8 @@ def collapse_cards(
         ):
             dropped_chunk_ids.append(chunk.chunk_id)
             continue
-        candidate = {
-            "rank": len(evidence) + 1,
-            "card_key": chunk.card_key,
-            "card_name": chunk.card_name,
-            "issuer": chunk.issuer,
-            "chunk_id": chunk.chunk_id,
-            "page_num": chunk.page_num,
-            "text": chunk.text,
-            "section": chunk.section,
-            "level": chunk.level,
-            "score": row.score,
-        }
-        if measure_answer_payload(standalone_query, [*evidence, candidate])[0] > max_payload_size:
+        candidate = evidence_row(row, len(evidence) + 1)
+        if measure_answer_payload(query, [*evidence, candidate], personalization_context)[0] > max_payload_size:
             if not evidence and not skip_oversized:
                 raise EvidencePackageTooLarge(
                     "top-ranked evidence exceeds the answer payload budget",
@@ -401,8 +445,8 @@ def collapse_cards(
             by_card[chunk.card_key] = card
         card["evidence_count"] += 1
         evidence.append(candidate)
-    payload_size, payload_unit = measure_answer_payload(standalone_query, evidence)
-    return cards, evidence, {
+    payload_size, payload_unit = measure_answer_payload(query, evidence, personalization_context)
+    budget = {
         "payload_unit": payload_unit,
         "payload_unit_limit": max_payload_size,
         "payload_size": payload_size,
@@ -410,6 +454,10 @@ def collapse_cards(
         "dropped_chunk_ids": dropped_chunk_ids,
         "budget_truncated": budget_truncated,
     }
+    if required_card_groups is not None:
+        budget['missing_required_groups'] = [name for name, group in zip(('owned', 'new'), required_card_groups)
+                                             if not any(item['card_key'] in group for item in evidence)]
+    return cards, evidence, budget
 
 
 def _candidate_dict(row: Candidate) -> dict[str, Any]:
@@ -424,6 +472,13 @@ def _candidate_dict(row: Candidate) -> dict[str, Any]:
 def _card_balanced(rows: Sequence[Candidate], chunks: Mapping[str, Chunk], keys: tuple[str, ...]) -> list[Candidate]:
     """Preserve each card's ranking while allocating candidate/evidence slots fairly."""
     groups = [[row for row in rows if chunks[row.chunk_id].card_key == key] for key in keys]
+    ordered = [group[i] for i in range(max(map(len, groups), default=0)) for group in groups if i < len(group)]
+    return [replace(row, rank=i) for i, row in enumerate(ordered, 1)]
+
+
+def _group_balanced(rows: Sequence[Candidate], chunks: Mapping[str, Chunk],
+                    keys: tuple[tuple[str, ...], tuple[str, ...]]) -> list[Candidate]:
+    groups = [[row for row in rows if chunks[row.chunk_id].card_key in group] for group in keys]
     ordered = [group[i] for i in range(max(map(len, groups), default=0)) for group in groups if i < len(group)]
     return [replace(row, rank=i) for i, row in enumerate(ordered, 1)]
 
@@ -533,27 +588,48 @@ class RagPipeline:
         started = time.perf_counter()
         query_type = classify_query(query)
         keys = config.target_card_keys
-        lexical = (self.lexical_searcher.search(query, limit=config.component_depth) if keys is None else
-                   [row for key in keys for row in self.lexical_searcher.search(query, limit=config.component_depth, card_keys=(key,))])
+        groups = None
+        if config.wallet_operation == 'compare':
+            groups = (config.wallet_card_keys, config.new_card_keys)
+            scopes = list(groups)
+        elif keys is not None:
+            if config.wallet_card_keys is not None and not set(keys) <= set(config.wallet_card_keys):
+                raise ValueError('precision targets must belong to the requested wallet')
+            scopes = [(key,) for key in keys]
+        elif config.wallet_operation == 'lookup':
+            scopes = [config.wallet_card_keys]
+        else:
+            scopes = [None]
+        def search_component(searcher, value):
+            result = []
+            for scope in scopes:
+                rows = (searcher.search(value, limit=config.component_depth) if scope is None else
+                        searcher.search(value, limit=config.component_depth, card_keys=scope))
+                if scope is not None and any(self.chunks[row.chunk_id].card_key not in scope for row in rows):
+                    raise ValueError('search adapter returned a card outside the trusted scope')
+                result.extend(rows)
+            return result
+
+        lexical = search_component(self.lexical_searcher, query)
         vector: list[Candidate] = []
         if config.vector_weight:
             if query_embedding is None or self.vector_searcher is None:
                 raise ValueError("vector searcher and query embedding are required")
-            vector = (self.vector_searcher.search(query_embedding, limit=config.component_depth) if keys is None else
-                      [row for key in keys for row in self.vector_searcher.search(query_embedding, limit=config.component_depth, card_keys=(key,))])
-        if keys is not None and any(self.chunks[row.chunk_id].card_key not in keys for row in [*lexical, *vector]):
-            raise ValueError("search adapter returned a card outside the trusted scope")
+            vector = search_component(self.vector_searcher, query_embedding)
         components: dict[str, Sequence[Candidate]] = {"bm25": lexical}
         weights = {"bm25": 1.0 - config.vector_weight}
         if vector:
             components["vector"] = vector
             weights["vector"] = config.vector_weight
         fused = weighted_rrf(components, weights)
-        if keys is not None:
+        if keys is not None or config.wallet_operation != 'none':
             # Scoped comparisons must not lose a card's usable evidence to
             # page/header rows occupying the bounded fused worklist.
             fused = [row for row in fused if self.chunks[row.chunk_id].level in self.profile.eligible_levels]
-            fused = _card_balanced(fused, self.chunks, keys)
+            if groups is not None:
+                fused = _group_balanced(fused, self.chunks, groups)
+            elif keys is not None:
+                fused = _card_balanced(fused, self.chunks, keys)
         fused = fused[:FUSED_WORKLIST_DEPTH]
         leaf = [row for row in fused if self.chunks[row.chunk_id].level in self.profile.eligible_levels][
             : max(config.candidate_depth, len(keys or ()))
@@ -623,9 +699,13 @@ class RagPipeline:
             hydrated = reranked
         if keys is not None:
             hydrated = _card_balanced(hydrated, answer_chunks, keys)
+        if groups is not None:
+            hydrated = _group_balanced(hydrated, answer_chunks, groups)
         cards, evidence, budget = collapse_cards(
             hydrated, answer_chunks, top_k=max(config.top_k, len(keys or ())), standalone_query=query,
-            skip_oversized=keys is not None,
+            answer_query=config.answer_query, personalization_context=config.personalization_context,
+            required_card_groups=groups,
+            skip_oversized=keys is not None or config.wallet_operation != 'none',
             max_payload_size=config.answer_payload_bytes,
         )
         return {
@@ -645,7 +725,10 @@ class RagPipeline:
                 "evidence_budget": budget,
                 "scope": {"target_card_keys": list(keys) if keys is not None else None,
                           "evidence_counts": {key: sum(e['card_key'] == key for e in evidence) for key in keys or ()},
-                          "missing_card_keys": [key for key in keys or () if not any(e['card_key'] == key for e in evidence)]},
+                          "missing_card_keys": [key for key in keys or () if not any(e['card_key'] == key for e in evidence)],
+                          **({'wallet_operation': config.wallet_operation,
+                              'missing_required_groups': budget.get('missing_required_groups', [])}
+                             if config.wallet_operation != 'none' else {})},
                 "profile": self.profile.identifier,
                 "lexical_contract": LEXICAL_CONTRACT,
                 "query_classifier_contract": QUERY_CLASSIFIER_CONTRACT,

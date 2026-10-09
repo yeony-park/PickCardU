@@ -7,23 +7,26 @@ export interface components {
     "BrowserSessionRequest": {  };
     "BrowserSessionResponse": { "status": "ready"; };
     "CardResult": { "card_key": string; "card_name": string; "evidence_count": number; "issuer": string; "rank": number; "score": number; };
-    "ChatMessage": { "answer"?: components["schemas"]["AnswerResponse"] | null; "client_request_id": string; "content": string; "created_at": string; "error"?: components["schemas"]["ErrorResponse"] | null; "id": string; "rewrite_usage"?: components["schemas"]["ChatRewriteUsage"] | null; "role": "user" | "assistant"; "seq": number; "status": "completed" | "pending" | "failed"; "turn_id": string; };
-    "ChatRequest": { "client_request_id": string; "profile"?: "card_page_section_benefit" | "parent_child_bundle" | null; "query": string; "retry_failed"?: boolean; "top_k"?: 1 | 3 | 5; };
+    "ChatMessage": { "answer"?: components["schemas"]["AnswerResponse"] | null; "client_request_id": string; "content": string; "created_at": string; "error"?: components["schemas"]["ErrorResponse"] | null; "id": string; "input_snapshot"?: components["schemas"]["TurnInputSnapshot"] | null; "rewrite_usage"?: components["schemas"]["ChatRewriteUsage"] | null; "role": "user" | "assistant"; "seq": number; "status": "completed" | "pending" | "failed"; "turn_id": string; };
+    "ChatRequest": { "client_request_id": string; "profile"?: "card_page_section_benefit" | "parent_child_bundle" | null; "query": string; "retry_failed"?: boolean; "top_k"?: 1 | 3 | 5; "wallet_context"?: components["schemas"]["WalletContext"] | null; };
     "ChatRewriteUsage": { "latency_ms"?: number | null; "model"?: string | null; "provider_called": boolean; "usage"?: { [key: string]: unknown; } | null; };
     "Conversation": { "created_at": string; "id": string; "title": string; "updated_at": string; };
     "ConversationPage": { "conversations": Array<components["schemas"]["Conversation"]>; "next_cursor": string | null; };
-    "CreateConversationRequest": { "client_conversation_id": string; };
+    "CreateConversationRequest": { "client_conversation_id": string; "survey_context"?: components["schemas"]["SurveyContext"] | null; };
     "ErrorResponse": { "code": string; "message": string; "request_id": string; "retryable": boolean; };
     "EvidenceResult": { "card_key": string; "card_name": string; "chunk_id": string; "issuer": string; "level": string; "page_num": number; "rank": number; "score": number; "section": string | null; "text": string; };
     "LiveResponse": { "status": "live"; };
-    "MessagesPage": { "has_pending": boolean; "messages": Array<components["schemas"]["ChatMessage"]>; "next_before_seq": number | null; };
+    "MessagesPage": { "has_pending": boolean; "messages": Array<components["schemas"]["ChatMessage"]>; "next_before_seq": number | null; "survey_context"?: components["schemas"]["SurveyContext"] | null; };
     "NotReadyResponse": { "reason": string; "status": "not_ready"; };
     "QueryRequest": { "profile"?: "card_page_section_benefit" | "parent_child_bundle" | null; "query": string; "top_k"?: 1 | 3 | 5; };
     "ReadyResponse": { "chunk_count": number; "document_count": number; "profile": "card_page_section_benefit" | "parent_child_bundle"; "release_id": string; "status": "ready"; };
     "Recommendation": { "card_key": string; "citations": Array<string>; "reason": string; };
     "SearchResponse": { "cards": Array<components["schemas"]["CardResult"]>; "evidence": Array<components["schemas"]["EvidenceResult"]>; "profile": "card_page_section_benefit" | "parent_child_bundle"; "query_type": "proper_noun" | "numeric_condition" | "semantic"; "release_id": string; "status": "completed"; "usage": components["schemas"]["SearchUsage"]; };
     "SearchUsage": { "embedding": { [key: string]: unknown; }; };
+    "SurveyContext": { "monthly_spending"?: "under-30" | "30-50" | "50-100" | "100-200" | "over-200" | null; "preferred_benefits"?: Array<"할인" | "포인트 적립" | "항공 마일리지">; "spending_categories"?: Array<"쇼핑" | "배달·외식" | "카페" | "교통" | "주유" | "여행">; };
+    "TurnInputSnapshot": { "profile"?: "card_page_section_benefit" | "parent_child_bundle" | null; "query": string; "top_k"?: 1 | 3 | 5; "wallet_context"?: components["schemas"]["WalletContext"] | null; };
     "TurnResponse": { "messages": Array<components["schemas"]["ChatMessage"]>; "turn_id": string; };
+    "WalletContext": { "card_keys"?: Array<string>; "status": "ready" | "empty" | "needs_review"; };
   };
 }
 
