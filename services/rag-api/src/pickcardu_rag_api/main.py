@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any, Literal
+from pathlib import Path
+from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -9,115 +10,22 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pickcardu_rag import (
     CHUNKING_PROFILES,
-    AtomicClaim,
     AnswerOutput,
     LocalReranker,
     OpenAIService,
     RagError,
-    Recommendation,
     SearchConfig,
+    answer_payload_limit,
 )
-from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from .config import Settings, load_settings, validate_settings
 from .index import ActiveIndexLoader, ReleaseHandle
 
 
-ProfileName = Literal["card_page_section_benefit", "parent_child_bundle"]
-QueryType = Literal["proper_noun", "numeric_condition", "semantic"]
-
-
-class QueryRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    query: str = Field(min_length=1, max_length=500)
-    profile: ProfileName | None = None
-    top_k: Literal[1, 3, 5] = 3
-
-    @field_validator("query")
-    @classmethod
-    def nonempty_query(cls, value: str) -> str:
-        value = value.strip()
-        if not value:
-            raise ValueError("query must not be blank")
-        return value
-
-
-class ErrorResponse(BaseModel):
-    code: str
-    message: str
-    retryable: bool
-    request_id: str
-
-
-class LiveResponse(BaseModel):
-    status: Literal["live"]
-
-
-class ReadyResponse(BaseModel):
-    status: Literal["ready"]
-    release_id: str
-    profile: ProfileName
-    document_count: int
-    chunk_count: int
-
-
-class NotReadyResponse(BaseModel):
-    status: Literal["not_ready"]
-    reason: str
-
-
-class CardResult(BaseModel):
-    card_key: str
-    card_name: str
-    issuer: str
-    score: float
-    rank: int
-    evidence_count: int
-
-
-class EvidenceResult(BaseModel):
-    rank: int
-    card_key: str
-    card_name: str
-    issuer: str
-    chunk_id: str
-    page_num: int
-    text: str
-    section: str | None
-    level: str
-    score: float
-
-
-class SearchUsage(BaseModel):
-    embedding: dict[str, Any]
-
-
-class AnswerUsage(SearchUsage):
-    answer: dict[str, Any]
-
-
-class SearchResponse(BaseModel):
-    status: Literal["completed"]
-    release_id: str
-    profile: ProfileName
-    query_type: QueryType
-    cards: list[CardResult]
-    evidence: list[EvidenceResult]
-    usage: SearchUsage
-
-
-class AnswerResponse(BaseModel):
-    status: Literal["completed"]
-    answer_status: Literal["answered", "insufficient_evidence"]
-    release_id: str
-    profile: ProfileName
-    query_type: QueryType
-    cards: list[CardResult]
-    answer: str
-    recommendations: list[Recommendation]
-    claims: list[AtomicClaim]
-    evidence: list[EvidenceResult]
-    usage: AnswerUsage
+from .models import (
+    AnswerResponse, ErrorResponse, LiveResponse, NotReadyResponse, QueryRequest,
+    ReadyResponse, SearchResponse,
+)
 
 
 ERROR_RESPONSES = {
@@ -138,6 +46,13 @@ def _search(
     payload: QueryRequest,
     loader: Any,
     provider: Any,
+    *,
+    target_card_keys: tuple[str, ...] | None = None,
+    answer_payload_bytes: int | None = None,
+    retrieval_query: str | None = None,
+    wallet_card_keys: tuple[str, ...] | None = None,
+    wallet_operation: str = 'none',
+    personalization_context: dict | None = None,
 ) -> tuple[ReleaseHandle, dict[str, Any], dict[str, Any]]:
     handle = loader.load()
     profile = payload.profile or handle.manifest["strategy"]
@@ -145,9 +60,23 @@ def _search(
         raise ValueError("requested profile does not match the active index")
     if getattr(provider, "embedding_model", None) != handle.manifest["embedding_model"]:
         raise ValueError("runtime embedding model does not match the active index")
-    vector, embedding_usage = provider.embed(payload.query)
+    required_keys = tuple(dict.fromkeys([*(target_card_keys or ()), *(wallet_card_keys or ())]))
+    if required_keys:
+        unavailable = [key for key in required_keys if key not in handle.manifest['document_ids']]
+        if unavailable:
+            return handle, {'query_type': 'semantic', 'cards': [], 'evidence': [],
+                            'trace': {'unavailable_card_keys': unavailable}}, {'provider_called': False}
+    new_card_keys = None
+    if wallet_operation == 'compare':
+        new_card_keys = tuple(key for key in handle.manifest['document_ids'] if key not in (wallet_card_keys or ())
+                              and (target_card_keys is None or key in target_card_keys))
+        if not new_card_keys:
+            return handle, {'query_type': 'semantic', 'cards': [], 'evidence': [],
+                            'trace': {'scope': {'missing_required_groups': ['new']}}}, {'provider_called': False}
+    query = payload.query if retrieval_query is None else retrieval_query
+    vector, embedding_usage = provider.embed(query)
     result = handle.search(
-        payload.query,
+        query,
         vector,
         SearchConfig(
             profile=profile,
@@ -157,6 +86,10 @@ def _search(
             top_k=payload.top_k,
             reranker="bge",
             reranker_route="all" if profile == "parent_child_bundle" else "selective",
+            target_card_keys=target_card_keys,
+            answer_payload_bytes=answer_payload_limit() if answer_payload_bytes is None else answer_payload_bytes,
+            wallet_card_keys=wallet_card_keys, new_card_keys=new_card_keys, wallet_operation=wallet_operation,
+            answer_query=payload.query, personalization_context=personalization_context,
         ),
     )
     return handle, result, embedding_usage
@@ -168,13 +101,17 @@ def create_app(
     provider: Any = None,
     index_loader: Any = None,
     reranker: Any = None,
+    chat_store: Any = None,
 ) -> FastAPI:
     settings = validate_settings(settings or load_settings())
     provider = provider or OpenAIService(
         api_key=settings.openai_api_key,
         embedding_model=settings.embedding_model,
         llm_model=settings.llm_model,
+        answer_payload_bytes=settings.answer_payload_bytes,
     )
+    if getattr(provider, 'answer_payload_bytes', settings.answer_payload_bytes) != settings.answer_payload_bytes:
+        raise ValueError('provider and search answer payload byte limits must match')
     reranker = reranker or LocalReranker(str(settings.bge_model_path))
     loader = index_loader or ActiveIndexLoader(settings.index_runtime_root, reranker=reranker)
     app = FastAPI(title="PickCardU RAG API", version="0.1.0")
@@ -182,7 +119,7 @@ def create_app(
         CORSMiddleware,
         allow_origins=list(settings.allowed_origins),
         allow_credentials=False,
-        allow_methods=["GET", "POST"],
+        allow_methods=["GET", "POST", "DELETE"],
         allow_headers=["Content-Type"],
     )
 
@@ -191,6 +128,12 @@ def create_app(
         request.state.request_id = request.headers.get("x-request-id") or uuid.uuid4().hex
         response = await call_next(request)
         response.headers["x-request-id"] = request.state.request_id
+        if request.url.path == '/v1/browser-session' or request.url.path.startswith('/v1/conversations'):
+            from .chat import browser_token, refresh_cookie
+            response.headers['cache-control'] = 'no-store'
+            token = browser_token(request)
+            if token:
+                refresh_cookie(response, token)
         return response
 
     @app.exception_handler(RequestValidationError)
@@ -239,7 +182,7 @@ def create_app(
 
     @app.post("/v1/search", response_model=SearchResponse, responses=ERROR_RESPONSES)
     def search(payload: QueryRequest) -> SearchResponse:
-        handle, result, embedding_usage = _search(payload, loader, provider)
+        handle, result, embedding_usage = _search(payload, loader, provider, answer_payload_bytes=settings.answer_payload_bytes)
         return SearchResponse.model_validate({
             "status": "completed",
             "release_id": handle.release_id,
@@ -250,17 +193,63 @@ def create_app(
             "usage": {"embedding": embedding_usage},
         })
 
-    @app.post("/v1/answer", response_model=AnswerResponse, responses=ERROR_RESPONSES)
-    def answer(payload: QueryRequest) -> AnswerResponse:
-        handle, result, embedding_usage = _search(payload, loader, provider)
-        if result["evidence"]:
-            generated, answer_usage = provider.answer(payload.query, result["evidence"])
+    def _generate_answer(payload: QueryRequest, *, target_card_keys: tuple[str, ...] | None = None,
+                         clarification: str | None = None, retrieval_query: str | None = None,
+                         wallet_card_keys: tuple[str, ...] | None = None, wallet_operation: str = 'none',
+                         personalization_context: dict | None = None) -> AnswerResponse:
+        if clarification:
+            handle = loader.load()
+            if payload.profile is not None and payload.profile != handle.manifest['strategy']:
+                raise ValueError('requested profile does not match the active index')
+            result = {'query_type': 'semantic', 'cards': [], 'evidence': [], 'trace': {}}
+            embedding_usage = {'provider_called': False}
+        else:
+            handle, result, embedding_usage = _search(payload, loader, provider, target_card_keys=target_card_keys,
+                answer_payload_bytes=settings.answer_payload_bytes, retrieval_query=retrieval_query,
+                wallet_card_keys=wallet_card_keys, wallet_operation=wallet_operation,
+                personalization_context=personalization_context)
+        counts = {key: sum(e['card_key'] == key for e in result['evidence']) for key in target_card_keys or ()}
+        missing = [key for key, count in counts.items() if count == 0]
+        if clarification:
+            generated = AnswerOutput(answer_status='insufficient_evidence', answer_text=clarification)
+            answer_usage = {'provider_called': False, 'reason': 'clarification_required'}
+        elif result.get('trace', {}).get('scope', {}).get('missing_required_groups'):
+            generated = AnswerOutput(answer_status='insufficient_evidence',
+                answer_text='보유 카드와 새 카드 양쪽의 질문 관련 근거를 확보하지 못해 비교하기 어렵습니다. 조건이 없다는 뜻은 아닙니다.')
+            answer_usage = {'provider_called': False, 'reason': 'missing_comparison_evidence'}
+        elif missing:
+            catalog = {card['card_key']: card['card_name'] for card in handle.catalog}
+            names = ', '.join(catalog.get(key, '이전 추천 카드') for key in missing)
+            generated = AnswerOutput(answer_status='insufficient_evidence',
+                answer_text=f'{names}의 질문 관련 근거를 확보하지 못해 요청하신 카드 전체를 비교하기 어렵습니다. 조건이 없다는 뜻은 아닙니다.')
+            answer_usage = {'provider_called': False, 'reason': 'missing_target_evidence'}
+        elif result["evidence"]:
+            options = {}
+            if target_card_keys is not None or wallet_operation == 'compare':
+                options['comparison'] = True
+            if personalization_context is not None:
+                options['personalization_context'] = personalization_context
+            generated, answer_usage = provider.answer(payload.query, result["evidence"], **options)
         else:
             generated = AnswerOutput(
                 answer_status="insufficient_evidence",
                 answer_text="현재 등록된 카드 문서에서는 질문을 뒷받침할 근거를 확인하기 어렵습니다.",
             )
             answer_usage = {"provider_called": False}
+        trace = result.get('trace', {})
+        chunks = {chunk.chunk_id: chunk.card_key for chunk in handle.chunks}
+        retrieved_ids = {row['chunk_id'] for name in ('bm25', 'vector') for row in trace.get(name, [])}
+        answer_usage = {**answer_usage, 'retrieval': {
+            'target_card_keys': list(target_card_keys) if target_card_keys is not None else None,
+            'retrieved_card_keys': sorted({chunks[key] for key in retrieved_ids if key in chunks}),
+            'evidence_card_keys': list(dict.fromkeys(e['card_key'] for e in result['evidence'])),
+            'evidence_counts': counts,
+            'missing_card_keys': missing,
+            'unavailable_card_keys': trace.get('unavailable_card_keys', []),
+            'missing_required_groups': trace.get('scope', {}).get('missing_required_groups', []),
+            'evidence_budget': trace.get('evidence_budget'),
+            'stages': {name: [row['chunk_id'] for row in trace.get(name, [])] for name in ('bm25', 'vector', 'rrf', 'leaf', 'rerank')},
+        }}
         visible_cards = [] if generated.answer_status == "insufficient_evidence" else result["cards"]
         visible_evidence = [] if generated.answer_status == "insufficient_evidence" else result["evidence"]
         return AnswerResponse.model_validate({
@@ -277,6 +266,20 @@ def create_app(
             "usage": {"embedding": embedding_usage, "answer": answer_usage},
         })
 
+    def generate_answer(payload: QueryRequest) -> AnswerResponse:
+        return _generate_answer(payload)
+
+    app.post('/v1/answer', name='answer', response_model=AnswerResponse, responses=ERROR_RESPONSES)(generate_answer)
+
+    from .chat import register_chat_routes
+    from .chat_store import ChatStore, ChatStoreError
+
+    @app.exception_handler(ChatStoreError)
+    async def chat_error(request: Request, error: ChatStoreError):
+        return _error(error.status_code, error.code, error.message, request.state.request_id, retryable=error.retryable)
+
+    path = settings.chat_db_path or Path(__file__).resolve().parents[4] / 'data/chat/runtime/chat.sqlite'
+    register_chat_routes(app, settings, chat_store if chat_store is not None else ChatStore(path), provider, _generate_answer, loader)
     return app
 
 

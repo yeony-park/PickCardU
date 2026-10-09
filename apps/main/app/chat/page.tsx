@@ -1,8 +1,13 @@
 'use client';
 
-import { FormEvent, KeyboardEvent, useRef, useState } from 'react';
-import { RagApiError, requestAnswer, type AnswerResponse } from '../../lib/rag-api';
+import { useEffect, useRef, useState } from 'react';
+import type { ChatMessage, SurveyContext } from '../../lib/chat-api';
+import { restoreDraftAfterFailedSend } from '../../lib/chat-state';
+import { useChat } from '../../lib/use-chat';
 import { SiteHeader } from '../components/site-header';
+import { ChatComposer } from './components/chat-composer';
+import { ConversationList } from './components/conversation-list';
+import { MessageList } from './components/message-list';
 
 const suggestions = [
   { label: '보유 카드', question: '내가 보유한 카드 혜택 설명해줘.' },
@@ -13,194 +18,257 @@ const suggestions = [
   { label: '비교', question: '내 소비 패턴에 맞춰 보유 카드와 새 카드를 비교해줘.' },
 ];
 
-const chatHistory = [
-  { date: '오늘', title: '주류 혜택 카드 추천' },
-  { date: '오늘', title: '보유 카드 혜택 정리' },
-  { date: '어제', title: '해외여행 카드 비교' },
-  { date: '8월 27일', title: '생활비 절약 카드' },
-];
-
 export default function ChatPage() {
+  const chat = useChat();
   const [question, setQuestion] = useState('');
-  const [submitted, setSubmitted] = useState('');
-  const [answer, setAnswer] = useState<AnswerResponse | null>(null);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const activeRequestId = useRef(0);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const composer = useRef<HTMLTextAreaElement>(null);
+  const historyButton = useRef<HTMLButtonElement>(null);
+  const historyClose = useRef<HTMLButtonElement>(null);
+  const historyPanel = useRef<HTMLDivElement>(null);
+  const viewGeneration = useRef(0);
+  const lastSelectedId = useRef(chat.selectedId);
+  const activeConversation = Boolean(chat.selectedId || chat.messages.length || chat.loading);
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const value = question.trim();
-    if (!value || isLoading) return;
-    const requestId = ++activeRequestId.current;
-    setSubmitted(value);
-    setQuestion('');
-    setAnswer(null);
-    setErrorMessage('');
-    setIsLoading(true);
-    try {
-      const result = await requestAnswer(value);
-      if (requestId === activeRequestId.current) {
-        setAnswer(result);
+  useEffect(() => {
+    if (lastSelectedId.current !== chat.selectedId) {
+      lastSelectedId.current = chat.selectedId;
+      viewGeneration.current += 1;
+    }
+  }, [chat.selectedId]);
+
+  useEffect(() => {
+    if (!historyOpen) return;
+    historyClose.current?.focus();
+    const close = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setHistoryOpen(false);
+        historyButton.current?.focus();
+      } else if (event.key === 'Tab') {
+        const focusable = Array.from(historyPanel.current?.querySelectorAll<HTMLElement>('button:not(:disabled)') ?? []);
+        if (!focusable.length) return;
+        const first = focusable[0], last = focusable.at(-1)!;
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
       }
-    } catch (error) {
-      if (requestId === activeRequestId.current) {
-        setErrorMessage(
-          error instanceof RagApiError
-            ? error.message
-            : '답변을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.',
-        );
-      }
-    } finally {
-      if (requestId === activeRequestId.current) {
-        setIsLoading(false);
-      }
+    };
+    window.addEventListener('keydown', close);
+    return () => window.removeEventListener('keydown', close);
+  }, [historyOpen]);
+
+  async function send(retry?: { question: string; message: ChatMessage }) {
+    const value = retry?.question ?? question;
+    const currentView = viewGeneration.current;
+    if (!retry) setQuestion('');
+    const sent = await chat.sendQuestion(value, retry?.message);
+    if (!sent && !retry && viewGeneration.current === currentView) {
+      setQuestion(current => restoreDraftAfterFailedSend(current, value));
     }
   }
 
-  function submitOnEnter(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
-      event.preventDefault();
-      event.currentTarget.form?.requestSubmit();
+  function newChat() {
+    viewGeneration.current += 1;
+    chat.startNewChat();
+    setHistoryOpen(false);
+    setQuestion('');
+    requestAnimationFrame(() => composer.current?.focus());
+  }
+
+  function selectConversation(id: string) {
+    viewGeneration.current += 1;
+    void chat.selectConversation(id);
+    setHistoryOpen(false);
+    requestAnimationFrame(() => historyButton.current?.focus());
+  }
+
+  function closeHistory() {
+    setHistoryOpen(false);
+    requestAnimationFrame(() => historyButton.current?.focus());
+  }
+
+  async function deleteChat(id: string) {
+    if (!window.confirm('이 대화와 메시지를 삭제할까요? 삭제한 내용은 복원할 수 없습니다.')) return;
+    if (await chat.removeConversation(id)) {
+      viewGeneration.current += 1;
+      setQuestion('');
+      setHistoryOpen(false);
+      requestAnimationFrame(() => composer.current?.focus());
     }
   }
 
-  function startNewChat() {
-    activeRequestId.current += 1;
-    setQuestion('');
-    setSubmitted('');
-    setAnswer(null);
-    setErrorMessage('');
-    setIsLoading(false);
-  }
+  const history = (
+    <ConversationList
+      conversations={chat.conversations}
+      hasMore={Boolean(chat.conversationCursor)}
+      onLoadMore={() => void chat.loadMoreConversations()}
+      onNewChat={newChat}
+      onSelect={selectConversation}
+      onDelete={(id) => void deleteChat(id)}
+      deletingId={chat.deletingId}
+      blockedDeleteId={chat.busy ? chat.selectedId : null}
+      selectedId={chat.selectedId}
+    />
+  );
 
   return (
     <main className="page-shell chat-page">
       <SiteHeader active="chat" />
       <div className="chat-layout">
-        <aside className="chat-history" aria-label="채팅 내역">
-          <div className="history-heading">
-            <strong>채팅 내역</strong>
+        <aside className="chat-history" aria-label="채팅 내역">{history}</aside>
+        <section className={`chat-hero${activeConversation ? ' chat-thread' : ''}`} aria-labelledby="chat-title">
+          <div className="mobile-chat-tools">
             <button
-              aria-label="새 채팅"
-              onClick={startNewChat}
+              aria-controls="mobile-chat-history"
+              aria-expanded={historyOpen}
+              onClick={() => setHistoryOpen(true)}
+              ref={historyButton}
               type="button"
-            >+</button>
+            >채팅 내역</button>
+            <button onClick={newChat} type="button">새 채팅</button>
           </div>
-          <div className="history-list">
-            {chatHistory.map((item) => (
-              <button key={`${item.date}-${item.title}`} type="button">
-                <span>{item.date}</span>
-                <strong>{item.title}</strong>
-              </button>
-            ))}
-          </div>
-          <div className="history-card-note">
-            <strong>내 카드</strong>
-            <span>My Page에 저장한 카드를 추천에 함께 반영해요.</span>
-          </div>
-        </aside>
-        <section className="chat-hero" aria-labelledby="chat-title">
-          <div className="assistant-logo brand-mark" aria-hidden="true"><i /><i /></div>
-          <h1 id="chat-title">
-            What matters most<br /><span>when you use a card?</span>
-          </h1>
-          <p className="chat-description">
-            소비 습관이나 원하는 혜택을 편하게 알려주세요.
-          </p>
-          <form className="chat-composer" onSubmit={submit}>
-            <label className="sr-only" htmlFor="card-question">PickCardU에 질문하기</label>
-            <textarea
-              id="card-question"
-              onKeyDown={submitOnEnter}
-              onChange={(event) => setQuestion(event.target.value)}
-              placeholder="예: 월 80만원 정도 쓰고, 배달과 온라인 쇼핑 혜택이 중요해요."
-              rows={2}
-              value={question}
-            />
-            <div className="composer-actions">
-              <span className="saved-card-note">My Page에 저장된 카드도 함께 고려해요.</span>
-              <button
-                aria-label={isLoading ? '답변 생성 중' : '질문 보내기'}
-                disabled={isLoading || !question.trim()}
-                type="submit"
-              >↑</button>
-            </div>
-          </form>
-          {!submitted && (
-            <details className="chat-survey">
-              <summary>
-                <div><strong>PickCardU가 처음인가요?</strong><span>소비 패턴 알려주기</span></div>
-                <span className="survey-toggle" aria-hidden="true">+</span>
-              </summary>
-              <div className="survey-fields">
-                <div className="survey-spending">
-                  <label htmlFor="survey-monthly-spending">월 평균 카드 사용 금액</label>
-                  <select id="survey-monthly-spending" name="monthly-spending" defaultValue="">
-                    <option value="" disabled>선택해 주세요</option>
-                    <option value="under-30">30만원 미만</option>
-                    <option value="30-50">30만원 이상 ~ 50만원 미만</option>
-                    <option value="50-100">50만원 이상 ~ 100만원 미만</option>
-                    <option value="100-200">100만원 이상 ~ 200만원 미만</option>
-                    <option value="over-200">200만원 이상</option>
-                  </select>
+
+          {activeConversation ? (
+            <>
+              <h1 className="sr-only" id="chat-title">PickCardU와 대화</h1>
+              <MessageList
+                beforeSeq={chat.beforeSeq}
+                loading={chat.loading}
+                messages={chat.messages}
+                onLoadOlder={chat.loadOlderMessages}
+                onRefresh={chat.refreshMessages}
+                onRetry={(value, message) => void send({ question: value, message })}
+              />
+              {chat.error ? <p className="chat-status-error" role="alert">{chat.error}</p> : null}
+              <ChatComposer
+                disabled={false}
+                sendDisabled={!chat.ready || chat.loading || chat.busy}
+                inputRef={composer}
+                onChange={setQuestion}
+                onSubmit={() => void send()}
+                value={question}
+              />
+            </>
+          ) : (
+            <>
+              <div className="assistant-logo brand-mark" aria-hidden="true"><i /><i /></div>
+              <h1 id="chat-title">What matters most<br /><span>when you use a card?</span></h1>
+              <p className="chat-description">
+                소비 습관이나 원하는 혜택을 편하게 알려주세요.
+              </p>
+              <ChatComposer
+                disabled={false}
+                sendDisabled={!chat.ready || chat.loading || chat.busy}
+                inputRef={composer}
+                onChange={setQuestion}
+                onSubmit={() => void send()}
+                value={question}
+              />
+              <details className="chat-survey">
+                <summary>
+                  <div><strong>PickCardU가 처음인가요?</strong><span>소비 패턴 알려주기</span></div>
+                  <span className="survey-toggle" aria-hidden="true">+</span>
+                </summary>
+                <div className="survey-fields">
+                  <div className="survey-spending">
+                    <label htmlFor="survey-monthly-spending">월 평균 카드 사용 금액</label>
+                    <select
+                      id="survey-monthly-spending"
+                      name="monthly-spending"
+                      onChange={(event) => {
+                        const monthlySpending = (event.target.value || null) as SurveyContext['monthly_spending'];
+                        chat.setSurveyDraft(current => ({ ...(current ?? {}), monthly_spending: monthlySpending }));
+                      }}
+                      value={chat.surveyDraft?.monthly_spending ?? ''}
+                    >
+                      <option value="" disabled>선택해 주세요</option>
+                      <option value="under-30">30만원 미만</option>
+                      <option value="30-50">30만원 이상 ~ 50만원 미만</option>
+                      <option value="50-100">50만원 이상 ~ 100만원 미만</option>
+                      <option value="100-200">100만원 이상 ~ 200만원 미만</option>
+                      <option value="over-200">200만원 이상</option>
+                    </select>
+                  </div>
+                  <fieldset>
+                    <legend>자주 쓰는 소비 영역 <span>여러 개 선택 가능</span></legend>
+                    <div className="survey-options">
+                      {(['쇼핑', '배달·외식', '카페', '교통', '주유', '여행'] as const).map((category) => (
+                        <label key={category}><input
+                          checked={chat.surveyDraft?.spending_categories?.includes(category) ?? false}
+                          name="spending-category"
+                          onChange={(event) => {
+                            const checked = event.target.checked;
+                            chat.setSurveyDraft(current => {
+                              const categories = current?.spending_categories ?? [];
+                              return {
+                                ...(current ?? {}),
+                                spending_categories: checked
+                                  ? categories.includes(category) ? categories : [...categories, category]
+                                  : categories.filter(item => item !== category),
+                              };
+                            });
+                          }}
+                          type="checkbox"
+                          value={category}
+                        /><span>{category}</span></label>
+                      ))}
+                    </div>
+                  </fieldset>
+                  <fieldset>
+                    <legend>원하는 혜택 <span>여러 개 선택 가능</span></legend>
+                    <div className="survey-options">
+                      {(['할인', '포인트 적립', '항공 마일리지'] as const).map((benefit) => (
+                        <label key={benefit}><input
+                          checked={chat.surveyDraft?.preferred_benefits?.includes(benefit) ?? false}
+                          name="preferred-benefit"
+                          onChange={(event) => {
+                            const checked = event.target.checked;
+                            chat.setSurveyDraft(current => {
+                              const benefits = current?.preferred_benefits ?? [];
+                              return {
+                                ...(current ?? {}),
+                                preferred_benefits: checked
+                                  ? benefits.includes(benefit) ? benefits : [...benefits, benefit]
+                                  : benefits.filter(item => item !== benefit),
+                              };
+                            });
+                          }}
+                          type="checkbox"
+                          value={benefit}
+                        /><span>{benefit}</span></label>
+                      ))}
+                    </div>
+                  </fieldset>
                 </div>
-                <fieldset>
-                  <legend>자주 쓰는 소비 영역 <span>여러 개 선택 가능</span></legend>
-                  <div className="survey-options">
-                    {['쇼핑', '배달·외식', '카페', '교통', '주유', '여행'].map((category) => (
-                      <label key={category}><input type="checkbox" name="spending-category" value={category} /><span>{category}</span></label>
-                    ))}
-                  </div>
-                </fieldset>
-                <fieldset>
-                  <legend>원하는 혜택 <span>여러 개 선택 가능</span></legend>
-                  <div className="survey-options">
-                    {['할인', '포인트 적립', '항공 마일리지'].map((benefit) => (
-                      <label key={benefit}><input type="checkbox" name="preferred-benefit" value={benefit} /><span>{benefit}</span></label>
-                    ))}
-                  </div>
-                </fieldset>
+              </details>
+              {chat.error ? <p className="submit-preview" role="alert"><span>연결 오류</span>{chat.error}</p> : null}
+              <div className="suggestion-section" aria-label="추천 질문">
+                <div className="suggestion-grid">
+                  {suggestions.map((suggestion) => (
+                    <button key={suggestion.label} onClick={() => setQuestion(suggestion.question)} type="button">
+                      <span>{suggestion.label}</span>{suggestion.question}<b aria-hidden="true">↗</b>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </details>
+            </>
           )}
-          {submitted ? (
-            <p className="submit-preview"><span>내 질문</span>{submitted}</p>
-          ) : null}
-          {isLoading ? (
-            <p aria-live="polite" className="submit-preview" role="status">
-              <span>PickCardU</span>카드 혜택과 근거를 확인하고 있어요.
-            </p>
-          ) : null}
-          {errorMessage ? (
-            <p className="submit-preview" role="alert"><span>연결 오류</span>{errorMessage}</p>
-          ) : null}
-          {answer ? (
-            <div aria-live="polite" className="submit-preview" role="status">
-              <span>{answer.answer_status === 'answered' ? 'PickCardU 답변' : '근거 부족'}</span>
-              {answer.answer}
-              {answer.recommendations.map((recommendation) => {
-                const card = answer.cards.find((item) => item.card_key === recommendation.card_key);
-                return (
-                  <div key={recommendation.card_key}>
-                    <strong>{card?.card_name ?? recommendation.card_key}</strong>
-                    {card ? ` · ${card.issuer}` : ''}: {recommendation.reason}
-                  </div>
-                );
-              })}
-            </div>
-          ) : null}
-          <div className="suggestion-section" aria-label="추천 질문">
-            <div className="suggestion-grid">
-              {suggestions.map((suggestion) => (
-                <button key={suggestion.label} onClick={() => setQuestion(suggestion.question)} type="button">
-                  <span>{suggestion.label}</span>{suggestion.question}<b aria-hidden="true">↗</b>
-                </button>
-              ))}
-            </div>
-          </div>
         </section>
       </div>
+
+      {historyOpen ? (
+        <div className="mobile-history-layer">
+          <button aria-label="채팅 내역 닫기" className="history-backdrop" onClick={closeHistory} type="button" />
+          <div aria-label="채팅 내역" aria-modal="true" className="mobile-history-panel" id="mobile-chat-history" ref={historyPanel} role="dialog">
+            <button className="mobile-history-close" onClick={closeHistory} ref={historyClose} type="button">닫기</button>
+            {history}
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }

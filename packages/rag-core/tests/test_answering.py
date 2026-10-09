@@ -3,10 +3,11 @@ from __future__ import annotations
 import json
 import types
 import unittest
+from unittest.mock import patch
 
 from pydantic import ValidationError
 
-from pickcardu_rag import AnswerOutput, OpenAIService, completed_context, validate_grounding
+from pickcardu_rag import AnswerOutput, OpenAIService, completed_context, measure_answer_payload, validate_grounding
 from pickcardu_rag.errors import LlmUnavailable, LlmUngrounded
 
 
@@ -35,6 +36,71 @@ def incomplete_json_error() -> ValidationError:
 class AnsweringTests(unittest.TestCase):
     evidence = [{"card_key": "c1", "card_name": "카드1", "issuer": "발급사", "chunk_id": "k1", "text": "1%"}]
 
+    def test_personalization_payload_matches_provider_input_and_budget_guard(self):
+        context = {'survey_context': {'monthly_spending': '30-50', 'spending_categories': ['카페'],
+                                     'preferred_benefits': ['할인']}}
+        responses = FakeResponses(self.generated_answer())
+        service = OpenAIService(api_key=None, client=types.SimpleNamespace(responses=responses))
+        self.assertIn('personalization_context', __import__('inspect').signature(service.answer).parameters)
+        size = measure_answer_payload('혜택', self.evidence, context)[0]
+        service.answer_payload_bytes = size
+        service.answer('혜택', self.evidence, personalization_context=context)
+        transmitted = responses.calls[0]['input'][0]['content']
+        self.assertEqual(len(transmitted.encode('utf-8')), size)
+        self.assertEqual(json.loads(transmitted)['personalization_context'], context)
+        self.assertEqual(json.loads(transmitted)['standalone_query'], '혜택')
+        self.assertIn('전월실적', responses.calls[0]['instructions'])
+        rejected = FakeResponses(self.generated_answer())
+        service = OpenAIService(api_key=None, answer_payload_bytes=size-1, client=types.SimpleNamespace(responses=rejected))
+        with self.assertRaises(LlmUnavailable):
+            service.answer('혜택', self.evidence, personalization_context=context)
+        self.assertEqual(rejected.calls, [])
+
+    def test_rewrite_returns_personalization_decision_with_availability_only(self):
+        responses = FakeResponses({'standalone_query': '내 소비 패턴 추천', 'scope': 'global', 'selected_refs': [],
+            'use_survey': True, 'use_wallet': False, 'wallet_operation': 'none',
+            'wallet_compare_scope': 'relevant', 'overridden_survey_fields': [], 'clarification_question': ''})
+        service = OpenAIService(api_key=None, client=types.SimpleNamespace(responses=responses))
+        self.assertIn('personalization_availability', __import__('inspect').signature(service.rewrite).parameters)
+        result, _ = service.rewrite([{'role': 'user', 'content': '내 소비패턴 기준 추천해줘'}],
+            personalization_availability={'survey_available': True, 'wallet_status': 'empty', 'wallet_card_count': 0})
+        self.assertTrue(result.use_survey)
+        self.assertEqual(len(responses.calls), 1)
+        self.assertIn('survey_available', responses.calls[0]['instructions'])
+        self.assertFalse(responses.calls[0]['store'])
+        self.assertEqual(responses.calls[0]['tools'], [])
+
+    def test_provider_budget_uses_environment_and_rejects_before_network(self):
+        evidence = [{**self.evidence[0], 'text': '가' * 5000}]
+        for limit, allowed in (('64000', True), ('12000', False)):
+            with self.subTest(limit=limit), patch.dict('os.environ', {'PICKCARDU_ANSWER_PAYLOAD_BYTES': limit}):
+                responses = FakeResponses(self.generated_answer())
+                service = OpenAIService(api_key=None, client=types.SimpleNamespace(responses=responses))
+                if allowed:
+                    answer, _ = service.answer('혜택 알려줘', evidence)
+                    self.assertEqual(answer.claims[0].citations, ['k1'])
+                    self.assertEqual(len(responses.calls), 1)
+                else:
+                    with self.assertRaisesRegex(LlmUnavailable, '12000'):
+                        service.answer('혜택 알려줘', evidence)
+                    self.assertEqual(responses.calls, [])
+
+    def test_provider_accepts_exact_budget_and_rejects_one_byte_over(self):
+        size = measure_answer_payload('혜택', self.evidence)[0]
+        for cap, allowed in ((size, True), (size - 1, False)):
+            with self.subTest(cap=cap):
+                responses = FakeResponses(self.generated_answer())
+                service = OpenAIService(api_key=None, answer_payload_bytes=cap,
+                                        client=types.SimpleNamespace(responses=responses))
+                if allowed:
+                    answer, _ = service.answer('혜택', self.evidence)
+                    self.assertEqual(answer.claims[0].card_key, 'c1')
+                else:
+                    with self.assertRaises(LlmUnavailable):
+                        service.answer('혜택', self.evidence)
+                    self.assertEqual(responses.calls, [])
+
+
     def answer(self) -> AnswerOutput:
         return AnswerOutput.model_validate({
             "answer_text": "답",
@@ -50,6 +116,31 @@ class AnsweringTests(unittest.TestCase):
             "recommendations": [{"reason": "근거", "citations": citations}],
             "claims": [{"text": "혜택", "citations": citations}],
         }
+
+    def test_rewrite_selects_only_supplied_refs_in_one_call(self):
+        responses = FakeResponses({'standalone_query': '전월실적 조건이 가장 적은 카드는?',
+                                   'scope': 'previous', 'selected_refs': ['t1r2'], 'clarification_question': ''})
+        service = OpenAIService(api_key=None, client=types.SimpleNamespace(responses=responses))
+        result, usage = service.rewrite([{'role': 'user', 'content': '저것들 중 두번째는?'}], references=[
+            {'ref': 't1r1', 'card_name': 'A', 'issuer': '발급사'},
+            {'ref': 't1r2', 'card_name': 'B', 'issuer': '발급사'}])
+        self.assertEqual(result.scope, 'previous')
+        self.assertEqual(result.selected_refs, ['t1r2'])
+        self.assertEqual(len(responses.calls), 1)
+        schema = responses.calls[0]['text_format']
+        with self.assertRaises(ValidationError):
+            schema.model_validate({'standalone_query': '질문', 'scope': 'previous',
+                                   'selected_refs': ['invented/card'], 'clarification_question': ''})
+        self.assertFalse(responses.calls[0]['store'])
+        self.assertEqual(responses.calls[0]['tools'], [])
+
+    def test_rewrite_unknown_reference_fails_without_retry(self):
+        responses = FakeResponses({'standalone_query': '질문', 'scope': 'previous',
+                                   'selected_refs': ['invented'], 'clarification_question': ''})
+        with self.assertRaises(LlmUnavailable):
+            OpenAIService(api_key=None, client=types.SimpleNamespace(responses=responses)).rewrite(
+                [{'role': 'user', 'content': '저거'}], references=[{'ref': 't1r1', 'card_name': 'A', 'issuer': '발급사'}])
+        self.assertEqual(len(responses.calls), 1)
 
     def test_context_and_grounding_contract(self) -> None:
         messages = []
@@ -154,6 +245,89 @@ class AnsweringTests(unittest.TestCase):
             "issuer": "발급사",
             "text": "1%",
         }])
+
+    def test_longer_answer_and_recommendation_round_trip_without_truncation(self) -> None:
+        for field, text in (("answer_text", "설명" * 599 + "요."), ("reason", "추천" * 199 + "요.")):
+            with self.subTest(field=field):
+                generated = self.generated_answer()
+                if field == "answer_text":
+                    generated[field] = text
+                else:
+                    generated["recommendations"][0][field] = text
+                responses = FakeResponses(generated, generated)
+                answer, metadata = OpenAIService(
+                    api_key=None, client=types.SimpleNamespace(responses=responses),
+                ).answer("질문", self.evidence)
+                actual = answer.answer_text if field == "answer_text" else answer.recommendations[0].reason
+                self.assertEqual(actual, text)
+                self.assertEqual(metadata["attempt_count"], 1)
+                self.assertEqual(answer.recommendations[0].citations, ["k1"])
+                for model, payload in ((responses.calls[0]["text_format"], generated), (AnswerOutput, answer.model_dump())):
+                    if field == "answer_text":
+                        payload[field] = text + "!"
+                    else:
+                        payload["recommendations"][0][field] = text + "!"
+                    with self.assertRaises(ValidationError):
+                        model.model_validate(payload)
+
+    def test_prompt_examples_match_the_provider_output_contract(self) -> None:
+        responses = FakeResponses(self.generated_answer())
+        OpenAIService(api_key=None, client=types.SimpleNamespace(responses=responses)).answer("질문", self.evidence)
+        request = responses.calls[0]
+        instructions = request["instructions"]
+        examples = []
+        decoder = json.JSONDecoder()
+        for index, character in enumerate(instructions):
+            if character != "{":
+                continue
+            try:
+                value, _ = decoder.raw_decode(instructions[index:])
+            except json.JSONDecodeError:
+                continue
+            if isinstance(value, dict) and "answer_status" in value:
+                examples.append(request["text_format"].model_validate(value))
+        self.assertEqual([example.answer_status for example in examples], ["answered", "insufficient_evidence"])
+        self.assertEqual(examples[0].recommendations[0].citations, ["e1"])
+        self.assertEqual(examples[1].recommendations, [])
+        self.assertEqual(examples[1].claims, [])
+
+    def test_partial_comparison_example_round_trips_only_confirmed_claims(self) -> None:
+        evidence = [
+            {**self.evidence[0], 'text': '여행 적립은 전월실적 30만 원 이상'},
+            {'card_key': 'c2', 'card_name': '카드2', 'issuer': '발급사',
+             'chunk_id': 'k2', 'text': '여행 적립은 전월실적 100만 원 이상'},
+            {'card_key': 'c3', 'card_name': '카드3', 'issuer': '발급사',
+             'chunk_id': 'k3', 'text': '여행자 보험 제공'},
+        ]
+        responses = FakeResponses(self.generated_answer())
+        OpenAIService(api_key=None, client=types.SimpleNamespace(responses=responses)).answer(
+            '세 카드의 전월실적을 비교해줘', evidence, comparison=True)
+        request = responses.calls[0]
+        examples = []
+        decoder = json.JSONDecoder()
+        for index, character in enumerate(request['instructions']):
+            if character != '{':
+                continue
+            try:
+                value, _ = decoder.raw_decode(request['instructions'][index:])
+            except json.JSONDecodeError:
+                continue
+            if isinstance(value, dict) and 'answer_status' in value:
+                request['text_format'].model_validate(value)
+                examples.append(value)
+        self.assertEqual(len(examples), 3)
+        partial = examples[-1]
+        self.assertEqual(partial['answer_status'], 'answered')
+        responses = FakeResponses(partial)
+        answer, usage = OpenAIService(
+            api_key=None, client=types.SimpleNamespace(responses=responses),
+        ).answer('세 카드의 전월실적을 비교해줘', evidence, comparison=True)
+        self.assertEqual([(claim.card_key, claim.citations) for claim in answer.claims],
+                         [('c1', ['k1']), ('c2', ['k2'])])
+        self.assertEqual([claim.value for claim in answer.claims], [300000, 1000000])
+        self.assertEqual(answer.recommendations, [])
+        self.assertEqual(usage['attempt_count'], 1)
+        self.assertIs(validate_grounding(answer, evidence), answer)
 
     def test_grounding_mismatch_retries_only_the_answer_generation(self) -> None:
         evidence = [

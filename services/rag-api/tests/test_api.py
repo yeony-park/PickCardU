@@ -19,6 +19,8 @@ from support import FakeProvider, FakeReranker, build_release, settings  # noqa:
 
 class EmptyHandle:
     release_id = "empty"
+    chunks = ()
+    catalog = ()
     manifest = {
         "strategy": "card_page_section_benefit",
         "document_ids": [],
@@ -52,7 +54,7 @@ class InsufficientProvider:
 
         return np.asarray([0.0, 0.0], dtype=np.float32), {"provider_called": True}
 
-    def answer(self, query, evidence):
+    def answer(self, query, evidence, *, comparison=False, personalization_context=None):
         from pickcardu_rag import AnswerOutput
 
         self.answer_inputs.append((query, evidence))
@@ -81,10 +83,11 @@ class ApiTest(unittest.TestCase):
                 pass
         self.temporary.cleanup()
 
-    def test_only_pipeline_endpoints_exist(self) -> None:
+    def test_pipeline_and_chat_endpoints_exist_without_account_or_lab_routes(self) -> None:
         paths = set(self.client.get("/openapi.json").json()["paths"])
         self.assertTrue({"/v1/health/live", "/v1/health/ready", "/v1/search", "/v1/answer"} <= paths)
-        self.assertFalse(any("auth" in path or "profile" in path or "conversation" in path or "lab" in path for path in paths))
+        self.assertIn('/v1/conversations', paths)
+        self.assertFalse(any("auth" in path or "profile" in path or "lab" in path for path in paths))
         self.assertEqual(self.client.get("/v1/health/live").json(), {"status": "live"})
         self.assertEqual(self.client.get("/v1/health/ready").json()["status"], "ready")
 
@@ -103,7 +106,8 @@ class ApiTest(unittest.TestCase):
         body = response.json()
         self.assertEqual(body["answer_status"], "answered")
         self.assertEqual(body["recommendations"][0]["card_key"], "issuer/card-a")
-        query, evidence = self.provider.answer_inputs[0]
+        query, evidence, personalization = self.provider.answer_inputs[0]
+        self.assertIsNone(personalization)
         self.assertEqual(query, "카페 혜택 좋은 카드")
         self.assertTrue(evidence)
 
@@ -168,6 +172,16 @@ class ApiTest(unittest.TestCase):
         self.provider.embedding_model = "different-embedding-model"
         response = self.client.post("/v1/search", json={"query": "카페"})
         self.assertEqual(response.status_code, 409)
+        self.assertEqual(self.provider.embedding_queries, [])
+
+    def test_removed_scope_card_abstains_before_embedding_instead_of_comparing_remaining_cards(self):
+        from pickcardu_rag_api.main import QueryRequest, _search
+        loader = ActiveIndexLoader(self.root / 'runtime', reranker=self.reranker)
+        _, result, usage = _search(QueryRequest(query='이전 카드 비교'), loader, self.provider,
+                                   target_card_keys=('issuer/card-a', 'removed/card'))
+        self.assertEqual(result['evidence'], [])
+        self.assertEqual(result['trace']['unavailable_card_keys'], ['removed/card'])
+        self.assertFalse(usage['provider_called'])
         self.assertEqual(self.provider.embedding_queries, [])
 
 

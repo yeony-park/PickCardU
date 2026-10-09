@@ -10,7 +10,7 @@ from typing import Any
 
 import chromadb
 import numpy as np
-from pickcardu_rag import AnswerOutput, AtomicClaim, Recommendation
+from pickcardu_rag import AnswerOutput, AtomicClaim, Recommendation, RewriteOutput
 from pickcardu_rag.retrieval import LEXICAL_CONTRACT, lexical_terms
 
 from pickcardu_rag_api.config import Settings
@@ -123,11 +123,11 @@ class FakeProvider:
         self.embedding_queries.append(query)
         return np.asarray([0.0, 0.0], dtype=np.float32), {"model": self.embedding_model, "usage": {"total_tokens": 1}}
 
-    def rewrite(self, context: list[dict[str, str]]):
-        return context[-1]["content"], {"model": self.llm_model}
+    def rewrite(self, context: list[dict[str, str]], *, references=None, personalization_availability=None):
+        return RewriteOutput(standalone_query=context[-1]["content"]), {"model": self.llm_model}
 
-    def answer(self, query: str, evidence: list[dict[str, Any]]):
-        self.answer_inputs.append((query, evidence))
+    def answer(self, query: str, evidence: list[dict[str, Any]], *, comparison=False, personalization_context=None):
+        self.answer_inputs.append((query, evidence, personalization_context))
         item = evidence[0]
         answer = AnswerOutput(answer_text="Card A를 검토하세요. 공식 상품설명서를 재확인하세요.", recommendations=[Recommendation(card_key=item["card_key"], reason="카페 혜택", citations=[item["chunk_id"]])], claims=[AtomicClaim(card_key=item["card_key"], text="카페 10% 할인", value=10, unit="%", citations=[item["chunk_id"]])])
         return answer, {"attempt_count": 1, "usage_complete": True, "usage_scope": "all_attempts"}
