@@ -38,6 +38,11 @@ new Function('require', 'module', 'exports', compile('../app/chat/page.tsx'))(
   (name: string) => dependencies[name] ?? require(name), page, page.exports,
 );
 
+function capturedComposerProps(): ComposerProps {
+  assert.ok(captured, 'Render the real page and capture its composer state');
+  return captured;
+}
+
 function find(element: Element, type: string): Element {
   if (element.type === type) return element;
   for (const child of [element.props.children].flat() as Element[]) {
@@ -69,9 +74,9 @@ for (const fixture of cases) test(`${fixture.name}: drafting is allowed and send
   };
   captured = undefined;
   renderToStaticMarkup(createElement(page.exports.default));
-  assert.ok(captured, 'Render the real page and capture its composer state');
+  const props = capturedComposerProps();
   let draft = '다음 질문', sends = 0, requested = 0;
-  const form = composer.exports.ChatComposer({ ...captured, value: draft,
+  const form = composer.exports.ChatComposer({ ...props, value: draft,
     onChange: value => { draft = value; }, onSubmit: () => { sends++; } });
   const textarea = find(form, 'textarea');
   assert.equal(textarea.props.disabled, false, 'Drafting must remain available');
@@ -102,9 +107,9 @@ test('team onboarding is confined to the empty view without replacing the chat c
   const empty = renderToStaticMarkup(createElement(page.exports.default));
   assert.match(empty, /assistant-logo brand-mark/);
   assert.match(empty, /id="survey-monthly-spending"/);
-  assert.ok(captured);
-  assert.equal(captured.disabled, false);
-  assert.equal(captured.sendDisabled, true);
+  const props = capturedComposerProps();
+  assert.equal(props.disabled, false);
+  assert.equal(props.sendDisabled, true);
   state = { ...state, ready: true, selectedId: '00000000-0000-4000-8000-000000000001' };
   const thread = renderToStaticMarkup(createElement(page.exports.default));
   assert.match(thread, /chat-thread/);

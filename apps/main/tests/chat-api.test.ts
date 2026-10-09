@@ -38,7 +38,8 @@ test('actual request serialization with 106 wallets and long UTF-8 query fits pr
   for (const query of ['가'.repeat(500), '😀'.repeat(250), '\u0001'.repeat(500)]) {
     const request = imported.buildTurnRequest(query, '00000000-0000-4000-8000-000000000004',
       JSON.stringify(cardProducts.map(card => card.name)));
-    assert.equal(request.wallet_context?.card_keys.length, 106);
+    assert.ok(request.wallet_context?.card_keys, 'The serialized wallet must contain card IDs');
+    assert.equal(request.wallet_context.card_keys.length, 106);
     assert.equal(request.top_k, 5);
     assert.ok(new TextEncoder().encode(JSON.stringify(request)).byteLength <= 8192);
   }
