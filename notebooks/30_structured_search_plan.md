@@ -30,33 +30,33 @@
 
 Files: create notebooks/30_structured_search_common.py, notebooks/30_structured_benefit_db.ipynb and notebooks/data/30_structured_benefit_db/. Create docs/report/30_structured_benefit_db_report.html.
 
-- [ ] Snapshot original hashes and runtime/environment versions.
-- [ ] Load the 106 Upstage normalized JSON files read-only; keep document, fact and evidence identities.
-- [ ] Materialize cards, facts, condition/evidence records and a versioned category dictionary in a new SQLite file.
-- [ ] Freeze QueryPlan: requirement groups (OR between groups, AND within), same-benefit target/action/value constraints, spend/cap constraints, exclusions, card scope, route and unresolved intent.
-- [ ] Verify percent scaling, KRW values, unknown conditions, AND/OR, exceptions, and independent benefit linkage with focused tests under notebooks/.
-- [ ] Freeze source-relative gold plus natural-query fixtures and dataset split before retrieval; document gold creation and independence limits.
-- [ ] Generate report30 with counts, availability and unsupported cases.
+- [x] Snapshot original hashes and runtime/environment versions.
+- [x] Load the 106 Upstage normalized JSON files read-only; keep document, fact and evidence identities.
+- [x] Materialize cards, facts, condition/evidence records and a versioned category dictionary in a new SQLite file.
+- [x] Freeze QueryPlan: requirement groups (OR between groups, AND within), same-benefit target/action/value constraints, spend/cap constraints, exclusions, card scope, route and unresolved intent.
+- [x] Verify percent scaling, KRW values, unknown conditions, AND/OR, exceptions, and independent benefit linkage with focused tests under notebooks/.
+- [x] Freeze source-relative gold plus natural-query fixtures and dataset split before retrieval; document gold creation and independence limits.
+- [x] Generate report30 with counts, availability and unsupported cases.
 
 ### 31: Operational chunk generation
 
 Files: create notebooks/31_operational_chunking.py, notebooks/31_operational_chunking_comparison.ipynb and notebooks/data/31_operational_chunking_comparison/. Create docs/report/31_operational_chunking_comparison_report.html.
 
-- [ ] Import unchanged chunk functions with bytecode disabled and transform inputs only in the notebook adapter.
-- [ ] Generate both profiles from the same pages/facts; save records, hierarchy audits and fact-to-chunk witnesses.
-- [ ] Verify unique IDs, source coverage, parent/child references, foreign-card relationships and unmapped facts.
-- [ ] Record failures rather than modifying/chopping source text to make the production algorithm pass.
-- [ ] Build new FTS5/Chroma/embedding artifacts under the stage directory; reuse exact embedding text hashes where possible.
-- [ ] Report hierarchy depth, fact coverage, chunk counts and measured resources.
+- [x] Import unchanged chunk functions with bytecode disabled and transform inputs only in the notebook adapter.
+- [x] Generate both profiles from the same pages/facts; save records, hierarchy audits and fact-to-chunk witnesses.
+- [x] Verify unique IDs, source coverage, parent/child references, foreign-card relationships and unmapped facts.
+- [x] Record failures rather than modifying/chopping source text to make the production algorithm pass.
+- [x] Build new FTS5/Chroma/embedding artifacts under the stage directory; reuse exact embedding text hashes where possible.
+- [x] Report hierarchy depth, fact coverage, chunk counts and measured resources.
 
 ### 32: Six retrieval conditions and answer evaluation
 
 Files: create notebooks/32_search_experiment.py, notebooks/32_structured_search_comparison.ipynb and notebooks/data/32_structured_search_comparison/. Create docs/report/32_structured_search_comparison_report.html.
 
-- [ ] Run local functional tests before external calls.
-- [ ] Validate one authorized GPT-6 Luna medium response; log its metadata without secrets.
-- [ ] Run six conditions against frozen human-authored plans; retain strict structured selection even when fallback is used.
-- [ ] U uses the unchanged operational search pipeline. S_THEN_U scopes both search components to structurally eligible cards. S_PLUS_U combines independent card candidates using a predeclared card rank rule and unchanged operational evidence hydration.
+- [x] Run local functional tests before external calls.
+- [x] Validate one authorized GPT-6 Luna medium response; log its metadata without secrets.
+- [x] Run six conditions against frozen human-authored plans; retain strict structured selection even when fallback is used.
+- [x] U uses the unchanged operational search pipeline. S_THEN_U scopes both search components to structurally eligible cards. S_PLUS_U combines independent card candidates using a predeclared card rank rule and unchanged operational evidence hydration.
 - [ ] Evaluate known-positive card hit/MRR, condition satisfaction, evidence witness coverage and source-relative negative controls. Report paired query wins/losses/ties and subgroups.
 - [ ] Generate answers with unchanged operational answer logic and an experiment-only SDK proxy enforcing gpt-6-luna/medium. Validate citation ownership and query constraints; save raw responses.
 - [ ] Cache repeated candidates/scorer pairs, include failure rows in denominators, and distinguish actual from estimated resources.
@@ -77,3 +77,13 @@ Files: create notebooks/33_query_routing.py, notebooks/33_query_routing.ipynb an
 ## Additional-test rule
 
 Add tests when a concrete observed failure, ambiguity or material regression justifies them. Record the trigger, freeze the follow-up protocol before results, and label it development/post-hoc. Query-expansion retrieval remains deferred.
+
+## Verified checkpoint dd87843 and follow-up work
+
+- DB v3: 106 documents / 617 pages / 3403 facts; guaranteed scalar percent1033, spend187, benefit cap381, explicit cap period66. Range/bound37 and spend-scope cap90 remain unknown. Original fields/IDs/provenance unchanged.
+- Benefit3183 and parent1834 chunks/indexes built with operational inputs/functions. New unique vectors4363 plus33 query vectors; no new OCR extraction.
+- Current checks:49 passed; source and used model preservation8934+27 verified. Pytest-generated root cache relocated to notebooks; all future tests set cache_dir explicitly.
+- Oracle 198-row search completed:194 successful,4 operational bundle-limit/fusion failures. Current identity-bound cache replay verified all198 card/evidence/metrics and all33 selections identical. Real oracle answers are running.
+- Then oracle answers/scores;33 LLM plans;actual LLM searches/answers;10 additional repeat requests for5 predeclared questions;same reports/notebooks.
+- Justified backend ablation completed:6 questions x2 profiles with all106 cards explicitly in scope; all12 card rankings identical to global paths.0 new API/embedding,1 new CPU BGE score pair. This limited development diagnostic does not establish backend equivalence for other questions.
+- Final compact summaries, fresh preservation/HTML links/notebook outputs, independent review and final results commit remain.

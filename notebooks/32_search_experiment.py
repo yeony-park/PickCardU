@@ -7,6 +7,7 @@ import re
 import time
 import json
 from collections import defaultdict
+from functools import lru_cache
 from typing import Literal
 from pydantic import BaseModel,ConfigDict,Field
 
@@ -89,11 +90,12 @@ def dataset_inputs():
 
 def run_fingerprint(source,experiment):
     return C.digest({'dataset':C.read_json(C.STAGES[32]/'dataset_freeze.json')['sha256'],
+       'structured_db_sha256':experiment.structured_db_sha256,
        'chunks':{p:C.digest((C.STAGES[31]/f'{p}_chunks.jsonl').read_bytes()) for p in PROFILES},
        'code':{p:C.digest((C.ROOT/'notebooks'/p).read_bytes()) for p in
                ['30_build_structured_db.py','30_structured_search_common.py','31_operational_chunking.py','32_search_experiment.py','33_query_routing.py']},
-       'operational_code':{p:C.digest((C.ROOT/p).read_bytes()) for p in
-          ['packages/rag-core/src/pickcardu_rag/retrieval.py','services/rag-api/src/pickcardu_rag_api/index.py']},
+       'operational_code':{str(p.relative_to(C.ROOT)):C.digest(p.read_bytes()) for p in
+          sorted((C.ROOT/'packages/rag-core/src/pickcardu_rag').rglob('*.py'))+[C.ROOT/'services/rag-api/src/pickcardu_rag_api/index.py']},
        'indexes':experiment.index_identity,'reranker':experiment.scorer.contract,'embedding_model':C.EMBEDDING_MODEL,
        'plans':C.digest((C.STAGES[33]/'parser_results.json').read_bytes()) if source=='llm' else 'oracle',
        'model':C.MODEL,'reasoning':C.REASONING})
@@ -241,7 +243,11 @@ class Experiment:
         from chromadb.config import Settings
         from pickcardu_rag.retrieval import Chunk,RagPipeline,CHUNKING_PROFILES
         from pickcardu_rag_api.index import SQLiteFTSSearcher,ChromaVectorSearcher
+        self.structured_db_sha256=C.digest((C.STAGES[30]/'structured.sqlite').read_bytes())
+        if self.structured_db_sha256!=C.read_json(C.STAGES[30]/'db_build_summary.json')['artifact_sha256']['structured.sqlite']:
+            raise RuntimeError('Structured database differs from its verified build')
         self.api=C.CachedAPI();self.scorer=CachedReranker();self.facts=DB.load_facts(C.STAGES[30]);self.data={};self.index_identity={}
+        if self.facts!=C.read_jsonl(C.STAGES[30]/'facts.jsonl'):raise RuntimeError('SQLite facts differ from frozen audit export')
         for profile in PROFILES:
             path=C.STAGES[31]/profile;records=C.read_jsonl(C.STAGES[31]/f'{profile}_chunks.jsonl')
             docs={r['document_id']:r['metadata'] for r in records}
@@ -292,11 +298,15 @@ def merge_results(u,s,question):
     return {'query_type':u['query_type'],'cards':[{**cards[k],'score':scores[k],'rank':i,'evidence_count':sum(e['card_key']==k for e in evidence)} for i,k in enumerate(ranked,1)],
             'evidence':evidence,'trace':{'fusion':'equal-weight card RRF, hydrated S and U','rrf':u.get('trace',{}).get('rrf',[])}}
 
+@lru_cache(maxsize=1)
+def metric_facts(facts_digest):
+    return {f['fact_id']:f for f in DB.load_facts(C.STAGES[30])}
+
 def evaluate_retrieval(case,result,selection):
     returned=[c['card_key'] for c in result.get('cards',[])];gold=set(case['gold_cards']);n=len(gold)
     first=next((i for i,k in enumerate(returned,1) if k in gold),None)
     # Raw-text witness evaluation is independent of select_cards; explicit ownership required.
-    facts={f['fact_id']:f for f in DB.load_facts(C.STAGES[30])}
+    facts=metric_facts(C.digest((C.STAGES[30]/'structured.sqlite').read_bytes()))
     supported=0
     for card,groups in case.get('witness_groups',{}).items():
         if card not in returned:continue
@@ -354,7 +364,7 @@ def run_answers(source='oracle'):
     from pickcardu_rag.answering import OpenAIService
     directory=C.STAGES[32] if source=='oracle' else C.STAGES[33]
     records=C.read_json(directory/'retrieval_results.json')['records'];cases={q['query_id']:q for q in freeze_dataset()['queries']}
-    api=C.CachedAPI();provider=OpenAIService(client=api,llm_model=C.MODEL,answer_payload_bytes=64000)
+    api=C.CachedAPI();provider=OpenAIService(api_key=None,client=api,llm_model=C.MODEL,answer_payload_bytes=64000)
     outputs=[]
     for row in records:
         key=f"{row['query_id']}_{row['profile']}_{row['mode']}";path=directory/'answers'/f'{key}.json'

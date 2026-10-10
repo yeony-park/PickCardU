@@ -89,6 +89,32 @@ def test_chroma_fingerprint_keeps_hnsw_and_serializes_unused_embedding_function(
 def test_cached_usage_is_read_without_sdk_object():
     assert E.C.usage_dict(SimpleNamespace(usage={'input_tokens':7}))=={'input_tokens':7}
 
+def test_operational_answer_provider_accepts_injected_client_without_loading_key():
+    from pickcardu_rag.answering import OpenAIService
+    client=E.C.CachedAPI()
+    provider=OpenAIService(api_key=None,client=client,llm_model=E.C.MODEL,answer_payload_bytes=64000)
+    assert provider._get_client() is client and client.client is None
+
+def test_metric_fact_cache_reloads_on_changed_input_digest(monkeypatch):
+    loads=[]
+    def fake_load(path):loads.append(path);return [{'fact_id':'f'}]
+    monkeypatch.setattr(E.DB,'load_facts',fake_load);E.metric_facts.cache_clear()
+    assert E.metric_facts('old')==E.metric_facts('old')=={'f':{'fact_id':'f'}}
+    assert len(loads)==1
+    E.metric_facts('new');assert len(loads)==2
+    E.metric_facts.cache_clear()
+
+def test_backend_probe_rejects_stale_or_duplicate_primary_rows():
+    probe=E.C.load_module('backend_probe_test',Path(__file__).with_name('32_backend_scope_probe.py'))
+    freeze={'queries':[{'query_id':'Q01'}],'sha256':'data'}
+    rows=[{'query_id':'Q01','profile':p,'mode':m,'input_fingerprint':'current'} for p in E.PROFILES for m in E.MODES]
+    primary={'dataset_sha256':'data','records':rows}
+    probe.validate_primary(primary,freeze,'current')
+    rows[0]['input_fingerprint']='stale'
+    with pytest.raises(RuntimeError):probe.validate_primary(primary,freeze,'current')
+    rows[0]['input_fingerprint']='current';rows[-1]=dict(rows[0])
+    with pytest.raises(RuntimeError):probe.validate_primary(primary,freeze,'current')
+
 def test_answer_constraint_rejects_foreign_or_absent_citation_and_unsupported_money():
     scorer=E.C.load_module('answer_constraint_tests',Path(__file__).with_name('32_score_answers.py'))
     requirement=E.req(['편의점'],'discount',10,300000,5000)
