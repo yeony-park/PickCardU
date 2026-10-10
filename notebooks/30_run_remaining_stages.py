@@ -15,9 +15,9 @@ s=importlib.util.spec_from_file_location('orchestration_common',Path(__file__).w
 C=importlib.util.module_from_spec(s);sys.modules[s.name]=C;s.loader.exec_module(C)
 LOG=C.STAGES[30]/'orchestration_progress.json'
 
-def execute(label,args,history):
+def execute(label,args,history,force=False):
     previous=next((r for r in history if r['label']==label and r['status']=='ok'),None)
-    if previous:return
+    if previous and not force:return
     started=time.time();before=resource.getrusage(resource.RUSAGE_CHILDREN)
     entry={'label':label,'status':'started','started_at':started,'command':['python','-B',*args]}
     history.append(entry);C.write_json(LOG,{'records':history})
@@ -74,9 +74,12 @@ def run():
     execute('llm_answer_scores',['notebooks/32_score_answers.py','--source','llm'],history)
     execute('llm_failure_diagnostics',['notebooks/32_failure_diagnostics.py','--source','llm'],history)
     execute('parser_repeat_probes',['notebooks/33_repeat_query_plans.py'],history)
-    for stage in [30,31,32,33]:execute(f'notebook_{stage}',['notebooks/30_execute_experiment_notebooks.py','--stage',str(stage)],history)
-    execute('reports_after_all_notebooks',['notebooks/30_render_experiment_reports.py'],history)
-    execute('original_preservation',['notebooks/30_verify_preservation.py'],history)
+    execute('answer_failure_followups',['notebooks/32_answer_failure_followup.py'],history)
+    execute('compact_summaries',['notebooks/30_summarize_experiments.py'],history,force=True)
+    execute('original_preservation',['notebooks/30_verify_preservation.py'],history,force=True)
+    for stage in [30,31,32,33]:execute(f'notebook_{stage}',['notebooks/30_execute_experiment_notebooks.py','--stage',str(stage)],history,force=True)
+    execute('reports_after_all_notebooks',['notebooks/30_render_experiment_reports.py'],history,force=True)
+    execute('final_audit',['notebooks/30_verify_experiment_results.py'],history,force=True)
     print('Experiment stages terminal; final report/review/commit audit remains',flush=True)
 
 if __name__=='__main__':run()

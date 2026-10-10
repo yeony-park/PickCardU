@@ -17,7 +17,9 @@ TITLES={30:'기존 Upstage JSON → 구조화 검색 DB',31:'현재 운영 benef
 def table(headers,rows,caption=''):
     context=' '.join(headers)
     note=''
-    if any(k in context for k in ['Hit','MRR','Witness','Recall']):
+    if any(k in context for k in ['Answer Anchor Hit','Known Positive Complete','Constraint Coverage']):
+        note='답변 지표는 추천 목록과 claim / 근거를 든 사실 문장을 사용합니다. Answer Anchor Hit는 양성 질문 중 알려진 정답을 추천한 비율입니다. Known Positive Complete는 같은 정답 카드의 요구 조건·인용 소유권·비율 확인까지 통과한 비율이며 양성 질문을 분모로 합니다. Constraint Coverage는 구조화 조건이 있는 질문의 지원 구성요소 비율 평균입니다. 각 분모는 표에 표시하며 실패는0입니다. 높을수록 좋지만 상세 질문에 추천 없이 정확히 답하거나 합산 수치를 쓰면 미탐할 수 있습니다. Citation Ownership은 완료 답변의 인용 소유권만, Negative Abstention은 음성 질문의 근거 부족 상태만 검사합니다. 카드·금융 사실의 의미 정확도는 별도 검증이 필요합니다.'
+    elif any(k in context for k in ['Hit','MRR','Witness','Recall']):
         note='Hit/MRR/Anchor Recall의 평균 분모는 알려진 양성 질문 수입니다. Witness 평균 분모는 그중 필수 근거 구성이 주석된 질문 수로, 표의 Witness 분모를 사용합니다. 전체는 각각 27개와 24개이며 부분집합에서는 표의 분모를 확인하세요. 실행 실패는 0입니다. Hit는 정답 카드 포함 여부, MRR은 첫 정답 순위의 역수입니다. Witness는 질문별 알려진 정답 카드 중 필수 원문 구성요소를 한 근거에서 찾은 비율입니다. 높을수록 좋지만 부분 정답 라벨·문자열 진단입니다. 편의점 10% 정답이 2위이면 Hit=1, MRR=0.5이며 실적 근거가 빠지면 Witness를 통과하지 못합니다.'
     elif '승' in headers:
         note='같은 양성 질문의 두 조건을 비교합니다. 새 조건 점수가 높으면 승, 낮으면 패, 같으면 동률입니다. 승이 많아도 다른 질문 유형의 회귀를 함께 확인해야 합니다.'
@@ -29,7 +31,11 @@ def table(headers,rows,caption=''):
         note='wall은 해당 단계의 실제 경과 초, bytes는 저장 파일 크기입니다. 한 번 실행한 값이며 캐시·CPU 부하가 섞여 실서비스 지연 비교로 쓸 수 없습니다. 품질이 같을 때 적을수록 유리합니다.'
     def html_row(row):
         rank='best' if any(str(v).startswith('관측 1위') for v in row) else 'runner' if any(str(v).startswith('관측 2위') for v in row) else ''
-        return '<tr class="'+rank+'">'+''.join('<td>'+ESC(v)+'</td>' for v in row)+'</tr>'
+        def display(value):
+            if value is None:return '미측정'
+            if isinstance(value,bool):return 'True / 예' if value else 'False / 아니오'
+            return {'ok':'ok / 성공','failed':'failed / 실패','started':'started / 진행 중'}.get(str(value),value)
+        return '<tr class="'+rank+'">'+''.join('<td>'+ESC(display(v))+'</td>' for v in row)+'</tr>'
     return '<table><caption>'+ESC(caption)+'</caption><thead><tr>'+''.join('<th>'+ESC(h)+'</th>' for h in headers)+'</tr></thead><tbody>'+''.join(html_row(row) for row in rows)+'</tbody></table>'+('<p class="guide">'+note+'</p>' if note else '')
 
 def percent(value):return '미측정' if value is None else f'{100*value:.2f}%'
@@ -145,7 +151,7 @@ def final_decision(records,freeze):
         for mode in ['S_THEN_U','S_PLUS_U']:
             candidate=bykey[(profile,mode)]
             statements.append(f"{profile} / {mode}: U 대비 Hit {100*((candidate['hit'] or 0)-(baseline['hit'] or 0)):+.2f}%p, MRR {(candidate['mrr'] or 0)-(baseline['mrr'] or 0):+.4f}, Witness {100*((candidate['witness'] or 0)-(baseline['witness'] or 0)):+.2f}%p. 실행 실패 {baseline['failed']}→{candidate['failed']}건.")
-    return '<h2>최종 정리·채택 판단</h2><ul>'+''.join('<li>'+ESC(s)+'</li>' for s in statements)+'''</ul><p>위 수치는 단일 고정 실행의 관측 결과입니다. 관측 최고값과 차순위는 품질 우승 후보이며 채택 설정이 아닙니다. 운영 채택은 없음. 엄격한 구조화 선행·융합 모두 개발 후보로 보존하고, unknown을 0으로 취급하거나 범위의 최대값을 보장 할인율로 취급하는 설정은 배제했습니다. 청킹 프로필 비교는 청킹·재정렬·근거 묶음 전체의 비교이므로 순수 청킹 효과로 해석하지 않습니다.</p><p>실적·한도 원문 필드 부족, 보수적 부분 라벨, OCR 통과 가정과 미완성 제목 계층이 남아 있습니다. 기록 wall은 CPU·warm cache가 섞이며 비교 지연을 뜻하지 않습니다. 실제 청구 비용은 미측정입니다. 다음 검증은 PDF 근거로 만든 독립 정답·조건 관계 검증 및 수정된 제목 계층의 새 버전 비교입니다. 질문 보강 후 전체 검색은 요청대로 후속 실험에 남깁니다.</p>'''
+    return '<h2>최종 정리·채택 판단</h2><ul>'+''.join('<li>'+ESC(s)+'</li>' for s in statements)+'''</ul><p>위 수치는 단일 고정 실행의 관측 결과입니다. 관측 최고값과 차순위는 품질 우승 후보이며 채택 설정이 아닙니다. 운영 채택은 없음. 검색 후속 검증의 우선 후보는 S_THEN_U / 구조화 선행이며 두 프로필을 함께 유지합니다. 융합은 답변 대용 지표에서 더 높은 값이 있어 답변 품질 비교 후보로 보존합니다. 검색·답변 모든 면에서 하나가 우세하다고 확정하지 않습니다. unknown을0으로 취급하거나 범위의 최대값을 보장 할인율로 취급하는 설정은 배제했습니다. 청킹 프로필 비교는 청킹·재정렬·근거 묶음 전체의 비교이므로 순수 청킹 효과로 해석하지 않습니다.</p><p>실적·한도 원문 필드 부족, 보수적 부분 라벨, OCR 통과 가정과 미완성 제목 계층이 남아 있습니다. 기록 wall은 CPU·warm cache가 섞이며 비교 지연을 뜻하지 않습니다. 실제 청구 비용은 미측정입니다. 답변 캐시의 예외 변환과 상태·문자열 대용 지표 한계를 위 후속 진단으로 분리했습니다. 다음 검증은 PDF 근거로 만든 독립 정답·조건 관계 검증 및 수정된 제목 계층의 새 버전 비교입니다. 질문 보강 후 전체 검색은 요청대로 후속 실험에 남깁니다.</p>'''
 
 def diagnostics_table(directory):
     p=directory/'failure_diagnostics.json'
@@ -189,8 +195,16 @@ def answers_table(path,freeze):
             stats.append([*key,len(coverage),percent(sum(coverage)/len(coverage) if coverage else None),len(complete),
                 percent(sum(complete)/len(complete) if complete else None),sum(r.get('unsupported_percent_claims',0) for r in items),sum(r.get('numeric_percent_claims',0) for r in items)])
         body+=table(['프로필','방식','구조화 분모','Constraint Coverage','양성 분모','Known Positive Complete','비율 미확인 claim','비율 claim 분모'],stats,'조건·인용 숫자 진단 — 의미 검증이 아닌 보수적 대용 지표')
+        if any(r.get('unsupported_percent_claims',0) for r in scored):
+            body+='<p class="guide">이번 미확인 비율 사례는 Q10 benefit 구조화 선행 답변의 value=1.5입니다. 답변은 기본1%와 커피 추가0.5%를 함께 설명했지만, 동결된 규칙은 인용문에1.5%가 문자 그대로 없으면 미확인으로 표시합니다. 합산 수치가 의미적으로 정당한지와 두 혜택의 동시 적용은 이번 규칙에서 검증하지 않았습니다. 따라서 이1건을 곧바로 허위 수치라고 판정하지 않으며, 점수 규칙은 사후 변경하지 않았습니다.</p>'
     failures=[r for r in records if r['status']!='ok']
     if failures:body+=table(['질의','프로필','방식','실패 사유'],[[r['query_id'],r['profile'],r['mode'],r['error']] for r in failures],'답변 실패: 검색 실패·provider incomplete 등 원인별 기록')
+    negatives=[r for r in records if cases[r['query_id']]['negative_control'] and r['mode']=='U' and r['status']=='ok']
+    if negatives:
+        body+=table(['질의','프로필','답변 상태','추천 수','Negative Abstention','실제 답변 발췌'],
+          [[r['query_id'],r['profile'],r['answer']['answer_status'],len(r['answer']['recommendations']),r['metrics']['negative_abstention'],
+            r['answer']['answer_text'][:600]] for r in negatives],'음성 대조 실제 답변: 상태 지표와 문장 내용은 다를 수 있음')
+        body+='<p class="guide">Negative Abstention / 음성 질문의 상태 기반 보류율은 insufficient_evidence / 근거 부족 상태만 통과시킵니다. “1000% 할인은 확인되지 않는다”고 명시하고 추천 목록을 비워도 answered / 답변 완료 상태이면 0입니다. 이 엄격한 상태 진단의 낮은 값만으로 허위 혜택 추천이나 실제 위험 답변이라고 확정할 수 없습니다. 점수 규칙은 답변 생성 전에 동결한 그대로 유지하고 문장 내용을 별도로 공개합니다.</p>'
     return body
 
 def source_comparison(freeze,parser):
@@ -230,16 +244,76 @@ def source_comparison(freeze,parser):
                 '숫자 조건·OR·여행 추천의 실제 출력 예시: LLM이 고정 스키마의 값을 생성')
     return body
 
-def orchestration_resources():
-    path=C.STAGES[30]/'orchestration_progress.json'
+def answer_failure_followup_table(stage,freeze):
+    path=C.STAGES[32]/'answer_failure_followup_results.json'
     if not path.exists():return ''
-    records=C.read_json(path)['records']
+    result=C.read_json(path);records=[r for r in result['records'] if r['stage']==stage]
+    body='<h2>답변 실패 후속 진단 — 원래 결과 보존</h2><p>원래 캐시는 저장된 ValidationError를 재사용할 때 RuntimeError로 바꾸어 운영 answer의 두 번째 시도를 생략하는 경우가 있었습니다. 이 영향이 있는 주 답변 점수는 운영 방식의 순수 품질 비교로 사용할 수 없습니다. 먼저 같은 2400 토큰으로 원래 validation 재시도를 캐시만으로 재현했습니다. 아직 실패한 행만 같은 질문·근거·스키마·prompt·gpt-6-luna/medium으로 4800 토큰을 시험했습니다. 토큰 부족은 실패 응답 상태/usage를 보존하지 못해 확정된 원인이 아닌 검증 가설입니다. 원래 검색·답변 표에 후속 값을 대입하지 않았습니다.</p>'
+    body+=table(['질의','프로필','방식','후속 조건','상태','출력 토큰 상한','신규 provider 시도','신규 성공','Known Positive Complete','실패 사유'],
+      [[r['query_id'],r['profile'],r['mode'],'캐시 재시도' if r['kind']=='offline_retry' else '4800 토큰',r['status'],r['max_output_tokens'],r['new_provider_attempts'],r['new_successful_api_requests'],r.get('condition_scores',{}).get('known_positive_complete'),r.get('error','')] for r in records],
+      '실패 행에 한정한 사후 개발 진단: 조건별 성공/실패, 주 실험 채택 아님')
+    body+='<p class="guide">Known Positive Complete / 알려진 정답의 조건·인용 완결은 주 지표와 동일한 엄격한 추천 목록 기반 대용 점수입니다. 같은 알려진 정답 카드의 요구 조건과 소유권·비율을 충족하면1이며 높을수록 좋습니다. 카드 상세 설명이 정확해도 추천 목록이 비면0일 수 있으므로 전체 답변 정확도가 아닙니다. Provider 시도는 캐시 미사용 SDK 호출 경계 횟수이며 성공은 파싱까지 완료한 신규 응답 수입니다. 캐시 재시도는 신규 API0이 통과 조건입니다. 실패 시 청구 토큰/비용은 미측정입니다.</p>'
+    primary=C.read_json(C.STAGES[stage]/'answer_results.json')['records']
+    scored=C.read_json(C.STAGES[stage]/'answer_constraint_scores.json')['records']
+    key=lambda r:(r['query_id'],r['profile'],r['mode'])
+    scores={key(r):r for r in scored};cases={q['query_id']:q for q in freeze['queries']}
+    follow={(key(r),r['kind']):r for r in records};rows=[]
+    for policy in ['offline_retry','larger_budget']:
+        groups=defaultdict(list)
+        for r in primary:
+            chosen=follow.get((key(r),'offline_retry'))
+            if chosen is None or chosen['status']!='ok':
+                chosen=follow.get((key(r),'larger_budget')) if policy=='larger_budget' else None
+            selected=chosen if chosen is not None and chosen['status']=='ok' else r
+            score=chosen['condition_scores'] if chosen is not None and chosen['status']=='ok' else scores[key(r)]
+            groups[(r['profile'],r['mode'])].append((r,selected,score))
+        for (profile,mode),items in sorted(groups.items()):
+            positive=[i for i in items if cases[i[0]['query_id']]['gold_cards']]
+            rows.append(['캐시 재시도만' if policy=='offline_retry' else '캐시 재시도+남은 실패4800',profile,mode,
+              sum(r['status']!='ok' for r,_,_ in items),sum(a['status']!='ok' for _,a,_ in items),len(positive),
+              percent(sum(a.get('metrics',{}).get('answer_anchor_hit') or 0 for _,a,_ in positive)/len(positive)),
+              percent(sum(s.get('known_positive_complete') or 0 for _,_,s in positive)/len(positive))])
+    body+=table(['사후 정책','프로필','방식','주 답변 실패','정책 적용 후 실패','양성 분모','Answer Anchor Hit','Known Positive Complete'],rows,
+                '전체33질문으로 합산한 후속 정책: 성공 답변 유지, 선택된 실패 행만 후속 결과로 계산')
+    body+='<p class="guide">양성 분모는 동일한27개입니다. Answer Anchor Hit는 추천 목록의 알려진 정답 포함, Known Positive Complete는 그 정답의 지원 조건·인용 완결 대용 점수입니다. 높을수록 좋고 실패는0입니다. 예를 들어 편의점10% 정답을 추천하고 요구 실적을 인용하면 두 지표를 통과할 수 있습니다. 상세 설명 질문은 추천 없이 답할 수 있으며 이 지표에서는 낮게 잡힐 수 있습니다. 이 합산은 사후 정책 비교이며 기존 주 실험표를 대체하거나 독립 확증이 되지 않습니다.</p>'
+    body+=f'<p><a href="../../notebooks/data/{C.STAGES[32].name}/answer_failure_followup_results.json">전체 실패 진단 결과</a></p>'
+    return body
+
+def measured_orchestration_records():
+    path=C.STAGES[30]/'orchestration_progress.json'
+    if not path.exists():return []
+    return [r for r in C.read_json(path)['records'] if not r['label'].startswith('notebook_')
+            and r['label'] not in {'reports_after_all_notebooks','original_preservation','compact_summaries','final_audit'}]
+
+def orchestration_resources():
+    records=measured_orchestration_records()
+    if not records:return ''
     rows=[[r['label'],r['status'],round(r['wall_seconds'],2) if 'wall_seconds' in r else '미측정',
            round(r['child_cpu_seconds'],2) if 'child_cpu_seconds' in r else '미측정',
            r.get('cumulative_child_peak_rss_kib','미측정')] for r in records]
     return '<h2>순차 실행 runner의 시간·메모리 기록</h2>'+table(
         ['단계 코드','상태','wall초','child CPU초','누적 child 최대 RSS KiB'],rows,
         '완료 단계의 실제 단일 실행값; 최초 원본 검색의 cold 실행과 별개')+'''<p class="guide">Wall time / 경과 시간은 단계 시작부터 종료까지의 초입니다. Child CPU / 자식 프로세서 시간은 자식 프로세스의 user+system 시간 증가량입니다. Peak RSS / 최대 상주 메모리는 Linux 자식 프로세스의 누적 최대값이며 해당 단계만의 최대 메모리가 아닙니다. 동일 품질·동일 캐시·동일 부하에서 작을수록 유리합니다. 예를 들어 198개 검색의 캐시 재실행 40초는 신규 BGE 추론의 지연을 뜻하지 않습니다. 실행 중 단계 값과 단계별 독립 최대 메모리는 미측정입니다. 여러 반복의 평균·표준편차가 아닙니다.</p>'''
+
+def artifact_inputs(stage):
+    paths=[C.STAGES[30]/'db_build_summary.json',C.STAGES[31]/'chunking_summary.json',
+           C.STAGES[32]/'dataset_freeze.json',Path(__file__),Path(__file__).with_name('30_execute_experiment_notebooks.py')]
+    if stage==30:paths+=[C.STAGES[30]/'preservation_verification.json']
+    if stage==31:
+        paths+=[C.STAGES[31]/'fact_chunk_map.jsonl',*sorted((C.STAGES[31]/'hierarchy').glob('*.json'))]
+        paths+=[C.STAGES[31]/p/'index_summary.json' for p in ['card_page_section_benefit','parent_child_bundle']]
+    if stage in [32,33]:
+        paths+=[C.STAGES[stage]/name for name in ['retrieval_results.json','answer_results.json',
+                'answer_constraint_scores.json','failure_diagnostics.json','backend_probe_results.json',
+                'parser_results.json','repeat_results.json','evaluation_summary.json']]
+        if stage==33:paths+=[C.STAGES[32]/'retrieval_results.json']
+        paths+=[C.STAGES[32]/'answer_failure_followup_results.json']
+    return {str(p.relative_to(C.ROOT)):C.digest(p.read_bytes()) if p.exists() else None for p in paths}
+
+def report_inputs(stage):
+    return {'artifacts':artifact_inputs(stage),'api_resources':api_resources(),
+        'measured_orchestration_records':measured_orchestration_records(),
+        'notebooks':{str(n):C.digest((C.ROOT/'notebooks'/f'{n}_{NAMES[n]}.ipynb').read_bytes()) for n in NAMES}}
 
 def render(stage):
     nav='<nav>'+''.join(f'<a href="{n}_{NAMES[n]}_report.html">{n}번</a>' for n in NAMES)+'</nav>'
@@ -303,6 +377,7 @@ def render(stage):
         if path.exists():body+=search_tables(C.read_json(path)['records'],freeze)
         else:body+='<p>검색 결과 집계: 실행 중 또는 미실행. 완료로 판정하지 않습니다.</p>'
         body+=answers_table(directory/'answer_results.json',freeze)
+        body+=answer_failure_followup_table(stage,freeze)
         if stage==33 and (directory/'parser_results.json').exists():
             body+=source_comparison(freeze,C.read_json(directory/'parser_results.json')['records'])
         body+=diagnostics_table(directory)
@@ -312,13 +387,14 @@ def render(stage):
     artifact=f'../../notebooks/data/{C.STAGES[stage].name}/'
     if stage in [32,33]:
         body+='<p>전체 결과 파일: '+''.join(f'<a href="{artifact}{name}">{ESC(label)}</a> · ' for name,label in [('evaluation_summary.json','버전·평가 요약'),('retrieval_results.json','검색 원문 결과'),('answer_results.json','답변 원문 결과'),('answer_constraint_scores.json','조건 평가'),('failure_diagnostics.json','추가 진단')])+'</p>'
+        body+='<p>버전·평가 요약은 전체 198조건의 카드·근거 ID·검색/답변/조건 지표·실패, 33질문의 선별 trace를 보존한 Git 저장용 결과입니다. 33번은 실제 parser 조건과 오류도 포함합니다. 원문 근거·답변과 provider 응답 캐시는 이 worktree의 로컬 산출물로 보존하며 Git에 넣지 않습니다. 입력 OCR·인덱스·캐시가 없는 다른 checkout에서는 원문 결과 링크와 재현 입력을 별도로 준비해야 합니다.</p>'
     notebooks=[C.read_json(C.ROOT/'notebooks'/f'{n}_{NAMES[n]}.ipynb') for n in NAMES]
     complete=all(cell.get('execution_count') is not None and not any(o.get('output_type')=='error' for o in cell.get('outputs',[]))
                  for nb in notebooks for cell in nb['cells'] if cell['cell_type']=='code')
     body+='<p>'+('30~33번 노트북의 모든 코드 셀을 skn25에서 실제 결과 검증·보고서 생성까지 실행했습니다.' if complete else '30~33번 노트북 전체 셀 실행 검증은 아직 완료되지 않았습니다.')+' 장시간 검색·답변·DB 생성은 별도의 재개 가능한 runner에서 실행하며, 노트북 셀만으로 전체 유료·모델 작업을 처음부터 재실행한 것은 아닙니다.</p>'
     body+=f'<footer>노트북: <a href="../../notebooks/{stage}_{NAMES[stage]}.ipynb">{stage}번</a> · <a href="{artifact}">기계 판독 산출물 폴더</a> · 전체 노트북 재실행 여부와 원본 보존 검증은 실행 감사 산출물에서 확인합니다.</footer>'
     target=C.ROOT/'docs/report'/f'{stage}_{NAMES[stage]}_report.html'
-    target.write_text('<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+ESC(TITLES[stage])+'</title><style>'+STYLE+'</style><main>'+body+'</main></html>',encoding='utf-8')
+    target.write_text('<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="experiment-input-fingerprint" content="'+C.digest(report_inputs(stage))+'"><title>'+ESC(TITLES[stage])+'</title><style>'+STYLE+'</style><main>'+body+'</main></html>',encoding='utf-8')
     return target
 
 if __name__=='__main__':

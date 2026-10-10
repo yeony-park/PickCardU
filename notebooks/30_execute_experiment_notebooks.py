@@ -62,6 +62,8 @@ def execute(stage):
           'python -B notebooks/32_score_answers.py --source llm',
           'python -B notebooks/32_failure_diagnostics.py --source llm',
           'python -B notebooks/33_repeat_query_plans.py',
+          '# 두 주 답변 실행이 끝난 뒤 사후 실패 진단: 캐시 재시도 → 남은 실패의4800 토큰',
+          'python -B notebooks/32_answer_failure_followup.py',
           'python -B notebooks/30_summarize_experiments.py']}
     for cell in notebook.cells:
         if cell.cell_type=='markdown' and cell.source.startswith('## 재현과 책임'):
@@ -93,6 +95,7 @@ def execute(stage):
             cell.outputs.append(nbformat.v4.new_output('error',ename=type(exc).__name__,evalue=str(exc),traceback=traceback.format_exc().splitlines()))
             nbformat.write(notebook,file);raise
         cell.outputs.append(nbformat.v4.new_output('stream',name='stdout',text=buffer.getvalue()))
+    notebook.metadata['experiment_input_fingerprint']=C.digest(scope['R'].artifact_inputs(stage))
     nbformat.validate(notebook);nbformat.write(notebook,file);print('executed',file.name,count,'code cells',flush=True)
 
 if __name__=='__main__':

@@ -21,7 +21,7 @@
 - Evaluate U, S_THEN_U, S_PLUS_U for each operational profile with equal component depth50, candidate depth20 and output Top3. Preserve selective BGE for benefit and all-query bundle BGE for parent_child.
 - Freeze evaluation queries, plans, category aliases, fallback and fusion rules before retrieval results. Do not use sealed historical holdouts for tuning.
 - Separate controlled source-relative diagnostics from natural-question development and new confirmatory results. Do not claim source correctness, population generalization or production adoption.
-- Cache API calls by exact payload/model/reasoning fingerprint. Save every failure and response; no silent model fallback. No paid OCR extraction.
+- Cache API calls by exact payload/model/reasoning fingerprint. Save successful raw responses and every failure/request; failed SDK parse response status/usage were unavailable and are reported unmeasured. No silent model fallback. No paid OCR extraction.
 - Do not install dependencies or change .env. Commit verified checkpoints as explicitly authorized; never push automatically.
 
 ## Tasks and verification
@@ -57,22 +57,22 @@ Files: create notebooks/32_search_experiment.py, notebooks/32_structured_search_
 - [x] Validate one authorized GPT-6 Luna medium response; log its metadata without secrets.
 - [x] Run six conditions against frozen human-authored plans; retain strict structured selection even when fallback is used.
 - [x] U uses the unchanged operational search pipeline. S_THEN_U scopes both search components to structurally eligible cards. S_PLUS_U combines independent card candidates using a predeclared card rank rule and unchanged operational evidence hydration.
-- [ ] Evaluate known-positive card hit/MRR, condition satisfaction, evidence witness coverage and source-relative negative controls. Report paired query wins/losses/ties and subgroups.
-- [ ] Generate answers with unchanged operational answer logic and an experiment-only SDK proxy enforcing gpt-6-luna/medium. Validate citation ownership and query constraints; save raw responses.
-- [ ] Cache repeated candidates/scorer pairs, include failure rows in denominators, and distinguish actual from estimated resources.
-- [ ] Diagnose material losses with prespecified additional checks; never rewrite earlier gold to improve a result.
+- [x] Evaluate known-positive card hit/MRR, condition satisfaction, evidence witness coverage and source-relative negative controls. Report paired query wins/losses/ties and subgroups.
+- [x] Generate answers with unchanged operational answer logic and an experiment-only SDK proxy enforcing gpt-6-luna/medium. Validate citation ownership and query constraints; save raw responses.
+- [x] Cache repeated candidates/scorer pairs, include failure rows in denominators, and distinguish actual from estimated resources.
+- [x] Diagnose material losses with prespecified additional checks; never rewrite earlier gold to improve a result.
 
 ### 33: LLM query planning, routing and confirmation
 
 Files: create notebooks/33_query_routing.py, notebooks/33_query_routing.ipynb and notebooks/data/33_query_routing/. Create docs/report/33_query_routing_report.html.
 
-- [ ] Use direct OpenAI responses.parse with the frozen Pydantic QueryPlan and medium reasoning.
-- [ ] Compare fields, units, operators, Boolean grouping and routing to frozen human plans. Reuse each plan across profiles.
-- [ ] Execute actual LLM plans and quantify performance loss relative to oracle plans.
-- [ ] Apply the frozen configuration to the new confirmatory cohort without tuning. Repeat parser probes on a small prespecified boundary subset to measure variability.
-- [ ] Produce four matching HTML reports, each with nearby Korean metric definitions/examples/limitations, full condition matrices, resource measurements, decisions and remaining limits.
-- [ ] Independent registered reviewer examines adapters/scoring and source preservation. Correct substantive errors and rerun affected checks.
-- [ ] Execute all four notebooks in skn25, inspect output errors, verify report links and original hashes. Audit all explicit requirements before goal completion.
+- [x] Use direct OpenAI responses.parse with the frozen Pydantic QueryPlan and medium reasoning.
+- [x] Compare fields, units, operators, Boolean grouping and routing to frozen human plans. Reuse each plan across profiles.
+- [x] Execute actual LLM plans and quantify performance loss relative to oracle plans.
+- [x] Apply the frozen configuration to the new confirmatory cohort without tuning. Repeat parser probes on a small prespecified boundary subset to measure variability.
+- [x] Produce four matching HTML reports, each with nearby Korean metric definitions/examples/limitations, full condition matrices, resource measurements, decisions and remaining limits.
+- [x] Independent registered reviewer examines adapters/scoring and source preservation. Correct substantive errors and rerun affected checks.
+- [x] Execute all four notebooks in skn25, inspect output errors, verify report links and original hashes. Audit all explicit requirements before goal completion.
 
 ## Additional-test rule
 
@@ -83,7 +83,17 @@ Add tests when a concrete observed failure, ambiguity or material regression jus
 - DB v3: 106 documents / 617 pages / 3403 facts; guaranteed scalar percent1033, spend187, benefit cap381, explicit cap period66. Range/bound37 and spend-scope cap90 remain unknown. Original fields/IDs/provenance unchanged.
 - Benefit3183 and parent1834 chunks/indexes built with operational inputs/functions. New unique vectors4363 plus33 query vectors; no new OCR extraction.
 - Current checks:49 passed; source and used model preservation8934+27 verified. Pytest-generated root cache relocated to notebooks; all future tests set cache_dir explicitly.
-- Oracle 198-row search completed:194 successful,4 operational bundle-limit/fusion failures. Current identity-bound cache replay verified all198 card/evidence/metrics and all33 selections identical. Real oracle answers are running.
-- Then oracle answers/scores;33 LLM plans;actual LLM searches/answers;10 additional repeat requests for5 predeclared questions;same reports/notebooks.
+- Oracle 198-row search completed:194 successful,4 operational bundle-limit/fusion failures. Current identity-bound cache replay verified all198 card/evidence/metrics and all33 selections identical. Oracle/LLM primary answers, scores and follow-ups completed.
+- Completed:oracle answers/scores;33 LLM plans;actual LLM searches/answers;10 additional repeat requests for5 predeclared questions. All5 repeated plans stable in3 trials (not population reliability).
 - Justified backend ablation completed:6 questions x2 profiles with all106 cards explicitly in scope; all12 card rankings identical to global paths.0 new API/embedding,1 new CPU BGE score pair. This limited development diagnostic does not establish backend equivalence for other questions.
-- Final compact summaries, fresh preservation/HTML links/notebook outputs, independent review and final results commit remain.
+- Final compact summaries, fresh preservation/HTML links/notebook outputs and independent review completed. Final result commit follows the final display audit.
+
+## Final measured results and limitations
+
+- Both oracle and actual LLM S_THEN_U:27/27 known-positive card Hit@3 and MRR1. U benefit26/27, parent24/27. Four search failures per source are parent U/fusion Q05/Q28 bundle limits; no production changes.
+- Actual LLM witness mean (24 questions):benefit S_THEN_U41.13%, parent39.07%; fusion35.89%/30.97%. Parent superiority did not reproduce; this is the whole profile, not a pure chunk effect.
+- Actual parser route29/33, exact conditions20/33, candidate sets23/33, scope33/33. Equivalent interpretations may differ; Hit/MRR preserved but known-card recall changed.
+- Primary answers:oracle189/198, LLM188/198 completed. Cached EOF errors became RuntimeError on reuse, skipping operational retry; raw comparisons retain that limitation. Offline retry repaired5 row failures with0 calls. The remaining6 rows reused one new4800-token response.17 follow-up records include6 failed offline attempts. Operational search failures remain.
+- Answer proxies retain their frozen rules:negative Q18 explicitly denies1000% but answered status scores0; detailed card descriptions can have no recommendations; Q10 arithmetic1+0.5=1.5 is not literal support. None of these proxy failures alone proves a wrong financial answer.
+- All16 notebook code cells executed in skn25;54 focused tests passed. Fresh final audit validates current code/input/result/scorer/report/plan binding, links and preserved8934+27 original files; new files outside notebooks/report0.
+- Follow-up priority:structured-first retrieval; compare both profiles again after heading repair. Fusion remains an answer-quality comparison candidate. Query expansion remains deferred. No production adoption, no PDF truth validation, billed cost unmeasured.
