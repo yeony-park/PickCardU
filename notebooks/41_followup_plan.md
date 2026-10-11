@@ -55,11 +55,14 @@ Consumes: 39 dataset/scorer, 40 plans/retrieval/answers/api cache, unchanged ope
 ## Task 3: 42 새로운48질문과 판정 기준 동결
 
 Files: `42_freeze_questions.py`, `data/42_expanded_query_evaluation/dataset.json`, `questions.json`, `protocol.json`, `source_audit.json`.
-Interfaces: `build_dataset() -> dict` produces query_id/question/gold_plan/task/gold_cards/witness_groups and raw OCR page/span audit. questions.json는 query_id/question만 포함한다. 실행 runner는 questions.json와 실제 parser 응답만 사용하며 정답은 결과 평가 함수에만 별도 전달한다. No evaluated retrieval/answers used for labels.
+Interfaces: `build_dataset() -> dict` produces query_id/question/gold_plan/task/gold_cards/witness_groups and raw OCR page/span audit. questions.json의 각 행은 query_id/question만 포함하며 catalog.json은 별도 비정답 입력이다. 실행 runner는 공개 질문·catalog·실제 parser 응답만 사용하며 정답은 결과 평가 함수에만 별도 전달한다. No evaluated retrieval/answers used for labels.
 
 - [ ] 수치/조건16·카드상세16·의미/혜택16으로 작성한다. 마지막 유형에는 일반/모호/자료미확인 대조4개를 포함한다. 양성44개는 지원되는 원문 근거를 요구한다. 32/39 질문과 정확한 중복 없음. 같은 템플릿·같은카드 반복은 독립표본으로 주장하지 않고 카드·업종·질문 유형 분포를 공개한다.
 - [ ] 원문 자료에서 작성한 질문 명세와 카드/업종/동일표현/범주확장/보강미적용 분포를 검색·답변 전에 동결한다. 특정 확장어가 유리하도록 결과를 본 뒤 질문을 교체하지 않는다. 대조4질문은 양성 점수와 별개의 필수 방어 기준이다.
 - [ ] 39와 동일한 보수적 원문 fragment 검증으로 정답을 작성한다. 검색 selector를 정답 생성기로 사용하지 않는다. 관계가 불분명한 조건은 제외 사유를 저장한다. OCR 원문 일치와 PDF 사실 검증을 구분한다.
+- [x] 결과 전 최대3카드 partial anchor를 고정하고74개 anchor 혜택의 원문 관계를 독립 검토했다. 확인72개,다른 비율/병원 조건이 합쳐진2개는 평가 정답에서 제외했다. 원본 DB/OCR은 그대로다. 정답 목록은 완전하지 않으므로 목록 밖의 유효 카드도 자동 점수에서는 미포함으로 잡힐 수 있음을 공개하고 승패 원문 점검에서 별도 확인한다.
+- [x] 커피/여행 공유 taxonomy5문항(E12/E13/E33/E34/E35)을 별도로 표시했다. 대조4문항의 expected_behavior를 등록했다. 새16카드 상세 질문은10카드사에 걸쳐 있다.
+- [x] 동결 receipt의 파일 자체SHA를42_input_binding.py에 pin하고, API 전·사후·재개에 dataset/questions/protocol/catalog/review 연결을 검증한다. 실제 실행 경로에는 gold 내용을 전달하지 않는다.
 - [ ] 39 평가기를 변경하지 않는다. 이미 알려진 동의어 누락·부정문 수치 오탐은 사전 등록 진단으로 원응답을 확인하고 자동 점수와 별도 기록한다. 사후 점수 교체 없음.
 
 ## Task 4: 42 전체384조건 확증 평가·후보 선정
@@ -81,3 +84,8 @@ Consumes: frozen48 queries and 41 expansion, original shared QueryPlan/prompt, t
 - 동결 입력/프로토콜/코드 hash, 신규 논리36 및384행과 실패 포함 집계, 실제 요청/캐시/usage 비용, wall/CPU/peak RAM·최저 가용 RAM·chunk/candidate/storage.
 - 원문/보강 검색문과 동일 원질문 답변 바인딩, protected source preservation, API0 검증, 독립 계획·코드·결과 검토, milestone commit.
 - 실험 적용 후보 선정까지 수행한다. 운영 코드 반영은 현재 읽기 전용 범위에 포함되지 않는다. 이는 운영 적용을 위한 다음 단계이며 이 목표에서 운영 적용 완료로 보고하지 않는다.
+
+## 현재 검증 상태
+
+- 41: 신규 검색/답변36/36성공,기존40의108조건과144조건 비교,원본20066파일 보존,표시용 노트북4셀 실행,원문 차이6건 점검,HTML4표/링크/분모/비용 재계산 감사 완료. 신규API21회(답변20/임베딩1),비용USD0.020604415,wall831.8초,peakRSS2,619,856KiB. 답변충족은보강benefit13/15,parent-child13/15이고 기존순차15/15,14/15보다 높지 않았다. parent-child상세1건은공유인용규칙의평가한계로의미열세와구분한다. 개발보강후보선택안함. 브라우저렌더링미검증.
+- 42: 새48문항/양성44·대조4,공개입력/정답/원문관계동결 API0 완료. 입력receipt변조반례와통계회귀를포함해37개검사통과,독립reviewer Major해소. 전체384조건유료실행·전체승패원문확인·후보판정은미완료다.
