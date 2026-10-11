@@ -1,4 +1,7 @@
 """Audit the whole frozen grid, source parity, whole evidence and report links."""
+if not __debug__:
+    raise RuntimeError('Verification requires assertions enabled; do not use python -O or PYTHONOPTIMIZE')
+
 import importlib.util
 from html.parser import HTMLParser
 from pathlib import Path

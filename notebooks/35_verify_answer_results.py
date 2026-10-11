@@ -1,4 +1,7 @@
 """Audit frozen answer budgets, exact request records and published artifacts."""
+if not __debug__:
+    raise RuntimeError('Verification requires assertions enabled; do not use python -O or PYTHONOPTIMIZE')
+
 import importlib.util
 from pathlib import Path
 import sys

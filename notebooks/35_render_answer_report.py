@@ -149,9 +149,12 @@ def render():
                 'new_provider_wall_sum':sum(r.get('wall_seconds',0) for r in provider),
                 'runner_wall_seconds':result['wall_seconds'],'raw_failure_revalidations':sum(bool(r.get('revalidated_legacy_failure')) for r in provider),
                 'new_embeddings':0,'billed_cost':'미측정','cpu_time':'미측정','peak_memory':'미측정',
+                'transmitted_tokens':'미측정','transmitted_payload_bytes':'미측정','throughput':'미측정',
+                'new_local_models':0,'new_indexes':0,
+                'api_cache_bytes':sum(p.stat().st_size for p in (base/'api_cache').glob('*.json')),
                 'stage_bytes':sum(p.stat().st_size for p in base.rglob('*') if p.is_file())}
     content += '<h2>현재 신규 요청·실패 원인·자원</h2><pre>' + html.escape(json.dumps(resource,ensure_ascii=False,indent=2)) + '</pre>'
-    content += '<p class="guide">위 값은 현재35에서 실제 새로 보낸 요청만의 합계이며 과거30 캐시를 포함하지 않습니다. input / 입력, output / 출력, cached input / 입력 캐시, reasoning / 추론 토큰을 분리합니다. 실패 응답에도 usage가 있으면 합계에 포함하며 없는 것은 미측정입니다. wall은 단일 실제 경과 초, bytes는 저장 공간입니다. 최대4800은 실제 output 소비량과 다르고 실제 청구 비용은 미측정입니다. 반복 평균·표준편차나 운영 지연으로 해석하지 않습니다.</p>'
+    content += '<p class="guide">위 값은 현재35에서 실제 새로 보낸 요청만의 합계이며 과거30 캐시를 포함하지 않습니다. input / 입력, output / 출력, cached input / 입력 캐시, reasoning / 추론 토큰을 분리합니다. 실패 응답에도 usage가 있으면 합계에 포함하며 없는 것은 미측정입니다. wall은 단일 실제 경과 초, bytes는 저장 공간입니다. API cache bytes / API 캐시 용량은 현재 응답 파일 크기 합계입니다. 실제 네트워크 전송량·전송 토큰·처리량은 미측정이며 입력 토큰을 전송량으로 대체하지 않습니다. 새 로컬 모델·인덱스는0개입니다. 최대4800은 실제 output 소비량과 다르고 실제 청구 비용은 미측정입니다. 반복 평균·표준편차나 운영 지연으로 해석하지 않습니다.</p>'
     failure_counts = defaultdict(int)
     for record in provider:
         if record['status']=='failed':
