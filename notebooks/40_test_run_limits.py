@@ -21,6 +21,8 @@ def test_cost_cap_is_fatal_control_flow(monkeypatch):
 
 def test_embedding_raw_response_preserved(monkeypatch,tmp_path):
     stage=tmp_path/'private_stage40';monkeypatch.setitem(M.C.STAGES,40,stage)
+    monkeypatch.setitem(M.C.F.STAGES,40,stage)
+    monkeypatch.setattr(M.C.F,'ROOT',tmp_path)
     monkeypatch.setattr(M,'check_budget',lambda *a,**k:None)
     vector=[0.0]*1536
     raw={'model':'text-embedding-3-small','data':[{'index':0,'embedding':vector}],
