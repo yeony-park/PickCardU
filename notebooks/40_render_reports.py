@@ -77,6 +77,174 @@ def render39():
     body+='<p class="guide">양성 카드는 원문 fact와 Upstage 페이지의 fragment / 해당 부분을 대조한 보수적 부분 정답입니다.15질문이 양성,3질문은 조언·모호한 요구·원문 양성 없음으로 별도 평가합니다. 질문마다 알려진 양성 중 하나를 반환하면 검색 정답 포함을 통과합니다. 원문 양성0은 실제 혜택이 없다는 증거가 아닙니다. 새로 작성한 동일 코퍼스 확증 질문이며 비공개 holdout / 독립 검증 자료가 아닙니다.</p>'
     body+='<h2>평가 규칙과 회귀 확인</h2><p>허용 합산은 같은 카드·같은 혜택·같은 단위의 사전 등록식만 인정하며 모든 피연산자 근거가 인용돼야 합니다. Decimal 정확한 합계이며 반올림은 허용하지 않습니다. 분리된 실적·한도 주장은 같은 카드이고 해당 혜택 주장과 인용을 공유해야 합니다. 상세 질문은 추천 배열 없이도 대상 카드의 근거 있는 주장으로 평가합니다.12개 회귀 fixture / 고정 예제가 구현 전 실패하고 구현 후 통과했습니다.</p>'
     body+='<p class="guide">primary metric / 주 지표인 답변 조건 동시 충족은 양성15질문 중 알려진 카드의 요구 조건·추가 설명·인용 소유권·퍼센트 근거가 모두 충족하면1입니다. 높은 값이 좋고 실패 답변은0입니다. 예: 삼성 taptap O의 스타벅스 할인율·실적·월 한도를 같은 카드의 인용 근거로 설명해야 합니다. 숫자가 큰 인용 문단의 다른 혜택에 있는 경우 같은 의미의 근거로 잘못 인정될 수 있어 완전 의미 검증이 아닙니다. explicit scope / 명시카드 범위와 unsupported percent / 근거 없는 퍼센트 주장을 별도 확인합니다.</p>'
+    body+='<p>계산 검증의 범위: 이번 합산 회귀는 percent_supported / 주장 퍼센트 근거 검사에 집중했으며 새18질문에는 등록된 합산식이 없습니다. requirement_complete / 요구 조건 충족의 최소 퍼센트 비교는 인용 원문의 개별 퍼센트만 사용하므로, 합산만으로 최소 비율을 충족하는 사례 전체가 해결됐다고 주장하지 않습니다. 동결 이후 발견한 제한은 공개하고 이번 실행의 채점·질문·프롬프트는 수정하지 않았습니다.</p>'
     body+=f'<h2>최종 정리</h2><p>새18질문과 평가 버전을 고정했고 원문 fact{len(d["source_audit"])}개를 대조해 핵심 fragment 불일치{len(d["source_fragment_exclusions"])}개와 필수 필드 누락·불일치{len(d["required_fragment_exclusions"])}건을 정답 후보에서 제외하고 기록했습니다. 예외 문구의 추가 불일치는 별도 원문 감사에서 공개합니다. OCR 자체 통과와 제목 계층은 가정이며 PDF 독립 검증은 하지 않았습니다. 신규 API0·요금0입니다. 계산식 회귀는 고정 예제의 검증이며 새 질문의 계산 정확도 전체를 입증하지 않습니다. 다음40번에서 조건 추출18회와 두 프로필×세 검색108조건을 한 차례 비교합니다.</p>'
     save(n,'answer_rubric','답변 평가 보완과 새 질문 동결',body,[C.STAGES[n]/'dataset.json',C.STAGES[n]/'scorer_contract.json',C.STAGES[n]/'freeze_receipt.json'])
     notebook(n,'answer_rubric','답변 평가 보완과 새 질문 동결',C.STAGES[n]/'dataset.json')
+
+def render40_partial():
+    """Report unfinished execution without constructing a full-grid quality claim."""
+    n=40;directory=C.STAGES[n];C.initialize(n)
+    recovery=C.read(directory/'memory_recovery.json');memory=C.read(directory/'memory_telemetry.json')
+    answers=[C.read(p) for p in sorted((directory/'answers').glob('*.json'))]
+    retrieval=[C.read(p) for p in sorted((directory/'retrieval').glob('*.json'))]
+    runner=C.load('partial_cost_runner','40_new_query_comparison.py');ledger=runner.cost()
+    C.write(directory/'cost_accounting.json',ledger)
+    result={'execution_complete':False,'completed_answers':len(answers),'completed_retrievals':len(retrieval),'expected':108,
+      'pending_answers':108-len(answers),'repeated_runs':0,'physical_requests':ledger['summary']['record_count'],
+      'known_cost_usd':ledger['summary']['known_cost_usd'],'unknown_cost_records':ledger['summary']['unknown_cost_records'],
+      'billed_cost_usd':None,'status':'memory_headroom_stopped','memory':memory,'records':answers}
+    C.write(directory/'partial_summary.json',result)
+    body='<h2>목적과 미완료 상태</h2><p>37 운영 방어 범위,38 추출 오류와 복귀,39 평가·새 질문 동결을 마친 뒤 새18질문×두 운영 프로필×세 검색108조건을 실행하는 단계입니다. 현재 완료한 일부 질문으로 전체 조건의 우열을 판단하지 않습니다. 4번은 미완료이며 반복 답변 생성5는 실행하지 않았습니다.</p>'
+    body+=table(['항목','현재 확인된 결과'],[
+        ['검색 / 답변 완료',f"{len(retrieval)} / {len(answers)} (목표108)"],['아직 실행하지 못한 답변',108-len(answers)],
+        ['저장된 물리 API 요청',ledger['summary']['record_count']],['사용량 기반 요금 환산 USD',ledger['summary']['known_cost_usd']],
+        ['요금 미확인 요청',ledger['summary']['unknown_cost_records']],['실제 청구액','미측정'],
+        ['재개 중 가용 메모리 KiB',memory['minimum_host_available_kib']],['중단 당시 필요 여유 KiB',memory['last_required_headroom_kib']],
+        ['재개 중 신규 모델 점수 호출',memory['completed_singleton_calls']],['반복 답변 실험','실행하지 않음']])
+    body+='<p class="guide">완료 행은 실제 저장된 검색·답변의 건수이며 목표108행이 분모입니다. 미실행86행을 성공이나 정답으로 계산하지 않습니다. 물리 요청은 고유 저장 API 기록이며 캐시 재사용은 새 요청으로 세지 않습니다. 비용은 저장된 실제 사용 토큰×고정 공식 단가이며 실제 청구액·세금·환율·CPU전력은 미측정입니다. 가용 메모리는 모델 호출 전 시스템 관측값이며 순간 최저값을 보장하지 않습니다. 필요 여유는 관측 최고RSS-currentRSS+512MiB 또는 최소1GiB 중 큰 값입니다. 예: 스타벅스 질문의 원문·청크·토큰 한도는 그대로 두고 모델에 문서를 한 개씩 넣더라도 PC 전체의 메모리가 충분해야 합니다.</p>'
+    body+='<h2>중단 원인과 재개 조건</h2><p>첫 실행은 커널의 시스템 메모리 부족으로 종료 코드137을 받았습니다. 4,012토큰을 포함한5쌍 점수 비교에서 원래 저장 점수와 문서1개 호출 차이는 허용0.0001 이하였고 신규 API0회였습니다. 어댑터·프로토콜·기준 캐시 해시와 기존22행·41응답을 묶은 재개 계약을 검토한 후 실행했지만, 신규 모델 호출 전에 가용 메모리가 필요 여유보다 적어 MemoryStop / 메모리 여유 부족 중단이 발생했습니다. 재개 시도에서 새 유료 요청은 없습니다. 다른 프로세스·운영 코드·원문·청크 길이·토큰 제한은 바꾸지 않았습니다. 할당 해제 진단에서는 약112MiB를 반환했지만 현재 환경으로86조건을 끝냈다는 증거는 없습니다.</p>'
+    body+='<h2>재현과 다음 단계</h2><p>동일PC의 다른 작업을 정리해 시작 전 가용 메모리를 약3GiB 이상 확보한 뒤 기존40_memory_recovery.py로 재개합니다. 실제 실행 중 동적 여유 검사를 계속 적용하며3GiB도 메모리 부족 부재를 보장하지 않습니다. started/failed / 미완료·실패 API 기록이 있으면 자동 재호출을 막습니다. 정상 저장된 응답을 재사용하고 질문·프롬프트·채점·운영 청킹은 유지합니다. 가용 메모리 확인 전 반복 재시작하지 않습니다.</p>'
+    body+='<pre>PYTHONDONTWRITEBYTECODE=1 conda run --no-capture-output -n skn25 python -B notebooks/40_memory_recovery.py</pre>'
+    body+='<h2>현재 정리</h2><p>1~3번 진단과 평가 동결은 완료했고4번 전체 비교는 미완료입니다. 검색·청킹의 새 승자와 운영 채택은 없습니다. 관측된 방어 공백·조건 오류 영향은37·38 보고서에 공개했습니다. 메모리 진단과 재개 코드는 저장했지만 아직86개 답변과 전체 비교·최종 독립 감사가 남아 있습니다. 비용은 위의 현재 알려진 소계이며 전체 실행 요금은 아닙니다.</p>'
+    save(n,'new_query_comparison','새 질문 비교의 중단·미완료 현황',body,[directory/'partial_summary.json',directory/'memory_recovery.json',directory/'memory_telemetry.json',directory/'memory_parity.json',directory/'memory_allocation_diagnosis.json',directory/'cost_accounting.json',directory/'memory_recovery_contract.json'])
+    notebook(n,'new_query_comparison','새 질문 비교의 중단·미완료 현황',directory/'partial_summary.json')
+
+def render40():
+    import statistics
+    from collections import Counter
+    n=40;summary=C.read(C.STAGES[n]/'run_summary.json');answers=C.read(C.STAGES[n]/'answer_results.json')['records']
+    retrieval=C.read(C.STAGES[n]/'retrieval_results.json')['records'];dataset=C.read(C.STAGES[39]/'dataset.json')
+    queries={q['query_id']:q for q in dataset['queries']};ledger=C.read(C.STAGES[n]/'cost_accounting.json')
+    profiles=['card_page_section_benefit','parent_child_bundle'];modes=['U','S_THEN_U','S_PLUS_U']
+    names={'card_page_section_benefit':'benefit / 혜택 청킹','parent_child_bundle':'parent-child / 관계 묶음',
+           'U':'비구조화 단독','S_THEN_U':'구조화→비구조화','S_PLUS_U':'두 결과 융합'}
+    rb={(r['query_id'],r['profile'],r['mode']):r for r in retrieval};ab={(r['query_id'],r['profile'],r['mode']):r for r in answers}
+    groups=['all','numeric','proper_noun','semantic'];labels={'all':'전체','numeric':'수치·조건','proper_noun':'카드 상세','semantic':'의미·혜택'}
+    rows=[];metrics=[]
+    for subgroup in groups:
+        cohort=[q for q in queries.values() if subgroup=='all' or q['subgroup']==subgroup]
+        positive=[q for q in cohort if q['gold_cards']];witness=[q for q in positive if q['witness_groups']]
+        for p in profiles:
+            for mode in modes:
+                rs=[rb[(q['query_id'],p,mode)] for q in cohort];ans=[ab[(q['query_id'],p,mode)] for q in cohort]
+                hit=sum(rb[(q['query_id'],p,mode)].get('metrics',{}).get('anchor_hit_at_3') or 0 for q in positive)
+                mrr=sum(rb[(q['query_id'],p,mode)].get('metrics',{}).get('anchor_mrr') or 0 for q in positive)/len(positive)
+                wr=sum(rb[(q['query_id'],p,mode)].get('metrics',{}).get('witness_recall_at_3') or 0 for q in witness)/len(witness)
+                k=sum(ab[(q['query_id'],p,mode)]['scores']['known_positive_complete'] or 0 for q in positive)
+                entry={'subgroup':subgroup,'profile':p,'mode':mode,'attempted':len(cohort),'search_success':sum(r['status']=='ok' for r in rs),
+                    'answer_success':sum(a['status']=='ok' for a in ans),'positive':len(positive),'hit':hit,'mrr':mrr,'witness_queries':len(witness),'core_witness_recall':wr,
+                    'known_positive_complete':k,'citation_failures':sum(not a['scores']['citation_ownership'] for a in ans),
+                    'scope_failures':sum(not a['scores']['explicit_scope_preserved'] for a in ans),
+                    'unsupported_percent_claims':sum(a['scores'].get('unsupported_percent_claims',0) for a in ans)}
+                metrics.append(entry)
+                rows.append([labels[subgroup],names[p],names[mode],f"{entry['search_success']}/{len(cohort)}",f"{entry['answer_success']}/{len(cohort)}",
+                  f'{hit}/{len(positive)}',f'{mrr:.3f}',f'{wr*100:.2f}% / {len(witness)}',f'{k}/{len(positive)}',
+                  entry['citation_failures'],entry['scope_failures'],entry['unsupported_percent_claims']])
+    body='<h2>왜 실행했는지와 고정한 조건</h2><p>37 운영 검증 방어 범위,38 조건 오류 진단,39 평가·새 질문 동결 뒤18질문×두 운영 프로필×세 검색108조건을 한 차례 비교했습니다. 이전33질문과 문구 중복은 없지만 같은 코퍼스에서 작성한 확증 자료이며 비공개 holdout / 독립 검증 자료는 아닙니다. OCR 통과 가정·미완성 제목 계층은 유지했고 운영 코드는 수정하지 않았습니다. 기본2400 출력·토큰 확인 최대5개 묶음·50개 채널 후보·20개 재정렬 후보·상위3카드·64KB 근거 예산을 고정했습니다. 두 프로필의 운영 재정렬 정책 차이와 글로벌 approximate / 근사 검색·범위 exact / 정확 검색 차이가 포함됩니다. 비교 동안 동일 질문·프로필·범위의 채널 후보는 한 번 캡처해 고정했습니다.</p>'
+    body+='<p>U / 비구조화 단독도 LLM이 인식한 명시 카드 범위를 공유하므로 완전히 독립적인 전역 검색 기준이 아닙니다. 감지된 추출 실패·미해결·후보0이면 원래 범위를 보존한 비구조화로 복귀합니다. 동일 답변 입력은 캐시를 공유하고 반복 생성5는 실행하지 않았습니다.</p>'
+    for subgroup in groups:
+        levels=sorted({m['known_positive_complete'] for m in metrics if m['subgroup']==subgroup},reverse=True)
+        for row,metric in zip(rows,metrics,strict=True):
+            if metric['subgroup']!=subgroup:continue
+            value=metric['known_positive_complete']
+            row.insert(3,'관측 최고' if value==levels[0] else '차순위' if len(levels)>1 and value==levels[1] else '')
+    body+='<h2>전체 조건과 하위집단</h2>'
+    body+=table(['질문 집단','운영 프로필','검색','답변 지표 관측순위','검색 성공','답변 성공','정답 포함','첫 정답 순위 점수','핵심 근거 회수','답변 조건 충족','인용 실패','범위 실패','퍼센트 근거 미충족'],rows)
+    guide='<p class="guide">search/answer success / 검색·답변 성공은 오류 없이 실행된 질문 수/시도 수이며 높은 값이 좋고 실패 행도 품질 분모에 포함합니다. Hit@3 / 정답 포함은 알려진 양성 카드가 상위3개에 하나라도 있으면1이며 양성15질문이 전체 분모입니다. MRR / 첫 정답 순위 점수는 첫 양성 카드 순위의 역수 평균이며1위=1,2위=0.5,없음·실패=0입니다. core witness recall / 핵심 혜택 근거 회수는 양성 카드의 대상·행동·값 원문이 같은 검색 근거에 존재하는 카드 비율을 질문별로 평균합니다(전체14질문). 이 새 진단은 실적·한도 전체의 의미 관계를 검증하지 않으며 이전32/36의 필수 근거 회수와 직접 비교하지 않습니다. 예: 스타벅스10% 할인 카드의 실제 할인 대상·행동·값을 검색 근거에서 찾습니다. 긴 원문과 분리 셀·부분 정답 때문에 과소/과대 평가할 수 있습니다.</p>'
+    guide+='<p class="guide">known positive complete / 답변 조건 충족은 양성15질문에서 알려진 카드의 요구 조건·추가 설명·인용 소유권·명시 범위·퍼센트 근거 검사에 모두 통과하면1이며 높을수록 좋습니다. 상세 질문은 추천 배열이 비어도 대상 카드 주장으로 평가합니다. citation failure / 인용 실패와 scope failure / 범위 실패는 질문별 건수이며 낮을수록 좋습니다. unsupported percent / 퍼센트 근거 미충족은 주장 건수이며 낮을수록 좋습니다. 실제10%를99%라고 쓰면 근거 미충족입니다. 인용 문단의 다른 혜택에 있는 숫자가 잘못 인정되거나 정확한 바꿔 말하기가 탈락할 수 있어 완전한 답변 정확도가 아닙니다. 이 값은 운영 차단 성공과 다릅니다.</p>'
+    body+=guide+'<p>관측 최고와 차순위는 같은 질문 집단의 답변 조건 충족 건수로만 표시하며 동점은 모두 표시합니다. 선택된 운영 설정이라는 뜻은 아닙니다.</p>'
+    paired=[]
+    for p in profiles:
+        for before,after in [('U','S_THEN_U'),('S_THEN_U','S_PLUS_U')]:
+            wins=[];losses=[];ties=[]
+            for q in queries.values():
+                if not q['gold_cards']:continue
+                a=ab[(q['query_id'],p,before)]['scores']['known_positive_complete'];b=ab[(q['query_id'],p,after)]['scores']['known_positive_complete']
+                (wins if b>a else losses if b<a else ties).append(q['query_id'])
+            paired.append({'profile':p,'before':before,'after':after,'wins':wins,'losses':losses,'ties':ties})
+    body+='<h2>같은 질문에서 개선·하락·동률</h2>'+table(['프로필','비교','개선','하락','동률','개선 질문','하락 질문'],[
+      [names[r['profile']],names[r['before']]+' → '+names[r['after']],len(r['wins']),len(r['losses']),len(r['ties']),','.join(r['wins']) or '없음',','.join(r['losses']) or '없음'] for r in paired])
+    body+='<p class="guide">wins/losses/ties / 개선·하락·동률은 동일 양성15질문의 답변 조건 충족0/1을 짝지어 비교합니다. 예: 비구조화0→구조화선행1은 개선1건입니다. 개선이 많고 하락이 적을수록 좋지만 단일 응답·같은 자료·작은 표본 때문에 통계적 우월성이나 운영 채택을 입증하지 않습니다.</p>'
+    diagnostic=[];parsers=C.read(C.STAGES[40]/'parser_results.json')['records']
+    E=C.load('report_schema_diagnostics','32_search_experiment.py');C.initialize(40)
+    facts=E.DB.load_facts(C.F.OLD[30])
+    for q,r in zip(dataset['queries'],parsers,strict=True):
+        import copy
+        reference=copy.deepcopy(q['plan'])
+        corrected=q['query_id'] in ['N07','N08','N09','N11']
+        if corrected:
+            for group in reference['groups']:
+                for requirement in group:
+                    requirement.update(min_percent=None,max_spend_krw=None,min_cap_krw=None,cap_period='any')
+                    if q['query_id']=='N11':requirement['action']='any'
+        plan=r['plan'];oracle=E.DB.select_cards(facts,reference);selection=E.DB.select_cards(facts,plan)
+        diagnostic.append({'query_id':q['query_id'],'status':r['status'],'route_match':int(plan['route']==q['plan']['route']),
+          'condition_exact_match':int(E.normalized_plan(plan)['groups']==E.normalized_plan(reference)['groups']),
+          'card_scope_match':int(set(plan['card_keys'])==set(q['plan']['card_keys'])),
+          'gold_count':len(q['gold_cards']),'gold_selector_retained':len(set(oracle['eligible_cards'])&set(q['gold_cards'])),
+          'llm_selector_retained':len(set(selection['eligible_cards'])&set(q['gold_cards'])),
+          'fallback':not selection['eligible_cards'] or bool(plan['unresolved']) or plan['route']=='unstructured',
+          'post_hoc_reference_correction':corrected,'parser_reference':reference})
+    body+='<h2>실제 새 질문의 조건 추출과 후보 손실</h2>'+table(['질문','추출 성공','경로 일치','조건 일치','명시 카드 일치','원문 양성','정답조건 후보 보존','LLM조건 후보 보존','복귀'],[
+        [r['query_id'],r['status'],r['route_match'],r['condition_exact_match'],r['card_scope_match'],r['gold_count'],r['gold_selector_retained'],r['llm_selector_retained'],r['fallback']] for r in diagnostic])
+    body+='<p class="guide">parser success / 추출 성공은 출력 형식과 호출 성공입니다. route / 경로·condition / 조건·card scope / 명시 카드 일치는 표의 기준 계획과 같으면1입니다. 원문 양성 카드가 정답조건 selector에서도 빠지면 구조화 자료·selector 손실이며 LLM조건에서 추가로 빠지면 추출 영향입니다. fallback / 복귀는 감지된 실패·미해결·후보0 등의 전환입니다. 높은 보존·일치가 좋지만 같은 뜻의 다른 계획은 exact match / 완전 일치에서 탈락할 수 있습니다. 후보 보존만으로 최종 답변 정답을 판정하지 않습니다.</p>'
+    body+='<p>사후 진단 보정: N07·N08·N09·N11의 사전 평가 plan에는 답변에서 확인할 실제 혜택률·실적·한도가 들어 있었지만 질문은 그 값을 요구 조건으로 명시하지 않았습니다. 따라서 이 추출 진단에서만 해당 수치 필터를 비우고 N11의 혜택 종류도 제한하지 않았습니다. 원래 동결 질문·정답·답변 채점과 검색·API 실행은 바꾸지 않았습니다. 이 표는 사후 기준 보정을 포함한 진단이며 사전 등록된 추출 정확도로 해석하면 안 됩니다. 상세 조회의 비구조화 경로도 타당할 수 있어 경로·조건 완전 일치만으로 의미 오류를 단정하지 않습니다.</p>'
+    detail=[]
+    for q in queries.values():
+        for p in profiles:
+            detail.append([q['query_id'],names[p]]+[ab[(q['query_id'],p,m)]['scores']['known_positive_complete'] if q['gold_cards'] else '양성 평가 제외' for m in modes])
+    body+='<h2>질문별 전체 답변 조건 충족</h2>'+table(['질문','프로필','비구조화','구조화선행','융합'],detail)+guide
+    unknown=[]
+    for q in queries.values():
+        if q['gold_cards']:continue
+        for p in profiles:
+            a=ab[(q['query_id'],p,'S_THEN_U')]
+            unknown.append([q['query_id'],names[p],a['status'],a.get('answer',{}).get('answer_status','실패'),a.get('answer',{}).get('answer_text',a.get('error',''))])
+    body+='<h2>조언·모호한 질문·원문 양성 없음</h2>'+table(['질문','프로필','실행','답변 상태','답변 원문'],unknown)
+    body+='<p class="guide">answered / 답변과 insufficient evidence / 근거 부족은 모델의 출력 상태이며 실제 정답 판정이 아닙니다. N16은 일반 조언,N17은 소비 예산·최적화 요구,N18은 호텔567% 조건입니다. 원문 양성 없음은 실제 전체 상품의 혜택 없음이 아니므로 부정 정확도 분모로 쓰지 않습니다. 관련 없는 혜택 추천·임의 실적 변환·과도한 확정을 원문에서 확인합니다.</p>'
+    costs=ledger['summary'];physical=ledger['records'];kinds=Counter('embedding' if Path(r['path']).name.startswith('embedding_batch_') else 'llm' for r in physical)
+    body+='<h2>사용량·비용·시간</h2>'+table(['자원','측정값'],[
+      ['신규 물리 LLM 요청',kinds['llm']],['신규 질문 임베딩 배치',kinds['embedding']],['논리 검색/답변 행','108/108'],
+      ['사용량 기반 환산 USD',costs['known_cost_usd']],['요금 미확인 요청',costs['unknown_cost_records']],['실제 청구액','미측정'],
+      ['입력/출력/캐시 토큰',__import__('json').dumps(costs['tokens'],ensure_ascii=False)],
+      ['저장된 신규 고유 BGE 계산 쌍',len(list((C.STAGES[40]/'bge_cache').glob('*.json')))],
+      ['마지막 재개 구간에서 새로 계산한 BGE 쌍',summary['new_bge_pairs']],
+      ['마지막 재개 runner 경과 초',f"{summary['runner_wall_seconds']:.3f}"],['전력·처리량','미측정'],['반복 실행·표준편차','반복0·미측정']])
+    body+='<p class="guide">physical request / 물리 요청은 저장된 고유 응답 요청이고 논리108행·캐시 공유와 다릅니다. 비용은 일반 입력·캐시 읽기·캐시 쓰기·출력 사용량에 검증된2026-10-11 공식 USD 단가를 적용하며 추론 토큰은 출력에 포함해 중복 계산하지 않습니다. 임베딩은 기존 문서 벡터를 재사용하고 새 질문만 생성했습니다. 실패의 기록된 사용량도 포함하며 누락·세금·환율·할인·기존OCR·Codex대화·CPU전력은 포함하지 않습니다. 실제 청구액과 전체 운영 비용은 미측정입니다. 저장된 BGE 쌍은 실행을 재개하기 전과 후의 고유 질문·문서 점수 저장본이며 메모리 진단의 별도 재계산과 중단 시 미저장 계산은 제외합니다. 시간은 마지막 재개 구간이며 첫 실행·진단·대기 시간을 포함한 누적 실행 시간과 다릅니다. 비용·시간은 낮을수록 유리하지만 품질 통과를 대신하지 않습니다. <a href="https://developers.openai.com/api/docs/models/gpt-6-luna">OpenAI 모델 요금</a> · <a href="https://developers.openai.com/api/docs/models/text-embedding-3-small">임베딩 요금</a>.</p>'
+    if (C.STAGES[40]/'memory_recovery.json').exists():
+        recovery=C.read(C.STAGES[40]/'memory_recovery.json');binding=C.read(C.STAGES[40]/'memory_recovery_contract.json')
+        parity=C.read(C.STAGES[40]/'memory_parity.json');telemetry=C.read(C.STAGES[40]/'memory_telemetry.json')
+        import re
+        log=(C.STAGES[40]/'memory_resume_execution.log').read_text()
+        cpu_user=re.search(r'User time \(seconds\): ([0-9.]+)',log)
+        cpu_system=re.search(r'System time \(seconds\): ([0-9.]+)',log)
+        body+='<h2>메모리 부족 중단과 재개</h2><p>첫 실행은 커널의 global OOM / 시스템 메모리 부족으로 종료 코드137을 받았습니다. API·입력 토큰 한도 실패가 아닙니다. 중단 시 정상 답변22행과 정상 API 응답41개를 보존했고 해당 응답은 재호출하지 않았습니다. 원래 재정렬 함수에 온전한 문서를 한 개씩 전달하는 실험용 어댑터로 재개했습니다. 원문·청킹·최대5개 묶음·4096/8192 토큰 한도·모델 가중치·CPU float32·LLM 요청은 유지했습니다. 처음 완료한22행은 원래 배치2, 나머지86행은 호출당 문서1개입니다. 저장본의 해시와 두 실행 구간을 별도 계약에 기록했습니다.</p>'
+        body+=table(['검사·자원','결과'],[
+          ['원래 배치 / 재개 호출당 문서 수','2 / 1'],['보존한 기존 행 / 재개 대상 행',f"{binding['completed_rows']} / {len(binding['pending_keys'])}"],
+          ['점수 일치 표본 수 / 허용 차이',f"{len(parity['records'])} / {parity['tolerance']}"],
+          ['표본 최고 점수 차이',max(r['absolute_difference'] for r in parity['records'])],
+          ['점수 일치 검사 최고 문서 토큰',max(r['document_tokens'] for r in parity['records'])],
+          ['재개 중 최고 문서 / 질문·문서 토큰',f"{telemetry['max_document_tokens']} / {telemetry['max_pair_tokens']}"],
+          ['재개 모델 프로세스 최고 RSS KiB',telemetry['peak_rss_kib']],
+          ['재개 중 최소 시스템 가용 메모리 KiB',telemetry['minimum_host_available_kib']],
+          ['재개 경과 초',f"{recovery['resume_wall_seconds']:.3f}"],['재개 상태',recovery['status']],
+          ['마지막 재개 사용자 / 시스템 CPU 초',f"{cpu_user[1]} / {cpu_system[1]}" if cpu_user and cpu_system else '미측정'],
+          ['전체 누적 CPU시간·중단 전 최고 메모리','미측정']])
+        body+='<p class="guide">parity / 점수 일치 검사는 짧은3쌍과 긴2쌍의 원래 저장 점수와 문서1개 호출의 절대 차이를 비교하며0.0001 이하가 통과입니다. 긴 표본은 새 질문의 완료 문서만으로3000토큰 이상이 확보되지 않아 이전34번의 Q05·Q28 저장 검색에도 접근해 선정했고 개별 점수 파일 경로·해시를 기록했습니다. 기존 자료는 읽기만 했습니다. 문서는 자르지 않고 질문·문서 토큰 수도 기록했습니다. 이는 전체 순위 동일성이나 이후 메모리 부족 방지를 보장하지 않습니다. RSS / 실제 상주 메모리의 최고값은 재개 모델 프로세스가 측정한 KiB이며 시스템 전체 사용량과 다릅니다. 최소 가용 메모리는 모델 호출 전후 관측값이어서 호출 중 순간 최저값을 놓칠 수 있습니다. 재정렬·신규 API 호출 전의 필요 여유는 관측 최고RSS에서 현재RSS를 뺀 예상 증가량에512MiB를 더하고 최소1GiB를 요구합니다. 이 휴리스틱은 다른 프로세스의 갑작스러운 할당으로 생기는 메모리 부족을 보장해 막지는 못합니다. API의 미완료 저장 기록이 있으면 자동 재호출을 차단합니다. CPU 초는 마지막 재개 구간의 사용자·시스템 실행 시간이며 경과 초와 다르고 전체 중단·진단 이력의 합계는 미측정입니다. 별도 점수 검사5쌍은 반복 답변 생성 실험5가 아니며 API0회입니다. 재정렬 배치 차이가 섞였으므로 본 자료로 정확한 지연 비교나 수치상 완전한 재현성을 주장하지 않습니다.</p>'
+    overall=[r for r in metrics if r['subgroup']=='all'];ordered=sorted(overall,key=lambda r:(-r['known_positive_complete'],-r['hit'],-r['mrr']))
+    top=ordered[0]['known_positive_complete'];joint=[r for r in ordered if r['known_positive_complete']==top]
+    best_labels='; '.join(names[r['profile']]+' · '+names[r['mode']] for r in joint)
+    body+='<h2>최종 정리</h2><p>이 단일 실행의 답변 조건 충족 관측 최고는 '+best_labels+f" ({top}/15)입니다. 최고 점수가 같은 조건은 모두 함께 표시하고 차순위와 전체 조건은 위 표에 공개했습니다. 이전 운영 검증 후보와 비교해 운영 채택·승격을 하지 않습니다. 고정 평가와 부분 정답·미완성 계층·프로필 정책 차이·문자열 검사·단일 응답 변동이 남아 청킹의 확정 우열이나 일반화를 주장하지 않습니다. 비용·실패·하위집단 하락을 함께 판단해야 합니다. 반복 실행5는 제외했고 다음 검증은 새로운 독립 자료와 의미 관계·제목 계층 보완이 필요한 별도 단계입니다.</p>"
+    # Remaining quality inspection is a separately documented review, never score tuning.
+    quality=C.STAGES[40]/'quality_inspection.json'
+    if quality.exists():
+        notes=C.read(quality)
+        body+='<h2>답변 원문 확인</h2>'+table(['질문/조건','확인한 문제','평가 한계'],[[r['case'],r['finding'],r['limitation']] for r in notes['records']])
+        body+='<p class="guide">이 표는 실행 후 원문 확인이며 사전 점수를 바꾸거나 설정을 고르는 추가 실험이 아닙니다. 답변 조건 충족 지표의 수치·행동 관계·부정 표현 한계를 실제 원문과 비교합니다. 표본 확인은 전체 의미 정확도의 증거가 아닙니다.</p>'
+    output={'metrics':metrics,'paired':paired,'parser_diagnostics':diagnostic,'cost':costs,'raw_best_by_primary':[{'profile':r['profile'],'mode':r['mode']} for r in joint],
+       'production_adopted':False,'independent_holdout':False,'repeated_runs':0}
+    C.write(C.STAGES[40]/'evaluation_summary.json',output)
+    save(n,'new_query_comparison','새 질문의 검색·청킹 단일 비교',body,[C.STAGES[n]/'evaluation_summary.json',C.STAGES[n]/'retrieval_results.json',
+        C.STAGES[n]/'answer_results.json',C.STAGES[n]/'cost_accounting.json',C.STAGES[39]/'dataset.json',C.STAGES[n]/'protocol.json'])
+    notebook(n,'new_query_comparison','새 질문의 검색·청킹 단일 비교',C.STAGES[n]/'run_summary.json')
