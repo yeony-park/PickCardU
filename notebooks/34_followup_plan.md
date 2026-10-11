@@ -46,7 +46,7 @@ def test_budget_skips_oversized_related_but_preserves_whole_short_chunk():
 - [x] 정책 fixed5, fixed4, budget5, budget8을 parent-child × U/S_THEN_U/S_PLUS_U에서 비교한다. budget 정책은 원래 seed→관련 청크→다른 후보 순서로 전체 청크를 추가하고 실제 직렬화 묶음이 4096 및 query+document 모델 한도 안에 드는 경우만 선택한다. seed 자체 초과는 축소하지 않고 실패로 기록한다.
 - [x] 질문 ID·split·하위 유형 및 Q05/Q28 모두 개발 집합임을 실행 전 동결한다. 개발 20개를 먼저 실행한다. Q05/Q28의 U 및 S_PLUS_U 실패 제거와 신규 실패 0건을 우선 통과 조건으로 두고, S_THEN_U의 기존 정답 카드 포함 질문 퇴행 없음 및 필수 근거 평균 하락 없음을 요구한다. 통과 설정 중 S_THEN_U 근거 회수율, 전체 묶음 토큰 수 순서로 선택한다. 동률은 원래 fixed5, budget5, budget8, fixed4 순서로 결정한다. 아무 후보도 통과하지 않으면 기준 설정 유지하고 미해결 한계를 기록한다.
 - [x] 선택 설정과 선택 규칙 hash를 저장한 후 나머지 13개를 실행한다. 이 13개는 post-selection verification / 이미 본 질문에서 설정 선택 후 확인이며 독립 확증셋이 아니다. 기준·선택 설정 비교와 전체 사후 진단 행렬을 구분한다.
-- [ ] focused pytest·원본 보존·독립 리뷰·396행 감사·노트북/보고서 작성 완료. main Codex 체크포인트 커밋 진행.
+- [x] focused pytest·원본 보존·독립 리뷰·396행 감사·노트북/보고서 작성 완료. 체크포인트 커밋 ed41a97 보존.
 
 ### Task 2: 캐시 재시도 및 답변 출력 예산 (35)
 
@@ -54,7 +54,7 @@ def test_budget_skips_oversized_related_but_preserves_whole_short_chunk():
 
 **Interfaces:** `ResponseCache.parse(**kwargs)` implements SDK-shaped parse with faithful saved exception handling and exact-payload readthrough; `run_answer(question, evidence, budget_policy)` calls original `OpenAIService.answer`; outputs capture logical attempts and unique provider requests separately.
 
-- [ ] 34의 선택 설정과 기존 benefit 검색 근거를 고정한다. 새 캐시의 오류 예외가 원래 운영 재시도에 도달하는 것을 mock failing test로 먼저 확인한다.
+- [x] 34의 선택 설정과 기존 benefit 검색 근거를 고정한다. 새 캐시의 오류 예외가 원래 운영 재시도에 도달하는 것을 mock failing test로 먼저 확인한다.
 
 ```python
 def test_cached_validation_failure_reaches_original_retry():
@@ -63,12 +63,12 @@ def test_cached_validation_failure_reaches_original_retry():
     assert fake_api.attempts == 2
 ```
 
-- [ ] 이전 exact payload cache는 읽기만 하며 새 요청은 35에 기록한다. 새 실패 응답은 가능한 raw status, incomplete_details, usage와 오류를 함께 기록한다. HTTP headers/API 키는 저장하지 않는다. 과거 기록에 없는 상태는 미측정으로 유지한다.
-- [ ] 과거 실패의 raw status가 없으므로 먼저 기존 실패행의 faithful retry2400을 오프라인 재현한다. 출력 예산 비교에서는 raw 없는 실패 요청을 같은2400으로 한 번 새 호출하여 별도35캐시에 저장하고 fixed2400/adaptive가 그 동일한 첫 응답을 공유한다. fixed4800은 별도 요청·첫 응답이며 그 자체 exact cache만 재사용한다. 새 호출만으로 성공할 수도 있어 과거 실패 원인 확정이나 토큰 증가 효과로 해석하지 않는다. historical cache replay와 fresh failure revalidation을 분리하고 단일 fixed4800 비교의 응답 변동 한계를 보고한다.
-- [ ] 기존 동작2400 → faithful retry2400 → 같은 근거의 faithful retry4800 순서로 재시도 복구와 출력 예산 효과를 분리한다. 별도로 raw status에서 출력 잘림이 확인될 때만 2400→4800을 비교한다. 4800 단독 성공은 원인 확정으로 해석하지 않는다. 거절·네트워크 오류를 토큰 부족으로 바꾸지 않는다. 캐시의 EOF만 있는 경우 잘림 원인 미확정으로 따로 표시한다.
-- [ ] 개발 집합의 모든 실패 및 대표 정상 질문에서 비교 후 전체 개발 집합으로 품질·자원 조건을 검증한다. 선택 규칙은 답변 성공 수, 기존 조건 동시 충족 통과 질문 퇴행 없음, 근거 없는 비율 증가 없음, 신규 output tokens 순서다. 동률은 2400, 조건부 재시도, 4800 순서로 결정한다.
-- [ ] 출력 예산이 다른 캐시와 원래 재시도 prompt를 혼용하지 않는다. 논리 행 수, provider 요청별 input/cached input/output/reasoning tokens, 실패 요청·재시도·시간과 성공 1건당 자원을 분리한다. 과거 usage 없는 실패는 미측정으로 남긴다.
-- [ ] 원본 보존·focused tests·reviewer 및 번호 일치 보고서/노트북을 검증하고 main Codex 커밋.
+- [x] 이전 exact payload cache는 읽기만 하며 새 요청은 35에 기록한다. 새 실패 응답은 가능한 raw status, incomplete_details, usage와 오류를 함께 기록한다. HTTP headers/API 키는 저장하지 않는다. 과거 기록에 없는 상태는 미측정으로 유지한다.
+- [x] 과거 실패의 raw status가 없으므로 먼저 기존 실패행의 faithful retry2400을 오프라인 재현한다. 출력 예산 비교에서는 raw 없는 실패 요청을 같은2400으로 한 번 새 호출하여 별도35캐시에 저장하고 fixed2400/adaptive가 그 동일한 첫 응답을 공유한다. fixed4800은 별도 요청·첫 응답이며 그 자체 exact cache만 재사용한다. 새 호출만으로 성공할 수도 있어 과거 실패 원인 확정이나 토큰 증가 효과로 해석하지 않는다. historical cache replay와 fresh failure revalidation을 분리하고 단일 fixed4800 비교의 응답 변동 한계를 보고한다.
+- [x] 기존 동작2400 → faithful retry2400 → 같은 근거의 faithful retry4800 순서로 재시도 복구와 출력 예산 효과를 분리한다. 별도로 raw status에서 출력 잘림이 확인될 때만 2400→4800을 비교한다. 4800 단독 성공은 원인 확정으로 해석하지 않는다. 거절·네트워크 오류를 토큰 부족으로 바꾸지 않는다. 캐시의 EOF만 있는 경우 잘림 원인 미확정으로 따로 표시한다.
+- [x] 개발 집합의 모든 실패 및 대표 정상 질문에서 비교 후 전체 개발 집합으로 품질·자원 조건을 검증한다. 선택 규칙은 답변 성공 수, 기존 조건 동시 충족 통과 질문 퇴행 없음, 근거 없는 비율 증가 없음, 신규 output tokens 순서다. 동률은 2400, 조건부 재시도, 4800 순서로 결정한다.
+- [x] 출력 예산이 다른 캐시와 원래 재시도 prompt를 혼용하지 않는다. 논리 행 수, provider 요청별 input/cached input/output/reasoning tokens, 실패 요청·재시도·시간과 성공 1건당 자원을 분리한다. 과거 usage 없는 실패는 미측정으로 남긴다.
+- [x] 원본 보존·focused tests·reviewer 및 번호 일치 보고서/노트북 검증 완료. 594행·166개 신규 요청·54집계 행을 감사했으며 main Codex 체크포인트 커밋 대상.
 
 ### Task 3: 두 프로필 × 세 검색 방식 및 선별 손실 (36)
 
