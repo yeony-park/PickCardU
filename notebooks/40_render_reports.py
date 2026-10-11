@@ -223,13 +223,33 @@ def render40():
       ['마지막 재개 구간에서 새로 계산한 BGE 쌍',summary['new_bge_pairs']],
       ['마지막 재개 runner 경과 초',f"{summary['runner_wall_seconds']:.3f}"],['전력·처리량','미측정'],['반복 실행·표준편차','반복0·미측정']])
     body+='<p class="guide">physical request / 물리 요청은 저장된 고유 응답 요청이고 논리108행·캐시 공유와 다릅니다. 비용은 일반 입력·캐시 읽기·캐시 쓰기·출력 사용량에 검증된2026-10-11 공식 USD 단가를 적용하며 추론 토큰은 출력에 포함해 중복 계산하지 않습니다. 임베딩은 기존 문서 벡터를 재사용하고 새 질문만 생성했습니다. 실패의 기록된 사용량도 포함하며 누락·세금·환율·할인·기존OCR·Codex대화·CPU전력은 포함하지 않습니다. 실제 청구액과 전체 운영 비용은 미측정입니다. 저장된 BGE 쌍은 실행을 재개하기 전과 후의 고유 질문·문서 점수 저장본이며 메모리 진단의 별도 재계산과 중단 시 미저장 계산은 제외합니다. 시간은 마지막 재개 구간이며 첫 실행·진단·대기 시간을 포함한 누적 실행 시간과 다릅니다. 비용·시간은 낮을수록 유리하지만 품질 통과를 대신하지 않습니다. <a href="https://developers.openai.com/api/docs/models/gpt-6-luna">OpenAI 모델 요금</a> · <a href="https://developers.openai.com/api/docs/models/text-embedding-3-small">임베딩 요금</a>.</p>'
+    if (C.STAGES[40]/'authorized_document_change_binding.json').exists():
+        from decimal import Decimal
+        receipt=C.read(C.STAGES[40]/'memory_recovery.json')
+        original=C.read(C.STAGES[40]/'memory_recovery_contract.json')
+        initial={path for path in original['before_manifest'] if '/api_cache/' in path and path.endswith('.json')}
+        segments={key:{'requests':0,'cost_usd':Decimal(0)} for key in ['initial','earlier_resume','latest_resume']}
+        for row in physical:
+            record=C.read(C.ROOT/row['path'])
+            phase='initial' if row['path'] in initial else 'earlier_resume' if record['started_at']<receipt['started_at'] else 'latest_resume'
+            segments[phase]['requests']+=1
+            segments[phase]['cost_usd']+=Decimal(row['cost_usd'])
+        assert sum(r['requests'] for r in segments.values())==len(physical)
+        assert sum(r['cost_usd'] for r in segments.values())==Decimal(costs['known_cost_usd'])
+        assert segments['latest_resume']['requests']==receipt['physical_requests_after_resume']-receipt['physical_requests_before_resume']
+        measured={key:{**value,'cost_usd':str(value['cost_usd'])} for key,value in segments.items()}
+        C.write(C.STAGES[40]/'resume_cost_segments.json',{'segments':measured,'latest_resume_wall_seconds':receipt['resume_wall_seconds'],
+            'earlier_elapsed_seconds':None,'billed_cost_usd':None,'scope':'Stage40 only; historical frozen rates and usage, not invoice.'})
+        phase_names={'initial':'처음 완료한 22조건까지','earlier_resume':'이전 재개로 6조건 추가','latest_resume':'이번 재개로 80조건 추가'}
+        body+='<h2>실행 구간별 비용</h2>'+table(['구간','물리 API 요청','사용량 환산 USD','구간 경과 초'],
+          [[phase_names[key],value['requests'],str(value['cost_usd']),f"{receipt['resume_wall_seconds']:.3f}" if key=='latest_resume' else '미측정'] for key,value in segments.items()])
+        body+='<p class="guide">구간은 첫 복구 계약의 요청 목록과 마지막 재개 시작 시각으로 구분했습니다. 요청 수는 실제 API 기록 수이며 캐시를 공유한 논리 조건 수와 다릅니다. 동일 질문·근거의 저장 응답을 재사용하면 새 요청·새 비용이 없습니다. USD는 기록된 토큰 사용량의 환산액으로 실제 청구액은 미측정입니다. 같은 품질이면 요청·비용·시간이 낮을수록 유리하지만 품질 실패를 상쇄하지 않습니다. 이전 구간의 정확한 경과 시간은 이번 기록으로 복원하지 않았습니다. <a href="../../notebooks/data/40_new_query_comparison/resume_cost_segments.json">구간별 계산 자료</a></p>'
     if (C.STAGES[40]/'memory_recovery.json').exists():
         recovery=C.read(C.STAGES[40]/'memory_recovery.json');binding=C.read(C.STAGES[40]/'memory_recovery_contract.json')
         parity=C.read(C.STAGES[40]/'memory_parity.json');telemetry=C.read(C.STAGES[40]/'memory_telemetry.json')
-        import re
-        log=(C.STAGES[40]/'memory_resume_execution.log').read_text()
-        cpu_user=re.search(r'User time \(seconds\): ([0-9.]+)',log)
-        cpu_system=re.search(r'System time \(seconds\): ([0-9.]+)',log)
+        # The historical time(1) log is not bound to the latest continuation.
+        # This continuation did not measure user/system CPU seconds.
+        cpu_user=cpu_system=None
         body+='<h2>메모리 부족 중단과 재개</h2><p>첫 실행은 커널의 global OOM / 시스템 메모리 부족으로 종료 코드137을 받았습니다. API·입력 토큰 한도 실패가 아닙니다. 중단 시 정상 답변22행과 정상 API 응답41개를 보존했고 해당 응답은 재호출하지 않았습니다. 원래 재정렬 함수에 온전한 문서를 한 개씩 전달하는 실험용 어댑터로 재개했습니다. 원문·청킹·최대5개 묶음·4096/8192 토큰 한도·모델 가중치·CPU float32·LLM 요청은 유지했습니다. 처음 완료한22행은 원래 배치2, 나머지86행은 호출당 문서1개입니다. 저장본의 해시와 두 실행 구간을 별도 계약에 기록했습니다.</p>'
         body+=table(['검사·자원','결과'],[
           ['원래 배치 / 재개 호출당 문서 수','2 / 1'],['보존한 기존 행 / 재개 대상 행',f"{binding['completed_rows']} / {len(binding['pending_keys'])}"],
@@ -242,7 +262,11 @@ def render40():
           ['재개 경과 초',f"{recovery['resume_wall_seconds']:.3f}"],['재개 상태',recovery['status']],
           ['마지막 재개 사용자 / 시스템 CPU 초',f"{cpu_user[1]} / {cpu_system[1]}" if cpu_user and cpu_system else '미측정'],
           ['전체 누적 CPU시간·중단 전 최고 메모리','미측정']])
-        body+='<p class="guide">parity / 점수 일치 검사는 짧은3쌍과 긴2쌍의 원래 저장 점수와 문서1개 호출의 절대 차이를 비교하며0.0001 이하가 통과입니다. 긴 표본은 새 질문의 완료 문서만으로3000토큰 이상이 확보되지 않아 이전34번의 Q05·Q28 저장 검색에도 접근해 선정했고 개별 점수 파일 경로·해시를 기록했습니다. 기존 자료는 읽기만 했습니다. 문서는 자르지 않고 질문·문서 토큰 수도 기록했습니다. 이는 전체 순위 동일성이나 이후 메모리 부족 방지를 보장하지 않습니다. RSS / 실제 상주 메모리의 최고값은 재개 모델 프로세스가 측정한 KiB이며 시스템 전체 사용량과 다릅니다. 최소 가용 메모리는 모델 호출 전후 관측값이어서 호출 중 순간 최저값을 놓칠 수 있습니다. 재정렬·신규 API 호출 전의 필요 여유는 관측 최고RSS에서 현재RSS를 뺀 예상 증가량에512MiB를 더하고 최소1GiB를 요구합니다. 이 휴리스틱은 다른 프로세스의 갑작스러운 할당으로 생기는 메모리 부족을 보장해 막지는 못합니다. API의 미완료 저장 기록이 있으면 자동 재호출을 차단합니다. CPU 초는 마지막 재개 구간의 사용자·시스템 실행 시간이며 경과 초와 다르고 전체 중단·진단 이력의 합계는 미측정입니다. 별도 점수 검사5쌍은 반복 답변 생성 실험5가 아니며 API0회입니다. 재정렬 배치 차이가 섞였으므로 본 자료로 정확한 지연 비교나 수치상 완전한 재현성을 주장하지 않습니다.</p>'
+        body+='<p class="guide">parity / 점수 일치 검사는 짧은3쌍과 긴2쌍의 원래 저장 점수와 문서1개 호출의 절대 차이를 비교하며0.0001 이하가 통과입니다. 긴 표본은 새 질문의 완료 문서만으로3000토큰 이상이 확보되지 않아 이전34번의 Q05·Q28 저장 검색에도 접근해 선정했고 개별 점수 파일 경로·해시를 기록했습니다. 기존 자료는 읽기만 했습니다. 문서는 자르지 않고 질문·문서 토큰 수도 기록했습니다. 이는 전체 순위 동일성이나 이후 메모리 부족 방지를 보장하지 않습니다. RSS / 실제 상주 메모리의 최고값은 재개 모델 프로세스가 측정한 KiB이며 시스템 전체 사용량과 다릅니다. 최소 가용 메모리는 모델 호출 전후 관측값이어서 호출 중 순간 최저값을 놓칠 수 있습니다. 재정렬·신규 API 호출 전의 필요 여유는 관측 최고RSS에서 현재RSS를 뺀 예상 증가량에512MiB를 더하고 최소1GiB를 요구합니다. 이 휴리스틱은 다른 프로세스의 갑작스러운 할당으로 생기는 메모리 부족을 보장해 막지는 못합니다. API의 미완료 저장 기록이 있으면 자동 재호출을 차단합니다. 마지막 재개의 사용자·시스템 CPU 초는 미측정입니다. 이전 실행의 time 로그를 이번 실행값으로 재사용하지 않았으며 전체 중단·진단 이력의 CPU 합계도 미측정입니다. 별도 점수 검사5쌍은 반복 답변 생성 실험5가 아니며 API0회입니다. 재정렬 배치 차이가 섞였으므로 본 자료로 정확한 지연 비교나 수치상 완전한 재현성을 주장하지 않습니다.</p>'
+        if (C.STAGES[40]/'authorized_document_change_binding.json').exists():
+            approval=C.read(C.STAGES[40]/'authorized_document_change_binding.json')
+            body+='<h2>참고 문서 변경과 재현 방법</h2><p>평가지표 안내서는 검색·청킹·채점 입력이 아닌 별도 참고 문서입니다. 사용자가 요청한 문서 정리 커밋 '+html.escape(approval['commit'][:7])+' 때문에 광범위한 원본 보존 검사가 재개를 차단했습니다. 기존 목록은 수정하지 않고 해당 커밋의 문서 내용·크기·수정 시각과 목록 자체의 SHA를 별도 기록해 승인된 한 건만 구분했습니다. 나머지 운영 코드·OCR 자료·모델·기존 결과는 기존 보존 기준을 계속 적용했습니다.</p>'
+            body+='<pre>python -B notebooks/40_authorized_document_change.py --check\npython -B notebooks/40_authorized_document_change.py</pre><p>이 보조 runner는 캐시와 메모리 점검을 유지해 중단 지점부터 재개합니다. 실험용 Python 의존성이 준비된 환경에서 실행하며 API 호출에는 별도 사용 승인이 필요합니다. 이번 실행은 승인된 conda 환경에서 수행했습니다. <a href="../../notebooks/data/40_new_query_comparison/authorized_document_change_binding.json">문서 변경 구분 기록</a> · <a href="../../notebooks/40_authorized_document_change.py">재개 보조 코드</a></p>'
     overall=[r for r in metrics if r['subgroup']=='all'];ordered=sorted(overall,key=lambda r:(-r['known_positive_complete'],-r['hit'],-r['mrr']))
     top=ordered[0]['known_positive_complete'];joint=[r for r in ordered if r['known_positive_complete']==top]
     best_labels='; '.join(names[r['profile']]+' · '+names[r['mode']] for r in joint)
