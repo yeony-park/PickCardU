@@ -148,11 +148,25 @@ def render():
         'cached_stage35_input_provenance':'Previously measured35 tokens/cost are not charged again by this primary assembly.'}
     body+='<h2>측정한 자원과 실행 한계</h2><pre>'+html.escape(json.dumps(resource,ensure_ascii=False,indent=2))+'</pre>'
     body+='<p class="guide">새 요청은 실제36캐시의 고유 요청 수이며 캐시 재사용은 추가 요청으로 세지 않습니다. input / 입력, output / 출력, cached input / 입력 캐시, reasoning / 출력에 포함된 추론 토큰을 구분합니다. 새 재정렬 쌍은 BGE가 계산한 질문·묶음 쌍274개입니다. 행별 경과 초 합과 API 경과 초 합은 부분 측정으로 모델 초기화·전체 runner 시간은 포함하지 않습니다. model / 모델, working index /34번 독립 작업 인덱스, API·BGE cache / 응답·점수 캐시의 bytes / 저장 용량은 보고서 생성 시점 파일 크기 합계입니다. 전체35의166개 새 요청과 현재36의44개 새 요청을 분리했고 실제 비용·최고 메모리·처리량·네트워크 전송량·전송 토큰은 미측정입니다. 입력 토큰을 실제 네트워크 전송량으로 해석하지 않습니다.</p>'
+    cost_data=A.COST.build()
+    resource.update(usage_based_new_cost_usd=cost_data['stages']['36']['known_cost_usd'],
+        usage_based_followup_cost_usd=cost_data['followup_34_36']['known_cost_usd'],
+        recorded_all_known_cost_usd=cost_data['all_recorded_30_36']['known_cost_usd'],
+        cost_kind='공식 단가로 환산한 기록 사용량 소계; 실제 청구액은 미측정')
+    body+=A.COST.section(cost_data,'36',R.table)
+    body+='<h2>운영 검증 후보에 대한 현재 판단</h2><p><strong>우선 검증할 운영 후보는 benefit + 질문 조건에 따른 구조화→벡터/BM25 검색 + 기본2400 답변입니다.</strong> 이는 현재 근거를 바탕으로 한 추천이며 사전에 등록한 최종 운영 선택이나 운영 채택이 아닙니다. 구조화 조건을 해석할 수 없는 질문과 후보가 비는 경우에는 기존 범위를 보존한 비구조화 검색으로 돌아갑니다. 확인불가 후보를 일괄 추가하지 않습니다.</p>'
+    body+=R.table(['구분','프로필·검색','정답 포함/양성 질문','필수 근거 회수/근거 질문','답변 조건 동시 충족/양성 질문'],[
+        ['우선 운영 검증 후보','benefit · 구조화→비구조화','27/27','41.13% /24','23/27'],
+        ['답변 지표의 관측 최고','benefit · 두 결과 융합','27/27','35.89% /24','24/27'],
+        ['관계 보완 후 비교할 대안','parent-child · 구조화→비구조화','27/27','39.07% /24','21/27']])
+    body+='<p class="guide">정답 포함과 답변의 양성 분모는27질문, 필수 근거 분모24질문이며 높은 값이 좋습니다. 편의점 할인 카드를 찾는 것과 그 카드의 실적·한도를 함께 설명하는 것은 다릅니다. benefit 구조화 선행은 융합보다 근거 회수가 높습니다. 답변 통과의 차이는 Q10 한 질문이며 구조화 선행이1%+추가0.5%의 합산값1.5%를 출력했을 때 기존 평가가 인용의 개별1%·0.5%로부터 계산을 인정하지 못한 영향입니다. 융합의 실제 답변 품질 상승으로 확정하지 않습니다. 문자열 평가·작은 표본·미완성 제목 계층 때문에 확정 승자로 삼지 않습니다.</p>'
+    body+='<p>구조화 선행은 기본 경로에서 별도의 두 검색 결과 융합 단계를 요구하지 않아 다음 운영 검증을 시작할 후보로 추천합니다. 다만 위 답변 요금 진단에서는 benefit 구조화 선행의 질문당 요금이 융합보다 조금 높습니다. 전체 CPU·조건 추출·임베딩·실서비스 지연은 비교하지 않았으므로 운영 총비용이 더 저렴하다고 단정하지 않습니다. 새로운 질문에서 근거·답변·비용을 함께 확인해야 합니다.</p>'
     body+='<h2>최종 정리와 다음 검증</h2><p>토큰을 확인하며 최대5개를 묶어 parent-child의 U/융합 검색 실패를 제거했습니다. 구조화 선행은 두 프로필 모두 정답 포함27/27, 첫 정답1위이며 원래 필수 근거 회수에서도 각각의 U·융합보다 높습니다. 답변 조건 동시 충족의 관측 최고는 benefit 융합24/27이고, 구조화 선행은 benefit23/27·parent-child21/27입니다. 검색 우세와 답변 우세가 완전히 같지 않고 점수 차이에는 합산·분리 claim·추천 형식 영향이 있어 청킹 승자는 확정하지 않습니다.</p>'
     body+='<p>실험 선택은 토큰 확인 최대5개·기본2400이며 운영 채택은 없습니다. 토큰 확인 최대8개는 개발 품질 차이 없이 묶음 토큰이 더 많아 선택하지 않았고, 처음부터4800은 개발 통과 질문7행이 하락해 선택하지 않았습니다. 확인 불가 후보의 일괄 추가는 후보·계산·API 부담을 늘리면서 정답 포함과 근거 품질을 낮춰 채택하지 않습니다. 비용·시간은 위 실제 측정값과34·35 보고서를 참고하며 청구액은 미측정입니다.</p>'
     body+='<p>남은 한계는 미완성 제목 계층, OCR 통과 가정, 부분 정답·문자열 평가, 과거/현재 후보 혼합, 프로필의 재정렬 차이와 모델 단일 응답 변동입니다. 다음 별도 검증은 상세 질문·분리 claim·계산 값을 다루는 평가 기준을 먼저 동결하고 새로운 질문에 적용하는 것입니다. 다른 세션에서 제목 계층이 보완되면 별도 번호·자료 버전으로 비교합니다. 질문을 보강한 뒤 전체 검색하는 방식은 요청대로 후속 실험에 남겨둡니다.</p>'
     links=[('36번 노트북','../../notebooks/36_profile_search_comparison.ipynb'),('기본198조건 요약','../../notebooks/data/36_profile_search_comparison/evaluation_summary.json'),
         ('기본 원문·출처','../../notebooks/data/36_profile_search_comparison/primary_results.json'),('확인 불가54조건 원문','../../notebooks/data/36_profile_search_comparison/unknown_results.json'),
+        ('요청별 비용 계산·단가·범위','../../notebooks/data/36_profile_search_comparison/cost_accounting.json'),
         ('근거·PDF 표본 진단','../../notebooks/data/36_profile_search_comparison/quality_inspection.json'),('고정 조건','../../notebooks/data/36_profile_search_comparison/protocol.json'),
         ('34 묶음 비교','34_bundle_comparison_report.html'),('35 출력 예산 비교','35_answer_budget_report.html')]
     body+='<p>'+' · '.join(f'<a href="{url}">{name}</a>' for name,url in links)+'</p>'

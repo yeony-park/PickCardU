@@ -13,6 +13,7 @@ F = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = F
 spec.loader.exec_module(F)
 R = F.load_module('bundle_report_helpers', F.ROOT / 'notebooks/34_render_bundle_report.py')
+COST = F.load_module('answer_cost_accounting', F.ROOT / 'notebooks/36_cost_accounting.py')
 LABELS = {'2400': '기본2400', 'adaptive': '잘림 확인 시2400→4800', '4800': '처음부터4800',
           'card_page_section_benefit': 'benefit / 혜택 청킹', 'parent_child_bundle': 'parent-child / 관계 묶음'}
 
@@ -55,6 +56,7 @@ def token_totals(records):
         for name in ['input_tokens','output_tokens','total_tokens']:
             totals[name] += usage.get(name,0)
         totals['cached_input_tokens'] += (usage.get('input_tokens_details') or {}).get('cached_tokens',0)
+        totals['cache_write_tokens'] += (usage.get('input_tokens_details') or {}).get('cache_write_tokens',0)
         totals['reasoning_tokens'] += (usage.get('output_tokens_details') or {}).get('reasoning_tokens',0)
     return {**dict(totals),'usage_missing_requests':unknown}
 
@@ -160,7 +162,11 @@ def render():
         if record['status']=='failed':
             failure_counts[record.get('failure_reason') or '원래 응답 사유 미확정'] += 1
     content += '<p>새 실패 요청의 원래 응답 사유: ' + html.escape(json.dumps(dict(failure_counts),ensure_ascii=False)) + '.</p>'
-    content += '<h2>최종 정리</h2><p>선택한 실험 출력 정책은 <strong>' + LABELS[selected] + '</strong>이며 운영 채택은 없습니다. 캐시 예외 복원만으로 Q31의3행을 추가 API 없이 복구했습니다. 출력 예산 변화의 개선·하락·탈락은 전체 행렬과 질문별 표에 공개했습니다. 새2400 실패 재검증과4800 단독 응답 변동을 과거 실패 원인이나 순수 토큰 효과로 단정하지 않습니다. OCR 통과 가정·제목 계층·문자열 점수 한계와 비용 미측정이 남습니다. 다음36번은 선택 출력 정책으로 두 프로필×세 검색을 정리하고 정상 실행 간 근거 차이와 확인 불가 카드 후보 보존을 별도로 검증합니다.</p>'
+    cost_data=COST.build(stage='35')
+    resource.update(usage_based_cost_usd=cost_data['stages']['35']['known_cost_usd'],
+        cost_kind='공식 단가로 환산한 사용량 기반 비용; 실제 청구액은 미측정',pricing_verified_date=COST.RATES['verified_date'])
+    content+=COST.section(cost_data,'35',R.table)
+    content += '<h2>최종 정리</h2><p>선택한 실험 출력 정책은 <strong>' + LABELS[selected] + '</strong>이며 운영 채택은 없습니다. 캐시 예외 복원만으로 Q31의3행을 추가 API 없이 복구했습니다. 출력 예산 변화의 개선·하락·탈락은 전체 행렬과 질문별 표에 공개했습니다. 새2400 실패 재검증과4800 단독 응답 변동을 과거 실패 원인이나 순수 토큰 효과로 단정하지 않습니다. OCR 통과 가정·제목 계층·문자열 점수 한계가 남습니다.166개 신규 요청의 사용량 기준 요금 환산액은$'+format(__import__('decimal').Decimal(resource['usage_based_cost_usd']),'.6f')+'이며 실제 청구액은 미측정입니다.36번은 선택 출력 정책으로 두 프로필×세 검색을 정리하고 정상 실행 간 근거 차이와 확인 불가 카드 후보 보존을 별도로 검증했습니다.</p>'
     content += '<p><a href="../../notebooks/35_answer_budget.ipynb">35번 노트북</a> · <a href="../../notebooks/data/35_answer_budget/answer_results.json">전체594행 원문</a> · <a href="../../notebooks/data/35_answer_budget/selection.json">선택·모든 탈락 질문</a> · <a href="../../notebooks/data/35_answer_budget/offline_retry_replay.json">과거 실패 오프라인 재시도</a> · <a href="../../notebooks/data/35_answer_budget/protocol.json">사전 조건·코드 해시</a></p>'
     path = F.ROOT/'docs/report/35_answer_budget_report.html'
     path.write_text('<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>35 답변 출력 예산 비교</title><style>'+R.STYLE+'</style></head><body><main>'+content+'</main></body></html>',encoding='utf-8')
