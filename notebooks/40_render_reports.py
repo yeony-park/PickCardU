@@ -89,25 +89,36 @@ def render40_partial():
     answers=[C.read(p) for p in sorted((directory/'answers').glob('*.json'))]
     retrieval=[C.read(p) for p in sorted((directory/'retrieval').glob('*.json'))]
     runner=C.load('partial_cost_runner','40_new_query_comparison.py');ledger=runner.cost()
+    from decimal import Decimal
+    binding=C.read(directory/'memory_recovery_contract.json')
+    baseline=runner.PRICE.aggregate([r for r in ledger['records'] if r['path'] in binding['before_manifest']])
+    assert baseline['record_count']==binding['api_records']
+    new_cost=str(Decimal(ledger['summary']['known_cost_usd'])-Decimal(baseline['known_cost_usd']))
+    pending=108-len(answers)
     C.write(directory/'cost_accounting.json',ledger)
     result={'execution_complete':False,'completed_answers':len(answers),'completed_retrievals':len(retrieval),'expected':108,
       'pending_answers':108-len(answers),'repeated_runs':0,'physical_requests':ledger['summary']['record_count'],
       'known_cost_usd':ledger['summary']['known_cost_usd'],'unknown_cost_records':ledger['summary']['unknown_cost_records'],
-      'billed_cost_usd':None,'status':'memory_headroom_stopped','memory':memory,'records':answers}
+      'billed_cost_usd':None,'status':'memory_headroom_stopped','memory':memory,'records':answers,
+      'new_requests_on_latest_attempt':ledger['summary']['record_count']-recovery['physical_requests_before_resume'],
+      'initial_known_cost_usd':baseline['known_cost_usd'],'known_new_cost_since_first_recovery':new_cost}
     C.write(directory/'partial_summary.json',result)
     body='<h2>목적과 미완료 상태</h2><p>37 운영 방어 범위,38 추출 오류와 복귀,39 평가·새 질문 동결을 마친 뒤 새18질문×두 운영 프로필×세 검색108조건을 실행하는 단계입니다. 현재 완료한 일부 질문으로 전체 조건의 우열을 판단하지 않습니다. 4번은 미완료이며 반복 답변 생성5는 실행하지 않았습니다.</p>'
     body+=table(['항목','현재 확인된 결과'],[
         ['검색 / 답변 완료',f"{len(retrieval)} / {len(answers)} (목표108)"],['아직 실행하지 못한 답변',108-len(answers)],
         ['저장된 물리 API 요청',ledger['summary']['record_count']],['사용량 기반 요금 환산 USD',ledger['summary']['known_cost_usd']],
+        ['이번 재개에서 새로 호출한 API',result['new_requests_on_latest_attempt']],['첫 복구 계약 이후 추가 요금 환산 USD',new_cost],
         ['요금 미확인 요청',ledger['summary']['unknown_cost_records']],['실제 청구액','미측정'],
         ['재개 중 가용 메모리 KiB',memory['minimum_host_available_kib']],['중단 당시 필요 여유 KiB',memory['last_required_headroom_kib']],
         ['재개 중 신규 모델 점수 호출',memory['completed_singleton_calls']],['반복 답변 실험','실행하지 않음']])
-    body+='<p class="guide">완료 행은 실제 저장된 검색·답변의 건수이며 목표108행이 분모입니다. 미실행86행을 성공이나 정답으로 계산하지 않습니다. 물리 요청은 고유 저장 API 기록이며 캐시 재사용은 새 요청으로 세지 않습니다. 비용은 저장된 실제 사용 토큰×고정 공식 단가이며 실제 청구액·세금·환율·CPU전력은 미측정입니다. 가용 메모리는 모델 호출 전 시스템 관측값이며 순간 최저값을 보장하지 않습니다. 필요 여유는 관측 최고RSS-currentRSS+512MiB 또는 최소1GiB 중 큰 값입니다. 예: 스타벅스 질문의 원문·청크·토큰 한도는 그대로 두고 모델에 문서를 한 개씩 넣더라도 PC 전체의 메모리가 충분해야 합니다.</p>'
-    body+='<h2>중단 원인과 재개 조건</h2><p>첫 실행은 커널의 시스템 메모리 부족으로 종료 코드137을 받았습니다. 4,012토큰을 포함한5쌍 점수 비교에서 원래 저장 점수와 문서1개 호출 차이는 허용0.0001 이하였고 신규 API0회였습니다. 어댑터·프로토콜·기준 캐시 해시와 기존22행·41응답을 묶은 재개 계약을 검토한 후 실행했지만, 신규 모델 호출 전에 가용 메모리가 필요 여유보다 적어 MemoryStop / 메모리 여유 부족 중단이 발생했습니다. 재개 시도에서 새 유료 요청은 없습니다. 다른 프로세스·운영 코드·원문·청크 길이·토큰 제한은 바꾸지 않았습니다. 할당 해제 진단에서는 약112MiB를 반환했지만 현재 환경으로86조건을 끝냈다는 증거는 없습니다.</p>'
+    body+=f'<p class="guide">완료 행은 실제 저장된 검색·답변의 건수이며 목표108행이 분모입니다. 미실행{pending}행을 성공이나 정답으로 계산하지 않습니다. 물리 요청은 고유 저장 API 기록이며 캐시 재사용은 새 요청으로 세지 않습니다. 이번 요청 증가는 최신 실행 시작 시점의 저장 요청 수와 비교합니다. 추가 요금은 첫 복구 계약에 보존한41개 요청의 사용량 비용을 현재 알려진 소계에서 뺀 값입니다. 비용은 저장된 실제 사용 토큰×2026-10-11 고정 공식 단가이며 실제 청구액·세금·환율·CPU전력은 미측정입니다. 가용 메모리는 모델 호출 전 시스템 관측값이며 순간 최저값을 보장하지 않습니다. 필요 여유는 관측 최고RSS-currentRSS+512MiB 또는 최소1GiB 중 큰 값입니다. 예: 스타벅스 질문의 원문·청크·토큰 한도는 그대로 두고 모델에 문서를 한 개씩 넣더라도 PC 전체의 메모리가 충분해야 합니다.</p>'
+    extra=len(answers)-binding['completed_rows']
+    body+='<h2>중단 원인과 재개 조건</h2><p>첫 실행은 커널의 시스템 메모리 부족으로 종료 코드137을 받았습니다. 4,012토큰을 포함한5쌍 점수 비교에서 원래 저장 점수와 문서1개 호출 차이는 허용0.0001 이하였고 신규 API0회였습니다. 어댑터·프로토콜·기준 캐시 해시와 기존22행·41응답을 묶은 재개 계약은 유지합니다. 첫 재개는 신규 모델 호출 전에 여유 검사에서 멈췄습니다. 이후 준비 검사가 통과한 실행을 시작했습니다.</p>'
+    body+=f'<p>첫 계약 이후 {extra}개 답변을 추가 완료했고 현재 {pending}개 답변이 남았습니다. 최신 실행은 메모리 여유 부족으로 중단됐으며 모델 점수 호출{memory["completed_singleton_calls"]}회를 관측했습니다. 순간 최고RSS는{memory["peak_rss_kib"]}KiB였고 이를 재개 전 필요 여유 계산에도 반영합니다. 모델 자체 또는 입력 토큰 오류로 판정하지 않습니다. 다른 프로세스·운영 코드·원문·청크 길이·토큰 제한은 바꾸지 않았습니다. 할당 해제 진단에서 반환한 약112MiB만으로는 충분한 여유를 입증하지 못했습니다.</p>'
     body+='<h2>재현과 다음 단계</h2><p>동일PC의 다른 작업을 정리해 시작 전 가용 메모리를 약3GiB 이상 확보한 뒤 기존40_memory_recovery.py로 재개합니다. 실제 실행 중 동적 여유 검사를 계속 적용하며3GiB도 메모리 부족 부재를 보장하지 않습니다. started/failed / 미완료·실패 API 기록이 있으면 자동 재호출을 막습니다. 정상 저장된 응답을 재사용하고 질문·프롬프트·채점·운영 청킹은 유지합니다. 가용 메모리 확인 전 반복 재시작하지 않습니다.</p>'
     body+='<pre>PYTHONDONTWRITEBYTECODE=1 conda run --no-capture-output -n skn25 python -B notebooks/40_memory_recovery.py</pre>'
-    body+='<h2>현재 정리</h2><p>1~3번 진단과 평가 동결은 완료했고4번 전체 비교는 미완료입니다. 검색·청킹의 새 승자와 운영 채택은 없습니다. 관측된 방어 공백·조건 오류 영향은37·38 보고서에 공개했습니다. 메모리 진단과 재개 코드는 저장했지만 아직86개 답변과 전체 비교·최종 독립 감사가 남아 있습니다. 비용은 위의 현재 알려진 소계이며 전체 실행 요금은 아닙니다.</p>'
-    save(n,'new_query_comparison','새 질문 비교의 중단·미완료 현황',body,[directory/'partial_summary.json',directory/'memory_recovery.json',directory/'memory_telemetry.json',directory/'memory_parity.json',directory/'memory_allocation_diagnosis.json',directory/'cost_accounting.json',directory/'memory_recovery_contract.json'])
+    body+=f'<h2>현재 정리</h2><p>1~3번 진단과 평가 동결은 완료했고4번 전체 비교는 미완료입니다. 검색·청킹의 새 승자와 운영 채택은 없습니다. 관측된 방어 공백·조건 오류 영향은37·38 보고서에 공개했습니다. 메모리 진단과 재개 코드는 저장했지만 아직{pending}개 답변과 전체 비교·최종 독립 감사가 남아 있습니다. 비용은 위의 현재 알려진 소계이며 전체 실행 요금은 아닙니다.</p>'
+    save(n,'new_query_comparison','새 질문 비교의 중단·미완료 현황',body,[directory/'partial_summary.json',directory/'memory_recovery.json',directory/'memory_telemetry.json',directory/'memory_parity.json',directory/'memory_allocation_diagnosis.json',directory/'cost_accounting.json',directory/'memory_recovery_contract.json',directory/'resume_memory_check.json'])
     notebook(n,'new_query_comparison','새 질문 비교의 중단·미완료 현황',directory/'partial_summary.json')
 
 def render40():

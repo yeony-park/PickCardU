@@ -143,11 +143,22 @@ def run():
            'peak_rss_kib':telemetry['peak_rss_kib'],'batch_size_change_disclosed':True}}
     C.write(C.STAGES[40]/'completion_audit.json',result);print('Completion evidence',108,'rows',len(physical),'requests',str(total),'USD')
     return result
+def validate_partial_grid(summary,binding,protocol,dataset,retrieval,answers):
+    expected={f"{q['query_id']}_{p}_{m}.json" for q in dataset['queries'] for p in protocol['profiles'] for m in protocol['modes']}
+    assert not summary['execution_complete'] and summary['expected']==len(expected)
+    assert set(binding['completed_keys'])<=set(answers)<=set(retrieval)<=expected
+    assert summary['completed_answers']==len(answers) and summary['completed_retrievals']==len(retrieval)
+    assert summary['pending_answers']==len(expected)-len(answers)>0
+    for row in retrieval.values():assert row['status']=='ok' and row['protocol_sha256']==protocol['sha256']
+    for key,answer in answers.items():
+        assert answer['status']=='ok' and answer['protocol_sha256']==protocol['sha256']
+        assert answer['retrieval_sha256']==C.digest(retrieval[key])
+    return len(expected)
+
 def verify_partial():
     """Audit preserved incomplete state; never treat it as full-goal completion."""
     C.initialize(40);directory=C.STAGES[40];summary=C.read(directory/'partial_summary.json')
     assert not summary['execution_complete'] and summary['expected']==108
-    assert summary['completed_answers']==summary['completed_retrievals']==22 and summary['pending_answers']==86
     binding=C.read(directory/'memory_recovery_contract.json');receipt=C.read(directory/'memory_recovery.json')
     assert C.digest({k:v for k,v in binding.items() if k!='sha256'})==binding['sha256']
     assert receipt['status']=='interrupted' and receipt['error'].startswith('MemoryStop:')
@@ -158,14 +169,10 @@ def verify_partial():
     for path,sha in protocol['source_code'].items():assert C.digest((C.ROOT/path).read_bytes())==sha,path
     actual_r={p.name:C.read(p) for p in (directory/'retrieval').glob('*.json')}
     actual_a={p.name:C.read(p) for p in (directory/'answers').glob('*.json')}
-    assert set(actual_r)==set(actual_a)==set(binding['completed_keys']) and len(actual_a)==22
-    for key,r in actual_r.items():
-        assert r['status']==actual_a[key]['status']=='ok'
-        assert r['protocol_sha256']==actual_a[key]['protocol_sha256']==protocol['sha256']
-        assert actual_a[key]['retrieval_sha256']==C.digest(r)
+    assert validate_partial_grid(summary,binding,protocol,C.read(C.STAGES[39]/'dataset.json'),actual_r,actual_a)==108
     for path,sha in binding['before_manifest'].items():assert C.digest((C.ROOT/path).read_bytes())==sha,path
     records=[C.read(p) for p in (directory/'api_cache').glob('*.json')]
-    assert len(records)==summary['physical_requests']==binding['api_records']==41
+    assert len(records)==summary['physical_requests']>=binding['api_records']
     assert all(r['status']=='ok' for r in records)
     total=Decimal(0)
     for record in records:
@@ -189,13 +196,14 @@ def verify_partial():
             parsed=urlparse(link)
             if parsed.scheme or link.startswith('#'):continue
             assert (report.parent/unquote(parsed.path)).is_file(),link
-        if n==40:assert '미완료' in source and '86' in source and '3GiB' in source
+        if n==40:assert '미완료' in source and str(summary['pending_answers']) in source and '3GiB' in source
         reports[str(n)]={'tables':page.tables,'guides':page.guides,'notebook_cells':3,'html_sha256':C.digest(report.read_bytes())}
     preservation=C.verify()
-    result={'partial_state_verified':True,'full_goal_complete':False,'retrieval_rows':22,'answer_rows':22,'pending_rows':86,
-      'physical_requests':41,'new_requests_on_interrupted_resume':0,'known_cost_usd':str(total),
+    result={'partial_state_verified':True,'full_goal_complete':False,'retrieval_rows':len(actual_r),'answer_rows':len(actual_a),'pending_rows':summary['pending_answers'],
+      'physical_requests':len(records),'new_requests_since_first_recovery':len(records)-binding['api_records'],
+      'new_requests_on_latest_attempt':len(records)-receipt['physical_requests_before_resume'],'known_cost_usd':str(total),
       'reports':reports,'preservation':preservation,'browser_rendering':'미검증'}
-    C.write(directory/'partial_audit.json',result);print('Preserved partial state',22,'of108',41,'requests',str(total),'USD')
+    C.write(directory/'partial_audit.json',result);print('Preserved partial state',len(actual_a),'of108',len(records),'requests',str(total),'USD')
     return result
 
 if __name__=='__main__':
