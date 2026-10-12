@@ -1,0 +1,1597 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>44. 구조화 검색 DB 명세서</title><style>body{font:16px/1.7 system-ui,sans-serif;color:#20304a;background:#f5f7fb;margin:0}main{max-width:1500px;margin:24px auto;padding:28px;background:white}table{border-collapse:collapse;width:100%;font-size:14px;display:block;overflow-x:auto;margin:20px 0}th,td{border:1px solid #cbd5e1;padding:9px;vertical-align:top;min-width:100px}th{background:#edf3fb}pre{white-space:pre-wrap;overflow-wrap:anywhere;padding:16px;background:#f1f5f9}code{overflow-wrap:anywhere}a{color:#1458aa}h2{border-top:1px solid #dbe3ee;padding-top:20px}</style></head><body><main><h1 id="44-db">44. 구조화 검색 DB 명세서</h1>
+<h2 id="1">1. 문서 범위와 기준</h2>
+<p>현재 실험 DB의 데이터 사전이다. 검토일은 2026-10-13, 스키마 버전은 <code>structured-benefit-experiment-v3</code>다. 운영 DB/HTTP 계약을 정의하는 문서가 아니며 운영 반영·DB 변경은 하지 않았다. 현재 방식과 근거 보완 방식의 비교는 다음 실험이며 이 문서는 그 전에 작성한 읽기 전용 명세다.</p>
+<ul>
+<li>DB: <code>notebooks/data/30_structured_benefit_db/structured.sqlite</code>.</li>
+<li>입력: 기존 Upstage <code>normalized.json</code> 106개. 구조화 계약 <code>field-evidence-relation-v6</code>, 정규화 계약 <code>typed-facts-v2</code>. 이 입력의 추출 모델 기록은 <code>gpt-5.6-luna/max</code>이며 질문 조건 추출 실험의 <code>gpt-6-luna/medium</code>과 별개다.</li>
+<li><a href="../../notebooks/30_build_structured_db.py">DB 생성·정규화·선택기 구현</a>, <a href="../../notebooks/32_search_experiment.py">질문 스키마</a>, <a href="../../notebooks/33_query_routing.py">질문 해석 지시문</a>, <a href="../../notebooks/42_expanded_query_evaluation.py">42번 실제 질문 조건 호출·순차 검색</a>.</li>
+<li><a href="../../notebooks/data/44_structured_search_db_spec/schema_inventory.json">실제 DB 스키마·저장값·검증 JSON</a>, <a href="../../notebooks/44_structured_search_db_spec.ipynb">44번 노트북</a>, <a href="30_structured_benefit_db_report.html">30번 DB 보고서</a>, <a href="43_offline_validation_report.html">43번 경계 검사</a>.</li>
+</ul>
+<p>같은 fact 안의 대상·행동·수치·조건 관계를 유지한다. 원문 필드는 그대로 보존하고 검색 가능한 파생값을 보수적으로 추가한다. OCR/원본 구조화 추출의 정확도는 이 명세 작성으로 검증하지 않았고 통과 가정을 유지한다. 문서에 제시한 코드 규칙과 실제 관측값은 구분한다.</p>
+<p><strong>제약 해석:</strong> TEXT/INTEGER/REAL은 SQLite 선언 타입이며 STRICT 테이블이 아니다. 모든 컬럼에 DEFAULT가 없다. <code>NOT NULL</code>은 빈 문자열 금지가 아니다. TEXT 단일 PK인 metadata.key/documents.document_id/facts.fact_id에는 별도 NOT NULL 선언이 없고 PRAGMA notnull=0이다. 일반 SQLite rowid 테이블의 이 선언만으로 NULL 금지를 주장하지 않는다. 현재 빌드는 비어 있지 않은 식별자를 만들고 실제 NULL 여부는 저장 프로필에서 확인한다. 복합 PK인 target_aliases의 두 컬럼은 명시적으로 NOT NULL이다. FK는 writer가 foreign_keys=ON으로 활성화했으며 현재 외래키 검사를 별도로 수행했다. UPDATE/DELETE CASCADE 선언은 없다.</p>
+<h2 id="2">2. 테이블 관계와 실제 행 수</h2>
+<pre><code class="language-text">documents (1) ── facts (N)
+metadata: 빌드 설명
+target_aliases: 고정 별칭 사전 보존
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>테이블</th>
+<th>행 수</th>
+<th>컬럼 수</th>
+<th>역할</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>metadata</td>
+<td>8</td>
+<td>2</td>
+<td>빌드 계약</td>
+</tr>
+<tr>
+<td>documents</td>
+<td>106</td>
+<td>11</td>
+<td>문서·카드 정체성과 원문 페이지</td>
+</tr>
+<tr>
+<td>facts</td>
+<td>3403</td>
+<td>25</td>
+<td>원본 사실과 검색용 파생값</td>
+</tr>
+<tr>
+<td>target_aliases</td>
+<td>22</td>
+<td>3</td>
+<td>별칭 목록</td>
+</tr>
+</tbody>
+</table>
+<p>행 수(Row count)는 읽은 DB의 COUNT(*), 컬럼 수는 PRAGMA table_info 기준이다. 품질 점수가 아니며 크다고 더 좋은 값은 아니다. facts에는 일반 안내·연회비·부정 문구도 들어 있다.</p>
+<h2 id="3-metadata">3. <code>metadata</code> 테이블 — 전체 컬럼</h2>
+<p>타입은 SQLite DDL의 선언 타입이다. 제약은 DB가 강제하는 선언이며, 값 규칙은 빌드/검색 코드의 의미다. enum과 단위·JSON 형식은 CHECK로 강제하지 않는다. 예시는 규칙 설명이며 실제 관측값과 구분한다.</p>
+<table>
+<thead>
+<tr>
+<th>컬럼</th>
+<th>선언 타입</th>
+<th>DDL 제약</th>
+<th>의미</th>
+<th>값 규칙·예시</th>
+<th>현재 검색 용도</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>key</code></td>
+<td>TEXT</td>
+<td>NOT NULL 선언 없음, PK, DEFAULT 없음</td>
+<td>빌드 메타데이터 항목 이름</td>
+<td>현재 8개 key. 아래 key별 표 참조</td>
+<td>버전·출처·정책 추적</td>
+</tr>
+<tr>
+<td><code>value_json</code></td>
+<td>TEXT</td>
+<td>NOT NULL, DEFAULT 없음</td>
+<td>항목 값의 JSON 문자열</td>
+<td>문자열/객체/목록/숫자 구조를 JSON으로 직렬화</td>
+<td>검색 조건 자체가 아니라 빌드 설명</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-documents">4. <code>documents</code> 테이블 — 전체 컬럼</h2>
+<p>타입은 SQLite DDL의 선언 타입이다. 제약은 DB가 강제하는 선언이며, 값 규칙은 빌드/검색 코드의 의미다. enum과 단위·JSON 형식은 CHECK로 강제하지 않는다. 예시는 규칙 설명이며 실제 관측값과 구분한다.</p>
+<table>
+<thead>
+<tr>
+<th>컬럼</th>
+<th>선언 타입</th>
+<th>DDL 제약</th>
+<th>의미</th>
+<th>값 규칙·예시</th>
+<th>현재 검색 용도</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>document_id</code></td>
+<td>TEXT</td>
+<td>NOT NULL 선언 없음, PK, DEFAULT 없음</td>
+<td>문서/카드 식별 키</td>
+<td>원본 document_id. 예: BC/BC_Green_v2. basename만으로 만들지 않음</td>
+<td>card_keys 및 facts.document_id와 연결</td>
+</tr>
+<tr>
+<td><code>provider</code></td>
+<td>TEXT</td>
+<td>NOT NULL, DEFAULT 없음</td>
+<td>원본 OCR 제공자</td>
+<td>이 빌드는 upstage만 허용. SQL enum 제약은 없음</td>
+<td>제공자와 출처 구분</td>
+</tr>
+<tr>
+<td><code>card_name</code></td>
+<td>TEXT</td>
+<td>NOT NULL 선언 없음, DEFAULT 없음</td>
+<td>원본 identity.card_name</td>
+<td>원문 카드명; 누락 시 NULL 가능</td>
+<td>LLM에 제공할 카드 목록 구성</td>
+</tr>
+<tr>
+<td><code>issuer_name</code></td>
+<td>TEXT</td>
+<td>NOT NULL 선언 없음, DEFAULT 없음</td>
+<td>원본 identity.issuer_name</td>
+<td>원문 카드사명; 누락 시 NULL 가능</td>
+<td>표시/카드 목록 정보. 별도 issuer 조건 없음</td>
+</tr>
+<tr>
+<td><code>source_pdf_sha256</code></td>
+<td>TEXT</td>
+<td>NOT NULL, DEFAULT 없음</td>
+<td>원본 PDF 내용 SHA-256</td>
+<td>원본 JSON에서 복사. DB는 길이·hex 형식을 강제하지 않음</td>
+<td>원문 동일성 추적</td>
+</tr>
+<tr>
+<td><code>normalized_json_sha256</code></td>
+<td>TEXT</td>
+<td>NOT NULL, DEFAULT 없음</td>
+<td>입력 normalized.json bytes SHA-256</td>
+<td>파일 실제 bytes로 계산. JSON 의미 동일성과는 다름</td>
+<td>입력 변경 추적</td>
+</tr>
+<tr>
+<td><code>source_relative_path</code></td>
+<td>TEXT</td>
+<td>NOT NULL, DEFAULT 없음</td>
+<td>normalized.json의 저장소 상대 경로</td>
+<td>현재 빌드 입력 glob의 문서 경로</td>
+<td>원문 출처 접근 및 정렬</td>
+</tr>
+<tr>
+<td><code>source_path_sha256</code></td>
+<td>TEXT</td>
+<td>NOT NULL, DEFAULT 없음</td>
+<td>위 상대 경로 문자열 SHA-256</td>
+<td>UTF-8 경로를 해시. 파일 내용 해시가 아님</td>
+<td>경로 동일성 추적</td>
+</tr>
+<tr>
+<td><code>page_count</code></td>
+<td>INTEGER</td>
+<td>NOT NULL, DEFAULT 없음</td>
+<td>저장 pages 목록 길이</td>
+<td>0 이상 정수로 생성. SQL CHECK 없음</td>
+<td>원문 규모 정보</td>
+</tr>
+<tr>
+<td><code>fact_count</code></td>
+<td>INTEGER</td>
+<td>NOT NULL, DEFAULT 없음</td>
+<td>해당 문서 원본 facts 목록 길이</td>
+<td>일반 안내도 포함. 순수 혜택 수와 다름</td>
+<td>문서별 fact 수 확인</td>
+</tr>
+<tr>
+<td><code>raw_json</code></td>
+<td>TEXT</td>
+<td>NOT NULL, DEFAULT 없음</td>
+<td>문서 보존용 객체의 JSON 문자열</td>
+<td>identity/pages/provenance/해시 등. 원본 normalized.json 전체 bytes 복제는 아님</td>
+<td>load_facts의 원문 페이지·카드 정체성 복원</td>
+</tr>
+</tbody>
+</table>
+<h2 id="5-facts">5. <code>facts</code> 테이블 — 전체 컬럼</h2>
+<p>타입은 SQLite DDL의 선언 타입이다. 제약은 DB가 강제하는 선언이며, 값 규칙은 빌드/검색 코드의 의미다. enum과 단위·JSON 형식은 CHECK로 강제하지 않는다. 예시는 규칙 설명이며 실제 관측값과 구분한다.</p>
+<table>
+<thead>
+<tr>
+<th>컬럼</th>
+<th>선언 타입</th>
+<th>DDL 제약</th>
+<th>의미</th>
+<th>값 규칙·예시</th>
+<th>현재 검색 용도</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>fact_id</code></td>
+<td>TEXT</td>
+<td>NOT NULL 선언 없음, PK, DEFAULT 없음</td>
+<td>문서 내 원본 fact 식별자</td>
+<td>fact_ + SHA-256 앞 24hex. provider&#124;PDF해시&#124;document_id&#124;ordinal로 계산</td>
+<td>matching_fact_ids → 원문 근거 연결</td>
+</tr>
+<tr>
+<td><code>document_id</code></td>
+<td>TEXT</td>
+<td>NOT NULL, FK → documents.document_id, 두 컬럼 조합 UNIQUE, DEFAULT 없음</td>
+<td>소유 문서/카드 키</td>
+<td>documents.document_id를 참조</td>
+<td>같은 카드 안의 조건 평가 및 근거 소유권</td>
+</tr>
+<tr>
+<td><code>ordinal</code></td>
+<td>INTEGER</td>
+<td>NOT NULL, 두 컬럼 조합 UNIQUE, DEFAULT 없음</td>
+<td>원본 facts 목록의 0부터 시작하는 순서</td>
+<td>enumerate로 생성. (document_id, ordinal) UNIQUE</td>
+<td>원본 fact 순서 복원. 목록 변경 시 fact_id가 달라질 수 있음</td>
+</tr>
+<tr>
+<td><code>target_raw</code></td>
+<td>TEXT</td>
+<td>NOT NULL, DEFAULT 없음</td>
+<td>원본 대상 문자열</td>
+<td>가맹점/업종/대상 목록/안내 대상 등 자유 문자열. 미기재는 빈 문자열 가능</td>
+<td>derived.target_normalized에 대상/별칭 포함 여부 비교</td>
+</tr>
+<tr>
+<td><code>action_raw</code></td>
+<td>TEXT</td>
+<td>NOT NULL, DEFAULT 없음</td>
+<td>원본 행동 문자열</td>
+<td>할인/청구할인/적립/안내/부정 문구 등 자유 문자열</td>
+<td>benefit_type_raw와 함께 action_kind/status 생성</td>
+</tr>
+<tr>
+<td><code>benefit_type_raw</code></td>
+<td>TEXT</td>
+<td>NOT NULL, DEFAULT 없음</td>
+<td>원본 혜택 이름/분류 설명</td>
+<td>자유 문자열. 고정 카테고리 enum 아님</td>
+<td>행동 정규화 보조. 별도 분류 필터 없음</td>
+</tr>
+<tr>
+<td><code>value_raw</code></td>
+<td>TEXT</td>
+<td>NOT NULL, DEFAULT 없음</td>
+<td>원본 수치/값 문구</td>
+<td>5, 3~5, 최대 10 등 문자열. 단일 숫자로 제한하지 않음</td>
+<td>typed ratio와 일치할 때 percent 생성</td>
+</tr>
+<tr>
+<td><code>unit_raw</code></td>
+<td>TEXT</td>
+<td>NOT NULL, DEFAULT 없음</td>
+<td>원본 단위 문자열</td>
+<td>%, 원, 마일리지, 포인트, 빈 문자열 등. 전체 관측값은 inventory 참조</td>
+<td>percent 정규화 보조. 단위 자유 비교 필터 없음</td>
+</tr>
+<tr>
+<td><code>condition_raw</code></td>
+<td>TEXT</td>
+<td>NOT NULL, DEFAULT 없음</td>
+<td>원본 적용 조건 문구</td>
+<td>전월 실적/결제 방식/복합 조건 등을 원문 형태로 보존</td>
+<td>명시적인 단일 전월 최소 실적만 파생 비교</td>
+</tr>
+<tr>
+<td><code>cap_raw</code></td>
+<td>TEXT</td>
+<td>NOT NULL, DEFAULT 없음</td>
+<td>원본 한도 문구</td>
+<td>혜택 지급 한도/이용금액 상한 등 원문 표현</td>
+<td>지급 한도만 보수적으로 cap_krw 생성</td>
+</tr>
+<tr>
+<td><code>period_raw</code></td>
+<td>TEXT</td>
+<td>NOT NULL, DEFAULT 없음</td>
+<td>원본 기간 문구</td>
+<td>월/일/지급일/행사 기간 등 자유 문자열</td>
+<td>cap_raw와 합쳐 월/일 한도 기간 식별. 행사 날짜 검색 아님</td>
+</tr>
+<tr>
+<td><code>frequency_raw</code></td>
+<td>TEXT</td>
+<td>NOT NULL, DEFAULT 없음</td>
+<td>원본 횟수 조건</td>
+<td>월 1회 등 자유 문자열. 미기재는 빈 문자열</td>
+<td>보존만 함. 횟수 수치 필터 없음</td>
+</tr>
+<tr>
+<td><code>exceptions_raw</code></td>
+<td>TEXT</td>
+<td>NOT NULL, DEFAULT 없음</td>
+<td>원본 제외/예외 문구</td>
+<td>제외 업종/채널/기타 예외 등 자유 문자열</td>
+<td>요구 대상이 예외에 언급되면 unknown으로 보수 처리</td>
+</tr>
+<tr>
+<td><code>action_kind</code></td>
+<td>TEXT</td>
+<td>NOT NULL 선언 없음, DEFAULT 없음</td>
+<td>정규화한 행동 종류</td>
+<td>discount(할인), earn(적립 계열), NULL(판단 불가)</td>
+<td>Requirement.action과 비교</td>
+</tr>
+<tr>
+<td><code>action_status</code></td>
+<td>TEXT</td>
+<td>NOT NULL, DEFAULT 없음</td>
+<td>행동을 긍정 혜택으로 볼 수 있는지</td>
+<td>true(긍정), false(부정/제외), unknown(혼합/모호)</td>
+<td>false 제외; unknown은 확정 충족으로 선택하지 않음</td>
+</tr>
+<tr>
+<td><code>percent</code></td>
+<td>REAL</td>
+<td>NOT NULL 선언 없음, DEFAULT 없음</td>
+<td>비율의 퍼센트값</td>
+<td>10% → 10.0, 0.1이 아님. known일 때 수치, 그 외 NULL</td>
+<td>percent &gt;= min_percent</td>
+</tr>
+<tr>
+<td><code>percent_state</code></td>
+<td>TEXT</td>
+<td>NOT NULL, DEFAULT 없음</td>
+<td>비율값의 사용 가능 상태</td>
+<td>known / unknown / not_applicable. 아래 상태 정의 참조</td>
+<td>비율 요구 시 known만 확정 비교</td>
+</tr>
+<tr>
+<td><code>spend_threshold_krw</code></td>
+<td>INTEGER</td>
+<td>NOT NULL 선언 없음, DEFAULT 없음</td>
+<td>필요 전월 최소 실적 원화 금액</td>
+<td>30만원 이상 → 300000. known일 때 수치, 그 외 NULL</td>
+<td>필요 실적 &lt;= 질문의 max_spend_krw</td>
+</tr>
+<tr>
+<td><code>spend_operator</code></td>
+<td>TEXT</td>
+<td>NOT NULL 선언 없음, DEFAULT 없음</td>
+<td>원문 실적 부등호 판정</td>
+<td>gte(이상), lte(이하), unknown, NULL을 코드가 만들 수 있음. 관측값은 별도 표</td>
+<td>known은 gte만. 질문의 최대 허용 실적과 부등호 방향을 구분</td>
+</tr>
+<tr>
+<td><code>spend_state</code></td>
+<td>TEXT</td>
+<td>NOT NULL, DEFAULT 없음</td>
+<td>전월 실적값 사용 가능 상태</td>
+<td>known / unknown / not_applicable</td>
+<td>실적 요구 시 known만 확정 비교</td>
+</tr>
+<tr>
+<td><code>cap_krw</code></td>
+<td>INTEGER</td>
+<td>NOT NULL 선언 없음, DEFAULT 없음</td>
+<td>혜택 지급 한도 원화 금액</td>
+<td>월 할인 한도 5천원 → 5000. 이용금액 상한과 구분</td>
+<td>cap_krw &gt;= min_cap_krw</td>
+</tr>
+<tr>
+<td><code>cap_state</code></td>
+<td>TEXT</td>
+<td>NOT NULL, DEFAULT 없음</td>
+<td>혜택 한도값 사용 가능 상태</td>
+<td>known / unknown / not_applicable</td>
+<td>한도 요구 시 known만 확정 비교</td>
+</tr>
+<tr>
+<td><code>cap_period</code></td>
+<td>TEXT</td>
+<td>NOT NULL 선언 없음, DEFAULT 없음</td>
+<td>한도와 연결된 기간</td>
+<td>month(월), day(일), NULL(모호/미기재)</td>
+<td>min_cap_krw 요구가 있을 때 cap_period_state와 함께 기간 비교</td>
+</tr>
+<tr>
+<td><code>raw_json</code></td>
+<td>TEXT</td>
+<td>NOT NULL, DEFAULT 없음</td>
+<td>원본 fact 객체의 JSON 문자열</td>
+<td>원문 10필드 + typed_normalization + field_evidence + relation_scope 등 보존</td>
+<td>검색 load_facts는 이 JSON에서 원문/근거를 복원</td>
+</tr>
+<tr>
+<td><code>derived_json</code></td>
+<td>TEXT</td>
+<td>NOT NULL, DEFAULT 없음</td>
+<td>보수적으로 계산한 파생 객체 JSON</td>
+<td>SQL 파생 컬럼 + 대상 정규화/사유/기간 상태/예외 정규화 포함</td>
+<td>현재 선택기는 복원된 derived 객체로 비교</td>
+</tr>
+</tbody>
+</table>
+<h2 id="6-target_aliases">6. <code>target_aliases</code> 테이블 — 전체 컬럼</h2>
+<p>타입은 SQLite DDL의 선언 타입이다. 제약은 DB가 강제하는 선언이며, 값 규칙은 빌드/검색 코드의 의미다. enum과 단위·JSON 형식은 CHECK로 강제하지 않는다. 예시는 규칙 설명이며 실제 관측값과 구분한다.</p>
+<table>
+<thead>
+<tr>
+<th>컬럼</th>
+<th>선언 타입</th>
+<th>DDL 제약</th>
+<th>의미</th>
+<th>값 규칙·예시</th>
+<th>현재 검색 용도</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>alias_group</code></td>
+<td>TEXT</td>
+<td>NOT NULL, PK(1), DEFAULT 없음</td>
+<td>별칭 그룹 이름</td>
+<td>여행, 커피, 카페. LLM이 동적으로 생성하지 않음</td>
+<td>개발자가 고정한 대상 확장 규칙</td>
+</tr>
+<tr>
+<td><code>alias</code></td>
+<td>TEXT</td>
+<td>NOT NULL, PK(2), DEFAULT 없음</td>
+<td>그룹에 속한 원문 별칭</td>
+<td>스타벅스, 항공, 호텔 등. (alias_group, alias) 복합 PK</td>
+<td>동일 그룹 내 대상 대안</td>
+</tr>
+<tr>
+<td><code>alias_normalized</code></td>
+<td>TEXT</td>
+<td>NOT NULL, DEFAULT 없음</td>
+<td>별칭의 정규화 문자열</td>
+<td>NFKC → casefold → 모든 공백 제거</td>
+<td>현재 선택기는 코드의 TARGET_ALIASES를 사용; 이 테이블은 규칙 보존용</td>
+</tr>
+</tbody>
+</table>
+<h2 id="7-json">7. JSON 내부 속성과 출처 연결</h2>
+<p>아래 속성은 별도 SQL 컬럼이 아니다. DB의 TEXT JSON을 파싱해 접근한다. JSON 유효성/필드 필수 여부는 SQL CHECK로 강제되지 않는다. <code>_raw</code> SQL 컬럼을 수정하는 것으로 JSON이 자동 갱신되지 않으며 동기화 trigger도 없다. 이번 작성은 양쪽 3,403행의 일치를 확인했다.</p>
+<h3 id="metadatavalue_json-key">metadata.value_json: key별 속성값</h3>
+<table>
+<thead>
+<tr>
+<th>key</th>
+<th>JSON 값 종류</th>
+<th>내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>schema_version</td>
+<td>string</td>
+<td>structured-benefit-experiment-v3</td>
+</tr>
+<tr>
+<td>source_glob</td>
+<td>string</td>
+<td>data/rag/runtime/working/run_f2d29820c6dca642/documents/*/upstage/normalized.json</td>
+</tr>
+<tr>
+<td>source_policy</td>
+<td>string</td>
+<td>Upstage JSON 보존, OCR/검증 통과 가정</td>
+</tr>
+<tr>
+<td>source_version</td>
+<td>object</td>
+<td>provider, structure_schema_version, normalization_contract, normalization_config_hash, normalization_model_recorded_in_source, normalization_reasoning_recorded_in_source</td>
+</tr>
+<tr>
+<td>counts</td>
+<td>object</td>
+<td>documents, pages, facts, known_percent, known_spend_threshold, known_cap, known_cap_period, positive_supported_action</td>
+</tr>
+<tr>
+<td>support_rates</td>
+<td>object</td>
+<td>known_*와 positive_supported_action의 전체 facts 대비 비율</td>
+</tr>
+<tr>
+<td>target_aliases</td>
+<td>object</td>
+<td>여행/커피/카페 → 별칭 목록</td>
+</tr>
+<tr>
+<td>limitations</td>
+<td>array[string]</td>
+<td>OCR 미재검증, 복잡한 수치/기간의 unknown 처리 등</td>
+</tr>
+</tbody>
+</table>
+<p>외부 db_build_summary.json의 verification/artifact_sha256는 DB metadata에 삽입한 후에 추가한다. 따라서 그 두 key가 metadata에 없다는 것은 누락 오류가 아니다.</p>
+<h3 id="documentsraw_json">documents.raw_json</h3>
+<table>
+<thead>
+<tr>
+<th>속성</th>
+<th>값 구조·역할</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>document_id, provider, *_sha256, source_relative_path, page_count, fact_count</td>
+<td>문서 SQL 값에 대응하는 출처 정보</td>
+</tr>
+<tr>
+<td>identity</td>
+<td>card_name, issuer_name, card_evidence.line_ids, issuer_evidence.line_ids</td>
+</tr>
+<tr>
+<td>structure_schema_version, normalization_contract</td>
+<td>원본 구조화/정규화 계약 버전</td>
+</tr>
+<tr>
+<td>provenance</td>
+<td>구조화 추출의 model, reasoning, config_hash, prompt_sha256, schema_sha256, endpoint, max_output_tokens 등 원본 기록</td>
+</tr>
+<tr>
+<td>ocr_provenance, ocr_parse_provenance</td>
+<td>OCR 제공자 설정과 정규화 정책의 원본 기록</td>
+</tr>
+<tr>
+<td>pages[]</td>
+<td>원본 정규화 페이지 객체. blocks/text/표 등 원문 연결에 필요한 자료를 보존. 페이지별 속성은 원본 제공 형태에 따름</td>
+</tr>
+</tbody>
+</table>
+<p>이 객체는 builder가 선택한 문서 정보를 저장한다. 원본 facts는 facts.raw_json에 따로 저장하며 documents.raw_json에 facts 목록을 중복 저장하지 않는다.</p>
+<h3 id="factsraw_json">facts.raw_json</h3>
+<table>
+<thead>
+<tr>
+<th>속성</th>
+<th>값 구조·예시·용도</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>target/action/benefit_type/value/unit/condition/cap/period/frequency/exceptions</td>
+<td>SQL의 원문 10개 *_raw 컬럼에 대응</td>
+</tr>
+<tr>
+<td>typed_normalization</td>
+<td>원본의 선택적 정규화 객체. 필드명 → [{kind, decimal}, …], condition_operators → 비교 연산자 목록 등. 현재 raw_json에서 키 누락 25행, 객체 3,378행, 명시적 null 0행. builder/reader의 get(...) or {}는 키 누락 및 null을 {}로 취급. 실제 관측 kind는 ratio, KRW, number</td>
+</tr>
+<tr>
+<td>typed_normalization.*[].kind</td>
+<td>ratio=비율, KRW=원화, number=일반 숫자. 현재 수치 파생기는 value의 ratio, condition/cap의 KRW를 사용</td>
+</tr>
+<tr>
+<td>typed_normalization.*[].decimal</td>
+<td>정밀 수치 문자열. 10%의 ratio는 "0.1", 30만원 KRW는 "300000". percent 컬럼의 10.0과 표현 단위가 다름</td>
+</tr>
+<tr>
+<td>field_evidence</td>
+<td>원문 필드명 → 근거 fragment 목록. 미기재/근거 없음은 빈 목록 가능</td>
+</tr>
+<tr>
+<td>field_evidence.*[].line_id</td>
+<td>원본 줄 레지스트리 참조. 예: P0003-L0010. 검색 chunk_id가 아님</td>
+</tr>
+<tr>
+<td>field_evidence.*[].fragment</td>
+<td>해당 줄에서 발췌한 원문. 예: 청구할인</td>
+</tr>
+<tr>
+<td>field_evidence.*[].char_start / char_end</td>
+<td>줄 문자열의 0부터 시작하는 시작/끝 위치. Python 슬라이스 [start:end], 끝 제외. <a href="../../jobs/rag-indexer/src/pickcardu_indexer/pipeline.py">원문 위치 처리 코드</a> 참고</td>
+</tr>
+<tr>
+<td>relation_scope.scope_type</td>
+<td>실제 sentence(문장), table_row(표 행), bounded_block(제한된 블록)</td>
+</tr>
+<tr>
+<td>relation_scope.line_ids</td>
+<td>같은 fact를 설명하는 원문 줄 목록</td>
+</tr>
+<tr>
+<td>relation_scope.row_line_ids / header_line_ids</td>
+<td>표 행/헤더의 연결 줄 목록. 해당하지 않으면 빈 목록</td>
+</tr>
+</tbody>
+</table>
+<p>raw_json의 typed_normalization 키는 필수가 아니다. SQL/JSON 보존본과 달리 load_facts 및 facts.jsonl 최상위의 typed_normalization/field_evidence/relation_scope는 값이 누락되거나 null이면 {}로 복원한다. 현재 field_evidence/relation_scope는 원문에서도 모두 객체다. 객체임을 가정한 소비자는 먼저 키 존재와 값을 처리해야 한다.</p>
+<p>원문 근거 참조를 보존했다는 사실은 참조/의미의 정확성이 이번에 검증됐다는 뜻이 아니다. 하나의 fact에 여러 줄·필드 fragment가 있을 수 있어 fact_id를 검색 chunk_id 하나로 곧바로 바꿀 수 있다고 가정하지 않는다.</p>
+<h3 id="factsderived_json">facts.derived_json: 전체 파생 속성</h3>
+<table>
+<thead>
+<tr>
+<th>속성</th>
+<th>값·의미·검색 사용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>target_normalized</td>
+<td>대상 원문에 NFKC/casefold/공백 제거 적용. 별도 SQL 컬럼 없음</td>
+</tr>
+<tr>
+<td>action_kind, action_status</td>
+<td>SQL 동명 컬럼과 동일</td>
+</tr>
+<tr>
+<td>percent, percent_state</td>
+<td>SQL 동명 컬럼과 동일</td>
+</tr>
+<tr>
+<td>spend_threshold_krw, spend_operator, spend_state</td>
+<td>SQL 동명 컬럼과 동일</td>
+</tr>
+<tr>
+<td>cap_krw, cap_state, cap_period</td>
+<td>SQL 동명 컬럼과 동일</td>
+</tr>
+<tr>
+<td>cap_period_state</td>
+<td>known/unknown/not_applicable. <strong>별도 SQL 컬럼 없음</strong>. 한도 기간 필터에서 사용</td>
+</tr>
+<tr>
+<td>action_reason / percent_reason / spend_reason / cap_reason / cap_period_reason</td>
+<td>각 값/상태를 만든 이유 문자열. 실제 전체 사유와 빈도는 inventory.nested_value_counts 참조. 판정 확률이나 LLM confidence가 아님</td>
+</tr>
+<tr>
+<td>period_raw</td>
+<td>원본 period 문자열의 파생 객체 내 보존본</td>
+</tr>
+<tr>
+<td>has_exceptions</td>
+<td>원본 예외 문구가 공백 제외 비어 있지 않으면 true. 현재 선택기가 이 bool을 직접 필터하지 않음</td>
+</tr>
+<tr>
+<td>exceptions_normalized</td>
+<td>예외 문구 정규화 문자열. 요구 대상이 포함되면 unknown 처리</td>
+</tr>
+</tbody>
+</table>
+<h3 id="json-null">JSON 키 누락과 명시적 null의 실제 관측</h3>
+<p>Missing(키 누락), Null(명시적 null), Empty object(빈 객체 {})를 구분한다. facts 원문/복원값은 각 3,403행, documents는 106행이 분모다. 품질 점수가 아니며 원문 누락값을 복원한 것이 신규 정보 추출을 뜻하지 않는다.</p>
+<table>
+<thead>
+<tr>
+<th>위치</th>
+<th>속성</th>
+<th>실제 타입: 행 수</th>
+<th>Missing</th>
+<th>Null</th>
+<th>Empty object</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>facts.raw_json</td>
+<td>typed_normalization</td>
+<td>object: 3378; missing: 25</td>
+<td>25</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>facts.raw_json</td>
+<td>field_evidence</td>
+<td>object: 3403</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>facts.raw_json</td>
+<td>relation_scope</td>
+<td>object: 3403</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>reader_restored_facts</td>
+<td>typed_normalization</td>
+<td>object: 3403</td>
+<td>0</td>
+<td>0</td>
+<td>25</td>
+</tr>
+<tr>
+<td>reader_restored_facts</td>
+<td>field_evidence</td>
+<td>object: 3403</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>reader_restored_facts</td>
+<td>relation_scope</td>
+<td>object: 3403</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>documents.raw_json</td>
+<td>identity</td>
+<td>object: 106</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>documents.raw_json</td>
+<td>pages</td>
+<td>array: 106</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>documents.raw_json</td>
+<td>provenance</td>
+<td>object: 106</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>documents.raw_json</td>
+<td>ocr_provenance</td>
+<td>object: 106</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>documents.raw_json</td>
+<td>ocr_parse_provenance</td>
+<td>object: 106</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+<p>typed_normalization은 원본 raw_json에서 객체 3,378행·키 누락 25행·명시적 null 0행이다. 현재 reader는 누락된 키를 {}로 복원하므로 읽은 facts에는 객체 3,403행이 있다. 원본 저장 형태와 reader 결과를 혼동하지 않는다.</p>
+<h2 id="8">8. 정규화 규칙과 질문 스키마의 연결</h2>
+<h3 id="_1">상태값의 의미</h3>
+<table>
+<thead>
+<tr>
+<th>상태</th>
+<th>의미</th>
+<th>예시</th>
+<th>잘못 해석하면 안 되는 점</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>known</td>
+<td>코드 규칙상 단일 값으로 비교 가능</td>
+<td>원문 10%와 typed ratio 0.1이 일치</td>
+<td>PDF 사실 정확도 검증 성공을 뜻하지 않음</td>
+</tr>
+<tr>
+<td>unknown</td>
+<td>원문에 값/문구가 있으나 모호·복합·불일치·지원 밖</td>
+<td>최대 10%, 3~5%, 두 실적 구간</td>
+<td>0/false로 바꾸지 않음</td>
+</tr>
+<tr>
+<td>not_applicable</td>
+<td>해당 파생 종류의 값/표현을 확인하지 못한 분기</td>
+<td>value/ratio 없음, cap 없음 등</td>
+<td>카드에 혜택/실적/한도가 없다는 전역 결론 아님</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>비율: 원본 typed ratio 하나 ×100과 원문 퍼센트값 하나가 일치해야 known. 범위/상한/하한/원화 혼합은 unknown. 질문의 최소 비율과 원문의 최대 비율을 혼동하지 않는다.</li>
+<li>실적: 명시 전월 실적 문구에 연결된 단일 금액·이상(gte)이 typed KRW와 맞아야 known. 코드가 이하(lte)를 식별할 수 있지만 확정 실적값으로 지원하지 않는다. 복수 구간은 unknown.</li>
+<li>지급 한도: 원문 금액 하나와 typed KRW 하나가 맞아야 known. 이용/결제/승인 금액 상한은 지급 혜택 한도로 사용하지 않는다.</li>
+<li>한도 기간: cap/period 문구의 월/일을 확인한다. 둘 다 등장하거나 불명확하면 unknown. 일반 period는 지급일·행사 기간일 수도 있다.</li>
+<li>행동: action + benefit_type에서 할인/적립 계열을 식별한다. 제외/제공되지 않음/적용되지 않음/불가이면 false, 할인과 적립 혼합은 unknown. <strong>질문 지시문은 earn에 캐시백을 포함한다고 설명하지만 현재 정규화 함수의 적립 토큰에는 캐시백이 없다.</strong> 캐시백만 있는 문구가 earn으로 정규화된다고 보장하지 않는다.</li>
+</ul>
+<h3 id="llm-queryplan">LLM이 출력하는 QueryPlan</h3>
+<p>LLM은 스키마를 새로 만들거나 SQL을 생성하지 않는다. 고정 Pydantic QueryPlan에 맞춘 JSON 값을 출력한다. 추가 속성은 extra=forbid지만 질문 의미의 정확성은 별도 검사 대상이다. 다음 필드는 기본값이 없어 출력에 필요하며 nullable은 null 허용을 뜻한다.</p>
+<table>
+<thead>
+<tr>
+<th>속성</th>
+<th>타입·허용값</th>
+<th>처리</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>route</td>
+<td>unstructured / structured_then_unstructured</td>
+<td>검색 경로 선택</td>
+</tr>
+<tr>
+<td>groups</td>
+<td>array[array[Requirement]]</td>
+<td>그룹 사이 OR, 그룹 내부 AND. 각 AND를 같은 카드가 충족</td>
+</tr>
+<tr>
+<td>card_keys</td>
+<td>array[string]</td>
+<td>공급한 catalog의 정확한 키. []는 전체 범위. 스키마 enum이 아니라 후속 목록 검사</td>
+</tr>
+<tr>
+<td>unresolved</td>
+<td>array[string]</td>
+<td>미지원/불명확 조건. 비어 있지 않으면 현재 실험에서 복귀</td>
+</tr>
+<tr>
+<td>Requirement.targets</td>
+<td>array[string]</td>
+<td>동일 혜택의 OR 대상. []는 대상 제한 없음</td>
+</tr>
+<tr>
+<td>Requirement.action</td>
+<td>discount / earn / any</td>
+<td>할인 / 적립 계열 / 종류 제한 없음</td>
+</tr>
+<tr>
+<td>Requirement.min_percent</td>
+<td>float 또는 null</td>
+<td>percent &gt;= 요구값. 정확히 같은 비율/최대 비율 필드 없음</td>
+</tr>
+<tr>
+<td>Requirement.max_spend_krw</td>
+<td>int 또는 null</td>
+<td>필요 전월 최소 실적 &lt;= 사용자가 허용한 상한. 개인 소비 예산을 자동 대입하지 않음</td>
+</tr>
+<tr>
+<td>Requirement.min_cap_krw</td>
+<td>int 또는 null</td>
+<td>지급 한도 &gt;= 요구 금액</td>
+</tr>
+<tr>
+<td>Requirement.cap_period</td>
+<td>month / day / any</td>
+<td>min_cap_krw가 있을 때만 기간 검사. 기간만 지정한 조건은 현재 별도 필터가 안 됨</td>
+</tr>
+<tr>
+<td>Requirement.exclude_targets</td>
+<td>array[string]</td>
+<td>동일 fact 대상 문자열에 제외 대상이 있으면 해당 fact 미충족</td>
+</tr>
+</tbody>
+</table>
+<p>스키마에 리스트 최소 길이·숫자 최소/최대 범위 제약이 없다. 예를 들어 groups=[[]]도 현재 형식 검사에 통과한다. 숫자 문자열 "10"은 Pydantic에서 수치로 정규화되지만 "10%"는 실패한다. 음수/과도한 수치의 의미적 유효성이 이 스키마로 보장되는 것은 아니다.</p>
+<h3 id="_2">같은 혜택 관계와 실행 방식</h3>
+<pre><code class="language-text">하나의 Requirement: 커피 + 할인 + 최소 10%
+→ 같은 fact에서 대상·행동·비율·요구 실적·요구 한도 확인
+
+AND 그룹: [커피 10% 할인, 넷플릭스 10% 할인]
+→ 같은 카드의 각 조건을 충족하는 fact가 필요
+→ 서로 다른 혜택 fact로 각 조건을 충족해도 됨
+
+OR 그룹: [[커피 10% 할인], [넷플릭스 10% 할인]]
+→ 어느 한 그룹을 충족하면 후보
+</code></pre>
+<p>현재 DB 읽기는 documents와 facts를 JOIN하여 raw_json/derived_json을 복원하고 Python 선택기가 비교한다. SQL 컬럼 인덱스로 조건별 WHERE를 생성하는 방식이 아니다. 상태가 true인 그룹의 fact_id를 카드별 matching_fact_ids로 반환한다. unknown은 true가 없고 필요한 값이 불확실한 카드로 분리되며, 하나라도 true 그룹이 있으면 후보가 된다.</p>
+<pre><code class="language-json">{
+  &quot;route&quot;: &quot;structured_then_unstructured&quot;,
+  &quot;groups&quot;: [[{
+    &quot;targets&quot;: [&quot;커피&quot;], &quot;action&quot;: &quot;discount&quot;, &quot;min_percent&quot;: 10,
+    &quot;max_spend_krw&quot;: null, &quot;min_cap_krw&quot;: null, &quot;cap_period&quot;: &quot;any&quot;,
+    &quot;exclude_targets&quot;: []
+  }]],
+  &quot;card_keys&quot;: [], &quot;unresolved&quot;: []
+}
+</code></pre>
+<p>위 조건과 일치한 카드 및 fact를 선택한다. 현재 S_THEN_U는 카드 목록만 검색 범위로 넘겨 원래 질문으로 벡터+BM25 검색한다. matching_fact_ids가 가리키는 원문 근거는 아직 최종 검색 후보에 자동 추가하지 않는다.</p>
+<h2 id="9">9. 실제 저장값·분포와 빈 값</h2>
+<p>아래는 2026-10-13 DB 관측값이다. SQL 허용값 전체나 사용자 질문의 빈도를 뜻하지 않는다. NULL count는 미저장값 수, Empty count는 정확한 빈 문자열 수, Distinct는 NULL을 제외한 서로 다른 값 수다. 각각 해당 테이블의 전체 행이 분모이며 품질 통과 기준은 없다. 원문 누락의 이유와 추출 정확도를 이 수치만으로 판정하지 않는다. 전체 자유 문자열과 빈도는 <a href="../../notebooks/data/44_structured_search_db_spec/schema_inventory.json">schema_inventory.json</a>의 column_profiles.value_counts에서 확인한다.</p>
+<h3 id="metadata">metadata: 전체 컬럼의 저장 프로필</h3>
+<table>
+<thead>
+<tr>
+<th>컬럼</th>
+<th>NULL count</th>
+<th>Empty count</th>
+<th>Distinct</th>
+<th>실제 예시(최대 3개, 각 120자 절단)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>key</code></td>
+<td>0</td>
+<td>0</td>
+<td>8</td>
+<td><code>counts</code><br><code>limitations</code><br><code>schema_version</code></td>
+</tr>
+<tr>
+<td><code>value_json</code></td>
+<td>0</td>
+<td>0</td>
+<td>8</td>
+<td>JSON 본문은 다음 예시/기계 판독 자료 참조</td>
+</tr>
+</tbody>
+</table>
+<h3 id="documents">documents: 전체 컬럼의 저장 프로필</h3>
+<table>
+<thead>
+<tr>
+<th>컬럼</th>
+<th>NULL count</th>
+<th>Empty count</th>
+<th>Distinct</th>
+<th>실제 예시(최대 3개, 각 120자 절단)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>document_id</code></td>
+<td>0</td>
+<td>0</td>
+<td>106</td>
+<td><code>BC/BC_Baro_Clear_Plus</code><br><code>BC/BC_Baro_KaPick</code><br><code>BC/BC_BizCorporate</code></td>
+</tr>
+<tr>
+<td><code>provider</code></td>
+<td>0</td>
+<td>0</td>
+<td>1</td>
+<td><code>upstage</code></td>
+</tr>
+<tr>
+<td><code>card_name</code></td>
+<td>0</td>
+<td>0</td>
+<td>106</td>
+<td><code>7CORE</code><br><code>ALL 우리카드 Infinite</code><br><code>Air One</code></td>
+</tr>
+<tr>
+<td><code>issuer_name</code></td>
+<td>0</td>
+<td>0</td>
+<td>22</td>
+<td><code>롯데카드</code><br><code>우리카드</code><br><code>IBK기업은행</code></td>
+</tr>
+<tr>
+<td><code>source_pdf_sha256</code></td>
+<td>0</td>
+<td>0</td>
+<td>106</td>
+<td><code>0de3582377f749a1c3db2b9e6f4cf02ec708a7f243d6a466f1f8cee8bdf40277</code><br><code>0e7ec487f3133f8400dd1e3fb26244c7947ebcbc65f7384e64f44501fc319aec</code><br><code>0f06d13bbb81e589092da814616552c1eafb91c104b1a70e95bb58b028e20f58</code></td>
+</tr>
+<tr>
+<td><code>normalized_json_sha256</code></td>
+<td>0</td>
+<td>0</td>
+<td>106</td>
+<td><code>02dbd7714f06309dbba216263a809ce352063232d84cfe5b4edf7f2f0c949243</code><br><code>02fa1abd7d8c8daba33aac9f2ea255f74588d8cc6421bc6c9c756cc48d4e425d</code><br><code>067803c539cd715e7a1efcb02118ee8c0b7e52c5b66f69e440364108ff3c3ce8</code></td>
+</tr>
+<tr>
+<td><code>source_relative_path</code></td>
+<td>0</td>
+<td>0</td>
+<td>106</td>
+<td><code>data/rag/runtime/working/run_f2d29820c6dca642/documents/BC__BC_Baro_Clear_Plus/upstage/normalized.json</code><br><code>data/rag/runtime/working/run_f2d29820c6dca642/documents/BC__BC_Baro_KaPick/upstage/normalized.json</code><br><code>data/rag/runtime/working/run_f2d29820c6dca642/documents/BC__BC_BizCorporate/upstage/normalized.json</code></td>
+</tr>
+<tr>
+<td><code>source_path_sha256</code></td>
+<td>0</td>
+<td>0</td>
+<td>106</td>
+<td><code>063e807d7fc7410e06f9e749ab4878488d1f151a16ebfc130285174b3e010e2b</code><br><code>074f424b3ab84c0c024e0364ea719c851c2931a93ada061085d50a6d215032d5</code><br><code>09f84057c52a26c183febe38c3dc5d9f61eec95ba6db18bb2c93cb7534cda30f</code></td>
+</tr>
+<tr>
+<td><code>page_count</code></td>
+<td>0</td>
+<td>0</td>
+<td>15</td>
+<td><code>2</code><br><code>8</code><br><code>6</code></td>
+</tr>
+<tr>
+<td><code>fact_count</code></td>
+<td>0</td>
+<td>0</td>
+<td>54</td>
+<td><code>15</code><br><code>35</code><br><code>16</code></td>
+</tr>
+<tr>
+<td><code>raw_json</code></td>
+<td>0</td>
+<td>0</td>
+<td>106</td>
+<td>JSON 본문은 다음 예시/기계 판독 자료 참조</td>
+</tr>
+</tbody>
+</table>
+<h3 id="facts">facts: 전체 컬럼의 저장 프로필</h3>
+<table>
+<thead>
+<tr>
+<th>컬럼</th>
+<th>NULL count</th>
+<th>Empty count</th>
+<th>Distinct</th>
+<th>실제 예시(최대 3개, 각 120자 절단)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>fact_id</code></td>
+<td>0</td>
+<td>0</td>
+<td>3403</td>
+<td><code>fact_007a1f0c8920646865cd86a6</code><br><code>fact_007edcb323879064762c9af8</code><br><code>fact_0086038247fc9234f433e59f</code></td>
+</tr>
+<tr>
+<td><code>document_id</code></td>
+<td>0</td>
+<td>0</td>
+<td>106</td>
+<td><code>hyundai/Hyundai_BlueMembers_F_M2_20260323</code><br><code>shinhan/Shinhan_Discount_Plan+_20250509</code><br><code>woori/Woori_ALL_Woori_Infinite</code></td>
+</tr>
+<tr>
+<td><code>ordinal</code></td>
+<td>0</td>
+<td>0</td>
+<td>87</td>
+<td><code>0</code><br><code>1</code><br><code>2</code></td>
+</tr>
+<tr>
+<td><code>target_raw</code></td>
+<td>0</td>
+<td>0</td>
+<td>1964</td>
+<td><code>가족카드</code><br><code>국내전용</code><br><code>국내외 가맹점</code></td>
+</tr>
+<tr>
+<td><code>action_raw</code></td>
+<td>0</td>
+<td>0</td>
+<td>616</td>
+<td><code>적립</code><br><code>할인</code><br><code>청구할인</code></td>
+</tr>
+<tr>
+<td><code>benefit_type_raw</code></td>
+<td>0</td>
+<td>0</td>
+<td>990</td>
+<td><code>연회비</code><br><code>M포인트</code><br><code>일상 생활비 적립 서비스</code></td>
+</tr>
+<tr>
+<td><code>value_raw</code></td>
+<td>0</td>
+<td>1533</td>
+<td>387</td>
+<td><code>`&lt;br&gt;</code>10<code>&lt;br&gt;</code>5`</td>
+</tr>
+<tr>
+<td><code>unit_raw</code></td>
+<td>0</td>
+<td>1871</td>
+<td>55</td>
+<td><code>`&lt;br&gt;</code>%<code>&lt;br&gt;</code>원`</td>
+</tr>
+<tr>
+<td><code>condition_raw</code></td>
+<td>0</td>
+<td>437</td>
+<td>1754</td>
+<td><code>`&lt;br&gt;</code>국내전용<code>&lt;br&gt;</code>100만원 이상`</td>
+</tr>
+<tr>
+<td><code>cap_raw</code></td>
+<td>0</td>
+<td>2307</td>
+<td>378</td>
+<td><code>`&lt;br&gt;</code>5천원<code>&lt;br&gt;</code>1만원`</td>
+</tr>
+<tr>
+<td><code>period_raw</code></td>
+<td>0</td>
+<td>2253</td>
+<td>403</td>
+<td><code>`&lt;br&gt;</code>월<code>&lt;br&gt;</code>당월 1일~말일까지`</td>
+</tr>
+<tr>
+<td><code>frequency_raw</code></td>
+<td>0</td>
+<td>2887</td>
+<td>165</td>
+<td><code>`&lt;br&gt;</code>월<code>&lt;br&gt;</code>월 1회 변경 가능`</td>
+</tr>
+<tr>
+<td><code>exceptions_raw</code></td>
+<td>0</td>
+<td>1808</td>
+<td>1070</td>
+<td><code>`&lt;br&gt;</code>① 생활소비, ② 건강/자기관리, ③ 교통, ④ 여가 영역별 월 할인한도는 개별 적용 최초 카드사용등록일로부터 다음 달 말일까지는 전월실적 미달 시에도 최소한도 기준으로 서비스가 제공되며, 전월실적 조건 달성 시 해<code>&lt;br&gt;</code>멤버십 구독료에 대해서는 혜택이 제공되지 않습니다.`</td>
+</tr>
+<tr>
+<td><code>action_kind</code></td>
+<td>1432</td>
+<td>0</td>
+<td>2</td>
+<td><code>discount</code><br><code>earn</code></td>
+</tr>
+<tr>
+<td><code>action_status</code></td>
+<td>0</td>
+<td>0</td>
+<td>3</td>
+<td><code>true</code><br><code>unknown</code><br><code>false</code></td>
+</tr>
+<tr>
+<td><code>percent</code></td>
+<td>2370</td>
+<td>0</td>
+<td>42</td>
+<td><code>10.0</code><br><code>5.0</code><br><code>1.0</code></td>
+</tr>
+<tr>
+<td><code>percent_state</code></td>
+<td>0</td>
+<td>0</td>
+<td>3</td>
+<td><code>not_applicable</code><br><code>known</code><br><code>unknown</code></td>
+</tr>
+<tr>
+<td><code>spend_threshold_krw</code></td>
+<td>3216</td>
+<td>0</td>
+<td>10</td>
+<td><code>400000</code><br><code>500000</code><br><code>800000</code></td>
+</tr>
+<tr>
+<td><code>spend_operator</code></td>
+<td>3208</td>
+<td>0</td>
+<td>2</td>
+<td><code>gte</code><br><code>unknown</code></td>
+</tr>
+<tr>
+<td><code>spend_state</code></td>
+<td>0</td>
+<td>0</td>
+<td>3</td>
+<td><code>not_applicable</code><br><code>unknown</code><br><code>known</code></td>
+</tr>
+<tr>
+<td><code>cap_krw</code></td>
+<td>3022</td>
+<td>0</td>
+<td>31</td>
+<td><code>5000</code><br><code>10000</code><br><code>20000</code></td>
+</tr>
+<tr>
+<td><code>cap_state</code></td>
+<td>0</td>
+<td>0</td>
+<td>3</td>
+<td><code>not_applicable</code><br><code>unknown</code><br><code>known</code></td>
+</tr>
+<tr>
+<td><code>cap_period</code></td>
+<td>3039</td>
+<td>0</td>
+<td>2</td>
+<td><code>month</code><br><code>day</code></td>
+</tr>
+<tr>
+<td><code>raw_json</code></td>
+<td>0</td>
+<td>0</td>
+<td>3403</td>
+<td>JSON 본문은 다음 예시/기계 판독 자료 참조</td>
+</tr>
+<tr>
+<td><code>derived_json</code></td>
+<td>0</td>
+<td>0</td>
+<td>2869</td>
+<td>JSON 본문은 다음 예시/기계 판독 자료 참조</td>
+</tr>
+</tbody>
+</table>
+<h3 id="target_aliases">target_aliases: 전체 컬럼의 저장 프로필</h3>
+<table>
+<thead>
+<tr>
+<th>컬럼</th>
+<th>NULL count</th>
+<th>Empty count</th>
+<th>Distinct</th>
+<th>실제 예시(최대 3개, 각 120자 절단)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>alias_group</code></td>
+<td>0</td>
+<td>0</td>
+<td>3</td>
+<td><code>여행</code><br><code>카페</code><br><code>커피</code></td>
+</tr>
+<tr>
+<td><code>alias</code></td>
+<td>0</td>
+<td>0</td>
+<td>15</td>
+<td><code>스타벅스</code><br><code>이디야</code><br><code>카페</code></td>
+</tr>
+<tr>
+<td><code>alias_normalized</code></td>
+<td>0</td>
+<td>0</td>
+<td>15</td>
+<td><code>스타벅스</code><br><code>이디야</code><br><code>카페</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="_3">코드 규칙과 별도로 확인한 상태·행동 관측값</h3>
+<p>각 빈도 분모는 facts 3,403행이다. NULL은 별도 값으로 표시한다. 서로 다른 상태와 행동 컬럼의 집계는 중복되므로 합쳐서 혜택 수로 계산하지 않는다.</p>
+<table>
+<thead>
+<tr>
+<th>컬럼</th>
+<th>관측값: 행 수</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>action_kind</td>
+<td>NULL: 1432; discount: 1151; earn: 820</td>
+</tr>
+<tr>
+<td>action_status</td>
+<td>true: 1818; unknown: 1249; false: 336</td>
+</tr>
+<tr>
+<td>percent_state</td>
+<td>not_applicable: 1533; known: 1033; unknown: 837</td>
+</tr>
+<tr>
+<td>spend_state</td>
+<td>not_applicable: 2097; unknown: 1119; known: 187</td>
+</tr>
+<tr>
+<td>spend_operator</td>
+<td>NULL: 3208; gte: 187; unknown: 8</td>
+</tr>
+<tr>
+<td>cap_state</td>
+<td>not_applicable: 2307; unknown: 715; known: 381</td>
+</tr>
+<tr>
+<td>cap_period</td>
+<td>NULL: 3039; month: 358; day: 6</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_4">수치 파생값 지원 현황</h3>
+<p>Known(확정 비교 가능)은 코드의 보수적 정규화 규칙을 통과한 상태다. 분모는 전체 facts 3,403개이며 일반 안내도 포함한다. 높을수록 사용 가능한 수치가 많지만 OCR 정확도·검색 정확도 점수는 아니다. 예: 단일 10%는 원문/typed 값이 같아야 known, 최대 10%는 unknown이다.</p>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>행 수</th>
+<th>전체 fact 대비 비율</th>
+<th>해석</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>known_percent</td>
+<td>1033</td>
+<td>30.36%</td>
+<td>비율값 확정</td>
+</tr>
+<tr>
+<td>known_spend_threshold</td>
+<td>187</td>
+<td>5.50%</td>
+<td>단일 전월 최소 실적 확정</td>
+</tr>
+<tr>
+<td>known_cap</td>
+<td>381</td>
+<td>11.20%</td>
+<td>지급 한도 금액 확정</td>
+</tr>
+<tr>
+<td>known_cap_period</td>
+<td>66</td>
+<td>1.94%</td>
+<td>한도 금액과 월/일 기간 모두 확정</td>
+</tr>
+<tr>
+<td>positive_supported_action</td>
+<td>1818</td>
+<td>53.42%</td>
+<td>긍정 할인/적립 행동 확정</td>
+</tr>
+</tbody>
+</table>
+<p>cap_period만 식별된 행은 364개(월 358, 일 6)지만 금액과 기간이 모두 known인 행은 66개다. 기간을 알 수 있다고 지급 한도 금액도 알 수 있는 것은 아니다.</p>
+<h2 id="10">10. 실제 커피 혜택 행과 근거 연결 예시</h2>
+<p>다음은 가상값이 아니라 DB JSONL과 일치 확인한 실제 fact의 일부다. 이 행에서 조건·한도 문구가 비어 있다는 사실은 해당 카드 전체가 무실적·무제한이라는 뜻이 아니다. 카드의 다른 근거와 적용 조건은 별도 확인해야 한다.</p>
+<pre><code class="language-json">{
+  &quot;fact_id&quot;: &quot;fact_fb3604346e3261cc2007a3c4&quot;,
+  &quot;document_id&quot;: &quot;BC/BC_Green_v2&quot;,
+  &quot;fields&quot;: {
+    &quot;action&quot;: &quot;청구할인&quot;,
+    &quot;benefit_type&quot;: &quot;커피&quot;,
+    &quot;cap&quot;: &quot;&quot;,
+    &quot;condition&quot;: &quot;&quot;,
+    &quot;exceptions&quot;: &quot;&quot;,
+    &quot;frequency&quot;: &quot;&quot;,
+    &quot;period&quot;: &quot;&quot;,
+    &quot;target&quot;: &quot;스타벅스, 투썸플레이스, 카페베네, 할리스커피&quot;,
+    &quot;unit&quot;: &quot;%&quot;,
+    &quot;value&quot;: &quot;10&quot;
+  },
+  &quot;derived&quot;: {
+    &quot;action_kind&quot;: &quot;discount&quot;,
+    &quot;action_reason&quot;: &quot;single supported positive action&quot;,
+    &quot;action_status&quot;: &quot;true&quot;,
+    &quot;cap_krw&quot;: null,
+    &quot;cap_period&quot;: null,
+    &quot;cap_period_reason&quot;: &quot;cap and period are absent&quot;,
+    &quot;cap_period_state&quot;: &quot;not_applicable&quot;,
+    &quot;cap_reason&quot;: &quot;typed cap count is not one&quot;,
+    &quot;cap_state&quot;: &quot;not_applicable&quot;,
+    &quot;exceptions_normalized&quot;: &quot;&quot;,
+    &quot;has_exceptions&quot;: false,
+    &quot;percent&quot;: 10.0,
+    &quot;percent_reason&quot;: &quot;single typed ratio agrees with raw percent&quot;,
+    &quot;percent_state&quot;: &quot;known&quot;,
+    &quot;period_raw&quot;: &quot;&quot;,
+    &quot;spend_operator&quot;: null,
+    &quot;spend_reason&quot;: &quot;no explicit previous-month spend phrase&quot;,
+    &quot;spend_state&quot;: &quot;not_applicable&quot;,
+    &quot;spend_threshold_krw&quot;: null,
+    &quot;target_normalized&quot;: &quot;스타벅스,투썸플레이스,카페베네,할리스커피&quot;
+  },
+  &quot;field_evidence&quot;: {
+    &quot;action&quot;: [
+      {
+        &quot;char_end&quot;: 15,
+        &quot;char_start&quot;: 11,
+        &quot;fragment&quot;: &quot;청구할인&quot;,
+        &quot;line_id&quot;: &quot;P0003-L0010&quot;
+      }
+    ],
+    &quot;benefit_type&quot;: [
+      {
+        &quot;char_end&quot;: 6,
+        &quot;char_start&quot;: 4,
+        &quot;fragment&quot;: &quot;커피&quot;,
+        &quot;line_id&quot;: &quot;P0003-L0010&quot;
+      }
+    ],
+    &quot;cap&quot;: [],
+    &quot;condition&quot;: [],
+    &quot;exceptions&quot;: [],
+    &quot;frequency&quot;: [],
+    &quot;period&quot;: [],
+    &quot;target&quot;: [
+      {
+        &quot;char_end&quot;: 29,
+        &quot;char_start&quot;: 4,
+        &quot;fragment&quot;: &quot;스타벅스, 투썸플레이스, 카페베네, 할리스커피&quot;,
+        &quot;line_id&quot;: &quot;P0003-L0011&quot;
+      }
+    ],
+    &quot;unit&quot;: [
+      {
+        &quot;char_end&quot;: 10,
+        &quot;char_start&quot;: 9,
+        &quot;fragment&quot;: &quot;%&quot;,
+        &quot;line_id&quot;: &quot;P0003-L0010&quot;
+      }
+    ],
+    &quot;value&quot;: [
+      {
+        &quot;char_end&quot;: 9,
+        &quot;char_start&quot;: 7,
+        &quot;fragment&quot;: &quot;10&quot;,
+        &quot;line_id&quot;: &quot;P0003-L0010&quot;
+      }
+    ]
+  },
+  &quot;relation_scope&quot;: {
+    &quot;header_line_ids&quot;: [],
+    &quot;line_ids&quot;: [
+      &quot;P0003-L0010&quot;,
+      &quot;P0003-L0011&quot;
+    ],
+    &quot;row_line_ids&quot;: [],
+    &quot;scope_type&quot;: &quot;bounded_block&quot;
+  },
+  &quot;typed_normalization&quot;: {
+    &quot;condition_operators&quot;: [],
+    &quot;value&quot;: [
+      {
+        &quot;decimal&quot;: &quot;0.1&quot;,
+        &quot;kind&quot;: &quot;ratio&quot;
+      }
+    ]
+  }
+}
+</code></pre>
+<h2 id="11">11. 별칭과 인덱스</h2>
+<p>별칭 확장은 고정 사전으로 대상 부분 문자열을 비교한다. 형태소 분석/온톨로지/완전한 업종 분류가 아니다. 문자열이 예외에도 등장하면 unknown으로 처리한다. 커피·카페 그룹은 같은 7개 별칭이며 여행은 8개, 전체 22행이다.</p>
+<table>
+<thead>
+<tr>
+<th>그룹</th>
+<th>별칭</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>여행</td>
+<td>여행, 항공, 항공사, 호텔, 숙박, 공항, 라운지, 면세점</td>
+</tr>
+<tr>
+<td>카페</td>
+<td>커피, 카페, 스타벅스, 투썸, 이디야, 폴바셋, 커피빈</td>
+</tr>
+<tr>
+<td>커피</td>
+<td>커피, 카페, 스타벅스, 투썸, 이디야, 폴바셋, 커피빈</td>
+</tr>
+</tbody>
+</table>
+<p>인덱스는 SQLite 선언의 조회 보조 장치다. 현재 선택기의 대상·비율 비교가 SQL 인덱스로 실행된다는 뜻은 아니다. 자동 PK/UNIQUE 인덱스는 sqlite_autoindex_*로 생성되고 SQL 본문이 NULL이다.</p>
+<table>
+<thead>
+<tr>
+<th>명시적 인덱스</th>
+<th>정의</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>idx_facts_action</td>
+<td><code>CREATE INDEX idx_facts_action ON facts(action_kind, action_status)</code></td>
+</tr>
+<tr>
+<td>idx_facts_cap</td>
+<td><code>CREATE INDEX idx_facts_cap ON facts(cap_krw) WHERE cap_state = 'known'</code></td>
+</tr>
+<tr>
+<td>idx_facts_document</td>
+<td><code>CREATE INDEX idx_facts_document ON facts(document_id)</code></td>
+</tr>
+<tr>
+<td>idx_facts_percent</td>
+<td><code>CREATE INDEX idx_facts_percent ON facts(percent) WHERE percent_state = 'known'</code></td>
+</tr>
+<tr>
+<td>idx_facts_spend</td>
+<td><code>CREATE INDEX idx_facts_spend ON facts(spend_threshold_krw) WHERE spend_state = 'known'</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="ddl">실제 테이블 DDL</h3>
+<p>PK/FK/UNIQUE와 null 선언을 감사할 때의 기준이다. DEFAULT, CHECK, JSON 유효성 검사, ENUM, STRICT 선언은 이 스키마에 없다.</p>
+<pre><code class="language-sql">CREATE TABLE metadata (key TEXT PRIMARY KEY, value_json TEXT NOT NULL);
+</code></pre>
+<pre><code class="language-sql">CREATE TABLE documents (
+            document_id TEXT PRIMARY KEY,
+            provider TEXT NOT NULL,
+            card_name TEXT,
+            issuer_name TEXT,
+            source_pdf_sha256 TEXT NOT NULL,
+            normalized_json_sha256 TEXT NOT NULL,
+            source_relative_path TEXT NOT NULL,
+            source_path_sha256 TEXT NOT NULL,
+            page_count INTEGER NOT NULL,
+            fact_count INTEGER NOT NULL,
+            raw_json TEXT NOT NULL
+        );
+</code></pre>
+<pre><code class="language-sql">CREATE TABLE facts (
+            fact_id TEXT PRIMARY KEY,
+            document_id TEXT NOT NULL REFERENCES documents(document_id),
+            ordinal INTEGER NOT NULL,
+            target_raw TEXT NOT NULL,
+            action_raw TEXT NOT NULL,
+            benefit_type_raw TEXT NOT NULL,
+            value_raw TEXT NOT NULL,
+            unit_raw TEXT NOT NULL,
+            condition_raw TEXT NOT NULL,
+            cap_raw TEXT NOT NULL,
+            period_raw TEXT NOT NULL,
+            frequency_raw TEXT NOT NULL,
+            exceptions_raw TEXT NOT NULL,
+            action_kind TEXT,
+            action_status TEXT NOT NULL,
+            percent REAL,
+            percent_state TEXT NOT NULL,
+            spend_threshold_krw INTEGER,
+            spend_operator TEXT,
+            spend_state TEXT NOT NULL,
+            cap_krw INTEGER,
+            cap_state TEXT NOT NULL,
+            cap_period TEXT,
+            raw_json TEXT NOT NULL,
+            derived_json TEXT NOT NULL,
+            UNIQUE(document_id, ordinal)
+        );
+</code></pre>
+<pre><code class="language-sql">CREATE TABLE target_aliases (
+            alias_group TEXT NOT NULL,
+            alias TEXT NOT NULL,
+            alias_normalized TEXT NOT NULL,
+            PRIMARY KEY(alias_group, alias)
+        );
+</code></pre>
+<h2 id="12">12. 지원 범위·빈 곳·다음 비교에 필요한 확인</h2>
+<table>
+<thead>
+<tr>
+<th>요구/정보</th>
+<th>현재 상태</th>
+<th>후속 확인</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>가맹점/업종·할인/적립·최소 비율</td>
+<td>단일 fact 조건 지원</td>
+<td>고정 별칭/문자열 포함 검사의 오탐·미탐</td>
+</tr>
+<tr>
+<td>전월 최소 실적·지급 한도·월/일</td>
+<td>known인 단일 값만 지원</td>
+<td>복수 실적 구간·공유 한도·혼합 기간 처리</td>
+</tr>
+<tr>
+<td>원화 정액 할인·마일리지·포인트 환산</td>
+<td>원문/typed로 보존하지만 QueryPlan 비교 필드 없음</td>
+<td>필요 질문을 먼저 정하고 단위별 필터 설계</td>
+</tr>
+<tr>
+<td>횟수/행사 날짜/결제 채널/연회비/개인 예산 최적화</td>
+<td>일부 원문 정보는 보존. 전용 필터 없음</td>
+<td>비구조화 보완 필요. raw 저장과 검색 지원을 구분</td>
+</tr>
+<tr>
+<td>전체 카드 기준 제외 혜택</td>
+<td>exclude_targets는 개별 fact 대상에 적용</td>
+<td>카드의 다른 혜택에 제외 대상이 있으면 카드 전체를 제외하는 정책과는 다름</td>
+</tr>
+<tr>
+<td>긍정 혜택과 적용 제외 관계</td>
+<td>action 부정/예외 대상은 보수 처리</td>
+<td>전체 관계 의미 검증 및 OCR 검증은 미실행</td>
+</tr>
+<tr>
+<td>fact → 원문 → 검색 chunk</td>
+<td>원문 fragment/줄/범위 있음, chunk_id SQL 컬럼 및 매핑 테이블 없음</td>
+<td>다음 비교 전에 원문 연결·같은 카드 소유권·복수 청크 연결 검증</td>
+</tr>
+<tr>
+<td>구조화 후보가 남는 의미 오류</td>
+<td>형식 검사만으로 검출되지 않음</td>
+<td>질문-조건 의미 검증/재검색 실험 필요</td>
+</tr>
+<tr>
+<td>추출 실패의 지정 카드 범위</td>
+<td>현재 예외 처리에서 card_keys 초기화</td>
+<td>신뢰 가능한 지정 범위 보존 방식을 실험할 필요</td>
+</tr>
+<tr>
+<td>빈 내부 AND 그룹</td>
+<td>현재 모든 범위 카드를 통과시킬 수 있음</td>
+<td>합의 방향은 빈 조건을 사용하지 않고 비구조화 복귀. 코드에는 아직 미반영</td>
+</tr>
+</tbody>
+</table>
+<p>fact_id는 내용 전체의 해시가 아니다. 같은 문서/PDF/순서에서 fact 문구가 바뀌어도 fact_id만으로 변경을 알아낼 수 없으므로 normalized_json_sha256와 artifact 해시를 함께 확인한다. 구조화 후보 선택이 정답 라벨을 대신하지 않으며 OCR 통과 가정과 제목 계층 미완성도 유지한다.</p>
+<h2 id="13">13. 검증·자원·문서 재생성</h2>
+<p>실제 SQLite를 mode=ro&amp;immutable=1 및 query_only=ON으로 읽었다. 입력 DB/JSONL/요약/참고 코드의 해시·크기·mtime 보존, summary artifact SHA 일치, integrity_check=ok, foreign_key_check 오류 없음, SQLite와 JSONL facts 3,403행 및 documents 106행의 일치를 확인했다. 불변 모드는 WAL을 무시하므로 현재 정적 실험 DB에 적용했으며 활성 writer가 있는 운영 DB의 최신 조회 방법으로 일반화하지 않는다.</p>
+<p>새 실험 API 요청 0, 추가 실험 API 사용량 비용 0달러, 새 임베딩/OCR/모델 검색 추론 0. Codex 문서 작성의 모델 사용료·청구액, 경과/CPU/GPU/최대 메모리는 미측정이다. 다음 방식 비교의 성능·비용·지연은 아직 측정하지 않았다. 정적 HTML과 로컬 링크는 확인하며 브라우저 시각 검증 여부는 별도 완료 기록에 적는다.</p>
+<pre><code class="language-bash">python -B notebooks/44_inspect_structured_db.py
+python -B notebooks/44_render_db_spec.py
+</code></pre>
+<p>기존 승인 환경의 markdown/nbformat/nbclient를 사용하고 새 패키지를 설치하지 않았다. inspector는 원본 DB를 재생성하지 않고 44번 JSON inventory만 작성한다. renderer는 44번 Markdown과 HTML만 작성한다. 별도 helper는 다수 테이블/컬럼의 반복 검사와 재생성 책임을 담당하며, 노트북은 이를 읽기 전용으로 재검사하고 결과를 표시한다. 전체 유료 실험을 노트북에서 재실행하는 구조가 아니다.</p>
+<h2 id="_5">최종 정리</h2>
+<p>현재 4테이블 41컬럼의 선언·값 규칙·관측 분포·JSON 내부 근거·질문 조건 연결을 문서화했다. 원문과 파생값의 관계는 유지되지만 원화 정액·복합 구간 등 검색 미지원 정보가 남아 있다. 운영/DB/이전 실험은 변경하지 않았고 이번 단계에서 채택·거절한 검색 설정은 없다. 추가 실험 API 비용 0, 시간·메모리 미측정이다. 다음 단계는 fact와 원문 청크를 연결해 현재 카드 범위 검색과 근거 보완 검색을 같은 조건에서 비교하는 것이다. 성능 우열은 아직 미확정이다.</p></main></body></html>
