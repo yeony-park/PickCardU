@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>46. 조건 추출·오타·실패 경계 검증</title>
+<style>body{margin:0;background:#f5f7fb;color:#20304a;font:16px/1.75 system-ui,sans-serif}main{max-width:1150px;margin:24px auto;background:white;padding:30px}h2{border-top:1px solid #dae1ec;padding-top:20px}table{border-collapse:collapse;width:100%;font-size:14px;margin:18px 0}th,td{border:1px solid #cbd5e1;padding:9px;text-align:left;vertical-align:top}th{background:#edf3fb}a{color:#1458aa}code{overflow-wrap:anywhere}aside{padding:14px;background:#fff5dc}small{color:#526079}</style>
+</head><body><main>
+<h1>46. 질문 조건 추출과 실패 경계</h1>
+<p>2026-10-21 · 개발 평가 · <a href="../../notebooks/46_query_boundary_validation.ipynb">대응 노트북</a> · 운영 변경 없음</p>
+
+<h2>왜 실행했고 무엇을 확인했는가</h2>
+<p>구조화 검색을 먼저 실행할 때 빈 조건을 전체 충족으로 처리하거나, 추출 실패로 사용자가 지정한 카드 범위를 잃으면 검색 범위가 잘못될 수 있다. 이 경계를 먼저 재현·검사하고, 오타와 모호한 표현에서 실제 LLM 조건 출력이 얼마나 안정적인지 확인했다. 검색·답변 품질 비교에 앞선 파서 전용 단계이며, benefit과 parent-child에서 같은 추출을 중복 호출하지 않았다.</p>
+
+<h2>바꾼 것과 고정한 것</h2>
+<p>빈 AND·빈 대상·잘못된 계획·추출 실패·후보 없음은 비구조화로 복귀하도록 실험용 정책을 만들었다. 독립적으로 확인한 명시 카드 범위는 복귀 후에도 유지하고, 스카이패스처럼 상품이 불명확한 명시 범위는 확인을 요청하는 경로로 보냈다. 원질문은 보존했다.</p>
+<p>기존 QueryPlan 스키마와 33번 파서 지시문, 106개 카드 catalog, gpt-6-luna·medium·출력 상한 3,000을 고정했다. 새 프레임워크·OCR·청킹 변경·문서/질문 임베딩·검색·재정렬·답변 생성은 없었다. 46~49 전체 비용 상한은 사용자 지정 8달러이며, 이번 단계는 0.50달러·최대 72회·자동 재시도 0회로 봉인했다. 반복 키별로 새 API 응답을 받고 재개 시 질문·반복·manifest·원응답 요청을 대조했다.</p>
+
+<h2>주의점</h2>
+<aside>24개 입력을 3회 추출한 72개 관측이다. 독립 질문 72개나 운영 정확도 측정이 아니다. 준비한 합성 의미 오류 6개도 실제 오류율의 표본이 아니다. OCR 통과 가정과 불완전한 parent-child 제목 계층은 검증하지 않았다. API 요청 성공, 의미가 맞는 추출, DB 조건 일치, 최종 답변 정확성은 각각 다르다.</aside>
+
+<h2>1. 기존 경계 실패를 재현하고 정책을 검사했다</h2>
+<p><strong>Mandatory Boundary Regression / 필수 경계 회귀</strong>는 고정 9개 사례에서 기대 경로와 카드 범위를 모두 지킨 수다. 높을수록 좋으며 9/9가 다음 단계 진행 기준이다. 예를 들어 A카드를 명시한 질문의 추출이 실패해도 A 범위를 유지한 비구조화 복귀여야 통과한다. 모든 자연어 오류를 검증하는 지표는 아니다.</p>
+<table><thead><tr><th>조건</th><th>통과 / 9</th><th>확인 내용</th></tr></thead><tbody>
+<tr><td>기존 동작 재생</td><td>4 / 9</td><td>빈 내부 AND, 실패 후 명시 범위, 알 수 없는 카드, 모호한 범위, 빈 requirement의 5개 문제 재현</td></tr>
+<tr><td>실험용 경계 정책</td><td><strong>9 / 9</strong></td><td>전체 충족으로 오판하지 않고 복귀·범위 보존·확인 처리</td></tr>
+</tbody></table>
+<p>카드 A와 카드 B의 서로 다른 혜택을 합쳐 한 카드의 AND 충족으로 만들지 않는 검사도 포함했다. 실제 48개 과거 저장 계획은 새 호출 없이 현재 정책으로 재생했으며, 30개는 구조화 일치, 7개는 후보 없음, 11개는 미해결/비구조화 경로였다. 이 재생은 새 검색이나 독립 확인 결과가 아니다.</p>
+
+<h2>2. 실제 정상·변형 질문을 3회씩 추출했다</h2>
+<p><strong>Parser Success / 추출 요청 성공</strong>은 스키마 출력이 저장된 요청 수이며 분모는 실제 요청 수다. 높을수록 좋지만 내용 정확성을 뜻하지 않는다. <strong>Frozen Annotation Match / 고정 주석 기준 충족</strong>은 대상 별칭·행동·수치·조건·카드 범위 또는 사전 지정한 모호성 처리 기준을 관측별로 모두 만족해야 1이다. 각 칸의 분모는 4개 입력×3회인 12다. 예: 커피 10% 할인·실적 30만원 이하의 연결이 맞아야 한다. 자유로운 의미 동등성이나 최종 검색 성능 지표가 아니며, 아래 주석·별칭 문제를 함께 읽어야 한다.</p>
+<table><thead><tr><th>집단</th><th>정상 질문 기준 충족</th><th>변형 질문 기준 충족</th><th>요청 성공</th></tr></thead><tbody>
+<tr><td>명확한 오타 4쌍</td><td>12 / 12</td><td>11 / 12</td><td>24 / 24</td></tr>
+<tr><td>띄어쓰기·구어체 4쌍</td><td>12 / 12</td><td>11 / 12</td><td>24 / 24</td></tr>
+<tr><td>모호한 표현 4쌍</td><td>9 / 12 <strong>※</strong></td><td>7 / 12</td><td>24 / 24</td></tr>
+</tbody></table>
+<p><strong>※ 평가 주석 오류:</strong> 정상 질문 “트래블로그 신용카드의 여행 혜택”은 카드가 명시됐지만 고정 주석에 해당 카드 범위가 빠졌다. 올바르게 카드를 지정한 출력 3건이 자동 점수에서 0이 됐다. 원래 점수와 주석을 보존했으며, 이 3건을 LLM의 잘못된 추출로 해석하지 않는다. 결과를 본 뒤 수정한 합계로 사전 기준 통과율을 대체하지 않았다.</p>
+<p>변형 질문의 주요 관측은 다음과 같다.</p>
+<ul>
+<li>“넷플리스 구독료”는 한 번 “넷플릭스 구독료”로 추출했다. 뜻은 통하지만 DB 대상 정규화와 맞지 않아 후보가 없었고 비구조화로 복귀했다. 오타 보정 성공과 구조화 조회 성공을 구분해야 한다.</li>
+<li>“GS25랑 넷플릭스 둘다”에서 한 번 Netflix로 출력했다. 초기 문자 검사는 이를 다른 대상으로 오거절했다. 대상 문자열 차이만으로 거절하는 규칙은 선정하지 않았다.</li>
+<li>모호한 “카피 비용”은 3회 중 1회만 확인이 필요하다고 출력했다. 나머지에는 원문 카피 또는 커피로 해석한 출력이 있었다. 문맥 없는 오타의 보정을 보장할 수 없다.</li>
+<li>“페이 결제”는 3회 모두 특정 제공자를 만들지 않고 범주를 유지했지만, 사전 주석의 확인 요청 기준은 만족하지 못했다. 확인 요청 미충족을 곧바로 혜택 사실 오류라고 단정하지 않는다.</li>
+<li>모호한 “스카이패스 카드”는 3회 모두 실험용 범위 정책에서 확인 경로로 처리했다.</li>
+</ul>
+
+<h2>3. 어떤 경계 정책을 다음 실험에 사용할 것인가</h2>
+<p><strong>Controlled Semantic Fallback / 고정 의미 반례의 복귀</strong>는 잘못된 계획 6개 중 비구조화로 복귀한 수다. 알려진 잘못된 제한을 풀어 주는 사례가 많을수록 바람직하지만 실제 의미 오류율은 아니다. 의미 문자 규칙과 카드 범위 정책을 구분한다. 예: 커피 20%를 넷플릭스 20%로 바꾸면 형식과 DB 후보가 정상이어도 원질문과 다르다.</p>
+<table><thead><tr><th>정책</th><th>의미 규칙으로 복귀</th><th>명시 범위 충돌로 복귀</th><th>총 복귀 / 6</th><th>실제 출력에서 본 한계</th></tr></thead><tbody>
+<tr><td>초기 문자 검사 포함</td><td>5</td><td>1</td><td>6 / 6</td><td>Netflix 영문 표현 오거절 1건</td></tr>
+<tr><td><strong>선정: 대상 문자열은 진단만</strong></td><td>4</td><td>1</td><td>5 / 6</td><td>잘못된 대상 의미 1건은 통과할 수 있음</td></tr>
+</tbody></table>
+<p>선정 정책은 빈 조건·스키마·실패·신뢰 가능한 카드 범위를 검사하고, 명시 퍼센트·할인/적립·기간·분명한 AND/OR의 충돌은 복귀시킨다. 대상의 한국어/영문 문자열 차이는 기록만 남긴다. 대상 의미 오류를 모두 잡는 검증기는 아니다. 이 정책은 개발 결과를 보고 고른 설정이며 49번의 별도 확인을 아직 통과하지 않았다.</p>
+
+<h2>4. 비용과 응답시간</h2>
+<p>시간은 72개 실제 API 요청의 경과시간이다. 같은 품질이라면 낮을수록 좋지만 운영 통과 SLA는 미정이다. P95는 정렬 후 <code>ceil(0.95×72)</code>인 69번째 값이며, 평균과 함께 느린 요청 구간을 본다. 예를 들어 파서가 5초 걸리면 그 시간은 검색·답변 생성 시간에 포함되지 않은 별도 단계다. 아래 값은 전체 RAG 응답시간이 아니다.</p>
+<p>비용은 원응답의 입력·출력·캐시 읽기/쓰기 토큰에 공식 단가를 적용한 사용량 환산액이다. 같은 품질이면 낮을수록 좋으며 전체 8달러를 요청 전 비용 예약과 함께 제한했다. 실패·재시도도 비용 집계 대상이지만 이번 실행에서는 없었다. 최대 출력 3,000은 실제 소비량이 아니다. 실제 청구서·세금·다른 세션 비용은 미측정이다. <a href="https://developers.openai.com/api/docs/models/gpt-6-luna">OpenAI 공식 모델 단가</a>를 2026-10-21 확인했다.</p>
+<table><thead><tr><th>관측 항목</th><th>결과</th><th>범위·해석</th></tr></thead><tbody>
+<tr><td>실제 요청 / 성공 / 실패 / 재시도</td><td>72 / 72 / 0 / 0</td><td>3회 반복은 서로 다른 원응답</td></tr>
+<tr><td>사용량 비용</td><td><strong>$0.009009430</strong></td><td>전체 $8 상한 안에서 수행</td></tr>
+<tr><td>입력 / 출력 토큰</td><td>210,063 / 13,005</td><td>실제 응답 usage의 합계</td></tr>
+<tr><td>캐시 읽기 / 쓰기 / 일반 입력 토큰</td><td>206,483 / 3,364 / 216</td><td>입력 토큰의 서로 겹치지 않는 구분</td></tr>
+<tr><td>평균 / 중앙값 응답시간</td><td>3.27초 / 2.75초</td><td>72개 실제 파서 요청</td></tr>
+<tr><td>P95 / 최대 응답시간</td><td>5.55초 / 10.41초</td><td>표본의 느린 요청 구간</td></tr>
+<tr><td>추출 루프 경과 / CPU 시간</td><td>241.07초 / 7.18초</td><td>최초 유료 실행 프로세스</td></tr>
+<tr><td>최대 상주 메모리</td><td>228,552 KiB, 약 223.2 MiB</td><td>파서 전용 프로세스. 검색 모델의 메모리는 미측정</td></tr>
+<tr><td>새 문서/질문 임베딩 · 검색 · 답변 생성</td><td>모두 0회</td><td>이 단계는 검색 품질 비교를 하지 않음</td></tr>
+<tr><td>GPU·실제 청구액·운영 SLA</td><td>GPU 미사용 · 나머지 미측정/미정</td><td>운영 자원·비용 보장으로 확대하지 않음</td></tr>
+</tbody></table>
+
+<h2>근거와 재현 범위</h2>
+<p><a href="../../notebooks/data/46_query_boundary_validation/execution_manifest.json">실행 전 계약</a>, <a href="../../notebooks/data/46_query_boundary_validation/parser_results.json">72개 추출 원관측과 자원</a>, <a href="../../notebooks/data/46_query_boundary_validation/evaluation_results.json">원래 평가와 집단별 집계</a>, <a href="../../notebooks/data/46_query_boundary_validation/post_run_policy_audit.json">실행 뒤 정책·주석 진단</a>, <a href="../../notebooks/data/46_query_boundary_validation/selected_policy.json">선정 정책</a>, <a href="../../notebooks/data/46_query_boundary_validation/independent_review.json">독립 코드 리뷰 기록</a>, <a href="../EVALUATION_METRICS.md">평가지표 정의</a>를 함께 확인할 수 있다.</p>
+<p>초기 노트북 전체를 실제 API로 실행한 뒤 정책 선정 셀을 추가했다. 추가 셀은 저장 원응답으로 실행했으며 새 API 호출은 하지 않았다. 이후 전체 노트북의 오프라인 재개 검사를 별도로 기록한다. 원래 유료 실행의 시간·사용량과 오프라인 재생의 시간은 구분한다. 보고서 본문은 실제 원응답과 집계, 주석 문제를 확인한 뒤 직접 작성했다.</p>
+
+<h2>최종 정리</h2>
+<p>빈 조건·실패·명시 카드 범위의 알려진 경계 문제는 고정 9개 사례에서 개선됐다. 오타는 대체로 해석했지만 DB 대상 정규화와 모호한 표현 처리는 남아 있다. 초기 대상 문자 검사는 정상 영문 표현을 거절해 미선정했고, 대상 의미 오류 1개를 놓칠 수 있음을 공개한 보수적 경계 정책을 다음 개발 실험에 사용한다. 비용은 약 0.009달러, 파서 평균 응답시간은 3.27초였다. 다음 단계는 47번 부분조건 활용 비교이며, 운영 이식 적격 판정과 실제 운영 반영은 아직 하지 않았다.</p>
+</main></body></html>
