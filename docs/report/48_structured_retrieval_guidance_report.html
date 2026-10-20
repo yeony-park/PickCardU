@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>48. 구조화 단서를 이용한 검색 보조 비교</title>
+<style>body{max-width:1120px;margin:40px auto;padding:0 20px;font:17px/1.7 system-ui;color:#172737}h1,h2{line-height:1.3}table{border-collapse:collapse;width:100%;margin:20px 0}th,td{border:1px solid #cbd5df;padding:9px;text-align:left}th{background:#edf3f7}.note{background:#fff5d8;padding:18px}.selected{background:#eaf5ed}strong{color:#164b38}a{color:#125f96}</style>
+<h1>48. 원질문을 보존한 구조화 검색 보조</h1>
+<p>2026-10-21 · 개발 실험 · <strong>두 프로필 모두 기존 A를 유지한다.</strong> 구조화 단서로 일부 조건을 보완했지만 기존 중요조건이 빠진 사례도 확인했다. 원질문 검색을 먼저 유지해도 최종 후보와 근거가 바뀌면서 조건을 잃을 수 있었다. 운영 적용은 하지 않았다.</p>
+<h2>왜 실행했나</h2>
+<p>45번은 검색 이후 구조화 근거를 답변 입력에 다시 넣는 비교였다. 이번에는 구조화 DB에서 실제 일치한 혜택·조건을 <em>검색 단계의 보조어</em>로 활용했다. 41·42번의 질문/별칭 보강과도 구분한다. 새 질의 생성 LLM은 사용하지 않았고, 답변 LLM에는 세 방식 모두 원질문과 검색 근거를 전달했다.</p>
+<p>A는 원질문으로 Vector/BM25 각각 50개를 검색한다. B는 A의 원질문 성분을 그대로 보존하고 같은 카드 범위에서 보조어로 각각 50개를 추가 검색한다. 두 경로를 성분별 동일 가중치 RRF(순위 역수 결합)로 합친 뒤 기존 검색 결합·원질문 재정렬을 사용한다. A_budget은 원질문으로 각각 100개를 검색하는 예산 대조군이다. 최종 후보 20개·카드 3개·카드별 근거 최대 5개·입력 64,000바이트는 동일하다. A_budget은 조회 후보 수 대조군이며 임베딩·중복·CPU 비용까지 같은 조건은 아니다.</p>
+<p>47번의 전체 복귀 A를 고정하고 기존 개발 질문 48개 × 두 운영 프로필 × 세 설정, 288개 논리 답변을 비교했다. 문서·청크·문서 임베딩·모델 gpt-6-luna·reasoning medium·답변 출력 상한 2,400토큰을 유지했다. parent-child는 기존 budget5(토큰 기준 안에서 청크 묶음 최대 5개)를 사용했다. 운영 소스는 읽기 전용으로 재사용했다.</p>
+<h2>보조어를 쓸 수 있었던 범위</h2>
+<p>구조화 전체 조건에 일치하고 45번 원문-청크 연결에서 확인된 fact 중, 원문 문자 위치까지 다시 맞는 필드만 사용했다. 각 혜택의 대상·값·조건은 같은 ‘혜택 묶음’ 안에 유지했다. 전체 fact 단위로 4,096바이트 한도를 적용했고 실제 최대는 1,294바이트였다. 과거 verified 표기에도 문자 위치가 맞지 않는 4건은 제외했다. 원문·DB·과거 결과는 수정하지 않았다.</p>
+<p>보조 적용은 benefit 23/48, parent-child 9/48, 합계 32/96이었다. 나머지에서는 B가 A를 그대로 사용했다. <strong>구조화 1차 카드 선정과 별개로, 보조어 승인 범위에는 프로필별 출처 연결 검증 차이가 있다.</strong> 이 비교를 순수 청킹 우열이나 전체 DB 정확도로 해석할 수 없다. 출처의 문자 일치도 모든 혜택 관계의 의미 정확도를 보장하지는 않는다.</p>
+<h2>전체 조건의 자동 진단</h2>
+<p class="note">아래는 기존 42번의 <strong>부분 정답 목록을 그대로 사용한 진단값</strong>이다. 실제 정답률이나 원문 조건 완전성으로 읽으면 안 된다. 예를 들어 E04의 taptap DIGITAL 멜론 50%와 E41의 Point Plan 계열 통신 적립처럼 목록 밖 유효 카드도 있다. 원점수는 보존하고 별도의 원문 판단으로 구분했다. 최종 선정은 중요조건 손실 기준으로 판정했다.</p>
+<p><strong>지표 안내:</strong> Hit@3(상위 3개 정답 포함)은 사전 양성 정답이 있는 44질문 중 정답 목록 카드가 상위 3개에 한 장이라도 포함된 질문 수다. MRR(첫 정답 순위 역수 평균)은 같은 44질문에서 1위=1, 2위=1/2, 3위=1/3, 없음=0을 평균한다. Known-positive answer match(자동 정답목록 일치)는 해당 목록과 고정 혜택 규칙을 답변이 충족한 질문 수다. 모두 높을수록 좋고 개별 질문은 규칙 일치 시 1이다. 예를 들어 올바른FLEX가 2위면 Hit는 1, 순위 점수는 1/2다. 목록 밖 유효 카드·문장 의미·실적/한도 누락은 이 값만으로 판별하지 못한다. 하위유형 분모는 수치 16, 고유명사 16, 의미 양성 12이며, 의미 질문 중 나머지 4개는 양성 정답을 지정하지 않아 제외했다.</p>
+<table><caption>한 번 실행한 개발 진단, 전 설정 공개. 굵은 값은 프로필 내부 최고 원점수.</caption><thead><tr><th>프로필</th><th>설정</th><th>Hit@3</th><th>MRR</th><th>자동 일치</th><th>수치 / 고유명사 / 의미 자동 일치</th></tr></thead><tbody>
+<tr class="selected"><td>benefit</td><td>A · 유지</td><td>35/44</td><td>0.6856 · 차순위</td><td>31/44</td><td>12/16 · 16/16 · 3/12</td></tr>
+<tr><td>benefit</td><td>B · 구조화 보조</td><td>32/44</td><td>0.6439</td><td>29/44</td><td>11/16 · 16/16 · 2/12</td></tr>
+<tr><td>benefit</td><td>A_budget · 예산 대조</td><td><strong>38/44</strong></td><td><strong>0.7083</strong></td><td><strong>33/44</strong></td><td>12/16 · 16/16 · 5/12</td></tr>
+<tr class="selected"><td>parent-child</td><td>A · 유지</td><td><strong>34/44</strong></td><td><strong>0.6553</strong></td><td><strong>30/44</strong></td><td>12/16 · 14/16 · 4/12</td></tr>
+<tr><td>parent-child</td><td>B · 구조화 보조</td><td>33/44</td><td>0.6439 · 차순위</td><td>29/44</td><td>12/16 · 14/16 · 3/12</td></tr>
+<tr><td>parent-child</td><td>A_budget · 예산 대조</td><td>32/44</td><td>0.6402</td><td>28/44</td><td>12/16 · 14/16 · 2/12</td></tr>
+</tbody></table>
+<p>최고 원점수와 선정 설정은 다르다. benefit의 A_budget은 진단값이 높았으나 사전 계획상 운영 후보로 자동 승격하지 않는다. B는 두 프로필 모두 A·A_budget에 대한 개선과 중요조건 보존을 함께 충족하지 못했다. 이 표로 benefit과 parent-child의 순수 청킹 우열을 확정하지 않는다.</p>
+<h2>질문별 변화와 후보 손실</h2>
+<p><strong>지표 안내:</strong> 아래 개선/악화/동률은 위 자동 일치의 질문별 0/1을 A와 비교한 값이며 실제 품질 승패가 아니다. 분모는 양성 44질문이다. Candidate loss(후보 손실)는 A의 최종 재정렬 후보 20개 또는 카드 상위 3개에 있던 사전 정답 카드가 사라진 질문 수다. 낮을수록 좋고 새 중요 손실 0이 보존 기준이다. Evidence changed(근거 변경)는 48질문 중 근거 목록이 달라진 질문 수로, 변화 자체에는 좋고 나쁨의 방향이 없다. 예를 들어 원질문 검색에 있던 올바른FLEX가 결합 뒤 후보 20개에서 밀리면 후보 손실로 센다. 다른 유효 카드가 대신 들어올 수 있어 정답 목록 손실과 실제 요구 미충족은 구분해야 한다.</p>
+<table><thead><tr><th>프로필·A 대비 설정</th><th>자동 개선 / 악화 / 동률 (44)</th><th>후보20 손실 (44)</th><th>상위3 손실 (44)</th><th>근거 변경 (48)</th></tr></thead><tbody>
+<tr><td>benefit B</td><td>1 / 3 / 40</td><td>3</td><td>5</td><td>18</td></tr>
+<tr><td>benefit A_budget</td><td>2 / 0 / 42</td><td>1</td><td>0</td><td>23</td></tr>
+<tr><td>parent-child B</td><td>0 / 1 / 43</td><td>0</td><td>1</td><td>9</td></tr>
+<tr><td>parent-child A_budget</td><td>1 / 3 / 40</td><td>2</td><td>5</td><td>18</td></tr>
+</tbody></table>
+<p>benefit B의 자동 차이는 수치 0/1/15, 고유명사 0/0/16, 의미 1/2/9다. parent-child B는 각각 0/0/16, 0/0/16, 0/1/11이다. benefit A_budget은 의미 유형에서 2/0/10, parent-child A_budget은 의미 유형에서 1/3/8이며 다른 두 유형은 동률이다. 자동 변경 질문 전체는 연결한 JSON에 남겼다. 사전 정답 카드 후보20 손실은 benefit B의 E04·E16·E40에서 발생했다. 모든 반환 카드와 근거의 적용 범위 준수 및 인용 카드 소유권은 각각 288/288 통과했다. 소유권 통과만으로 의미 정확성까지 확인한 것은 아니다.</p>
+<h2>직접 원문과 대조한 선정 근거</h2>
+<p>근거가 바뀐 B 출력 27쌍을 A/A_budget와 비교해 살펴보고, 선정에 영향을 주는 아래 7개 사례를 원문까지 집중 대조했다. 모든 새 답변의 모든 문장을 사람처럼 전수 심사한 정답률은 측정하지 않았다. 이 개발 단계는 알려진 중요조건 손실이 하나라도 있으면 B를 미선정하는 사전 기준이므로, 확인한 손실만으로도 유지 결정을 내릴 수 있다.</p>
+<p><strong>판정 안내:</strong> Important-condition loss(중요조건 손실)는 기존 답변/근거에 있던 이용 가능 여부·대상 이용금액·실적·한도 같은 핵심 조건이 새 결과에서 사라지는 경우다. 낮을수록 좋고 새 손실 0이 통과 기준이다. 예를 들어 주유5% 할인과 실적조건만 남고 ‘발급 첫달에는 제공하지 않음’이 빠지면 첫달 이용 가능 여부를 오해할 수 있다. 판단 시 요약문·주장 본문·조건 배열·추천 사유를 모두 확인한다. 아래는 발생률 추정이나 독립 사람 평가가 아닌 출처를 확인한 사례 판단이다. 독립 리뷰에서 E06 오판을 발견한 뒤 전체 출력 기준으로 E14·E40·E34·E39·E06을 재확인했다. E14 A의 스트리밍 월5천원 고정 설명은 실제 구간별5천/7천/1만원과 달라 B의 중요조건 누락 근거로 사용하지 않았다.</p>
+<table><thead><tr><th>사례</th><th>확인 결과</th><th>판단</th></tr></thead><tbody>
+<tr><td>E06 benefit · 판정 정정</td><td>B의 주장 본문과 추천 사유에 SHOPPING+ 건당 대상 이용금액5만원이 모두 명시돼 있음.</td><td>초기 누락 판정 철회. 요약문과 조건 배열만 읽은 검토 오류였으며 선정 실패 사례로 세지 않음.</td></tr>
+<tr><td>E40 benefit</td><td>A가 명시한 롯데마트&amp;MAXX의 발급 첫달 생활업종 할인 미제공 조건이 B 전체 출력에서 빠짐. B 전달 근거의 원문5쪽에는 같은 조건이 남아 있음. 전월50만원·월한도·LPG제외는 B도 설명함.</td><td>실제 새 중요조건 누락. 생성 출력의 손실이며, 누락됐다고 잘못 세었던 E06과 구분함.</td></tr>
+<tr><td>E37 parent-child</td><td>A/A_budget의 LOCA LIKIT Shop 전월40만원·통합월1만3천원 공통조건 근거가 B에서 빠짐. B는 실적·한도 미확인으로 답함.</td><td>새 중요조건 손실. 원질문 성분 보존과 최종 근거 보존은 다름.</td></tr>
+<tr><td>E07 benefit</td><td>B가 KB Star B의 KB금융그룹 임직원 및 가족1인 발급 제한을 추가. 원문 3쪽과 일치.</td><td>유효한 조건 보완. 다른 질문의 중요조건 손실을 상쇄하지 못함.</td></tr>
+<tr><td>E15 benefit</td><td>B가 Mr.Life 전월30만원 및 Discount Plan+ 전월40만원을 추가. A_budget도 같은 실적 조건을 설명.</td><td>보완은 있으나 구조화 단서만의 고유 이득으로 볼 수 없음.</td></tr>
+<tr><td>E33 parent-child</td><td>B가 LOCA LIKIT Eat의 전월40만원·월1만3천원을 설명. A_budget 답변과 동일 입력·출력.</td><td>예산 대조군 대비 추가 효과 미확인.</td></tr>
+<tr><td>E04 benefit A_budget</td><td>멜론의 라이프 한도 대신 별도 온라인 서비스 월한도 설명을 덧붙임. 온라인 숫자 자체는 원문과 일치함.</td><td>질문과 다른 한도 정보 및 해당 서비스 한도 누락. 확정적인 잘못된 숫자 주장으로 세지는 않음.</td></tr>
+</tbody></table>
+<p>Upstage OCR 통과 가정과 불완전한 제목 계층은 유지했다. 원문 연결과 답변 비교는 main Codex의 비맹검 검토다. 같은 개발 자료를 보고 사례를 분석했으므로 일반화나 통계적 우월성을 주장하지 않는다. 질문·가중치를 결과에 맞춰 다시 튜닝하지 않았다.</p>
+<h2>비용·시간·메모리</h2>
+<p><strong>자원 지표 안내:</strong> Requests(요청 수)는 실제 외부 전송 건수다. 288 논리 조건과 다르며 재사용 출력은 새 요청으로 세지 않는다. Cost(비용)는 저장 usage × 공식 USD 단가의 계산값이고 실제 청구액은 미측정이다. Latency(지연)는 새 답변 Responses 요청 67건의 벽시계 시간이다. P95는 정렬한 67건 중 ceil(0.95×67)번째다. 비용과 시간은 낮을수록 자원 측면에서 유리하지만 품질 실패를 상쇄하지 않는다. 예를 들어 재사용 답변의 신규 API 비용은 0이나 실제 운영 답변 생성이 무료라는 뜻은 아니다. RAM 최고 RSS는 이 프로세스의 관측값이고 전체 기계 사용량과 다르다. 캐시·일괄 실행이 섞여 운영 종단 지연과 SLA는 측정하지 못했다.</p>
+<table><tbody>
+<tr><th>항목</th><th>48번 결과</th></tr>
+<tr><td>실제 요청과 재사용</td><td>새 답변 67 + 임베딩 배치1 = 68요청, 실패·재시도0. 221논리답변 재사용. 새 답변은 B27·A_budget40, A는 기존47 결과와 같은 입력의 출력 재사용.</td></tr>
+<tr><td>비용</td><td>48번 0.099000585달러. 46~48 누적 0.124203180달러 / 전체 상한8달러. 세금·실제 청구액 미측정.</td></tr>
+<tr><td>토큰</td><td>Responses 입력552,170·출력89,058. 입력 내 일반201·캐시읽기127,716·캐시쓰기424,253. 새 임베딩7,135토큰.</td></tr>
+<tr><td>새 답변 API 지연</td><td>67건 평균12.490초·중앙값12.125초·P95 20.421초·최대27.801초. 임베딩 및 로컬 검색 시간 제외.</td></tr>
+<tr><td>실행 시간</td><td>전체 노트북1,756.095초. 검색/임베딩 준비 구간850.314초·CPU3,224.757초. 검색~생성 런타임1,730.105초·CPU3,269.180초.</td></tr>
+<tr><td>메모리·계산·저장</td><td>최고 RSS3,033,964KiB·최소 관측 가용 RAM6,165,332KiB. GPU미사용. 새 재정렬 쌍354·재정렬 호출224. 문서 임베딩 추가0. private 인덱스 복사329,304,641바이트.</td></tr>
+</tbody></table>
+<p>모형 캐시·저장 답변·검색 순서가 섞인 값이므로 A/B 실제 운영 지연이나 처리량 우열로 바꾸지 않는다. 전체 캐시/모형/결과 디렉터리의 순 저장 증가량과 운영 동시 부하는 미측정이다. 공식 단가는 <a href="https://developers.openai.com/api/docs/models/gpt-6-luna">Responses 모델 문서</a>와 <a href="https://developers.openai.com/api/docs/models/text-embedding-3-small">임베딩 모델 문서</a>를 사용했고, 46번에 같은 날 확인한 가격 근거를 보관했다.</p>
+<h2>원자료와 재현</h2>
+<p><a href="../../notebooks/48_structured_retrieval_guidance.ipynb">실행 노트북</a> · <a href="../../notebooks/data/48_structured_retrieval_guidance/execution_manifest.json">조건·버전·예산 봉인</a> · <a href="../../notebooks/data/48_structured_retrieval_guidance/summary_metrics.json">전체/하위유형 수치</a> · <a href="../../notebooks/data/48_structured_retrieval_guidance/paired_automatic_diagnostics.json">질문별 자동 변화</a> · <a href="../../notebooks/data/48_structured_retrieval_guidance/candidate_loss_audit.json">후보 손실</a> · <a href="../../notebooks/data/48_structured_retrieval_guidance/focused_source_findings.json">직접 원문 대조</a> · <a href="../../notebooks/data/48_structured_retrieval_guidance/cost_latency_accounting.json">비용·지연</a> · <a href="../../notebooks/data/48_structured_retrieval_guidance/selected_policy.json">선정 정책</a></p>
+<p>최초 실행 자원은 별도 보존한다. 전체 오프라인 재실행의 시간·검증 결과는 completion_status.json에 별도로 기록하며, 최초 실행 지연을 재개 시간으로 덮어쓰지 않는다. HTML은 원자료를 확인한 뒤 직접 작성했다.</p>
+<h2>최종 정리</h2>
+<p>구조화 보조가 일부 조건을 찾는 데 도움이 됐지만, benefit의 출력 조건 누락과 parent-child의 근거 조건 손실이 있어 두 프로필 모두 B를 미선정했다. A_budget의 일부 원점수 개선도 자동 채택하지 않았다. 추가68요청에 약0.0990달러, 전체 약29분이 들었다. 49번에서는 <strong>조건 추출·실패 경계 + 구조화 카드 선정 + 원질문 비구조화 검색</strong>을 고정하고, 새32질문에서 현재 비구조화 기준과 신규 반복 비교한다. 운영 이식 적격 여부는 그 확인 결과로 판단하며 운영 코드는 계속 변경하지 않는다.</p>
+</html>
