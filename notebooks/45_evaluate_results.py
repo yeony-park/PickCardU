@@ -15,6 +15,11 @@ def decide(outcomes):
     return 'B_development_candidate' if 'win' in outcomes and not set(outcomes)&{'loss','uncertain'} else 'A'
 
 
+def evaluation_case(label):
+    # Match 42's saved scorer adapter; gold data is attached only after generation.
+    return {**label,'plan':label['gold_plan']}
+
+
 def source_coverage(package, side, mapping, chunks):
     keys=sorted({link['mapping_key'] for link in package['links']})
     hits=0
@@ -33,7 +38,7 @@ def evaluate():
     answers=I.read(I.OUT/'answers.json')['records']
     lookup={(r['query_id'],r['profile']):r for r in answers}
     dataset=I.read(I.DATA/'42_expanded_query_evaluation/dataset.json')
-    cases={r['query_id']:r for r in dataset['queries']}
+    cases={r['query_id']:evaluation_case(r) for r in dataset['queries']}
     chunks={p:{r['chunk_id']:r for r in map(json.loads,(I.DATA/'31_operational_chunking_comparison'/f'{p}_chunks.jsonl').read_text().splitlines())} for p in ['card_page_section_benefit','parent_child_bundle']}
     rows=[];packets=[];assignments=[];baseline_scores_match=0
     requirements={r['query_id']:r for r in I.read(I.DATA/'43_offline_validation/review_contract.json')['requirements']}
@@ -91,21 +96,35 @@ def evaluate():
     return out
 
 
+def validate_review(review,packet):
+    def require(ok,message):
+        if not ok:raise RuntimeError('Invalid source review: '+message)
+    require(review['packet_id']==packet['packet_id'],'packet identity')
+    require(type(review.get('uncertain')) is bool and bool(review.get('summary')),'explicit certainty and summary')
+    for side in ['left','right']:
+        require(review[side+'_core'] in ['PASS','PARTIAL','FAIL','UNCERTAIN'],'explicit verdict')
+    for finding in review['findings']:
+        side=finding['side'];require(side in ['left','right'],'finding side')
+        require(finding['kind'] in ['improvement','regression'],'finding kind')
+        owned={e['chunk_id']:e for e in packet[side]['evidence']}
+        require(bool(finding['citations']) and set(finding['citations'])<=set(owned),'owned citations')
+        path=finding['source_path'];quote=finding['source_quote']
+        require(all(packet['original_source_paths'][owned[cid]['card_key']]==path for cid in finding['citations']),'source ownership')
+        require(bool(quote) and any(P.M.norm(quote) in P.M.norm(page['text'])
+            for page in I.read(I.ROOT/path)['pages']),'original source quotation')
+
+
 def summarize_reviews():
     assignments=I.read(I.OUT/'review_assignments.json')['records']
     reviews=I.read(I.OUT/'source_reviews.json')['records']
     lookup={r['packet_id']:r for r in reviews}
-    if len(lookup)!=18 or set(lookup)!={r['packet_id'] for r in assignments}:raise RuntimeError('Incomplete source reviews')
+    if len(reviews)!=18 or len(lookup)!=18 or set(lookup)!={r['packet_id'] for r in assignments}:raise RuntimeError('Incomplete source reviews')
     results=[]
     for a in assignments:
         review=lookup[a['packet_id']]
         packet=I.read(I.OUT/'review_packets'/f"{a['packet_id']}.json")
         if I.digest((I.OUT/'review_packets'/f"{a['packet_id']}.json").read_bytes())!=a['packet_sha256']:raise RuntimeError('Review packet changed')
-        for side in ['left','right']:
-            owned={e['chunk_id'] for e in packet[side]['evidence']}
-            if review[side+'_core'] not in ['PASS','PARTIAL','FAIL','UNCERTAIN']:raise RuntimeError('Explicit verdict required')
-            for finding in review.get('findings',[]):
-                if finding['side']==side and not set(finding['citations'])<=owned:raise RuntimeError('Review citation outside owned packet')
+        validate_review(review,packet)
         bside=next(side for side in ['left','right'] if a[side]=='B');aside='right' if bside=='left' else 'left'
         regressions=[f for f in review['findings'] if f['side']==bside and f['kind']=='regression']
         improvements=[f for f in review['findings'] if f['side']==bside and f['kind']=='improvement']
