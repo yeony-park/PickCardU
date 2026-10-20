@@ -1,13 +1,13 @@
-# 44. 구조화 검색 DB 명세서
+# 구조화 검색 DB 명세서
 
 ## 1. 문서 범위와 기준
 
-현재 실험 DB의 데이터 사전이다. 검토일은 2026-10-13, 스키마 버전은 `structured-benefit-experiment-v3`다. 운영 DB/HTTP 계약을 정의하는 문서가 아니며 운영 반영·DB 변경은 하지 않았다. 현재 방식과 근거 보완 방식의 비교는 다음 실험이며 이 문서는 그 전에 작성한 읽기 전용 명세다.
+현재 구조화 검색 실험 DB의 데이터 사전이다. 스키마 관측 기준일은 2026-10-13, 문서 위치 정리일은 2026-10-20이다. 스키마 버전은 `structured-benefit-experiment-v3`다. 운영 DB/HTTP 계약을 정의하는 문서가 아니며 운영 반영·DB 변경은 하지 않았다. 이 문서는 DB 구성과 검색 계약을 설명하는 명세이며 비교 실험 보고서가 아니다. Markdown은 에이전트·AI가 참조하는 기준 문서이고 HTML은 사람이 읽기 위한 동일 내용의 표시본이다.
 
 - DB: `notebooks/data/30_structured_benefit_db/structured.sqlite`.
 - 입력: 기존 Upstage `normalized.json` 106개. 구조화 계약 `field-evidence-relation-v6`, 정규화 계약 `typed-facts-v2`. 이 입력의 추출 모델 기록은 `gpt-5.6-luna/max`이며 질문 조건 추출 실험의 `gpt-6-luna/medium`과 별개다.
-- [DB 생성·정규화·선택기 구현](30_build_structured_db.py), [질문 스키마](32_search_experiment.py), [질문 해석 지시문](33_query_routing.py), [42번 실제 질문 조건 호출·순차 검색](42_expanded_query_evaluation.py).
-- [실제 DB 스키마·저장값·검증 JSON](data/44_structured_search_db_spec/schema_inventory.json), [44번 노트북](44_structured_search_db_spec.ipynb), [30번 DB 보고서](../docs/report/30_structured_benefit_db_report.html), [43번 경계 검사](../docs/report/43_offline_validation_report.html).
+- [DB 생성·정규화·선택기 구현](../notebooks/30_build_structured_db.py), [질문 스키마](../notebooks/32_search_experiment.py), [질문 해석 지시문](../notebooks/33_query_routing.py), [42번 실제 질문 조건 호출·순차 검색](../notebooks/42_expanded_query_evaluation.py).
+- [실제 DB 스키마·저장값·검증 JSON](../notebooks/data/44_structured_search_db_spec/schema_inventory.json), [44번 노트북](../notebooks/44_structured_search_db_spec.ipynb), [30번 DB 보고서](report/30_structured_benefit_db_report.html), [43번 경계 검사](report/43_offline_validation_report.html).
 
 같은 fact 안의 대상·행동·수치·조건 관계를 유지한다. 원문 필드는 그대로 보존하고 검색 가능한 파생값을 보수적으로 추가한다. OCR/원본 구조화 추출의 정확도는 이 명세 작성으로 검증하지 않았고 통과 가정을 유지한다. 문서에 제시한 코드 규칙과 실제 관측값은 구분한다.
 
@@ -269,7 +269,7 @@ OR 그룹: [[커피 10% 할인], [넷플릭스 10% 할인]]
 
 ## 9. 실제 저장값·분포와 빈 값
 
-아래는 2026-10-13 DB 관측값이다. SQL 허용값 전체나 사용자 질문의 빈도를 뜻하지 않는다. NULL count는 미저장값 수, Empty count는 정확한 빈 문자열 수, Distinct는 NULL을 제외한 서로 다른 값 수다. 각각 해당 테이블의 전체 행이 분모이며 품질 통과 기준은 없다. 원문 누락의 이유와 추출 정확도를 이 수치만으로 판정하지 않는다. 전체 자유 문자열과 빈도는 [schema_inventory.json](data/44_structured_search_db_spec/schema_inventory.json)의 column_profiles.value_counts에서 확인한다.
+아래는 2026-10-13 DB 관측값이다. SQL 허용값 전체나 사용자 질문의 빈도를 뜻하지 않는다. NULL count는 미저장값 수, Empty count는 정확한 빈 문자열 수, Distinct는 NULL을 제외한 서로 다른 값 수다. 각각 해당 테이블의 전체 행이 분모이며 품질 통과 기준은 없다. 원문 누락의 이유와 추출 정확도를 이 수치만으로 판정하지 않는다. 전체 자유 문자열과 빈도는 [schema_inventory.json](../notebooks/data/44_structured_search_db_spec/schema_inventory.json)의 column_profiles.value_counts에서 확인한다.
 
 
 ### metadata: 전체 컬럼의 저장 프로필
@@ -588,7 +588,7 @@ CREATE TABLE target_aliases (
 
 fact_id는 내용 전체의 해시가 아니다. 같은 문서/PDF/순서에서 fact 문구가 바뀌어도 fact_id만으로 변경을 알아낼 수 없으므로 normalized_json_sha256와 artifact 해시를 함께 확인한다. 구조화 후보 선택이 정답 라벨을 대신하지 않으며 OCR 통과 가정과 제목 계층 미완성도 유지한다.
 
-## 13. 검증·자원·문서 재생성
+## 13. 검증·자원·문서 관리
 
 실제 SQLite를 mode=ro&immutable=1 및 query_only=ON으로 읽었다. 입력 DB/JSONL/요약/참고 코드의 해시·크기·mtime 보존, summary artifact SHA 일치, integrity_check=ok, foreign_key_check 오류 없음, SQLite와 JSONL facts 3,403행 및 documents 106행의 일치를 확인했다. 불변 모드는 WAL을 무시하므로 현재 정적 실험 DB에 적용했으며 활성 writer가 있는 운영 DB의 최신 조회 방법으로 일반화하지 않는다.
 
@@ -596,11 +596,10 @@ fact_id는 내용 전체의 해시가 아니다. 같은 문서/PDF/순서에서 
 
 ```bash
 python -B notebooks/44_inspect_structured_db.py
-python -B notebooks/44_render_db_spec.py
 ```
 
-기존 승인 환경의 markdown/nbformat/nbclient를 사용하고 새 패키지를 설치하지 않았다. inspector는 원본 DB를 재생성하지 않고 44번 JSON inventory만 작성한다. renderer는 44번 Markdown과 HTML만 작성한다. 별도 helper는 다수 테이블/컬럼의 반복 검사와 재생성 책임을 담당하며, 노트북은 이를 읽기 전용으로 재검사하고 결과를 표시한다. 전체 유료 실험을 노트북에서 재실행하는 구조가 아니다.
+명세는 docs/STRUCTURED_SEARCH_DB_SPEC.md와 docs/STRUCTURED_SEARCH_DB_SPEC.html에서 관리한다. DB 구성이나 값 규칙이 바뀌면 실제 DB·생성 코드와 대조해 두 문서를 함께 갱신한다. 전용 문서 생성 코드는 제거했다. 기존 44번 inspector와 노트북은 DB 스키마·저장값 확인용으로만 유지하며, inspector는 원본 DB를 재생성하지 않고 JSON inventory만 작성한다. 노트북은 저장 inventory를 읽기 전용으로 재검사하고 이 명세를 표시한다. 전체 유료 실험을 재실행하지 않는다.
 
 ## 최종 정리
 
-현재 4테이블 41컬럼의 선언·값 규칙·관측 분포·JSON 내부 근거·질문 조건 연결을 문서화했다. 원문과 파생값의 관계는 유지되지만 원화 정액·복합 구간 등 검색 미지원 정보가 남아 있다. 운영/DB/이전 실험은 변경하지 않았고 이번 단계에서 채택·거절한 검색 설정은 없다. 추가 실험 API 비용 0, 시간·메모리 미측정이다. 다음 단계는 fact와 원문 청크를 연결해 현재 카드 범위 검색과 근거 보완 검색을 같은 조건에서 비교하는 것이다. 성능 우열은 아직 미확정이다.
+현재 4테이블 41컬럼의 선언·값 규칙·관측 분포·JSON 내부 근거·질문 조건 연결을 문서화했다. 원문과 파생값의 관계는 유지되지만 원화 정액·복합 구간 등 검색 미지원 정보가 남아 있다. 이 명세를 작성·정리하면서 운영/DB/이전 비교 실험의 검색 설정은 변경하지 않았다. 추가 실험 API 비용 0, 시간·메모리 미측정이다. 다음 단계는 fact와 원문 청크를 연결해 현재 카드 범위 검색과 근거 보완 검색을 같은 조건에서 비교하는 것이다. 성능 우열은 아직 미확정이다.
