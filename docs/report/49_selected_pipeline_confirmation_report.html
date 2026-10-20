@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>49. 새 질문으로 확인한 구조화 검색 후보</title>
+<style>body{max-width:1120px;margin:40px auto;padding:0 20px;font:17px/1.7 system-ui;color:#172737}h1,h2,h3{line-height:1.35}table{border-collapse:collapse;width:100%;margin:20px 0}th,td{border:1px solid #cbd5df;padding:9px;text-align:left;vertical-align:top}th{background:#edf3f7}.note{background:#fff5d8;padding:18px}.hold{background:#fff0ec;padding:18px}a{color:#125f96}img{max-width:100%;height:auto}code{overflow-wrap:anywhere}.scroll{overflow-x:auto}</style></head>
+<body>
+<h1>49. 새 질문으로 확인한 구조화 검색 후보</h1>
+<p>2026-10-21 · 같은 106문서의 새 32질문 · 첫 회차 확인 · <strong>두 청킹 모두 운영 이식 적격 판정을 보류한다.</strong> 후보의 요구 충족 수는 늘었지만 중요한 조건 누락이 새로 확인됐다. 사전에 정한 중단 규칙에 따라 남은 두 회차를 실행하지 않았다. 운영 코드는 변경하지 않았다.</p>
+
+<h2>왜 실행했나</h2>
+<p>46번에서 조건 추출의 실패 경계를 확인하고, 47번에서 구조화 일부 일치 시 전체 비구조화 검색으로 복귀하는 방식을 유지했다. 48번에서는 구조화 근거로 검색을 보조하는 B 대신 원질문 검색 A를 두 프로필 모두 유지했다. 이번에는 그 개발 후보가 새 질문에서도 기준보다 나아지고 중요한 조건을 보존하는지 확인했다. 앞선 개발 결과와 이번 확인 결과는 별도다.</p>
+<p><strong>U는 현재 운영 검색 방식에 해당하는 비구조화 기준</strong>이다. 원질문으로 Vector+BM25 검색과 기존 재정렬·답변 생성을 수행한다. <strong>S는 개발 후보</strong>다. 질문을 고정 스키마로 추출하고 구조화 조건 전체를 만족하는 카드 범위를 찾은 뒤, 그 범위 안에서 원질문으로 같은 비구조화 검색을 수행한다. 구조화 실패·일부 일치·미해결 조건은 명시 카드 범위를 보존하여 U로 복귀한다. 정확한 카드가 불분명한 스카이패스 질문은 추가 확인을 요청한다.</p>
+<p>48번에서 유지한 A는 <em>S 안의 비구조화 검색 설정</em> 이름이다. 이번 기준 U와 같은 이름이 아니다. 45번의 구조화 근거 직접 추가, 47번의 일부 일치 카드 우선 검색, 48번의 구조화 검색 보조어는 모두 사용하지 않았다. S가 구조화로 선정한 것은 카드 범위이며, 구조화 DB의 혜택 문장을 답변 LLM에 추가로 넣지 않는다.</p>
+
+<h2>무엇을 바꾸고 무엇을 고정했나</h2>
+<p>같은 질문에서 U와 S를 비교했다. 청킹은 운영의 benefit 및 parent-child 프로필을 그대로 사용했다. 후보 20개·카드 상위 3개·카드별 근거 최대 5개·입력 64,000바이트·Vector/BM25 가중치 0.4/0.6·parent 묶음 budget5를 고정했다. gpt-6-luna, reasoning medium, 조건 추출 출력 3,000토큰, 답변 출력 2,400토큰이다. 원질문은 검색·재정렬·답변 입력에 보존했다. 문서 청크나 문서 임베딩은 새로 만들지 않았다.</p>
+<p>32질문 × 두 프로필 × U/S × 신규 생성 3회를 계획했다. 질문은 고유명사·수치/조건·의미/혜택·부정/진단 각 8개다. 첫 회차 이후 원문 대조에서 새 중요 오류가 확인되면 해당 프로필의 남은 두 회차를 중단하도록 실행 전에 정했다. 각 방식·회차의 답변을 새로 생성하고, 검색·질문 벡터만 입력 해시로 재사용했다. 첫 회차에는 U/S 실행 순서를 번갈아 배치했다.</p>
+<p class="note">새 질문과 주석 초안은 48번 결과 선정 전에 작성했다. 다만 같은 문서·같은 작성자의 질문이며 새 PDF나 독립 사람 평가 자료는 아니다. 필수 의미를 사전에 기록했으나 대체 카드의 유효성은 일부 실행 뒤 원문으로 추가 판정했다. H23의 NH 대체 카드 해석은 답변 검토 전에, H21의 OILPASS 해석은 답변을 읽은 뒤 보완했다. 질문·모델·검색 설정은 바꾸지 않았다. 전체 64쌍을 방식명 숨김 상태로 읽었지만 카드 범위나 H23 원문 대조로 방식을 추론할 수 있어 완전한 맹검으로 보지 않는다.</p>
+<p>Upstage가 OCR 검증을 통과했다는 기존 실험 가정을 유지했다. OCR 검증기·제목 계층은 수정하지 않았다. 아래 H23에서는 제목과 본문의 연결이 정확하다는 가정에 어긋나는 한 사례가 발견돼 별도로 공개한다. 한 PDF 대조가 전체 OCR 검증을 대신하지는 않는다.</p>
+
+<h2>실행된 범위와 검색 경로</h2>
+<p><strong>지표 안내:</strong> Executed conditions(실행 조건 수)는 실제 저장 답변의 수다. 분모는 계획한 논리 조건 수이며, 미실행을 실패나 동률로 세지 않는다. Route count(검색 경로 수)는 첫 회차 조건 추출 32질문을 분모로 실제 선택한 경로를 센다. 경로 비율 자체에는 높고 낮음의 품질 방향이 없다. Parser success(추출 요청 성공)는 유효 스키마 저장 여부이고 의미·DB 일치 성공과 다르다. 예를 들어 커피는 추출했지만 신청 절차를 미해결로 남기면 정상 추출이어도 U로 복귀할 수 있다. Mandatory regression(필수 회귀 통과)은 고정 9사례에서 예상 경계 행동을 모두 유지해야 통과하며, 새로운 모든 질문의 정확성을 보장하지 않는다.</p>
+<table><caption>실행 상태와 경로: 단일 회차, 32질문 공유</caption><thead><tr><th>항목</th><th>계획·실측</th><th>해석</th></tr></thead><tbody>
+<tr><td>논리 답변</td><td>계획 384 · 실행 128 · 미실행 256</td><td>각 프로필 첫 회차 64답변 완료, 두 번째·세 번째 회차는 사전 규칙으로 중단.</td></tr>
+<tr><td>조건 추출</td><td>첫 회차 32/32 스키마 저장 성공</td><td>나머지 두 회차의 64추출도 미실행. 29건 복귀를 추출 요청 실패로 세지 않음.</td></tr>
+<tr><td>S의 실제 경로</td><td>U 복귀 29/32 · 구조화→비구조화 2/32 · 추가 확인 1/32</td><td>구조화 일치 H22·H23, 카드 확인 H26. 미해결 정보가 하나라도 남으면 복귀하는 정책의 적용 범위가 좁았음.</td></tr>
+<tr><td>동일 근거 쌍</td><td>benefit 29/32 · parent-child 29/32</td><td>H22·H23·H26 외에는 U/S의 근거 내용·순위가 같음. 새 생성의 차이를 검색 효과로 단정할 수 없음.</td></tr>
+<tr><td>필수 경계 / 카드 범위·인용 귀속</td><td>9/9 / 최종 답변 128/128</td><td>경계 동작과 인용 소속 검사는 통과. 모든 실적·한도·예외 조건의 완전성을 검증하는 검사는 아님.</td></tr>
+</tbody></table>
+
+<h2>요구 충족 결과</h2>
+<p><strong>지표 안내:</strong> Core requirement PASS(필수 의미 전체 충족)는 사전 필수 설명을 모두 충족하고 원문과 모순되는 혜택·수치·조건·인용이 없는 답변 수다. 분모는 각 설정의 실제 32답변이고 높을수록 좋다. PARTIAL은 필요한 일부 설명이 빠진 답변, FAIL은 핵심 요구를 충족하지 못하거나 잘못 설명한 답변이다. 이 분류는 API 성공·실패와 별개다. 예를 들어 H02에서 FLEX 넷플릭스 6,500원이 최소 7,000원 미달이라 할인되지 않는다는 결론이 맞아도, 사전 필수인 20% 설명이 없으면 PARTIAL이다. 따라서 이 표를 단순 정답 정확도로 부르지 않는다. 출력의 요약·주장 본문·조건 배열·추천 사유를 모두 검토했다. 본문에 요구한 조건이 있으면 별도 조건 배열에 없다는 이유만으로 감점하지 않았다.</p>
+<table><caption>첫 회차 단일 실행. 굵은 값은 같은 프로필 내 높은 원점수이며 운영 선정 표시가 아니다.</caption><thead><tr><th>프로필</th><th>방식</th><th>PASS</th><th>PARTIAL</th><th>FAIL</th><th>운영 이식 확인</th></tr></thead><tbody>
+<tr><td>benefit</td><td>U · 기준</td><td>22/32 · 68.75%</td><td>9/32</td><td>1/32</td><td>비교 기준</td></tr>
+<tr><td>benefit</td><td>S · 후보</td><td><strong>24/32 · 75.00%</strong></td><td>7/32</td><td>1/32</td><td>보류 · 새 중요조건 누락</td></tr>
+<tr><td>parent-child</td><td>U · 기준</td><td>20/32 · 62.50%</td><td>11/32</td><td>1/32</td><td>비교 기준</td></tr>
+<tr><td>parent-child</td><td>S · 후보</td><td><strong>22/32 · 68.75%</strong></td><td>10/32</td><td>0/32</td><td>보류 · 새 중요조건 누락</td></tr>
+</tbody></table>
+<p>benefit이 이 자료에서 높은 원점수를 보였지만 프로필 내부에는 청킹 외 차이도 있고 표본이 작아 순수 청킹 우열을 확정하지 않는다. 세 회차 평균·표준편차·반복 일관성은 <strong>미측정</strong>이다. 한 번의 PASS를 1/3로 적거나 세 번 성공한 것처럼 해석하지 않는다.</p>
+<p><strong>하위유형 지표 안내:</strong> 아래는 같은 PASS를 각 유형 8질문에 나눈 수다. 모두 높을수록 좋으며 통과 정의는 위와 같다. 예를 들어 전기차 충전 할인 비율만 맞고 필수 결제·등록 조건이 없으면 해당 의미 질문은 PARTIAL이다. 유형 평균의 개선이 다른 유형의 손실을 지우지 않는다.</p>
+<table><thead><tr><th>프로필·방식</th><th>고유명사 PASS/8</th><th>수치·조건 PASS/8</th><th>의미·혜택 PASS/8</th><th>부정·진단 PASS/8</th></tr></thead><tbody>
+<tr><td>benefit U</td><td>5</td><td>5</td><td>6</td><td>6</td></tr>
+<tr><td>benefit S</td><td>5</td><td>5</td><td>6</td><td>8</td></tr>
+<tr><td>parent-child U</td><td>4</td><td>6</td><td>3</td><td>7</td></tr>
+<tr><td>parent-child S</td><td>6</td><td>6</td><td>2</td><td>8</td></tr>
+</tbody></table>
+<p>parent-child의 의미·혜택 유형은 3/8에서 2/8로 줄었다. 부정·진단 질문은 46번 경계 유형을 새 문장으로 작성한 자료이므로 완전히 새로운 오류 유형에서의 일반화로 보지 않는다.</p>
+
+<h2>질문별 개선·손실과 조기중단 근거</h2>
+<p><strong>지표 안내:</strong> Paired wins/losses/ties(질문별 개선·손실·동률)는 이번 한 회차 PASS 여부를 0/1로 바꿔 같은 질문의 U/S를 비교한 진단값이다. 프로필별 32질문이 분모다. S만 PASS면 개선, U만 PASS면 손실, 그 외는 동률이다. 개선은 높고 손실은 낮을수록 좋다. 예를 들어 FAIL→PARTIAL도 이 이진 지표에서는 0→0 동률이다. 계획한 세 회차 PASS 횟수 비교를 대신하지 않는다. New important condition loss(새 중요조건 손실)는 U에는 있던 적용·실적·한도·예외가 S에서 빠졌는지 원문으로 확인하는 별도 기준이며, 새 손실 0이어야 확인을 통과한다. 아래 집중 원문 사례 수를 전체 오류율로 환산하지 않는다.</p>
+<table><thead><tr><th>프로필</th><th>개선 / 손실 / 동률</th><th>개선 질문</th><th>손실 질문</th><th>별도 중단 사례</th></tr></thead><tbody>
+<tr><td>benefit</td><td>3 / 1 / 28</td><td>H10 · H26 · H32</td><td>H15</td><td>H15 · 공과금 할인 일 1회 누락</td></tr>
+<tr><td>parent-child</td><td>3 / 1 / 28</td><td>H02 · H08 · H26</td><td>H20</td><td>H18 · 발급 첫달 생활업종 할인 제외 누락</td></tr>
+</tbody></table>
+<p>H10 benefit은 교통 추가할인의 후불교통 조건 등 필수 설명 보완, H02 parent는 20% 설명 보완, H08 parent는 임대매장 제외 보완으로 PASS가 됐다. H26은 불명확한 스카이패스 카드에 추가 확인을 요청한 정적 경계 동작이다. H32 benefit은 개인의 실제 승인·잔여 한도를 알 수 없다는 한계를 더 분명히 설명했다. H20 parent는 충전 결제·등록 조건이 부족해 PARTIAL이었다. H26 외 이 변화는 같은 검색 근거의 신규 답변 차이이며 구조화 검색의 고유 효과로 세지 않는다. 질문별 전체 64쌍 판정은 원자료에 공개했다.</p>
+<div class="hold"><p><strong>benefit H15:</strong> 두 방식의 Mr.Life 근거와 순위는 같고 원문의 ‘일 1회 할인 적용’도 S 입력에 남아 있다. U는 해당 조건을 설명했지만 S의 전체 출력에는 없다. S는 공과금 10%, 전월 30~50만원 구간 월 3천원, 1회 승인 5만원까지·최대 5천원은 설명했다. 사라진 것은 하루 1회 조건이다. U PASS→S PARTIAL이며 새 중요조건 손실 기준을 충족하지 못했다.</p>
+<p><strong>parent-child H18:</strong> DA카드의 동물병원 기본·추가 할인 외에 추천한 롯데마트&amp;MAXX에 대해, U는 ‘발급 첫달 생활업종 할인 미제공’을 명시했다. S에는 같은 원문 근거가 있지만 전체 롯데 설명에서 첫달 조건이 빠졌다. 주된 DA 거래 제외 조건은 양쪽 모두 부족해 두 답변 모두 PARTIAL이다. 이처럼 PASS 승패가 동률이어도 중요한 새 손실은 별도 검사가 필요하다.</p></div>
+<p>두 사례는 <strong>동일 근거에서의 생성 누락</strong>이다. 구조화 검색이 근거를 악화시켰다는 증거는 아니다. 현재 후보의 최종 답변이 사전 보존 기준을 못 지켰으므로 남은 반복을 중단했다. 중요한 조건을 놓치는 위험은 기준 U에도 있으며, 이번 결과가 U의 안전성을 보장하지 않는다.</p>
+
+<h2>실제 구조화 검색 두 질문과 원문 관계 확인</h2>
+<p>H22는 온라인서점·병원·약국의 Discount Plan+ 카드를 구조화로 선정했다. benefit은 U/S 모두 필수 설명을 충족했고 parent-child는 양쪽 모두 실적·월한도 설명이 부족했다. H23은 영화와 운동 혜택에서 NH 올바른NEW WONDER를 선정했다. parent-child S는 U가 못 찾은 두 혜택을 찾아 FAIL→PARTIAL로 나아졌으나 ‘할인 PACK 선택’ 조건이 빠졌다. benefit도 양쪽 모두 그 선택 조건이 부족했다. <strong>이번 실제 구조화 두 사례에서 구조화 검색만의 새 완전 PASS 증가는 확인하지 못했다.</strong></p>
+<p>H23의 DB에는 영화 10%·헬스 5%와 함께 <code>condition: '할인 PACK' 전월실적 …</code>가 저장돼 있었다. PDF 2쪽은 왼쪽 할인 PACK, 오른쪽 적립 PACK의 두 열이다. 그런데 parent 검색 근거 한 묶음은 경로·제목이 ‘적립 PACK’인 상태로 ‘특화영역 청구할인’과 월 할인한도 표를 포함했다. 이 한 사례에서는 부모 제목과 실제 혜택의 관계가 정확하다는 가정을 유지할 수 없다. PDF의 열 구분과 평탄화된 텍스트 순서가 다르다.</p>
+<figure><a href="../../notebooks/data/49_selected_pipeline_confirmation/source_review/NH_AllWonderful_page2.png"><img loading="lazy" src="../../notebooks/data/49_selected_pipeline_confirmation/source_review/NH_AllWonderful_page2.png" alt="NH 올바른NEW WONDER 원문 2쪽: 왼쪽 할인 PACK과 오른쪽 적립 PACK 두 열"></a><figcaption>원본 PDF 2쪽을 직접 대조했다. 영화·헬스 할인은 왼쪽 할인 PACK이다. 원본 PDF·OCR·청크·운영 코드는 수정하지 않았다.</figcaption></figure>
+<p>DB에 조건이 정확히 있어도 카드 범위만 넘긴 다음 검색·생성에서 그 조건이 최종 답변까지 보존된다는 보장은 없었다. 그렇다고 45·48번의 전체 근거 추가/보조어를 다시 채택할 근거도 아니다. 다음 개발 검증은 원질문 검색을 유지하면서 DB의 중요한 적용조건과 최종 답변을 대조하는 제한적 보완이 효과가 있는지, 기존 조건 손실을 만들지 않는지 확인하는 방향이 적절하다. 이번 승인 범위에서는 구현하지 않았다.</p>
+
+<h2>API 실패·재시도와 실행 오류</h2>
+<p>최종 저장 답변 128개는 모두 정상 복원됐다. 그러나 처음부터 모든 API 요청이 성공한 것은 아니다. H22 benefit U는 출력 2,400토큰 중 reasoning 1,831토큰을 사용한 뒤 JSON이 끝나지 않아 첫 요청이 실패했다. 기존 답변 생성기의 한 번 재시도로 같은 2,400 상한에서 성공했다. H32 parent U는 첫 API의 JSON 스키마는 통과했지만 카드와 근거 인용의 소속이 섞여 운영 복원 검사가 거절했고, 한 번 재시도해 성공했다. 두 추가 요청과 실패 요청 비용도 모두 포함했다. 네트워크 자동 재시도는 0이다.</p>
+<p>첫 준비 실행에는 공통 검증기가 요구하는 매니페스트 별칭 <code>max_output_tokens</code> 누락으로 중단되는 실행 오류도 있었다. 당시 질문 임베딩 한 배치와 H01 추출 한 건은 이미 저장돼 있어 재전송하지 않았다. 원래 실패 노트북·매니페스트를 별도 보존하고 <code>parser_output=3000</code>과 같은 별칭만 추가했다. 실제 저장 요청으로 수정 전 실패·수정 후 통과를 오프라인 확인했다. 질문·모델·검색 정책·토큰 상한은 바꾸지 않았으며 이 오류를 검색 성능 실패로 세지 않았다.</p>
+
+<h2>비용과 응답시간</h2>
+<p><strong>자원 지표 안내:</strong> Physical requests(실제 요청 수)는 저장한 외부 요청이며 실패·재시도도 포함한다. Cost(계산 비용)는 요청별 저장 usage에 46번에서 같은 날 확인해 보관한 공식 USD 단가를 곱한 값이다. 실제 청구액·세금은 미측정이다. API latency(요청 지연)는 API 시도별 벽시계 시간이며 재시도 포함 논리 답변 시간과 다르다. Mean은 실제 관측 수 n의 산술평균, median은 중앙값, P95는 정렬한 ceil(0.95×n)번째 값이다. 예를 들어 실패 24초 뒤 재시도 11초라면 요청은 2건이고 답변 생성 단계는 약35초다. 낮을수록 자원 측면에서 유리하나 품질 통과를 대신하지 않는다. 임베딩 개별 API 지연은 미측정이다.</p>
+<div class="scroll"><table><caption>49번 신규 외부 요청. 시간 단위 초. 비용은 USD.</caption><thead><tr><th>종류·프로필·방식</th><th>실제 요청 n</th><th>계산 비용</th><th>API 평균 / 중앙값</th><th>API P95 / 최대</th><th>논리 답변 단계 평균 / P95</th></tr></thead><tbody>
+<tr><td>조건 추출 · 공유</td><td>32</td><td>0.008927800</td><td>5.937 / 5.522</td><td>11.013 / 13.540</td><td>해당 없음</td></tr>
+<tr><td>질문 임베딩 · 32텍스트 한 배치</td><td>1</td><td>0.000041680</td><td>미측정</td><td>미측정</td><td>해당 없음</td></tr>
+<tr><td>답변 · benefit U</td><td>33</td><td>0.031249355</td><td>9.736 / 9.075</td><td>17.407 / 23.935</td><td>10.363 / 17.700</td></tr>
+<tr><td>답변 · benefit S</td><td>31</td><td>0.026741465</td><td>8.682 / 7.952</td><td>15.938 / 17.387</td><td>8.689 / 16.202</td></tr>
+<tr><td>답변 · parent-child U</td><td>33</td><td>0.024041005</td><td>9.494 / 8.878</td><td>15.587 / 17.288</td><td>10.144 / 17.594</td></tr>
+<tr><td>답변 · parent-child S</td><td>31</td><td>0.019700945</td><td>8.827 / 7.712</td><td>15.923 / 17.141</td><td>8.880 / 16.193</td></tr>
+</tbody></table></div>
+<p>논리 답변 단계는 각 행 32조건을 분모로 하며 재시도와 H26의 API 없는 확인 응답을 포함한다. <strong>S의 전체 운영 비용·지연이 더 작다는 결론은 내리지 않는다.</strong> 표의 답변 행에는 S에 추가로 필요한 조건 추출이 빠져 있다. 실험에서는 두 프로필이 추출을 공유했으므로 그 비용을 반으로 나눠 실제 운영 비용으로 사용하면 안 된다. 순차 배치·캐시·기준 U의 재시도가 섞였고 실제 웹 API 종단 지연·동시부하·SLA는 미측정이다.</p>
+<p><strong>토큰·실행 자원 안내:</strong> 입력/출력 토큰은 실제 요청 usage 합이며 reasoning은 출력에 포함된다. 캐시 읽기·쓰기·일반 입력은 입력의 분할로 합계와 같아야 한다. Wall time은 실제 경과 시간, CPU time은 프로세스 계산 시간이라 병렬 계산 시 더 클 수 있다. Peak RSS는 해당 실행 프로세스의 최고 관측 RAM, minimum available RAM은 기계의 최소 관측 가용량이며 전체 피크나 운영 요구 메모리가 아니다. 문서 임베딩 0은 기존 인덱스를 재사용했다는 뜻이다. 자원은 낮을수록 유리하나 모든 품질 기준 통과가 우선이다.</p>
+<table><thead><tr><th>항목</th><th>49번 실측</th></tr></thead><tbody>
+<tr><td>총 요청·비용</td><td>161요청 = 추출32 + 임베딩1 + 답변128. 49번 0.110702250달러. 46~49 누적 <strong>0.234905430달러 / 승인 상한8달러</strong>. 비용 미상 요청0·중복 합산0.</td></tr>
+<tr><td>토큰</td><td>입력893,600 = 일반480 + 캐시읽기589,482 + 캐시쓰기303,638. 출력133,526. 새 질문 임베딩2,084토큰·32벡터. 문서 임베딩 추가0.</td></tr>
+<tr><td>최초 실행 시간</td><td>수정 뒤 전체 노트북3,180.987초(약53분). 검색~생성 런타임3,158.840초·CPU6,921.686초. 앞선 준비 오류 실행24.617초는 별도. 원문 검토·보고서 작성 시간 제외.</td></tr>
+<tr><td>메모리·계산</td><td>최고 RSS3,175,148KiB(약3.03GiB)·최소 관측 가용 RAM6,271,552KiB(약5.98GiB). 새 재정렬 쌍881·재정렬 호출65. CPU 스레드4·재정렬 모델 한 개·GPU미사용.</td></tr>
+<tr><td>저장·운영 미측정</td><td>기존 31번 인덱스를 독립 복사해 사용. 모형/캐시 크기 및 전체 결과 순 저장 증가량·운영 처리량·동시부하·종단 지연·실제 청구액·검토 에이전트 비용은 미측정.</td></tr>
+</tbody></table>
+<p>공식 단가 확인 자료는 <a href="46_query_boundary_validation_report.html">46번 보고서</a>와 원자료에 보관했다. 실패 준비 실행에서 만든 API 응답도 이번 계산에 한 번만 포함했다. 실행 중 비용 상한과 요청 수 상한을 검사했고 상한 때문에 중단한 것은 아니다.</p>
+
+<h2>재현·독립 검토와 원자료</h2>
+<p>실제 답변 파일, 실행 행, 방식명을 숨긴 검토 묶음, 검토 판정을 128개 전부 해시로 대조했다. 독립 코드 리뷰에서 핵심 사례의 해시 필드가 파일 바이트와 canonical 답변 객체를 혼용한 문제를 발견했다. 파일 해시·답변 객체 해시·전체 행 해시로 이름을 나누고 identity와 묶음의 왼쪽/오른쪽을 함께 결속한 뒤 재검토를 통과했다. 답변과 판정 내용은 바꾸지 않았다. 이 검토는 사례의 재현성을 확인하며 독립 사람 평가나 통계적 우월성 검증을 대신하지 않는다.</p>
+<p>수정 뒤 최초 전체 완료 실행과 같은 코드로 노트북 전체를 추가 API 차단 상태에서 재실행했다. 재실행은 64.022초가 걸렸고 새 API 요청은 0건이었다. 조기중단 기록과 256개 미실행 표기를 확인하고 최초 실행 자원 기록을 보존한다. 재실행 시간과 새 요청0 확인은 별도 <a href="../../notebooks/data/49_selected_pipeline_confirmation/offline_full_replay.json">오프라인 전체 실행 기록</a>으로 공개한다. 사용자 폴더 정리·운영 코드·기존 문서·과거 실험 자료는 보호 목록과 대조하며, 평가지표 문서의 이번 설명 추가만 별도 허용한다. HTML은 결과를 확인한 뒤 직접 작성했다.</p>
+<p><a href="../../notebooks/49_selected_pipeline_confirmation.ipynb">실행 노트북</a> · <a href="../../notebooks/data/49_selected_pipeline_confirmation/execution_manifest.json">고정 조건·질문·예산</a> · <a href="../../notebooks/data/49_selected_pipeline_confirmation/questions.json">새 질문</a> · <a href="../../notebooks/data/49_selected_pipeline_confirmation/evaluation_annotations.json">사전 필수 의미</a> · <a href="../../notebooks/data/49_selected_pipeline_confirmation/round1_quality_summary.json">전체·유형별·질문별 결과</a> · <a href="../../notebooks/data/49_selected_pipeline_confirmation/round1_source_review.json">64쌍 전체 출력 검토</a> · <a href="../../notebooks/data/49_selected_pipeline_confirmation/critical_binding_audit.json">답변·검토 연결 확인</a> · <a href="../../notebooks/data/49_selected_pipeline_confirmation/round1_review_gate.json">회차 중단 판단</a></p>
+<p><a href="../../notebooks/data/49_selected_pipeline_confirmation/round1_route_diagnostic.json">실제 검색 경로</a> · <a href="../../notebooks/data/49_selected_pipeline_confirmation/paired_evidence_audit.json">방식별 근거 동일 여부</a> · <a href="../../notebooks/data/49_selected_pipeline_confirmation/source_relation_audit.json">H23 PDF·DB·부모제목 대조</a> · <a href="../../notebooks/data/49_selected_pipeline_confirmation/generation_retry_audit.json">실패·재시도</a> · <a href="../../notebooks/data/49_selected_pipeline_confirmation/cost_latency_accounting.json">요청별 비용·시간</a> · <a href="../../notebooks/data/49_selected_pipeline_confirmation/round1_resources.json">최초 실행 자원</a> · <a href="../../notebooks/data/49_selected_pipeline_confirmation/condition_status.json">전체 384조건 상태</a> · <a href="../../notebooks/data/49_selected_pipeline_confirmation/preservation_verification.json">원본 보존</a> · <a href="../../notebooks/data/49_selected_pipeline_confirmation/completion_status.json">완료·보류 상태</a></p>
+
+<h2>최종 정리</h2>
+<p>S는 두 프로필 모두 첫 회차 필수 요구 충족 수가 두 질문 늘었지만 각 프로필에 PASS 손실 한 질문이 있고, 별도 원문 검사에서도 새 중요조건 누락이 확인됐다. 같은 근거에서의 생성 차이와 실제 구조화 두 질문의 효과를 구분해야 한다. benefit이 이번 원점수에서는 높았으나 청킹 우열·검색 방식의 일반적 우월성은 확정하지 않았다.</p>
+<p>46의 경계 검사, 47의 전체 복귀, 48의 원질문 검색 설정은 개발 후보 구성으로 유지한다. 부분 일치 카드 우선 검색·구조화 보조어·예산 대조군은 채택하지 않았다. 최종 S의 운영 이식은 두 청킹 모두 보류하며 현재 비구조화 운영 코드는 그대로다. 첫 회차 확인은 완료했고 나머지 두 회차는 계획된 조기중단으로 미실행이다. 약0.111달러·53분의 추가 실행이 들었으며 누적은 약0.235달러다.</p>
+<p>다음 검증은 중요한 적용조건이 근거에 있는데도 답변에서 빠지는 문제와 H23의 혜택 묶음 관계를 다뤄야 한다. 개선안을 개발 자료에서 검증한 뒤, 수정에 사용하지 않은 질문으로 다시 확인해야 운영 이식 적격을 판단할 수 있다. 현재 32질문을 보고 수정한 설정을 같은 자료에서 다시 통과시켜 최종 확인으로 부르지 않는다.</p>
+</body></html>
