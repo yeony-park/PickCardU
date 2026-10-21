@@ -1,0 +1,26 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>50 구조화 조회 계약 검사</title>
+<style>body{max-width:1040px;margin:40px auto;padding:0 20px;font:16px/1.75 system-ui;color:#182536}h1,h2{line-height:1.35}table{border-collapse:collapse;width:100%;margin:18px 0}td,th{padding:12px;border:1px solid #ccd6df;text-align:left}th{background:#edf3f8}.note{padding:16px;background:#eef6fb;border-left:4px solid #3173a6}code{overflow-wrap:anywhere}a{color:#1661a0}</style>
+<h1>50. 구조화 조회 계약과 입력 경계 검사</h1><p>2026-10-22 · 오프라인 개발 검사 · 유료 API 0회 · 운영 미반영</p>
+<p class="note">상세 설명 요청으로 DB 조회를 건너뛰는 문제와 기차/전기차 부분 일치를 재현하고 실험용 조회에서 수정했다. 독립 리뷰 후 보강한 회귀 12개와 전체 사실 3,403개의 토큰 경계 검사를 통과했다. 이 결과는 검색·답변 품질 비교 결과가 아니다.</p>
+<h2>왜 실행했는가</h2><p>이전 49번은 대부분 질문이 DB 조회 전에 비구조화 검색으로 복귀했다. 이를 구조화 검색의 성능 저하로 해석할 수 없어, 조건 추출과 조회 처리부터 점검했다. 사용자 예시 8개와 기존 H01–H32를 개발 질문 40개로 동결했다. 이 집합은 신규 확인 집합이 아니다.</p>
+<h2>변경과 고정 조건</h2><p>필터와 상세 설명 요청을 별도 필드로 분리했다. 횟수·한도·실적도 질문에서 수치 제한을 요구하면 필터가 된다. 같은 카드의 서로 다른 혜택 행으로 AND를 만족할 수 있도록 읽기 전용의 매개변수 SQL을 실행한다. 빈 내부 AND는 오류로 처리하고, 조회 결과가 없으면 원래 카드·발급사 범위에서 비구조화 검색을 수행한다. DB 오류는 검색 결과 없음과 구분한다.</p>
+<p>BC와 IBK를 구분하고 기차가 전기차에 일치하지 않게 했다. 기차→철도 별칭과 오타 보정은 추가하지 않았다. H08의 저장된 기간 속성은 unknown이지만 한도 원문에 ‘통합 월 3,000원’이 있어 읽기 단계에서 명시된 기간만 해석한다. 원본 DB·운영 코드·OCR·두 청킹 프로필·색인과 BGE 토큰 한도는 유지했다.</p>
+<h2>검사 결과</h2>
+<table><thead><tr><th>검사</th><th>결과</th><th>해석</th></tr></thead><tbody>
+<tr><td>수정 전 증상 재현</td><td>2개 모두 예상대로 실패</td><td>상세 요청에서 DB 미조회, 기차가 전기차에 일치</td></tr>
+<tr><td>수정 후 회귀</td><td>12/12 통과</td><td>조회·같은 카드 AND·범위·횟수·숫자·기간·출처 보존·필수 필드 누락·결제일과 한도 기간 혼동</td></tr>
+<tr><td>H08 커피 + 상세 요청</td><td>1개 카드</td><td>그린카드 v2의 상세 혜택 행 포함</td></tr>
+<tr><td>H11 넷플릭스와 유튜브 20% + 상세 요청</td><td>6개 카드</td><td>상세 요청을 필터 실패로 처리하지 않고 조회함. 6개 전체의 추천 정답성은 별도 평가 대상</td></tr>
+<tr><td>H21 기차·고속버스·택시 AND</td><td>0개 카드</td><td>기차/철도 별칭 미추가에 따른 정상 복귀 대상. 전기차 오일치 제거</td></tr>
+<tr><td>D39 철도·고속버스·택시 AND</td><td>1개 카드</td><td>IBK K-패스 신용카드의 같은 혜택 행으로 일치</td></tr>
+<tr><td>전체 사실 토큰 경계</td><td>3,403/3,403 통과</td><td>문서 최대 1,601 / 한도 4,096, 질문·문서 쌍 최대 1,649 / 한도 8,192</td></tr>
+<tr><td>보존 검사</td><td>변경 0개</td><td>검사 대상의 내용·크기·수정 시간 유지</td></tr>
+</tbody></table>
+<p><strong>지표 안내:</strong> Regression pass, 회귀 통과 수는 정의한 자동 검사 12개 중 성공한 수다. 최초 10개에 독립 리뷰에서 제안한 누락 필드·결제일 반례 2개를 추가했다. 높을수록 좋고 12개 모두 통과해야 다음 단계에 진입한다. 예를 들어 ‘커피의 월 몇 회인지’가 DB 조회까지 도달하면 해당 검사를 통과한다. 모든 사용자 질문의 추출 정확도를 의미하지 않는다. Eligible cards, 일치 카드 수는 해당 SQL 조건을 만족한 서로 다른 카드 수이며 많을수록 좋은 지표가 아니다. 예를 들어 철도·버스·택시 조건을 같은 카드가 만족하면 1개로 센다. 정답 카드 여부는 원문으로 따로 평가해야 한다. Token bound pass, 토큰 경계 통과는 자르지 않은 전체 사실과 가장 긴 개발 질문을 쌍으로 넣었을 때 문서/쌍 두 한도를 모두 만족한 사실 수다. 모든 3,403개가 통과해야 하며 사실 자체의 정확성을 검증하지는 않는다.</p>
+<h2>원문 확인</h2><p>H08은 BC 그린카드 v2 PDF 4쪽에서 커피 10%, 전월실적 20만원, 월 2회, 통합 월 3,000원을 확인했다. H11은 NH 올바른FLEX PDF 2쪽에서 20%, 건당 7천원, 월 5천원, 가맹점별 월 1회를 확인했다. H21 PDF는 텍스트층이 없어 2쪽을 이미지로 직접 확인했다. 철도·고속버스·택시 5%, 일 1회·월 2회, 월 5천원, 전월 20만원과 택시 앱 결제 제외가 있다. 원문과 DB의 정보 존재를 확인했으며 OCR 검증기 수정은 수행하지 않았다.</p>
+<h2>시간과 자원</h2>
+<table><tr><th>항목</th><th>측정값</th></tr><tr><td>최종 전체 셀 실행 경과 시간</td><td>11.230초</td></tr><tr><td>프로세스 CPU 시간</td><td>8.848초</td></tr><tr><td>프로세스 최대 RSS</td><td>949,956 KiB</td></tr><tr><td>API 요청·비용</td><td>0회 · $0</td></tr><tr><td>답변 완료·첫 토큰·브라우저 표시 시간</td><td>미측정: 이 단계는 답변 생성 없음</td></tr></table>
+<p><strong>시간 지표 안내:</strong> Wall time은 최종 실행의 첫 코드 셀부터 보존 검사까지 한 번 측정한 실제 경과 시간이다. CPU time은 같은 프로세스가 CPU에서 작업한 시간이며 둘 다 짧을수록 자원 효율이 좋지만 품질 통과를 대체하지 않는다. 예를 들어 토큰 검사에 대기 시간이 있으면 경과 시간이 CPU 시간보다 길 수 있다. Peak RSS는 해당 프로세스 실행 중 가장 컸던 상주 메모리이며 시스템 전체 사용량이 아니다. 성공 기준으로 정한 운영 응답시간 상한은 없다. 실패했던 준비 실행과 이번 성공 실행의 소요 시간을 합산한 값이 아니며, 이번 단계로 답변 출력 속도를 판단할 수 없다.</p>
+<h2>재현과 근거 파일</h2><p>Jupyter 커널의 로컬 소켓 생성이 환경에서 허용되지 않아 최종 실행은 노트북의 모든 코드 셀을 같은 Python 프로세스에서 순차 실행하고 출력·시작/종료 시각을 노트북에 저장했다. 일부 셀만 추가 실행한 결과가 아니다. PDF 경로 및 숫자 표기 차이 때문에 실패했던 준비 실행은 최종 성공 실행과 구분한다.</p>
+<ul><li><a href="../../notebooks/50_query_contract_audit.ipynb">50번 노트북</a></li><li><a href="../../notebooks/data/50_query_contract_audit/completion_status.json">완료 상태·자원</a>, <a href="../../notebooks/data/50_query_contract_audit/green_regressions.json">회귀 결과</a></li><li><a href="../../notebooks/data/50_query_contract_audit/sql_probes.json">실제 SQL·조건·일치 사실</a>, <a href="../../notebooks/data/50_query_contract_audit/source_audit.json">원문 확인</a>, <a href="../../notebooks/data/50_query_contract_audit/H21_pdf_page2.png">H21 PDF 이미지</a></li><li><a href="../../notebooks/data/50_query_contract_audit/whole_fact_token_audit.json">전체 토큰 검사</a>, <a href="../../notebooks/data/50_query_contract_audit/preservation_after.json">보존 검사</a></li><li><a href="../../notebooks/notes/50_54_structured_search_retest_plan.md">50–54 승인 계획</a></li></ul>
+<h2>최종 정리</h2><p>조회 전 잘못된 복귀와 대상 오일치를 실험 경로에서 수정했다. 독립 리뷰에서 필수 필드 누락과 결제일 반례를 보강하고 기간 재해석은 한도 원문 자체로 좁혔다. 필수 검사에서 새 실패는 없었으며 자르지 않은 사실 직렬화는 기존 BGE 한도에 들어간다. 실험용 조회 계약을 다음 단계에 사용하고 이전 unresolved 기반 복귀 처리는 사용하지 않는다. 이번 비용은 0달러, 최종 오프라인 실행은 11.230초다. LLM 추출·답변 품질과 실제 응답 시간은 아직 평가하지 않았다. 다음은 51번 조건 추출·범위 검사이며, 운영에 채택한 설정은 아직 없다.</p></html>
