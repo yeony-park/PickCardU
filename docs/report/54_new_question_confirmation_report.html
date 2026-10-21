@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>54 · 새 질문 확인시험의 사전검증 결과</title>
+<style>body{font:16px/1.75 system-ui,sans-serif;color:#182535;background:#eef3f5;margin:0}main{max-width:1100px;margin:auto;padding:36px 22px;background:white}h1{line-height:1.3}h2{margin-top:38px}table{border-collapse:collapse;width:100%;font-size:14px}th,td{border:1px solid #d4dde3;padding:9px;text-align:left}th{background:#edf3f7}.guide,.notice{padding:16px;background:#f1f6f8;border-left:4px solid #467786;margin:14px 0}.notice{background:#fff3df;border-color:#bc8124}code{overflow-wrap:anywhere}a{color:#165e84}.scroll{overflow:auto}.failed{background:#fff0eb}small{color:#4a5969}</style></head>
+<body><main>
+<p>확인시험 사전검증 · 2026-10-22 · 운영 코드 변경 없음</p>
+<h1>54. 신규 32질문 × 3회 추출 후, 원문 의미 불일치로 중단</h1>
+<p><strong>96회 조건 추출은 완료했지만, 비구조화 검색·답변 생성 전 원문 검증에서 통과하지 못했다.</strong> 포인트 교환 바우처를 일반 적립 혜택으로 분류한 한 건이 확인됐다. 동결된 진입 기준에 따라 이후 임베딩·비구조화 검색·예정된 672개 답변은 실행하지 않았다. 비용 부족이나 메모리 부족으로 멈춘 것이 아니다. 54번의 검색 방식별 답변 성능과 운영 후보는 아직 확인되지 않았다.</p>
+
+<h2>목적과 고정한 조건</h2>
+<p>앞선 개발 질문에서 고른 설정을 새 질문에서도 유지할 수 있는지 확인하려 했다. 같은 106개 카드 문서에서 혜택 8개·복합 및 상세 8개·발급사 및 상품 8개·숫자 4개·부정 질문 4개를 사전등록했다. 답변 생성 전에 질문·필수 답변·중요 적용조건·참고 주석·원본 PDF 해시를 고정했다. 새 문서에 대한 독립 검증이나 독립 사람 평가를 뜻하지 않는다.</p>
+<p>고정 설정은 비구조화 단독 U, 구조화 단독 S_ONLY, 구조화 후 카드 범위 안에서 원질문으로 검색하는 순차 SEQ, 구조화와 독립 비구조화 결과를 BGE로 재정렬하는 병렬 PAR이다. SEQ는 53번에 따라 benefit에 B(기존 비구조화 근거에 일치 DB 사실 추가), parent-child에 A(기존 비구조화 근거 유지)를 선택했다. 이 선택은 이번 시험의 입력 설정이며 운영 채택을 뜻하지 않는다. 순차에 전체 비구조화 검색을 별도로 한 번 더 합치지 않는다.</p>
+<p>질문별 조건 추출 3회, S_ONLY 공통 96개 및 2개 프로필의 U·SEQ·PAR 576개로 답변은 총 672조건을 예정했다. 모델 gpt-6-luna·추론 medium·추출 최대 출력 3,000토큰·답변 최대 출력 2,400토큰·질문당 재생성 규칙·원본 DB·청킹·색인을 고정했다. 오타 자동 보정이나 새 동의어 확장은 추가하지 않았다. 이번에는 답변 생성 단계까지 도달하지 않았다.</p>
+
+<h2>순서대로 실행한 검사와 결과</h2>
+<ol>
+<li>신규 질문과 원문 정답 기준을 사전등록했다. 검토 초안과 수정 내역을 보존했고 유료 답변 출력 전 검토를 마쳤다.</li>
+<li>32질문의 조건 추출과 로컬 DB 조회를 3회 실행했다. 96회 중 스키마 정상은 95회였다.</li>
+<li>신규 추출 조건 45종에 대해 기존 판정과 수정 판정의 차이를 전수 대조했다. 58개 혜택 사실·30개 카드에 걸친 97개 변경 쌍을 원본 PDF로 검토했다.</li>
+<li>96개 변경 쌍은 원문 양성으로 확인됐고, IBK BLISS.5 포인트 교환 바우처 1개는 적립 양성으로 인정할 수 없었다. main이 원문 14쪽을 확인했고 독립 reviewer도 같은 결론을 냈다.</li>
+<li>정식 검토 파일을 실제 동결 셀 3에 입력했다. 전수 양성 확인을 요구하는 assertion(검사 조건)이 실패했고, 검색·답변 진입 파일은 생성되지 않았다. 원본 코드·DB·PDF·사전등록 질문을 바꾸지 않고 중단 상태를 저장했다.</li>
+</ol>
+<div class="guide"><strong>아래 표의 지표:</strong> Schema success(스키마 정상)는 32질문×회차별 1회 추출=각 32개 중 고정 형식과 필드 제약을 통과한 수로 높을수록 좋다. 예를 들어 커피 대상 없이 할인 조건만 만들면 통과하지 못한다. Matched(조회 결과 있음)는 그 추출 조건으로 DB 카드가 한 개 이상 나온 수이며 높다는 이유만으로 정확한 것은 아니다. 틀린 조건도 결과가 나올 수 있다. No results(조회 결과 없음)는 실행한 조건의 일치 카드가 없는 수이고, 정답 없는 질문에서도 정상적으로 발생한다. Parser failure(추출 실패)는 구조화 조건을 사용할 수 없어 비구조화 복귀 대상으로 분류한 수다. 각 행 합계는 32이며 같은 질문을 반복하므로 96개의 독립 질문은 아니다. 정답률 통과 기준이나 답변 품질 점수가 아니다.</div>
+<div class="scroll"><table><thead><tr><th>회차</th><th>정상 형식 /32</th><th>조회 결과 있음</th><th>조회 결과 없음</th><th>추출 실패</th></tr></thead><tbody>
+<tr><td>1회</td><td>32</td><td>7</td><td>25</td><td>0</td></tr>
+<tr><td>2회</td><td>31</td><td>7</td><td>24</td><td>1</td></tr>
+<tr><td>3회</td><td>32</td><td>7</td><td>25</td><td>0</td></tr>
+<tr><th>합계 /96</th><th>95</th><th>21</th><th>74</th><th>1</th></tr>
+</tbody></table></div>
+<p><strong>C06 두 번째 추출 실패:</strong> 트래블로그 SKYPASS의 외화 하나머니 결제와 신용결제를 비교하는 질문에서 LLM이 대상 목록이 빈 혜택 조건을 만들었다. 고정 스키마 검증기가 거절했다. 출력은 567토큰으로, 3,000토큰 소진이나 메모리 문제가 아니다. 이 실패의 사용량과 비용은 저장됐으며 이번 사전검증 중단을 직접 일으킨 한 건과는 다르다.</p>
+<p><strong>회차별 합계만 보면 놓치는 차이:</strong> B02 올리브영 질문은 1회에는 대상 ‘올리브영’으로 조회됐지만, 2회에는 ‘올리브영 온라인’과 ‘올리브영 오프라인’을 각각 대상 필드에서 찾다가 0건, 3회에는 온·오프라인 조건을 지원 불가 필터로 넣어 0건이 됐다. I04 UniMile은 1회에 혜택 조건이 비어 0건이었지만 2·3회에는 ‘저비용항공사’ 조건으로 조회됐다. 매 회차 7건이라는 합계가 추출 결과의 동일성이나 안정성을 보장하지 않는다.</p>
+
+<h2>실제 중단 원인: 교환과 적립을 섞은 파생 분류</h2>
+<p>문제 행은 <code>fact_5730a216d549948785404df7</code>, 카드 <code>ibk/IBK_Bliss5</code>다. 원본 <a href="../../data/raw/ibk/IBK_Bliss5.pdf#page=14">PDF 14쪽</a>은 신라면세점 S.Rewards 9만 포인트로 교환하는 바우처를 설명한다. 면세점 구매액에 따라 포인트를 적립하는 서비스라는 근거는 확인되지 않았다. 본인회원·지정 교환처·교환기간 제한이 있다.</p>
+<p>DB 원시 action(행동)은 ‘교환해 드리는’, benefit_type(혜택 종류)은 ‘포인트 교환바우처’다. 실험 DB 생성기의 <code>_derive_action</code>은 이 두 필드에 ‘포인트’라는 단어가 있으면 <code>earn</code>(적립)으로 분류한다. 그 결과 ‘면세점 + 적립’ 조건에 잘못 걸렸다. 단위 필드가 원인인 것은 아니다. 현재 질문 추출 계약의 earn은 적립·캐시백이며 바우처 교환까지 포함한다고 정하지 않았다.</p>
+<p>이 사례는 B04 질문의 ‘마일리지’나 ‘이용액에 따른 추가 적립’ 관계를 현재 스키마가 충분히 표현하지 못하는 문제와도 구분해야 한다. 여기서는 원문상의 교환이 파생값에서 적립으로 바뀌었다. 전체 3,403행의 오류율을 조사한 결과가 아니며, 변경 쌍 97개 중 한 건이라는 비율을 전체 DB 정확도로 사용하지 않는다.</p>
+<p>노트북은 변경 쌍 전부가 원문과 맞을 때만 다음 단계로 넘어간다. 한 건이 틀렸으므로 ‘96개는 맞으니 통과’로 바꾸거나, 해당 행을 몰래 제외하거나, 같은 54번의 고정 설정을 수정해 재개하지 않았다. 이전 52·53번 순위가 이 한 건 때문에 모두 무효라는 결론도 내릴 수 없다. 이전 결과는 각 질문과 고정된 설정에서의 개발 비교로 남는다.</p>
+
+<h2>조회가 비어 있는 다른 이유</h2>
+<p>첫 회차 32질문 중 조회 0건인 25개는 별도로 <a href="../../notebooks/data/54_new_question_confirmation/diagnostics/first_repeat_empty_route_causes.json">계획·조회·대표 사실 행과 연결해 진단</a>했다. 이 분류는 첫 회차만 대상으로 하며 3회 전체 74개에 그대로 확대하지 않는다. 진단의 원문 근거는 사전등록 관찰과 DB 행을 사용했고, 97개 변경 쌍의 PDF 전수 검토와는 검토 범위가 다르다.</p>
+<ul>
+<li><strong>10개:</strong> 지원하지 않는 조건이나 혜택 조건이 없는 상세 질문. 카드가 지정돼도 혜택 groups가 비면 현재 구현은 구조화 결과를 0건으로 처리한다. 원문에 답이 없다는 뜻은 아니다.</li>
+<li><strong>1개:</strong> 필요한 관계가 검색 대상 필드에 표현되지 않음. I03 정비 혜택은 혜택 종류에는 있으나 대상 필드가 ‘결제금액’이어서 찾지 못했다.</li>
+<li><strong>11개:</strong> 정규화·표면 표현·업종 및 행동 분류의 한계. B01 쿠팡와우는 원문과 DB condition에 ‘전월 실적 조건 없음’이 있지만 파생 실적값이 unknown(미확정)이라 ‘전월실적 0원 이하’ 조건을 만족시키지 못했다. 이 11개가 모두 같은 버그라는 뜻은 아니다.</li>
+<li><strong>2개:</strong> 실제 문서에서 해당 혜택이 없거나 제외됨. X01 My WE:SH의 라운지, X03 7CORE의 해외 10% 할인이다.</li>
+<li><strong>1개:</strong> 부정 질문을 양성 필터로 만들었음. X02의 ‘멤버십 전액 캐시백이 맞는가’를 전액 혜택을 찾는 조건으로 바꿨다.</li>
+</ul>
+<p>그러므로 조회 0건을 모두 ‘질문이 잘못됐다’ 또는 ‘원문에 정보가 없다’로 설명할 수 없다. 또한 이 신규 질문군은 이전 개발 40문항보다 상세 비교·특수 서비스·부정 질문이 많다. 이전 benefit 순차 답변 PASS 36/40(90%)와 이번 조회 결과 있음 21/96을 직접 비교하면 안 된다. 전자는 답변 품질, 후자는 추출 조건의 조회 여부이며 질문군·분모도 다르다.</p>
+
+<h2>출력 시간·비용·자원</h2>
+<div class="guide"><strong>시간 지표:</strong> Parser-ready latency(조건 추출 완료시간)는 각 추출의 API 호출·형식 검증·저장까지 걸린 벽시계 시간이다. 낮을수록 좋고 각 회차 분모는 32, 합계는 96이다. 예를 들어 잘못된 JSON을 검증해 거절할 때까지의 시간도 포함한다. Median(중앙값)은 가운데 값, P95(95백분위)는 정렬 후 올림(0.95×분모)번째다. 32개는 31번째, 96개는 92번째다. Mean(평균)은 합계/분모이며 한 번의 느린 호출에도 변한다. 시간 통과 상한은 정하지 않았다. 답변 생성 완료시간·첫 토큰·화면 출력시간을 측정한 값이 아니다.</div>
+<div class="scroll"><table><thead><tr><th>측정 범위</th><th>평균</th><th>중앙값</th><th>P95</th><th>최대</th></tr></thead><tbody>
+<tr><td>추출 1회차 32개</td><td>5.490초</td><td>5.147초</td><td>8.612초</td><td>12.381초</td></tr>
+<tr><td>추출 2회차 32개</td><td>6.080초</td><td>5.694초</td><td>10.368초</td><td>10.872초</td></tr>
+<tr><td>추출 3회차 32개</td><td>6.182초</td><td>5.698초</td><td>8.973초</td><td>9.216초</td></tr>
+<tr><th>96개 합계</th><th>5.917초</th><th>5.460초</th><th>9.385초</th><th>12.381초</th></tr>
+</tbody></table></div>
+<p>추출 완료시간 합계는 568.071초, 유료 추출 실행기 구간의 전체 시간은 628.112초, 별도 준비 구간은 0.943초였다. 실행기 시간에는 초기화·로컬 DB 조회·기록 등도 포함되므로 사용자 한 질문의 응답시간이 아니다. 이번 네 방식의 근거 검색·재정렬·답변 생성은 미실행, 신규 임베딩 0회다. CPU 전체 시간·최대 RSS·최소 가용 메모리·GPU 메모리·실제 처리량·최종 파일 크기 변화는 미측정이다. GPU를 사용하지 않았고 원본 색인은 변경하지 않았다. 첫 토큰·브라우저 표시·온라인 전체 응답시간도 미측정이다.</p>
+<div class="guide"><strong>비용 지표:</strong> Physical API requests(실제 요청 수)는 캐시 재생을 제외한 새 요청으로, 실패한 추출 1회도 포함해 96회다. Usage-based cost(사용량 기반 비용)는 공급자가 반환한 토큰 사용량에 동결된 단가를 적용한 값이다. 낮을수록 비용은 적지만 품질 검증 실패를 상쇄하지 못한다. 이번 입력 95,835토큰·출력 39,523토큰이며 캐시 입력·쓰기 0토큰이다. 예를 들어 대상 필드 누락으로 거절돼도 이미 사용한 567개 출력토큰 비용을 포함한다. 실제 청구액·계정 잔액은 미측정이며, 상한 예약금은 실제 발생 비용과 다르다.</div>
+<p><strong>54번 추가 비용은 $0.0293450</strong>이다. 46번부터 이번 중단까지 승인 실험의 확인 가능한 누적 비용은 <strong>$0.633330615</strong>, 원래 HTTP 520 실패 한 건의 미확인 비용을 승인된 최대 예상값 $0.003127로 차감하면 예산 사용액은 <strong>$0.636457615</strong>다. 누적 $8 상한보다 낮다. 원래 실패한 51번 요청의 재시도는 정상 완료했고, 원래 실패의 실제 비용은 계속 미확인으로 남겼다. 이번 54번에는 새 사용량 미확인 실패가 없다.</p>
+
+<h2>보존 자료와 재현성</h2>
+<p><a href="../../notebooks/54_new_question_confirmation.ipynb">실행 노트북</a> · <a href="../../notebooks/data/54_new_question_confirmation/questions.json">사전등록 질문 32개</a> · <a href="../../notebooks/data/54_new_question_confirmation/question_rubrics.json">사전 답변 평가 기준</a> · <a href="../../notebooks/data/54_new_question_confirmation/parser_summary.json">96개 추출 요약</a> · <a href="../../notebooks/data/54_new_question_confirmation/parser_results.json">추출·조회 원자료</a> · <a href="../../notebooks/data/54_new_question_confirmation/predicate_difference_review.json">97개 원문 판정</a> · <a href="../../notebooks/data/54_new_question_confirmation/source_gate_failure.json">실제 진입 검사 실패</a> · <a href="../../notebooks/data/54_new_question_confirmation/diagnostics/IBK_Bliss5_exchange_not_earn.json">교환/적립 원인 대조</a> · <a href="../../notebooks/data/54_new_question_confirmation/resource_summary.json">시간·비용 원자료</a></p>
+<p>원문 검토 제안은 보존했다. 제안의 requirement 해시가 JSON의 ASCII 직렬화 방식으로 계산돼 있었으므로, 원래 probe의 전체 조건과 97개를 일대일 대응 확인한 뒤 노트북의 고정 직렬화 방식으로 정식 판정 해시만 다시 묶었다. <a href="../../notebooks/data/54_new_question_confirmation/review_binding_translation.json">대응표</a>에 변환 전후를 저장했다. 원문 판정과 false 값은 바꾸지 않았다. 모든 96개 추출은 캐시 검증으로 다시 대조했고, 원본 파일과 동결 코드 검사를 통과한 상태에서 실제 셀 3의 실패를 확인했다. 전체 노트북이나 유료 호출을 처음부터 재실행한 것은 아니다. 보고서 HTML은 결과를 읽고 직접 작성했다.</p>
+
+<h2>판단과 다음 검증</h2>
+<p>현재 후보는 앞선 개발 비교에서 나온 설정이다. <a href="52_corrected_four_retrieval_modes_report.html">52번</a>은 benefit 순차의 질문 해결 36/40으로 개발 최고를 기록했고, <a href="53_sequential_fact_supplement_report.html">53번</a>은 다음 확인용으로 benefit 근거 추가·parent-child 기존 입력을 골랐다. 54번은 그 우열을 반증한 실험도, 운영 적합성을 확인한 실험도 아니다. 사전 데이터·의미 정합성 검사에서 막혀 답변 품질 분모가 0이기 때문이다. 예정된 미실행 672개를 FAIL이나 0%로 집계하지 않는다.</p>
+<div class="notice"><strong>마지막 정리:</strong> 정상 형식 추출은 95/96이었지만 올리브영 같은 실제 질문에서 추출 표현과 조회 결과가 반복마다 달랐다. 새 원문 검토는 교환 바우처의 적립 오분류를 찾아냈으며, 무실적 값과 상세 질문의 구조화 표현에도 한계가 남았다. 이번에는 설정을 사후 수정하거나 운영 반영을 채택하지 않았고, 유료 후속 단계 진입을 거절했다. 추가 비용은 약 $0.029, 조건 추출 평균은 5.917초였으며 답변 출력시간은 미측정이다. 다음에는 <strong>별도 번호의 개발 실험</strong>에서 교환·적립 분류와 조회 0건 원인을 보완하고 회귀 검증해야 한다. 이후 새 확인시험의 코드·질문·판정 기준·manifest를 다시 동결한다. 현재 DB를 그대로 운영에 적용하는 것은 권장하지 않는다.</div>
+</main></body></html>
