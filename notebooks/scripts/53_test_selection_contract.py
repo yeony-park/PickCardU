@@ -2,7 +2,6 @@
 
 Execute the actual evaluation cell on synthetic journals; no API or model load.
 """
-import copy
 import hashlib
 import json
 from pathlib import Path
@@ -45,7 +44,7 @@ def journal(tmp_path):
                     retrievals.append(dict(identity=identity, result=dict(cards=[dict(card_key="test/card")], evidence=[])))
                     judgments.append(dict(identity=identity, answer_sha256=digest(row),
                         question_sha256=digest(q["question"]), verdict="PARTIAL", reason="fixture",
-                        important_error=False, condition_loss_vs_A=False, scope_error=False,
+                        important_error=False, new_important_error_vs_A=False, condition_loss_vs_A=False, scope_error=False,
                         source_support=[dict(card_key="test/card", path="data/raw/test/card.pdf",
                             sha256=digest(pdf.read_bytes()), page=1, observation="fixture", relation="retrieved_card")]))
     completed = dict(answers=answers, retrievals=retrievals, manifest_sha256=digest(manifest))
@@ -111,3 +110,11 @@ def test_incomplete_or_unbound_judgment_is_rejected(journal, mutation):
         j["source_support"][0]["relation"] = "missing_expected_card"
     with pytest.raises((AssertionError, KeyError)):
         journal.evaluate()
+
+
+def test_different_new_error_is_not_hidden_by_an_existing_A_error(journal):
+    journal.judgments[9]['verdict'] = 'PASS'  # another question improves
+    journal.judgments[0]['important_error'] = True
+    journal.judgments[1]['important_error'] = True
+    journal.judgments[1]['new_important_error_vs_A'] = True
+    assert journal.evaluate()[0]['selected'] == 'A'
