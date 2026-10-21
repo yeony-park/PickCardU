@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>53 · 순차 검색의 구조화 근거 추가 비교</title>
+<style>body{font:16px/1.75 system-ui,sans-serif;color:#182535;background:#eef3f5;margin:0}main{max-width:1100px;margin:auto;padding:36px 22px;background:white}h1{line-height:1.3}h2{margin-top:38px}table{border-collapse:collapse;width:100%;font-size:14px}th,td{border:1px solid #d4dde3;padding:9px;text-align:left}th{background:#edf3f7}.guide,.notice{padding:16px;background:#f1f6f8;border-left:4px solid #467786;margin:14px 0}.notice{background:#fff6e5;border-color:#bc8124}.selected{background:#e2f4eb}code{overflow-wrap:anywhere}a{color:#165e84}.scroll{overflow:auto}small{color:#4a5969}</style></head>
+<body><main>
+<p>개발 비교 · 2026-10-22 · 운영 코드 변경 없음</p>
+<h1>53. 카드 범위만 전달할 때와 구조화 근거를 답변에 추가할 때</h1>
+<p><strong>다음 확인시험에서는 benefit에 B(근거 추가), parent-child에 A(기존 입력)를 사용한다.</strong> benefit은 질문 해결이 18/24→19/24로 늘고 금지된 새 문제가 없었다. parent-child는 15/24→17/24로 늘었지만 기존에 안내하던 중요한 전월실적 조건을 잃은 사례가 있어 B를 선택하지 않았다. 아직 운영 채택 결과가 아니다.</p>
+
+<h2>왜 실행했고 무엇을 비교했는가</h2>
+<p>52번에서 바로잡은 순차 검색은 구조화 조회로 카드 범위를 정한 뒤 그 범위 안에서 원질문으로 vector+BM25 검색을 한다. 이번 질문은 <strong>그 검색 결과를 유지하면서 DB의 일치 혜택·조건을 답변 생성 입력에 덧붙이면 더 잘 답하는가</strong>이다. 독립적인 전체 비구조화 검색을 한 번 더 합치는 구조는 사용하지 않았다.</p>
+<ul><li><strong>A:</strong> 52번 순차 검색의 카드 목록·비구조화 근거를 그대로 답변 LLM에 전달.</li><li><strong>B:</strong> 같은 카드 목록·같은 순위·같은 비구조화 근거에, 검색된 카드의 일치 DB 사실 행만 추가. 원질문·임베딩 검색어는 그대로이며 기존 근거를 밀어내지 않는다. 전체 입력 64,000바이트 안에 들어가는 행만 온전히 추가한다.</li></ul>
+<p>50번에서 미리 고른 12문항 × 운영 프로필 2개 × A/B × 신규 생성 2회 = 96개 논리 조건이다. 새 검색·임베딩·재정렬은 없고 52번 검색 결과를 재사용했다. 모델은 gpt-6-luna, reasoning=medium, 최대 출력 2,400토큰으로 고정했다. A/B 순서를 교차했고, 입력이 같은 H01·H13·H21은 같은 회차 A 응답을 B가 공유했다. 공유 B 12개를 분모에서 빼지 않았다.</p>
+<p>질문·필수 답변·중요 적용조건과 참고 주석을 유료 출력 전에 고정했다. 평가자는 답변 본문뿐 아니라 반환 JSON의 추천·주장 필드도 읽고 원문과 대조했다. 사람의 독립·맹검 평가는 아니며, 경계 사례 H11/H21은 별도 reviewer의 읽기 전용 검토를 받았다. 실제 화면에서 이 정보를 어떻게 보여주는지는 이번 시험에 포함하지 않았다.</p>
+
+<h2>조건별 결과와 선택</h2>
+<div class="guide"><strong>지표 읽기:</strong> PASS(질문 해결)는 해당 질문의 필수 답변을 채우고 중요한 오류·적용조건 누락·범위 오류가 없는 반환 결과다. 높을수록 좋으며 분모는 각 설정의 12질문×2회=24개이다. 예를 들어 그린 v2의 월 2회·전월 20만원·월 3천원을 모두 맞혀야 한다. PARTIAL(일부 미해결)은 핵심의 일부나 중요한 조건을 빠뜨린 경우, FAIL(실패)은 직접 모순·답변 생성 실패 등이다. 참고 주석을 전부 나열하지 않았다는 이유만으로 실패시키지 않는다. 중요 오류 수는 금액·대상·경로를 잘못 확정한 논리 결과 수이며 낮을수록 좋다. API 정상 여부와 의미 정확성은 다르다. 24개는 독립된 24질문이 아니므로 통계적 우월성을 뜻하지 않는다.</div>
+<div class="scroll"><table><thead><tr><th>프로필</th><th>입력</th><th>PASS /24</th><th>PARTIAL</th><th>FAIL</th><th>중요 오류</th><th>회차별 PASS /12</th><th>54번에 사용할 설정</th></tr></thead><tbody>
+<tr><td>benefit</td><td>A 기존 입력</td><td>18 · 75.00%</td><td>5</td><td>1</td><td>1</td><td>10 / 8</td><td>미선택</td></tr>
+<tr class="selected"><td>benefit</td><td>B 근거 추가</td><td>19 · 79.17%</td><td>4</td><td>1</td><td>1</td><td>10 / 9</td><td>B 선택</td></tr>
+<tr class="selected"><td>parent-child</td><td>A 기존 입력</td><td>15 · 62.50%</td><td>8</td><td>1</td><td>0</td><td>8 / 7</td><td>A 유지</td></tr>
+<tr><td>parent-child</td><td>B 근거 추가</td><td>17 · 70.83%</td><td>7</td><td>0</td><td>0</td><td>9 / 8</td><td>조건 손실로 미선택</td></tr>
+</tbody></table></div>
+<div class="guide"><strong>선택 기준:</strong> 질문별 2회 PASS 횟수를 A와 비교해 B의 승/패/동률을 센다. 예를 들어 H11이 A 1회·B 2회 해결이면 B의 1승이다. 두 프로필 모두 1승·0패·11동률이었다. 사전 기준은 1승 이상과 함께 새 중요 오류·중요 조건 손실·범위 오류가 모두 0이어야 한다. 기존 A 오류가 B에도 있으면 '새 오류'는 아니지만 총 오류 수에는 남긴다. B의 평균이 높다는 사실만으로 채택하지 않는다.</div>
+<ul><li><strong>benefit H11:</strong> A는 두 번째 회차에 Discount Plan+의 할인 전 건당 대상금액 1만원 상한을 빠뜨렸다. B는 보완했다. 해당 상한은 20% 할인율로 실제 받을 금액을 바꾸므로 중요한 적용조건이다.</li><li><strong>parent-child D36:</strong> A는 두 회차 모두 D4카드의 일반 전월실적 30만원을 확인하지 못했다. B는 두 회차 모두 보완했다.</li><li><strong>parent-child H11, 두 번째 회차:</strong> B는 대상금액 상한을 보완했지만 A에 있던 Discount Plan+ 전월 40만원·월 통합한도와 FLEX 전월 30만원을 빠뜨렸다. A/B 모두 PARTIAL이어도 이 조건 손실은 별도 거절 기준에 걸린다. 입력이 늘어서 생긴 것인지 생성 변동 때문인지는 이번 결과만으로 알 수 없다.</li><li><strong>공통 한계:</strong> H23의 NH 올원더풀 할인 PACK 선택조건은 두 프로필·두 입력·두 회차 모두 누락됐다. benefit H21은 첫 회차에 IBK 앱 적용을 모호하다고 답해 PARTIAL, 두 번째 회차에 모든 앱을 제외한다고 확정해 FAIL이었다. 입력이 같은 A/B에 같은 응답을 공유한 결과다. 원문은 철도·고속버스 공식 앱은 허용하고 택시 앱은 제외한다.</li></ul>
+<p>프로필 간에는 청킹 외 운영 설정 차이도 있으므로 이 표를 청킹만의 인과 효과로 해석하지 않는다. 52번의 전체 40문항 성적과 이번에 미리 고른 12문항 성적도 직접 비교하지 않는다. 참고 주석의 항목별 포함 여부는 별도로 전수 판정하지 않아 <code>uncertain</code>(미판정)을 남겼고, 주석 포함률 수치를 주장하지 않는다.</p>
+
+<h2>답변이 완성되기까지 걸린 시간</h2>
+<div class="guide"><strong>시간 지표:</strong> Answer-ready latency(답변 확보시간)는 답변 생성 호출·형식 검증·재시도까지 저장된 벽시계 시간이며 낮을수록 좋다. 예를 들어 JSON이 잘려 재시도하면 두 호출의 지연이 포함된다. 각 행 24개 중 공유 B는 같은 회차 A가 답을 완성한 시간을 이어받았다. 0.001초 수준의 캐시 읽기를 새 생성 속도로 비교하지 않았다. P95(95백분위)는 정렬 후 올림(0.95×분모) 위치 값이다. 24개 중 23번째이고, 실제로 입력이 달라진 18개에서는 18번째이므로 최대값과 같다. 통과 SLA는 정하지 않았다. 검색·조건추출을 포함한 온라인 전체 응답시간, 첫 토큰/첫 글자, 브라우저 표시시간은 미측정이다.</div>
+<div class="scroll"><table><thead><tr><th>프로필·입력</th><th>전체 24개 평균</th><th>중앙값</th><th>P95</th><th>최대</th><th>입력이 달라진 18개 평균</th><th>그 18개 P95</th></tr></thead><tbody>
+<tr><td>benefit A</td><td>15.950초</td><td>14.716초</td><td>34.660초</td><td>40.320초</td><td>16.378초</td><td>40.320초</td></tr>
+<tr><td>benefit B</td><td>12.653초</td><td>12.469초</td><td>18.702초</td><td>20.668초</td><td>11.982초</td><td>20.668초</td></tr>
+<tr><td>parent-child A</td><td>22.913초</td><td>14.282초</td><td>64.057초</td><td>67.249초</td><td>18.256초</td><td>67.249초</td></tr>
+<tr><td>parent-child B</td><td>21.428초</td><td>13.694초</td><td>64.057초</td><td>67.994초</td><td>16.276초</td><td>67.994초</td></tr>
+</tbody></table></div>
+<p>시간은 이번 2회 생성의 실측 요약이다. B가 이번에 빨랐다는 관찰을 일반적인 가속 효과로 확정하지 않는다. parent-child H11 A 첫 회차는 두 요청이 모두 2,400토큰을 써 JSON이 잘렸고 67.249초 후 최종 실패했다. H11 B 두 번째 회차와 H22 A 두 번째 회차도 최초 출력이 잘렸지만 재시도에 성공했다. 도중에 출력 한도를 바꾸지 않았다.</p>
+
+<h2>비용과 자원</h2>
+<div class="guide"><strong>비용 지표:</strong> Physical API requests(실제 API 요청 수)는 캐시 재사용을 제외한 요청이며 실패·재시도도 센다. Cost(비용)는 반환된 사용량에 고정 단가를 적용한 달러 계산값으로 낮을수록 좋지만 품질 거절 기준을 대체하지 않는다. 예를 들어 응답이 잘려도 사용한 토큰 비용은 포함한다. 실제 청구액·계정 잔액은 미측정이다. 입력이 같은 B 12개는 추가 요청이 없어 A/B 비용 비교 분모가 다름에 주의한다. 원천 사용량·캐시 구분이 없는 비용은 미확인으로 남기는 회계 규칙을 유지했다.</div>
+<table><thead><tr><th>설정</th><th>실제 요청 수</th><th>사용량 기반 비용</th></tr></thead><tbody>
+<tr><td>benefit A</td><td>24</td><td>$0.024921500</td></tr><tr><td>benefit B</td><td>18</td><td>$0.020612015</td></tr>
+<tr><td>parent-child A</td><td>26</td><td>$0.024034590</td></tr><tr><td>parent-child B</td><td>19</td><td>$0.019124035</td></tr>
+<tr><th>53번 합계</th><th>87</th><th>$0.088692140</th></tr></tbody></table>
+<p>84개 최초 유료 답변과 검증 재시도 3회다. 실패한 물리 요청은 4개이며, 논리 최종 결과는 정상 95개·생성 실패 1개다. 입력 671,228토큰(일반 261·캐시 읽기 406,429·캐시 쓰기 264,538), 출력 103,069토큰을 기록했다. 신규 임베딩·검색·재정렬은 모두 0이다. 단가는 기존 승인 계약의 gpt-6-luna 백만 토큰당 일반 입력 $0.10·캐시 읽기 $0.01·캐시 쓰기 $0.125·출력 $0.50이며, 실제 공급자 사용량 분할값을 그대로 계산했다. <a href="https://developers.openai.com/api/docs/models/gpt-6-luna">모델 공식 자료</a>, <a href="https://developers.openai.com/api/docs/guides/prompt-caching">캐시 공식 자료</a>를 참고한다.</p>
+<p>46번 이후 승인 실험 전체의 53번 완료 시점 누적 확인 비용은 <strong>$0.603985615</strong>다. 원래 HTTP 520 실패 1건의 실제 비용은 여전히 미확인이고, 승인된 보수 상한 $0.003127을 더한 예산 차감액은 <strong>$0.607112615</strong>로 누적 $8 상한 안이다. 그 요청은 51번 재시도에서 복구했으며, 이번 53번에 새 비용 미확인 실패는 없다.</p>
+<p>유료 실행기 2개 구간의 전체 벽시계 시간 합은 1,534.847초다. 이는 준비·검증·저장·캐시 재생도 포함한 배치 실행시간으로 위 답변 지연과 다르다. 마지막 구간만 CPU 91.693초·최대 RSS 372,580KiB를 측정했으며, 전체 CPU·전체 최대 메모리·최소 가용 메모리·GPU 메모리·모델/캐시/색인 크기 변화·처리량은 미측정이다. GPU는 사용하지 않았다.</p>
+
+<h2>원본과 재현성</h2>
+<p><a href="../../notebooks/53_sequential_fact_supplement.ipynb">실행 노트북</a> · <a href="../../notebooks/data/53_sequential_fact_supplement/execution_results.json">96개 실행 결과</a> · <a href="../../notebooks/data/53_sequential_fact_supplement/source_judgments.json">96개 원문 판정</a> · <a href="../../notebooks/data/53_sequential_fact_supplement/evaluation_summary.json">프로필별 선택과 질문별 승패</a> · <a href="../../notebooks/data/53_sequential_fact_supplement/resource_summary.json">시간·실패·비용 원자료</a> · <a href="../../notebooks/data/53_sequential_fact_supplement/question_rubrics.json">사전 질문 평가 기준</a> · <a href="52_corrected_four_retrieval_modes_report.html">앞선 52번 결과</a></p>
+<p>유료 셀을 체크포인트로 나누어 실행했고, 완료 후 평가 셀만 오프라인으로 다시 실행해 96개 답변·질문·PDF·루브릭 해시를 검증했다. 전체 노트북을 처음부터 재실행한 것은 아니다. 미완료 판정은 별도 파일에 두었다가 96개 완료 후 최종 입력으로 확정했다. HTML은 결과를 직접 확인한 뒤 작성했으며 보고서 생성 스크립트는 추가하지 않았다.</p>
+<div class="notice"><strong>마지막 정리:</strong> benefit의 근거 추가는 H11의 중요한 금액 조건을 보완해 개발 점수가 1개 개선됐다. parent-child도 D4 실적 답변은 좋아졌지만 구독 질문에서 기존 조건이 사라져 B를 거절했다. 현재 DB에는 Discount Plan+의 '할인 전 이용금액 기준'이 일부 행에서 빠진 한계도 남아 있어, 구조화 근거가 항상 원문보다 정확하다는 전제는 둘 수 없다. 추가 비용은 약 $0.089이며 답변 시간과 재시도 지연은 위 실측값을 따른다. 다음 54번에서는 새로 사전등록한 32문항을 3회 반복하고 benefit B·parent-child A를 사용해 네 검색 방식을 확인한다. 운영 코드는 아직 변경하지 않았다.</div>
+</main></body></html>

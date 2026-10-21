@@ -52,3 +52,14 @@ H20답변은아직전체7개를읽지않았다. 현재읽은benefitU는claim/본
 - 53 NB_LAST_CELL=1 오프라인실행(session86681)완료: 12질문96조건manifest/rubric/해석보완/코드가동결됐다. API아직0. 기존prepaid_review_acceptance는이전초안기록이므로최신review를별도paid_entry_review로기록한뒤승인된API를시작한다. 53/54를아직완료로보고하지말것.
 
 남은순서:52결과curatedcommit→53유료96논리조건·96원문판정·A/B선정·직접HTML→54설정동결/새32질문·원문gold/must/material/context사전동결→96추출·새predicate차분원문검토→672답변·3회평가·직접HTML→검증/커밋. 운영코드수정없음. docs/EVALUATION_METRICS.md의기존사용자prefix변경은계속unstaged로보존하고이번추가단락만append패치로stage할것.
+
+## 53 완료 및 54 사전등록 체크포인트 (2026-10-22)
+
+- 52 결과/직접HTML 보존 커밋 b1eaa37. 54 신규32질문·must/material/context·PDF근거와 검토 전 초안을 유료 출력 전에 9a8aed7b로 사전등록했다. 54 질문 분포 benefit8/compound_detail8/issuer_product8/numeric4/negative4, 단순말바꿈보다 새상품·주제확대. proposal_reviewer Major5개(추가율/적립수치/미확인판정/실적제외범위/직접질문목록·한도)를 고치고 Blocking/Major0 수락받았다. I02/7CORE 원본PDF이미지도 main이 추가 확인했다.
+- 53 유료 제어기83407은96/96 완료 후 정상 종료했다. 유료 실행 중 미완료 source_judgments는 in_progress로 옮겨 평가셀의 조기 집계를 막았고 최종96개를 읽은 뒤 source_judgments.json으로 확정했다. 원본응답/요청/재시도 보존. H11 benefit A:r2의 대상금액1만원상한 누락과 H21 IBK앱범위 모호함은 reviewer가 PARTIAL material_omission 경계를 독립 확인했다. 평가규칙 자체는 사전동결 그대로다.
+- 실제동결평가셀1/4만 오프라인 실행해96개 raw/augmented SHA·질문·PDF소유권·rubric·동일입력공유를 검증했다. evaluation_summary: benefit A18/24(18PASS,5PARTIAL,1FAIL) vs B19/24(19,4,1), H11에서1승0패11동률, B선택. parent A15/24(15,8,1) vs B17/24(17,7,0), D36에서1승0패11동률이나 H11:B:r2가 A에있던DiscountPlan전월40만원·월한도/FLEX30만원을 잃어 조건손실1건→A유지. 중요오류benefit A/B각1(H21r2전부앱제외),parent0. 최종API생성실패parentA H11r1 1건은포함한수치다.
+- 53 논리96=유료최초84+동일회차A공유B12. 실제API87=84+검증재시도3. 물리실패4모두max_output_tokens2400; H11pAr1은최초·재시도모두실패, H11pBr2/H22pAr2는재시도성공. 토큰한도를도중에변경하지않았다. 비용.088692140달러, 누적known.603985615; 원520unknown상한.003127포함예산차감.607112615<8. 입력671228/출력103069토큰. 신규검색·임베딩·재정렬0. GPU미사용.
+- 53 답변확보시간24개평균/중앙/P95/최대: bA15.950/14.716/34.660/40.320초,bB12.653/12.469/18.702/20.668초,pA22.913/14.282/64.057/67.249초,pB21.428/13.694/64.057/67.994초. 동일입력공유B는캐시읽기0.001초를새생성으로비교하지않고같은회차A완료시간을승계했다. 바뀐입력18개씩별도통계resource_summary.json. TTFT·UI표시·온라인전체시간미측정. 유료실행2구간1534.847초,마지막구간CPU91.693초/RSS372580KiB;전체CPU/최대RSS미측정. 약1.2초오프라인사전셀구간은유료batch합에서제외했다.
+- docs/report/53_sequential_fact_supplement_report.html 직접작성완료, 링크/한국어문구/96분모검사. 53·54관련35검사4.17초통과. completion_status=completed_development_comparison,stage54_allowed=True,production_adopted=False. 53노트북평가출력도갱신했으나전체유료노트북재실행은아니다. 52/53참고주석포함여부는전수별도판정이아니므로uncertain과미측정한계를보고한다.
+
+다음:53curatedcommit→54 frozen_configuration(BGE,benefitB,parentA,52/53summarySHA)→오프라인cell1 manifest동결→현재코드·검토해시paid_entry기록→NB_LAST_CELL=2로신규96추출만→cell3 predicate차분probe·전체원문검토→paid_answer_entry→672검색/답변3회→원문672판정·평가·직접HTML→검증/curatedcommit. 54질문32및rubric/source는이미유료출력전동결되었으므로사후편의수정금지. 53끝난PTY83407은회수완료,현재유료프로세스없음. 운영코드·OCR·원본DB/PDF/색인은계속수정금지. 원520하나만미확인비용예외,새미확인실패는중단규칙유지.
