@@ -2,6 +2,7 @@
 
 Execute the actual evaluation cell on synthetic journals; no API or model load.
 """
+import importlib.util
 import hashlib
 import json
 from pathlib import Path
@@ -9,6 +10,10 @@ from types import SimpleNamespace
 
 import nbformat
 import pytest
+
+
+_spec=importlib.util.spec_from_file_location('question_evaluator',Path(__file__).with_name('53_question_evaluation.py'))
+E=importlib.util.module_from_spec(_spec);_spec.loader.exec_module(E)
 
 
 def digest(value):
@@ -52,12 +57,18 @@ def journal(tmp_path):
                   if c.cell_type == "code" and "judgment_path=PATH" in c.source)
 
     def evaluate():
+        rubric_by_query={q['query_id']:dict(question=q['question'],must_answer=['requested fact'],context_anchor=['extra context']) for q in queries}
+        rubrics=dict(records=list(rubric_by_query.values()))
+        for j in judgments:
+            j.update(question_verdict=j['verdict'],material_omission=False,rubric_sha256=digest(rubric_by_query[j['identity'].split(':')[0]]),
+                must_answer_coverage=dict(covered=['requested fact'] if j['verdict']=='PASS' else [],missing=[] if j['verdict']=='PASS' else ['requested fact'],not_applicable=[]),
+                annotation_coverage=dict(covered=[],missing=['extra context'],not_applicable=[]))
         write(stage / "execution_results.json", completed)
         write(stage / "source_judgments.json", dict(records=judgments))
         read = lambda p: json.loads(p.read_text())
         ns = dict(PATH=stage, ROOT=root, P=SimpleNamespace(sha=digest, F=SimpleNamespace(read_json=read)),
                   X=SimpleNamespace(PROFILES=["benefit", "parent"], frozen=write), queries=queries,
-                  manifest=manifest, json=json, gold_by_query={q["query_id"]: [] for q in queries})
+                  manifest=manifest, json=json, gold_by_query={q["query_id"]: [] for q in queries},E=E,rubrics=rubrics,rubric_by_query=rubric_by_query)
         exec(compile(source, "53 evaluation cell", "exec"), ns)
         return read(stage / "evaluation_summary.json")["decisions"]
 
@@ -90,7 +101,7 @@ def test_gain_cannot_hide_a_guardrail_failure(journal, guard):
     if guard == "loss":
         journal.judgments[8]["verdict"] = "PASS"  # different question, A only
     else:
-        journal.judgments[1][guard] = True
+        journal.judgments[3][guard] = True
     assert journal.evaluate()[0]["selected"] == "A"
 
 

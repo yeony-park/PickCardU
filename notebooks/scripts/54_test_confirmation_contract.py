@@ -1,5 +1,6 @@
 """Offline proof of mandatory review entry and complete confirmatory denominators."""
 import ast
+import importlib.util
 import hashlib
 import json
 from pathlib import Path
@@ -9,6 +10,10 @@ import nbformat
 import pytest
 
 NB = Path(__file__).parents[1] / '54_new_question_confirmation.ipynb'
+
+
+_spec=importlib.util.spec_from_file_location('question_evaluator',Path(__file__).with_name('53_question_evaluation.py'))
+E=importlib.util.module_from_spec(_spec);_spec.loader.exec_module(E)
 
 
 def sha(v):
@@ -72,9 +77,15 @@ def journal(tmp_path):
     M=SimpleNamespace(answer=lambda stage,identity,*a,**kw:json.loads((tmp_path/'answers'/(identity+'.json')).read_text()))
 
     def evaluate():
+        rubric_by_query={q['query_id']:dict(question=q['question'],must_answer=['requested fact'],context_anchor=['extra context']) for q in queries}
+        rubrics=dict(records=list(rubric_by_query.values()))
+        for j in judgments:
+            j.update(question_verdict=j['verdict'],material_omission=False,rubric_sha256=sha(rubric_by_query[j['identity'].split(':')[0]]),
+                must_answer_coverage=dict(covered=['requested fact'] if j['verdict']=='PASS' else [],missing=[] if j['verdict']=='PASS' else ['requested fact'],not_applicable=[]),
+                annotation_coverage=dict(covered=[],missing=['extra context'],not_applicable=[]))
         write(tmp_path/'execution_results.json',completed);write(tmp_path/'source_judgments.json',dict(records=judgments))
         ns=dict(PATH=tmp_path,ROOT=tmp_path,P=P,X=X,M=M,Q=SimpleNamespace(documents=lambda:docs),manifest=manifest,queries=queries,json=json,
-                gold_by_query={q['query_id']:['test/card'] for q in queries},require_reviewed_query_diff=lambda:None)
+                gold_by_query={q['query_id']:['test/card'] for q in queries},require_reviewed_query_diff=lambda:None,E=E,rubrics=rubrics,rubric_by_query=rubric_by_query)
         exec(compile(nbformat.read(NB,4).cells[-1].source,'actual 54 evaluation','exec'),ns)
         return json.loads((tmp_path/'evaluation_summary.json').read_text())['configurations']
 
