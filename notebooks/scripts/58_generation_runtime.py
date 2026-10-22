@@ -155,6 +155,7 @@ def prepare(notebook):
         extra=dict(critical_data_sha256=critical,source_sha256={name:P.sha((R.ROOT/name).read_bytes()) for name in sorted(sources)},
             prompt_variant_by_identity=prompt_by_identity,answer_instructions_sha256_by_identity=hashes,
             logical_answers=240,ordinary_answers=192,source_diagnostic_answers=48,
+            allowed_evidence_by_profile=gate['allowed_evidence_by_profile'],
             diagnostic_excluded_from_candidate_quality=True,
             identical_input_reuse='B may share A only within the same question/profile/prompt/repeat and exact serialized input/schema/evidence',
             selection_rule='eight global configurations; per-profile no PASS regression or new important errors/condition loss/scope violations; maximize query-macro PASS net gain; ties fewer changed axes, extra searches, input bytes, measured cost, config ID; no gain retains baseline'))
@@ -163,6 +164,10 @@ def prepare(notebook):
 
 
 def run(jobs,manifest,*,allow_network=False):
+    stage=manifest['stage'];expected={58:240,59:192}.get(stage)
+    if expected is None or len(jobs)!=expected or manifest['logical_answers']!=expected:
+        raise ValueError('Answer matrix differs from the fixed stage58/59 logical count')
+    base=P.F.STAGES[stage]
     X.guard_manifest(manifest);R.guard_files(manifest['critical_data_sha256'])
     records=[];by_identity={};start,cpu=time.perf_counter(),time.process_time()
     for job in jobs:
@@ -173,23 +178,23 @@ def run(jobs,manifest,*,allow_network=False):
             if (candidate['evidence_sha256']==P.sha(job['result']['evidence']) and
                     candidate['input_sha256']==wanted['input_sha256_by_identity'][job['identity']]):
                 reuse=candidate
-        answer=M.answer(58,job['identity'],job['question'],job['result'],allow_network=allow_network,reused=reuse)
+        answer=M.answer(stage,job['identity'],job['question'],job['result'],allow_network=allow_network,reused=reuse)
         validate_checkpoint_prompt(answer,manifest,by_identity)
         by_identity[job['identity']]=answer
         records.append(dict(**{k:v for k,v in job.items() if k!='result'},answer=answer))
-        R.write(BASE/'progress.json',dict(completed=len(records),expected=240,last_identity=job['identity'],
+        R.write(base/'answer_progress.json',dict(completed=len(records),expected=expected,last_identity=job['identity'],
             invocation_wall_seconds=time.perf_counter()-start))
-        if len(records)%8==0:print('58 answer',len(records),'/240',flush=True)
+        if len(records)%8==0:print(stage,'answer',len(records),'/',expected,flush=True)
         if X.budget_upper_ledger()['unknown_cost_records']:
             raise RuntimeError('New unknown request usage; remaining answers stopped')
-    R.write(BASE/'execution_results.json',dict(records=records,manifest_sha256=P.sha(manifest)))
+    R.write(base/'answer_results.json',dict(records=records,manifest_sha256=P.sha(manifest)))
     import resource
     resources=dict(logical_answers=len(records),reused_answers=sum(bool(r['answer']['reuse_source_sha256']) for r in records),
-        physical_price=R.phase_price([58]),invocation_wall_seconds=time.perf_counter()-start,
+        physical_price=R.phase_price([stage]),invocation_wall_seconds=time.perf_counter()-start,
         invocation_cpu_seconds=time.process_time()-cpu,peak_process_rss_kib=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
         answer_ready_timing=X.timing_summary([r['answer']['answer_ready_wall_seconds'] for r in records if not r['answer']['reuse_source_sha256']]),
         global_actual=X.ledger(),global_conservative_upper=X.budget_upper_ledger(),ttft_seconds=None,
         browser_display_seconds=None,actual_online_end_to_end_seconds=None,new_embeddings=0,
         status='answers_complete_awaiting_source_fact_and_configuration_review')
-    R.write(BASE/'execution_resources.json',resources)
+    R.write(base/'answer_execution_resources.json',resources)
     return resources

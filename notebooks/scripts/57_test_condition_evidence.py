@@ -2,6 +2,7 @@
 import copy
 import importlib.util
 from pathlib import Path
+import pytest
 
 
 def helper():
@@ -44,3 +45,12 @@ def test_no_more_than_two_whole_sections_and_duplicate_text_is_skipped():
     result=m.supplement('질문',before,pool,lambda q,u:[1.]*len(u),fits=lambda q,e:True)
     assert [u['chunk_id'] for u in result['evidence']] == ['original','a','b']
     assert result['evidence'][1]['text'] == unit('a')['text']
+
+
+def test_original_scope_checks_cards_even_when_their_evidence_is_empty():
+    m=helper()
+    with pytest.raises(RuntimeError,match='escaped'):
+        m.validate_scope(dict(cards=[dict(card_key='outside')],evidence=[]),['inside'])
+    with pytest.raises(RuntimeError,match='escaped'):
+        m.validate_scope(dict(cards=[dict(card_key='inside')],evidence=[unit('wrong','outside')]),['inside'])
+    m.validate_scope(dict(cards=[dict(card_key='inside')],evidence=[]),['inside'])

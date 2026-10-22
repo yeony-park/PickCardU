@@ -60,3 +60,10 @@ def test_b_reuse_requires_validated_a_and_its_unchanged_prompt(monkeypatch):
         G.validate_checkpoint_prompt(b,manifest,{})
     with pytest.raises(RuntimeError,match='ordered base/retry'):
         G.validate_checkpoint_prompt(b,manifest,{aid:a})
+
+
+def test_partial_answer_matrix_cannot_start_paid_execution():
+    with pytest.raises(ValueError,match='logical count'):
+        G.run([],dict(stage=58,logical_answers=240),allow_network=True)
+    with pytest.raises(ValueError,match='logical count'):
+        G.run([],dict(stage=59,logical_answers=192),allow_network=True)

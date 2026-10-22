@@ -166,8 +166,7 @@ def run(queries, plans, manifest):
                 b=S.supplement(q['question'],a,pool,
                     lambda query,units:runtime.score('bge',query,[u['text'] for u in units],document_token_limit=4096)[0],
                     fits=lambda question,evidence:measure_answer_payload(question,evidence)[0]<=64000)
-                if route['scope'] is not None and any(e['card_key'] not in route['scope'] for e in b['evidence']):
-                    raise RuntimeError('Supplement escaped structured/original scope')
+                S.validate_scope(a,route['scope']);S.validate_scope(b,route['scope'])
                 row=dict(query_id=q['query_id'],profile=profile,binding=binding,A=a,B=b,
                     retrieval_plus_supplement_wall_seconds=time.perf_counter()-began,
                     retrieval_plus_supplement_cpu_seconds=time.process_time()-cpu,
@@ -179,6 +178,7 @@ def run(queries, plans, manifest):
                     A_sha256=P.sha(a),B_sha256=P.sha(b))
                 R.write(target,row)
                 X.frozen(BASE/'retrieval_contracts'/(identity+'.json'),dict(binding=binding,row_sha256=P.sha(row)))
+            S.validate_scope(row['A'],route['scope']);S.validate_scope(row['B'],route['scope'])
             records.append(row)
             R.write(BASE/'progress.json',dict(completed=len(records),expected=80,last_identity=identity,
                     invocation_wall_seconds=time.perf_counter()-start))

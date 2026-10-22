@@ -82,3 +82,12 @@ def test_short_detail_condition_review_is_bound_to_both_texts_and_equal_signatur
     changed = copy.deepcopy(row);changed['short_question'] += '월 3회 이상'
     with pytest.raises(RuntimeError, match='text'):
         m.validate_question_pairs([changed])
+
+
+def test_period_without_amount_or_frequency_minimum_does_not_restrict_sql_predicate():
+    m=runtime()
+    fact=dict(fact_id='same',fields=dict(target='커피',cap='',period='',frequency=''),
+        derived=dict(target_normalized='커피',action_kind='discount',action_status='true',cap_period_state='unknown'))
+    requirement=m.Q.requirement(['커피'],action='discount')
+    assert m.Q.evaluate_fact(fact,requirement)
+    assert m.Q.evaluate_fact(fact,{**requirement,'cap_period':'month','frequency_period':'day'})

@@ -46,3 +46,11 @@ def test_new_important_error_blocks_an_improving_candidate():
     assert result['selected_config_id']=='old:A:A'
     with pytest.raises(ValueError,match='matrix'):
         S.select(values[:-1],profiles=['benefit','parent'],query_ids=['q1','q2'])
+
+
+def test_stage57_rejected_evidence_cannot_be_selected_from_answer_gain():
+    values=rows()
+    for row in values:row['passed']=row['evidence_variant']=='B'
+    result=S.select(values,profiles=['benefit','parent'],query_ids=['q1','q2'],
+        allowed_evidence_by_profile={'benefit':['A'],'parent':['A']})
+    assert result['selected_config_id']=='old:A:A'

@@ -10,6 +10,11 @@ SUFFIX = '전월실적 한도 횟수 서비스 선택 제외 조건'
 HEADING_TERMS = ('전월', '실적', '한도', '횟수', '서비스', '선택', '제외', '조건')
 
 
+def validate_scope(result,scope):
+    if scope is not None and any(row['card_key'] not in scope for row in [*result['cards'],*result['evidence']]):
+        raise RuntimeError('Retrieved cards or evidence escaped the original/structured scope')
+
+
 def supplement(question, original, candidates, score, *, fits):
     """Keep selected cards and all A evidence; append at most two sections/card."""
     result = copy.deepcopy(original)

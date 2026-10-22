@@ -9,7 +9,7 @@ from itertools import product
 import statistics
 
 
-def select(rows,*,profiles,query_ids,repeats=(1,2)):
+def select(rows,*,profiles,query_ids,repeats=(1,2),allowed_evidence_by_profile=None):
     if len(profiles)!=2 or len(set(profiles))!=2:
         raise ValueError('Exactly two different profiles are required')
     expected=set(product(query_ids,profiles,['A','B'],['old','new'],repeats))
@@ -39,11 +39,13 @@ def select(rows,*,profiles,query_ids,repeats=(1,2)):
             payload_bytes=sum(r['payload_bytes'] for r in values),cost=cost)
 
     baseline={profile:measure(profile,'A','old') for profile in profiles}
+    allowed=allowed_evidence_by_profile or {profile:['A','B'] for profile in profiles}
     configurations=[]
     for prompt,first,second in product(['old','new'],['A','B'],['A','B']):
         evidence_by_profile=dict(zip(profiles,[first,second]));metrics={};failures=[];net=0
         for profile in profiles:
             current=measure(profile,evidence_by_profile[profile],prompt);base=baseline[profile]
+            if evidence_by_profile[profile] not in allowed[profile]:failures.append(profile+':stage57_evidence_gate')
             new_errors={qid:sorted(current['errors'][qid]-base['errors'][qid]) for qid in query_ids
                         if current['errors'][qid]-base['errors'][qid]}
             new_missing={qid:sorted(current['missing'][qid]-base['missing'][qid]) for qid in query_ids
