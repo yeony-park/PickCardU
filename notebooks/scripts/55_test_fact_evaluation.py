@@ -166,3 +166,45 @@ def test_multi_card_prose_is_not_copied_between_cards():
     with pytest.raises(ValueError, match='span'):
         E.answer_by_card(answer, {'a', 'b'}, [dict(card_key='b', start=0, end=23, reason='B explicit'),
                                             dict(card_key='a', start=0, end=23, reason='wrong reuse')])
+
+
+def test_manual_image_support_requires_bound_review_and_exact_reviewed_quote(tmp_path):
+    import fitz, hashlib, json
+    E = evaluator(); path=tmp_path/'card.pdf'
+    with fitz.open() as doc:
+        doc.new_page().insert_text((72,72),'Coffee 10 percent')
+        doc.save(path)
+    source=dict(path='card.pdf',sha256=hashlib.sha256(path.read_bytes()).hexdigest(),page=1,
+                quote='manually transcribed coffee benefit',mode='original_pdf_image',
+                manual_review_path='review.json',manual_review_id='page1')
+    with pytest.raises((ValueError,FileNotFoundError)):
+        E.validate_source_support(source,tmp_path)
+    with fitz.open(path) as doc: png=doc[0].get_pixmap(matrix=fitz.Matrix(2,2)).tobytes('png')
+    (tmp_path/'page.png').write_bytes(png)
+    record=dict(review_id='page1',pdf_path='card.pdf',pdf_sha256=source['sha256'],page=1,
+                render_scale=2,image_path='page.png',image_sha256=hashlib.sha256(png).hexdigest(),
+                reviewed_by='main Codex',reviewed_at='2026-10-23',visually_reviewed=True,
+                quotes=[source['quote']],observation='Original image inspected; text confirmed manually')
+    source['manual_record_sha256']=hashlib.sha256(json.dumps(record,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+    (tmp_path/'review.json').write_text(json.dumps(dict(records=[record])))
+    E.validate_source_support(source,tmp_path)
+    for change in [dict(quote='unreviewed number 90'),dict(page=2)]:
+        with pytest.raises(ValueError):E.validate_source_support({**source,**change},tmp_path)
+    record['observation']='changed after adjudication'
+    (tmp_path/'review.json').write_text(json.dumps(dict(records=[record])))
+    with pytest.raises(ValueError):E.validate_source_support(source,tmp_path)
+    record['image_sha256']='wrong'
+    source['manual_record_sha256']=hashlib.sha256(json.dumps(record,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+    (tmp_path/'review.json').write_text(json.dumps(dict(records=[record])))
+    with pytest.raises(ValueError):E.validate_source_support(source,tmp_path)
+
+
+def test_material_audit_cannot_omit_or_reuse_unbound_recommendations():
+    E=evaluator();binding={'answer_sha256':'a'}
+    row=dict(identity='Q1:SEQ',card_key='card1',binding=binding,review_status='reviewed',
+             actual_role='recommendation',checked_material_conditions=['minimum spend reviewed'],findings=[],uncertainties=[])
+    E.validate_material_audit([row],{('Q1:SEQ','card1')},{'Q1:SEQ':binding})
+    for records in [[],[row,row],[{**row,'review_status':'pending'}],
+                    [{**row,'binding':{'answer_sha256':'stale'}}]]:
+        with pytest.raises(ValueError):
+            E.validate_material_audit(records,{('Q1:SEQ','card1')},{'Q1:SEQ':binding})

@@ -127,10 +127,10 @@ def validate_seal(summary, completion, *, execution_sha, judgments_sha, summary_
 
 
 def validate_source_support(source, root):
-    """Check literal PDF text. Image-only/reading-order mismatches stay unverified.
+    """Check PDF text, or a separately recorded visual review of its exact render.
 
-    A separate manually reviewed image-source workflow is needed before such a
-    source can become a verified fact; this helper never silently accepts it.
+    Image transcription is a manual semantic judgment, not automated OCR
+    validation. Hashes bind it to the original page and inspected image.
     """
     import hashlib
     import fitz
@@ -144,6 +144,35 @@ def validate_source_support(source, root):
         if type(page) is not int or not 1 <= page <= len(doc):
             raise ValueError('Source PDF page out of bounds')
         quote = source['quote']
+        if source.get('mode') == 'original_pdf_image':
+            import json
+            review_path = (root/source['manual_review_path']).resolve()
+            if not review_path.is_relative_to(root.resolve()):
+                raise ValueError('Manual review path escapes repository')
+            records = json.loads(review_path.read_text())['records']
+            matches = [r for r in records if r['review_id'] == source['manual_review_id']]
+            if len(matches) != 1:
+                raise ValueError('Missing or duplicate manual image review')
+            review = matches[0]
+            record_sha=hashlib.sha256(json.dumps(review,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+            if record_sha != source.get('manual_record_sha256'):
+                raise ValueError('Manual source review changed after fact adjudication')
+            if not (review.get('visually_reviewed') is True and review.get('reviewed_by') == 'main Codex'
+                    and review.get('reviewed_at') and review.get('observation')
+                    and review['pdf_path'] == source['path'] and review['pdf_sha256'] == source['sha256']
+                    and review['page'] == page and review['render_scale'] == 2
+                    and quote in review['quotes'] and isinstance(quote,str) and quote.strip()):
+                raise ValueError('Source quote is not covered by the bound manual image review')
+            image_path = (root/review['image_path']).resolve()
+            if not image_path.is_relative_to(root.resolve()):
+                raise ValueError('Manual image path escapes repository')
+            actual_render = doc[page-1].get_pixmap(matrix=fitz.Matrix(2,2)).tobytes('png')
+            if not (hashlib.sha256(actual_render).hexdigest() == review['image_sha256']
+                    == hashlib.sha256(image_path.read_bytes()).hexdigest()):
+                raise ValueError('Manually inspected image is not the bound PDF page render')
+            return
+        if source.get('mode','original_pdf_text') != 'original_pdf_text':
+            raise ValueError('Unknown source verification mode')
         if not isinstance(quote, str) or not quote.strip() or canonical_text(quote) not in canonical_text(doc[page-1].get_text()):
             raise ValueError('Source quote absent from bound PDF page; manual image review needed')
 
@@ -171,3 +200,20 @@ def answer_by_card(answer, candidate_cards, prose_spans=()):
         used.update(range(start, end))
         result[owner].append(prose[start:end])
     return {k: '\n'.join(v) for k,v in result.items()}
+
+
+def validate_material_audit(records, expected_pairs, case_bindings):
+    pairs=[(r['identity'],r['card_key']) for r in records]
+    if len(pairs)!=len(set(pairs)) or set(pairs)!=set(expected_pairs):
+        raise ValueError('Material recommendation audit is missing or duplicates a card result')
+    for row in records:
+        if row['binding']!=case_bindings[row['identity']]:
+            raise ValueError('Material audit is not bound to the actual answer')
+        if row['review_status'] not in {'reviewed','reviewed_with_source_uncertainty'}:
+            raise ValueError('Material audit still has unreviewed recommendations')
+        if row['actual_role'] not in {'recommendation','claim_only','explicitly_rejected_or_comparison'}:
+            raise ValueError('Material audit lacks the actual role of the mentioned card')
+        if not row.get('checked_material_conditions'):
+            raise ValueError('Material audit lacks the conditions actually checked')
+        if row['review_status']=='reviewed_with_source_uncertainty' and not row.get('uncertainties'):
+            raise ValueError('Uncertain material review lacks its uncertainty reason')
