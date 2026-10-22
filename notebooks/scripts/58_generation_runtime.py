@@ -86,24 +86,37 @@ def freeze_payloads(stage, jobs, manifest):
     X.frozen(P.F.STAGES[stage]/'answer_payload_contract.json',combined)
 
 
+def validate_source_gate(gate, previous, facts):
+    if (gate.get('status')!='completed_after_source_fact_review'
+            or gate.get('retrieval_results_sha256')!=P.sha(previous)
+            or gate.get('source_facts_sha256')!=P.sha(facts)
+            or not gate.get('evaluation_files_sha256')):
+        raise RuntimeError('Stage57 source-fact review is not finalized or bound to corrected facts')
+    R.guard_files(gate['evaluation_files_sha256'])
+
+
 def prepare(notebook):
     """Require completed57 and manually verified diagnostic excerpts before API."""
     previous=R.read(T.BASE/'retrieval_results.json')
     gate=R.read(T.BASE/'completion_status.json')
-    if gate['status']!='completed_after_source_fact_review' or gate['retrieval_results_sha256']!=P.sha(previous):
-        raise RuntimeError('Stage57 source-fact review is not finalized')
     diagnostic=R.read(BASE/'diagnostic_source_evidence.json')
     queries={q['query_id']:q for q in R.read(T.BASE/'queries.json')['queries']}
     source_base=P.DATA/'55_fact_retrieval_generation_diagnosis'
-    facts=R.read(source_base/'source_facts.json')
+    facts=R.read(T.BASE/'source_facts.json')
+    validate_source_gate(gate,previous,facts)
     reference_paths=[source_base/'adjudications'/(qid+'.json') for qid in FIXED_QUERIES]
-    required={qid:R.read(path)['records'][0]['required_fact_ids'] for qid,path in zip(FIXED_QUERIES,reference_paths,strict=True)}
+    references={qid:C.diagnostic_reference(R.read(path)['records'],{f['fact_id']:f for f in facts['facts']},P.sha)
+                for qid,path in zip(FIXED_QUERIES,reference_paths,strict=True)}
+    reference_contract=dict(policy='diagnostic-only: fewer uncertain required source facts among two historical SEQ records; benefit on tie; no58 outputs used',
+        source_facts_sha256=P.sha(facts),by_query=references)
+    X.frozen(BASE/'diagnostic_reference_contract.json',reference_contract)
+    required={qid:ref['required_fact_ids'] for qid,ref in references.items()}
     receipt_path=BASE/'diagnostic_source_review.json'
     receipts=R.read(receipt_path)
     evaluator=load('source58','55_fact_evaluation.py')
     C.validate_diagnostic(diagnostic,questions={qid:queries[qid]['question'] for qid in FIXED_QUERIES},
         retrieval_sha=P.sha(previous),source_facts_sha=P.sha(facts),required_ids=required,
-        receipts=receipts,sha=P.sha,validate_source=lambda s:evaluator.validate_source_support(s,R.ROOT))
+        receipts=receipts,reference_contract=reference_contract,sha=P.sha,validate_source=lambda s:evaluator.validate_source_support(s,R.ROOT))
     rows={(r['query_id'],r['profile']):r for r in previous['records']}
     jobs=[]
     for qid in FIXED_QUERIES:
@@ -132,7 +145,8 @@ def prepare(notebook):
     critical={str(p.relative_to(R.ROOT)):P.sha(p.read_bytes()) for p in [
         T.BASE/'retrieval_results.json',T.BASE/'execution_manifest.json',T.BASE/'completion_status.json',
         T.BASE/'queries.json',BASE/'diagnostic_source_evidence.json',BASE/'jobs.json',RECOVERY.POLICY]}
-    for path in [receipt_path,source_base/'source_facts.json',*reference_paths]:
+    for path in [receipt_path,BASE/'diagnostic_reference_contract.json',T.BASE/'source_facts.json',
+                 T.BASE/'source_correction_contract.json',*reference_paths]:
         critical[str(path.relative_to(R.ROOT))]=P.sha(path.read_bytes())
     for row in diagnostic['by_query'].values():
         for proof in row['source_proofs'].values():
@@ -146,6 +160,7 @@ def prepare(notebook):
                     critical[record['image_path']]=P.sha((R.ROOT/record['image_path']).read_bytes())
     # Stage57 already binds source indexes, corpus, vectors and its private caches.
     critical.update(R.read(T.BASE/'execution_manifest.json')['critical_data_sha256'])
+    critical.update(gate['evaluation_files_sha256'])
     sources=set(R.read(T.BASE/'execution_manifest.json')['source_sha256'])|{
         'notebooks/scripts/58_generation_contract.py','notebooks/scripts/58_generation_runtime.py',
         'notebooks/scripts/56_connection_budget_recovery.py','notebooks/scripts/52_retrieval_modes.py',

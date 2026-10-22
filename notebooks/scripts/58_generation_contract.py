@@ -63,27 +63,33 @@ def reuse_identity(identity):
     return ':'.join(parts)
 
 
-def validate_diagnostic(data,*,questions,retrieval_sha,source_facts_sha,required_ids,receipts,sha,validate_source):
+def validate_diagnostic(data,*,questions,retrieval_sha,source_facts_sha,required_ids,receipts,reference_contract,sha,validate_source):
     """Bind manually checked original excerpts; hashes do not prove semantics."""
     if (data.get('status')!='source_excerpts_manually_verified'
             or data.get('retrieval_results_sha256')!=retrieval_sha
             or data.get('source_facts_sha256')!=source_facts_sha
+            or data.get('reference_contract_sha256')!=sha(reference_contract)
             or data.get('review_receipts_sha256')!=sha(receipts)
             or set(data.get('by_query',{}))!=set(questions)):
         raise ValueError('Diagnostic input or review seal changed')
     for qid,question in questions.items():
         row=data['by_query'][qid];result=row['result'];review=receipts[qid]
+        reference=reference_contract['by_query'][qid]
         expected=dict(question_sha256=sha(question),result_sha256=sha(result),required_fact_ids=sorted(required_ids[qid]))
         if (any(review.get(k)!=v for k,v in expected.items()) or row.get('question_sha256')!=sha(question)
                 or review.get('reviewed_by')!='main Codex' or not review.get('observation')
                 or review.get('verified_required_fact_coverage_complete') is not True):
             raise ValueError('Diagnostic source review is incomplete or stale: '+qid)
+        if (row.get('reference_identity')!=reference['source_identity']
+                or row.get('reference_adjudication_sha256')!=reference['source_record_sha256']
+                or review.get('reference_contract_sha256')!=sha(reference_contract)):
+            raise ValueError('Diagnostic input differs from its fixed SEQ source reference')
         evidence=result['evidence'];proofs=row['source_proofs']
         ids=[e['chunk_id'] for e in evidence]
         if len(ids)!=len(set(ids)) or set(ids)!=set(proofs) or not ids:
             raise ValueError('Diagnostic evidence lacks exact excerpt proof')
         cards={c['card_key'] for c in result['cards']}
-        if cards!={e['card_key'] for e in evidence}:
+        if cards!={e['card_key'] for e in evidence} or cards!=set(reference['card_keys']):
             raise ValueError('Diagnostic card ownership differs from evidence')
         for item in evidence:
             proof=proofs[item['chunk_id']]
@@ -96,3 +102,17 @@ def validate_diagnostic(data,*,questions,retrieval_sha,source_facts_sha,required
                 if source['path']!='data/raw/'+item['card_key']+'.pdf':
                     raise ValueError('Diagnostic excerpt belongs to another card')
                 validate_source(source)
+
+
+def diagnostic_reference(rows,facts,sha):
+    """Oracle-source diagnostic only: prefer source-verifiable SEQ references."""
+    candidates=[]
+    for rank,config in enumerate(['card_page_section_benefit:SEQ','parent_child_bundle:SEQ']):
+        matches=[r for r in rows if r['config_id']==config]
+        if len(matches)!=1:raise ValueError('Missing/duplicate historical SEQ source reference')
+        row=matches[0];required=row['required_fact_ids']
+        uncertain=[fid for fid in required if facts[fid]['source_status']!='verified']
+        candidates.append((len(uncertain),rank,dict(source_config_id=config,source_record_sha256=sha(row),
+            source_identity=row['identity'],card_keys=sorted({facts[fid]['card_key'] for fid in required}),
+            required_fact_ids=required,uncertain_fact_ids=uncertain)))
+    return min(candidates,key=lambda x:x[:2])[2]

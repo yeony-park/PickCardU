@@ -67,3 +67,16 @@ def test_partial_answer_matrix_cannot_start_paid_execution():
         G.run([],dict(stage=58,logical_answers=240),allow_network=True)
     with pytest.raises(ValueError,match='logical count'):
         G.run([],dict(stage=59,logical_answers=192),allow_network=True)
+
+
+def test_stage57_gate_binds_corrected_source_facts_and_all_review_files(monkeypatch):
+    previous={'records':[]};facts={'corrected_source_proof':'page2'};seen=[]
+    gate=dict(status='completed_after_source_fact_review',retrieval_results_sha256=G.P.sha(previous),
+              source_facts_sha256=G.P.sha(facts),evaluation_files_sha256={'review.json':'hash'})
+    monkeypatch.setattr(G.R,'guard_files',lambda files:seen.append(files))
+    G.validate_source_gate(gate,previous,facts)
+    assert seen==[gate['evaluation_files_sha256']]
+    with pytest.raises(RuntimeError,match='source-fact review'):
+        G.validate_source_gate(gate,previous,{'old_source_proof':'page4'})
+    with pytest.raises(RuntimeError,match='source-fact review'):
+        G.validate_source_gate({**gate,'status':'pending'},previous,facts)
