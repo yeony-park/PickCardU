@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>59 · 새 질문에서 순차 검색과 답변 확인</title>
+<style>body{font:16px/1.7 system-ui,sans-serif;color:#172438;background:#f4f6f9;margin:0}main{max-width:1180px;margin:auto;padding:36px 24px;background:white}h1{line-height:1.3}h2{margin-top:42px}a{color:#1557a2}table{border-collapse:collapse;width:100%;font-size:14px;margin:12px 0}th,td{border:1px solid #ced7e0;padding:9px;text-align:left;vertical-align:top}th{background:#eaf0f7}caption{text-align:left;font-weight:700;padding:8px 0}.scroll{overflow-x:auto}.note,.guide{padding:14px 18px;border-left:4px solid #326da8;background:#f0f5fb}.caution{border-color:#b06e18;background:#fff7e9}.muted{color:#506078}code{font-size:.9em;word-break:break-word}li{margin-bottom:6px}footer{margin-top:40px;border-top:1px solid #ced7e0;padding-top:18px}</style></head>
+<body><main>
+<p class="muted">확인 실험 · 2026-10-23 · <a href="../../notebooks/59_new_sequential_confirmation.ipynb">59번 노트북</a> · 운영 반영 없음</p>
+<h1>새 질문 32개에서 순차 검색을 확인한다</h1>
+<p class="note caution" id="execution-status">검색·답변 192건과 원문 판정·집계, 독립 검토를 완료했다. 검토에서 완료를 막는 중대한 문제는 발견되지 않았으며 운영 반영은 하지 않았다. 유효 카드 Hit@3는 두 프로필 모두 96.7%지만, 중요한 적용조건까지 포함한 답변 통과율은 benefit 47.9%, parent-child 32.3%다.</p>
+
+<h2>왜 실행했고 무엇을 확인하나</h2>
+<p>55번은 카드 포함과 근거 회수·답변 반영을 분리했고, 56번은 복사 DB와 조건 추출기를 보완했다. 57번은 같은 카드의 조건 문단 추가를, 58번은 답변 지시와 조건 문단의 조합을 비교했다. 59번은 58번의 선택을 먼저 동결한 뒤 새로운 질문을 작성해, 두 순차 검색 프로필의 품질·반복 안정성·자원 사용을 확인한다. 이번에 성능이 좋아 보이는 설정으로 다시 바꾸는 탐색 실험은 아니다.</p>
+<ul>
+<li>새 질문은 단일 혜택 추천 12개, 복수 혜택 추천 8개, 발급사·실적 조건 추천 4개, 상세 조건 질문 8개다. 상세 질문은 실적·한도·횟수 3개, 예외·결제경로 2개, 계산 1개, 확정 불가 2개로 나뉜다.</li>
+<li>32개 질문의 조건을 각각 3회 추출해 96개 계획을 만들었다. 같은 추출·질문·정답 기준을 benefit과 parent-child에 공유하며, 각각 3회 답변해 총 192개 논리 답변을 평가한다.</li>
+<li>고정 설정 <code>old:A:A</code>는 <strong>기존 답변 지시 + 두 프로필 모두 기존 근거 A</strong>라는 뜻이다. 조건 추출기는 56번에서 선택한 보완 추출기이며, 답변 지시의 old와 구분한다. DB는 56번 복사 DB다.</li>
+<li>모델 <code>gpt-6-luna / medium</code>, 답변 출력 한도 2,400토큰, parent 묶음 안 원문 청크 최대 5개, 기존 vector+BM25와 BGE 재정렬을 유지했다. 새 질문 임베딩은 32개를 한 배치로 만들고 문서 청크를 다시 임베딩하지 않았다.</li>
+<li>운영 코드·OCR 검증기·원본 PDF/JSON/DB·기존 색인은 변경하지 않았다. OCR 통과는 기존 가정이며 제목 계층이나 전체 원문 관계의 완전성을 인증한 실험은 아니다.</li>
+</ul>
+<p class="note caution">같은 106개 문서에서 새 질문을 확인한 결과다. 새 문서 홀드아웃이나 독립 사람의 맹검 평가가 아니며, 작성자는 이전 실험을 알고 있다. 새 질문의 비구조화 단독 기준선이 없으므로 운영 대비 개선량을 계산할 수 없다. 이전 40질문의 통과율과 새 32질문의 통과율을 직접 증감으로 읽으면 안 된다.</p>
+
+<h2>이번에 실제로 실행한 검색 흐름</h2>
+<p><strong>원질문 → 고정 스키마의 조건 추출 → 구조화 조회 → 카드 범위 안에서 원질문으로 비구조화 검색 → 재정렬 → 근거 본문을 받아 LLM 답변</strong>이다. 구조화 조회에 결과가 있으면 해당 카드 목록을 검색 범위로 사용하고, 0건이면 원래 카드·발급사 범위에서 비구조화 검색을 한 번 한다. 구조화 뒤의 검색과 별도 전체 카드 검색을 병렬로 겹쳐 합치지 않는다. 구조화 혜택 문장을 원질문 대신 쓰지도 않는다.</p>
+<div class="guide"><strong>Route count · 검색 경로 건수:</strong> 두 프로필이 공유하는 32질문×3회=96개 계획이 분모다. 구조화 결과가 1개 이상이면 카드 범위를 정하는 순차 경로, 0개면 비구조화 복귀 경로다. 예를 들어 커피 조건으로 35개 카드가 나오면 그 카드들 안에서 검색한다. 어느 경로의 수가 크다는 것 자체는 정답률이나 통과 기준이 아니다. 같은 계획을 두 프로필에서 쓴 192행을 독립 구조화 조회 192건으로 세지 않는다.</div>
+<table><caption>공유 조건 추출 96건의 실제 경로</caption><thead><tr><th>경로</th><th>계획 수</th><th>두 프로필 검색 행 수</th></tr></thead><tbody>
+<tr><td>구조화 결과 있음 → 해당 카드 안에서 비구조화 검색</td><td>72/96 · 75%</td><td>144</td></tr>
+<tr><td>구조화 결과 없음 → 원래 범위에서 비구조화 검색</td><td>24/96 · 25%</td><td>48</td></tr>
+</tbody></table>
+<p>실제 경로·대상·후보 카드 수는 <a href="../../notebooks/data/59_new_sequential_confirmation/retrieval_resource_audit.json">검색 및 자원 감사 자료</a>에 질문별로 보존했다.</p>
+
+<h2>카드 포함과 필요한 근거·답변은 따로 평가한다</h2>
+<p>추천의 고정 참조 목록은 106개 카드의 전수 정답 목록이 아니다. 커피 질문의 기준 카드가 ON&amp;OFF여도 실제로 유효한 D4를 찾았다면 이를 오답으로 강요하지 않는다. 최종 질문 판정은 <strong>유효한 카드 한 장의 요구 완전성 및 실제로 추가 추천한 카드들의 중요한 정확성</strong>을 본다. 반면 고정 참조 사실 회수율은 같은 사실을 추적하기 위한 보조 진단이다. 참조 카드의 미등장을 검색 전체의 실패로 해석하지 않는다.</p>
+<div class="guide"><strong>Source-verified Card Hit@3 · 원문 확인 유효 카드 포함률:</strong> 긍정 질문 30개에서 실제 상위 3개 카드 중 원문으로 적합성이 확인된 카드가 하나 이상이면 1이다. 높을수록 좋고 모두 포함하면 100%다. <strong>MRR@3 · 첫 유효 카드 순위 역수 평균:</strong> 유효 카드가 1·2·3위이면 1·0.5·0.333, 없으면 0이다. 질문별 세 반복 평균을 먼저 구한다. 카드 적합성 불확실은 하한에서 성공으로 세지 않고 상한을 별도로 표시한다. 예를 들어 커피 카드가 2위면 Hit=1, 순위 역수=0.5다. 카드만 있으나 실적 본문이 없는 경우도 있어 답변 완전성을 보장하지 못한다.</div>
+<div class="guide"><strong>Question PASS · 질문 조건 충족:</strong> 질문의 요구와 중요한 적용조건을 충족하고 실제 추가 추천의 중요한 오류가 없어야 통과한다. 각 프로필 32질문×3회=96답변을 전부 포함한다. 부분 충족·실패·불확실·기술실패는 통과가 아니다. 높을수록 좋지만 유리한 반복만 골라서는 안 된다. 예를 들어 D4의 할인율은 맞아도 필요한 전월실적이 빠지면 부분 충족이며, 실적을 모르겠다고 정직하게 밝힌 경우와 거짓 실적을 만든 경우는 오류 종류를 구분한다. 추가 카드의 알려진 중요 실적·한도 누락도 전체 완전성에 반영하므로 단순히 카드 한 장의 혜택 이름을 맞힌 비율과 다르다.</div>
+<div class="guide"><strong>Fact Recall · 필수 근거 회수율:</strong> 원문 확인한 고정 참조 사실 중 검색 또는 실제 API 입력이 지원한 비율로 높을수록 좋다. 할인율·실적 중 할인율만 있으면 50%다. <strong>Complete Evidence · 완전근거 확보율:</strong> 고정 필수 사실 전부를 확보한 질문의 비율이다. <strong>Conditional Reflection · 조건부 답변 반영률:</strong> 입력이 지원한 필수 사실 중 답변이 정확히 반영한 비율이다. 입력에 할인율만 있고 이를 답하면 100%일 수 있다. <strong>End-to-End Fulfillment · 종단 필수사실 충족률:</strong> 전체 원문 필수 사실 중 정확히 답한 비율이다. 원문상 맞지만 입력 없이 답한 사실도 들어갈 수 있어 따로 표시한다. 모두 높을수록 좋으며 검색·입력·답변 세 단계가 전부 확보되어야 해당 사실의 완전한 성공이다. 사실 지표의 주 분모는 긍정 30질문의 검증된 110개 고정 사실이다. 불확실 질문 2개는 별도로 읽고, 참조 외 유효 대안의 완전성과 혼합하지 않는다. 분모가 없으면 N/A다.</div>
+<section id="quality-results">
+<table><caption>최종 답변 완전성과 카드 순위는 서로 다른 결과다</caption><thead><tr><th>항목</th><th>benefit</th><th>parent-child</th></tr></thead><tbody>
+<tr><td>질문 조건 충족 PASS · 전체 96답변</td><td><strong>46/96 · 47.92%</strong></td><td>31/96 · 32.29%</td></tr>
+<tr><td>부분 충족 PARTIAL / 실패 FAIL</td><td>45 / 5</td><td>58 / 7</td></tr>
+<tr><td>최종 기술실패</td><td>0</td><td>0</td></tr>
+<tr><td>세 반복 모두 PASS · 32질문</td><td>12/32 · 37.50%</td><td>8/32 · 25.00%</td></tr>
+<tr><td>유효 카드 Hit@3 하한 · 긍정 30질문×3회</td><td>87/90 · 96.67%</td><td>87/90 · 96.67%</td></tr>
+<tr><td>MRR@3 하한</td><td>0.9444</td><td>0.9500</td></tr>
+<tr><td>불확실한 카드도 유효하다고 가정한 Hit@3 / MRR@3 상한</td><td>96.67% / 0.9667</td><td>100.00% / 0.9611</td></tr>
+</tbody></table>
+<p>카드 적합성이 불확실한 상위 카드 슬롯은 benefit 9개, parent-child 4개다. 상한은 확인된 성능이 아니다. 두 프로필 모두 검색된 카드 자체는 잘 맞지만, 그 카드의 적용조건을 제대로 확보하고 답변에 반영하는 일은 별도로 남아 있다. PARTIAL은 정직하게 모른다고 밝힌 경우와 조건 누락을 포함하므로 전부 거짓 답변이라는 뜻은 아니다.</p>
+<div class="guide"><strong>Repeat stability · 반복 안정성:</strong> 각 반복은 같은 32질문 전체가 분모이며 3회 평균이 전체 통과율이다. 표준편차는 세 반복 비율의 모집단 표준편차로, 편차 제곱의 합을 3으로 나눈 뒤 제곱근을 구한다. 작을수록 이 실행의 변동이 적지만 낮은 정답률의 안정성이 좋은 품질을 뜻하지 않는다. 예를 들어 매회 10/32이면 편차는 0이다. 세 반복을 독립 질문 96개로 간주하지 않으며 일반적인 오차 범위나 신뢰구간을 추정한 결과도 아니다.</div>
+<table><caption>반복별 PASS와 변동</caption><thead><tr><th>프로필</th><th>1회</th><th>2회</th><th>3회</th><th>표준편차 · 퍼센트포인트</th></tr></thead><tbody>
+<tr><td>benefit</td><td>17/32 · 53.13%</td><td>16/32 · 50.00%</td><td>13/32 · 40.63%</td><td>5.31</td></tr>
+<tr><td>parent-child</td><td>10/32 · 31.25%</td><td>11/32 · 34.38%</td><td>10/32 · 31.25%</td><td>1.47</td></tr>
+</tbody></table>
+<div class="guide"><strong>Subgroup PASS · 질문 유형별 조건 충족:</strong> 해당 유형 질문 수×3회가 분모다. 각 답변은 위의 동일한 PASS 기준으로 판정하며 높을수록 좋다. 예를 들어 예외·경로 질문 2개를 세 번 모두 충족하면 6/6이다. 소수 질문의 유형별 수치이며 전체 평균으로 특정 유형의 퇴행을 숨기지 않는다.</div>
+<table><caption>유형별 동일 기준 PASS</caption><thead><tr><th>질문 유형</th><th>질문 수</th><th>benefit</th><th>parent-child</th></tr></thead><tbody>
+<tr><td>단일 혜택 추천</td><td>12</td><td>7/36</td><td>6/36</td></tr>
+<tr><td>복수 혜택 추천</td><td>8</td><td>11/24</td><td>5/24</td></tr>
+<tr><td>발급사·실적 조건 추천</td><td>4</td><td>8/12</td><td>8/12</td></tr>
+<tr><td>실적·한도·횟수 상세</td><td>3</td><td>5/9</td><td>3/9</td></tr>
+<tr><td>예외·결제경로</td><td>2</td><td>6/6</td><td>0/6</td></tr>
+<tr><td>계산</td><td>1</td><td>3/3</td><td>3/3</td></tr>
+<tr><td>확정 불가 판단</td><td>2</td><td>6/6</td><td>6/6</td></tr>
+</tbody></table>
+<div class="guide"><strong>Query wins/losses/ties · 질문별 우세·열세·동률:</strong> 같은 질문의 PASS 횟수 0~3을 비교한다. 32질문 중 benefit이 높은 질문 10개, 낮은 질문 2개, 같은 질문 20개다. 예를 들어 3 대 0이면 benefit 우세 한 질문이다. 부분 충족의 세부 정도나 통계적 유의성을 나타내지 않는다. 아래 질문의 원문은 <a href="../../notebooks/data/59_new_sequential_confirmation/questions.json">질문 자료</a>에서 확인할 수 있다.</div>
+<table><caption>질문별 PASS 횟수 /3 · 동일 질문·정답·추출 계획 사용</caption><thead><tr><th>질문</th><th>benefit</th><th>parent-child</th><th>질문</th><th>benefit</th><th>parent-child</th></tr></thead><tbody>
+<tr><td>N01</td><td>0</td><td>0</td><td>N17</td><td>3</td><td>0</td></tr>
+<tr><td>N02</td><td>0</td><td>0</td><td>N18</td><td>0</td><td>0</td></tr>
+<tr><td>N03</td><td>0</td><td>0</td><td>N19</td><td>1</td><td>0</td></tr>
+<tr><td>N04</td><td>3</td><td>0</td><td>N20</td><td>0</td><td>0</td></tr>
+<tr><td>N05</td><td>0</td><td>0</td><td>N21</td><td>2</td><td>2</td></tr>
+<tr><td>N06</td><td>3</td><td>2</td><td>N22</td><td>3</td><td>3</td></tr>
+<tr><td>N07</td><td>0</td><td>0</td><td>N23</td><td>3</td><td>0</td></tr>
+<tr><td>N08</td><td>1</td><td>1</td><td>N24</td><td>0</td><td>3</td></tr>
+<tr><td>N09</td><td>0</td><td>3</td><td>N25</td><td>0</td><td>0</td></tr>
+<tr><td>N10</td><td>0</td><td>0</td><td>N26</td><td>2</td><td>0</td></tr>
+<tr><td>N11</td><td>0</td><td>0</td><td>N27</td><td>3</td><td>3</td></tr>
+<tr><td>N12</td><td>0</td><td>0</td><td>N28</td><td>3</td><td>0</td></tr>
+<tr><td>N13</td><td>2</td><td>1</td><td>N29</td><td>3</td><td>0</td></tr>
+<tr><td>N14</td><td>3</td><td>3</td><td>N30</td><td>3</td><td>3</td></tr>
+<tr><td>N15</td><td>2</td><td>1</td><td>N31</td><td>3</td><td>3</td></tr>
+<tr><td>N16</td><td>0</td><td>0</td><td>N32</td><td>3</td><td>3</td></tr>
+</tbody></table>
+<p>parent-child의 우세 질문은 N09와 N24다. 따라서 benefit 평균이 높다는 결과가 모든 혜택·관계에서 benefit이 우월하다는 뜻은 아니다. 기존 운영 프로필 두 개를 비교했으며 청킹 변수 하나만 통제한 인과 실험도 아니다.</p>
+<table><caption>고정 참조 사실 진단 · 긍정 30질문, 원문 확인 사실 110개</caption><thead><tr><th>진단 지표</th><th>benefit</th><th>parent-child</th></tr></thead><tbody>
+<tr><td>검색 근거 회수율 / 실제 입력 회수율 · 질문별 3회 평균의 평균</td><td>59.61% / 59.61%</td><td>49.41% / 49.41%</td></tr>
+<tr><td>고정 사실이 모두 확보된 완전근거 질문 비율</td><td>50.00%</td><td>23.33%</td></tr>
+<tr><td>입력에 있던 고정 사실의 조건부 답변 반영률</td><td>80.85% · 분모 존재 19질문</td><td>89.91% · 분모 존재 19질문</td></tr>
+<tr><td>고정 사실 종단 충족률</td><td>48.52%</td><td>45.81%</td></tr>
+<tr><td>110사실×3회=330개에서 검색 / 입력 / 정확한 답변 / 입력 근거 있는 정확한 답변</td><td>192 / 192 / 158 / 155</td><td>167 / 167 / 151 / 148</td></tr>
+</tbody></table>
+<p class="note caution">이 표는 위의 Fact Recall 등 안내를 따른다. 유효한 다른 카드를 추천해도 고정 참조 카드의 사실은 미검색으로 남는다. 따라서 이 표를 실제 모든 추천의 근거 회수율이나 최종 PASS로 바꾸어 읽으면 안 된다. N26의 직접 질문에 충분한 시간·횟수·한도를 답했어도 고정 복합 사실의 할인율이 빠지면 그 사실은 불완전하다. N32는 개인의 남은 이용횟수를 확정할 수 없다고 정확히 답하면 PASS지만, 고정 연간 한도를 열거했는지 여부는 별도다. 55번과 질문·사실 분모가 달라 회수율의 단순 증감도 비교하지 않는다. 실제 검색 근거와 API에 실린 근거의 전달 누락은 0건이었다.</p>
+<h3>어디에서 빠졌나: 실제 추천 카드의 중요조건을 추가로 추적</h3>
+<div class="guide"><strong>Material omission phase · 중요조건 누락 단계:</strong> 수동 판정에 이미 기록된 중요조건 누락 표식 174개를 입력 상태로 분류했다. 입력이 지원하는데 답변이 지원하지 않으면 답변 생성 단계, 입력이 없거나 관계가 불명확·모순이면 검색·입력 단계다. 건수는 낮을수록 좋지만 모든 실패 원인이나 독립 사실의 전수 분모가 아니다. 예를 들어 실제 D4의 실적이 입력부터 없으면 검색·입력 누락이고 입력에 있는데 답하지 않으면 생성 누락이다. 같은 조건의 반복 답변은 따로 세며 두 단계에 걸친 답변 행은 중복될 수 있다.</div>
+<table><caption>기존 수동 누락 표식의 단계 분류 · 새 정답·판정 추가 없음</caption><thead><tr><th>프로필</th><th>검색·입력 단계 누락 표식 / 해당 답변 행</th><th>답변 생성 단계 누락 표식 / 해당 답변 행</th><th>표식 합</th></tr></thead><tbody>
+<tr><td>benefit</td><td>30 / 18</td><td>38 / 19</td><td>68</td></tr>
+<tr><td>parent-child</td><td>93 / 32</td><td>13 / 7</td><td>106</td></tr>
+</tbody></table>
+<p>답변 행 수는 각각 전체 96행 중 해당 단계의 표식이 하나 이상인 행이다. 이 분류는 원인이 기록된 부분과 충돌 0건이며 미분류 0건이다. 다른 실패 원인까지 모두 설명하는 표는 아니다. benefit에는 입력의 조건을 답변이 빠뜨리는 사례가 남고, parent-child에는 중요한 조건을 입력에서 확보하지 못한 사례가 더 많이 기록됐다. 프롬프트만 바꾸면 모든 문제가 해결된다고 판단할 근거가 없다.</p>
+<ul>
+<li><strong>N01 커피 추천:</strong> 실제 D4는 유효한 카드지만 전월 국내 이용실적 30만원이 입력에 없다. 참조 카드와 다르다는 이유로 실패시킨 것이 아니라 실제 추천 카드의 중요조건이 부족해 부분 충족이다.</li>
+<li><strong>N03 병원 추천:</strong> benefit 1회에서 실제 입력에 있던 실적·공유한도를 답변이 누락했다. 이 경우는 카드 발견 이후 답변 생성 문제가 포함된다.</li>
+<li><strong>N24 동물병원:</strong> benefit은 LIVING 제목과 병원 문단의 관계가 끊겨 별도 MEMBERSHIP의 5%를 잘못 붙인 두 답변이 나왔다. parent-child는 같은 묶음 안에서 LIVING 관계를 보존해 세 번 모두 통과했다. 카드명 일치만으로 혜택 관계까지 검증되지 않는 사례다.</li>
+<li><strong>N30 계산:</strong> 결제금액 15,000원 전체가 아니라 건당 대상금액 최대 10,000원에 20%를 적용해 2,000원이라고 답해야 한다. 두 프로필 모두 세 번 통과했다.</li>
+<li><strong>N31·N32 확정 불가:</strong> 원문에 없는 정확한 횟수나 개인 잔여 횟수를 0·무제한·특정 숫자로 만들지 않은 답변을 통과로 판정했다.</li>
+</ul>
+<p><a href="../../notebooks/data/59_new_sequential_confirmation/question_quality.json">질문·순위 전체 결과</a> · <a href="../../notebooks/data/59_new_sequential_confirmation/fact_evaluation.json">고정 사실 전체 결과</a> · <a href="../../notebooks/data/59_new_sequential_confirmation/source_judgments.json">192개 원문·입력·답변 판정</a> · <a href="../../notebooks/data/59_new_sequential_confirmation/actual_condition_phase_audit.json">실제 중요조건 누락 분류</a></p>
+</section>
+
+<h2>구조화 조회에서 확인한 남은 한계</h2>
+<p>이번 실행 중에는 아래 문제를 고치거나 질문·정답·설정을 교체하지 않았다. 따라서 최종 결과에도 현재 구현의 한계가 그대로 포함된다.</p>
+<ul>
+<li><strong>무실적 값 정규화:</strong> DA카드의정석II의 병원 혜택에 <code>전월 이용금액 조건 및 할인한도 제한 없이</code>가 남아 있어도 검색용 실적은 unknown이다. KBank SIMPLE 7행도 원문 2쪽의 <code>전월실적 조건 및 할인한도 없음</code>을 보존하지만 unknown이다. 명시적인 무실적을 0으로 해석하는 규칙의 표현 범위가 좁다는 확인 사례이며, 미기재나 다른 unknown까지 모두 0이라는 뜻은 아니다.</li>
+<li><strong>추가 선별 후보:</strong> 3,403행에서 무실적 관련 문구와 unknown이 함께 있는 후보는 90행·28문서였다. 이 수는 문구 선별 결과다. 관계·조건·원문 정확성을 전부 확인한 오류 90건이라는 뜻이 아니며 검증된 사례와 분리한다.</li>
+<li><strong>범위 추출:</strong> N23의 우리카드, N25의 자연스러운 D4 표기, N30의 신한 Discount Plan+, N31의 삼성 iD GLOBAL 표기에서는 기존 범위 함수가 카드·발급사를 확정하지 못했다. 함수는 BC/IBK 발급사 및 전체 상품명 포함 위주로 작동한다. 범위 검사가 빈 범위 값에 통과했다는 사실을 사용자 범위를 이해했다는 증거로 삼지 않는다.</li>
+<li><strong>대상 문자열:</strong> N08의 <code>전기차 충전</code>이 실제 적립 행의 <code>EV(전기차) 충전소</code> 또는 <code>전기차, 수소차 충전</code>에 연속 부분문자열로 일치하지 않았다. 괄호·병렬 대상 표현을 담은 필드와 단순 문자열 비교의 한계다. 기차를 철도로 바꾸는 동의어 확장과는 다른 관찰이다.</li>
+<li><strong>지원하지 않는 혜택 동작:</strong> N09/N32의 라운지 대상은 Jade 행과 일치하지만, <code>무료 이용</code>의 동작 판정이 unknown이다. 현재는 <code>action=any</code>도 확인된 긍정 동작만 허용하므로 조회가 실패한다. 원문에 혜택이 없다는 뜻이나 질문이 잘못됐다는 뜻이 아니다.</li>
+</ul>
+<p><a href="../../notebooks/data/59_new_sequential_confirmation/remaining_no_spend_phrase_diagnosis.json">DA 무실적 사례</a> · <a href="../../notebooks/data/59_new_sequential_confirmation/source_verified_remaining_no_spend.json">KBank 원문 검증 7행</a> · <a href="../../notebooks/data/59_new_sequential_confirmation/remaining_no_spend_candidate_screen.json">미검증 선별 후보</a> · <a href="../../notebooks/data/59_new_sequential_confirmation/literal_scope_diagnosis.json">범위 추출 관찰</a> · <a href="../../notebooks/data/59_new_sequential_confirmation/structured_literal_predicate_diagnosis.json">실제 조건별 술어 검사</a></p>
+
+<h2>시간과 비용을 어떻게 읽어야 하나</h2>
+<p>첫 실행이 검색 39건 저장 뒤 종료 코드 143으로 끝났다. 그때 저장된 97개 API 요청은 모두 정상·사용량 확인 상태였으며, 미확인 API 요청 없이 프로세스 부재를 확인한 다음 저장 결과를 검증해 재개했다. 종료 원인은 미확인이며 메모리 부족으로 단정하지 않는다. 첫 실행 전체의 경과시간·CPU·최대 메모리는 미측정이다. 완료된 개별 검색 연산의 시간은 두 실행 모두에서 남아 있으므로 아래 수치는 그 192개 체크포인트를 합한 값이다. 중단된 미저장 작업과 실행 초기화 시간은 포함하지 않는다.</p>
+<div class="guide"><strong>Wall time · 경과시간:</strong> 한 연산의 시작부터 끝까지 걸린 초로 낮을수록 빠르지만 품질 충족을 대신하지 못한다. 아래 평균은 프로필별 96개 완료 검색이 분모다. 예를 들어 1초 검색과 3초 검색은 평균 2초다. <strong>P95 · 95백분위:</strong> 96개를 정렬해 올림(0.95×96)번째 값을 사용하며 낮을수록 좋다. <strong>CPU time · CPU 사용시간:</strong> 여러 스레드의 사용시간을 더해 경과시간보다 클 수 있다. CPU 4스레드 재정렬과 반복 캐시가 섞여 있어 운영의 신규 질문 응답시간으로 해석하면 안 된다. 어느 값에도 운영 합격 상한을 정하지 않았다.</div>
+<table><caption>완료된 검색 연산 96개씩: 캐시 포함 실험 진단</caption><thead><tr><th>청킹</th><th>검색 평균 / 중앙값 / P95</th><th>완료 검색 경과시간 합</th><th>CPU 시간 합</th><th>새 재정렬 문장 쌍 / 캐시 쌍</th></tr></thead><tbody>
+<tr><td>benefit</td><td>14.283 / 0.101 / 52.435초</td><td>1,371.180초</td><td>5,408.624초</td><td>648 / 1,164</td></tr>
+<tr><td>parent-child</td><td>7.185 / 0.088 / 29.222초</td><td>689.789초</td><td>2,711.748초</td><td>278 / 464</td></tr>
+</tbody></table>
+<p>두 프로필이 공유하는 DB 조회 96건은 합계 7.088초·평균 0.07384초였다. parent-child가 이 검색 연산에서 더 빨랐다는 사실이 더 정확한 답변을 보장하지 않는다. 각 반복에서 benefit을 먼저 실행했고 두 프로필은 같은 질문·본문 쌍의 점수 캐시를 공유한다. 반복 및 프로필 사이에 점수를 재사용할 수 있어 독립적인 최초 실행 비용 비교가 아니다. 매우 짧은 중앙값 역시 일반 신규 질문 속도가 아니다.</p>
+<section id="answer-resources">
+<div class="guide"><strong>Answer ready time · 답변 준비시간:</strong> 논리 답변 96개씩의 API 호출 시작부터 내부 형식·서비스 검증 및 필요한 재시도를 마친 답변 행 구성까지의 시간이다. 낮을수록 빠르나 품질 통과 기준은 아니다. 두 번 호출해 복구하면 두 호출 시간을 포함한다. 이후 전체 출처 검토·화면 출력·검색을 합친 온라인 전체 시간은 포함하지 않는다. P95는 올림(0.95×96)번째다. <strong>Estimated API cost · 사용량 기준 추정 비용:</strong> 보존한 실제 사용 토큰에 동결된 실험 가격을 적용하며 모든 재시도를 포함한다. 실제 청구서 금액은 미측정이다. 낮은 비용만으로 품질 실패 설정을 선택하지 않는다.</div>
+<table><caption>답변 준비시간 및 API 비용 · 단일 실험의 3회 반복 포함</caption><thead><tr><th>항목</th><th>논리 / 실제 요청</th><th>평균 / 중앙값 / P95 / 최대</th><th>사용량 기준 추정 비용</th></tr></thead><tbody>
+<tr><td>benefit 답변</td><td>96 / 98</td><td>17.149 / 15.792 / 27.616 / 49.376초</td><td>$0.091440960</td></tr>
+<tr><td>parent-child 답변</td><td>96 / 97</td><td>16.393 / 14.977 / 26.132 / 47.321초</td><td>$0.072578180</td></tr>
+<tr><td>공유 조건 추출</td><td>96 / 96</td><td>7.056 / 6.373 / 9.807 / 14.779초</td><td>$0.015166395</td></tr>
+<tr><td>공유 질문 임베딩</td><td>32벡터 / 1배치</td><td>별도 대표시간 미집계</td><td>$0.000023560</td></tr>
+<tr><td>59번 합계</td><td>192답변 + 공유 처리 / 292요청</td><td>온라인 전체 응답시간 미측정</td><td><strong>$0.179209095</strong></td></tr>
+</tbody></table>
+<p>공유 비용은 프로필에 임의 배분하지 않았다. 추가 세 요청은 타 카드 인용 혼합(N05 benefit 2회), 중복 카드 추천(N20 benefit 2회), JSON 불완전(N05 parent-child 2회)을 동일한 출력 한도 2,400토큰으로 한 번씩 재시도한 것이다. 마지막 경우 첫 응답의 원인은 <code>max_output_tokens</code>였으며 출력 2,400토큰 중 추론 1,653토큰이었다. 세 건 모두 복구했고 최종 기술실패는 없다. 한도를 늘리지 않았으며 첫 실패 시도의 원본·비용·시간도 보존했다.</p>
+<p>59번 292요청은 전부 사용량이 확인됐다. 46번 이후 누적 사용량 기준 추정 비용은 <strong>$1.134396490</strong>이다. 기존 미확인 두 건의 최대 예상액 $0.006234500을 추가 차감한 보수적 예산 사용액은 <strong>$1.140630990 / $8</strong>이다. 두 미확인 건의 실제 청구액을 확인했다는 뜻은 아니다. 55~59의 확인 사용량 기준 비용 합은 $0.501065875다.</p>
+<div class="guide"><strong>Token counts · 토큰 수:</strong> 실제 요청 292개의 저장 사용량을 합한다. 입력·출력은 처리량, 캐시 읽기·쓰기는 입력의 과금 구분이며 서로 더해 별도 전체 입력을 만들지 않는다. 임베딩 토큰은 따로 센다. 예를 들어 입력 1,000 중 캐시 읽기 900이면 총 입력은 1,900이 아니다. 값이 작을수록 반드시 좋은 답변인 것은 아니며 네트워크 전송 바이트나 운영 합격선을 나타내지 않는다.</div>
+<table><caption>59번 저장 사용량</caption><thead><tr><th>입력</th><th>출력</th><th>캐시 읽기 / 쓰기 / 일반 입력</th><th>질문 임베딩</th><th>새 문서 청크 임베딩</th></tr></thead><tbody><tr><td>1,536,963</td><td>228,039</td><td>1,103,761 / 432,329 / 873</td><td>1,178토큰 · 32벡터</td><td>0</td></tr></tbody></table>
+<p>재개 실행 한 번의 경과시간은 90.41분, CPU 시간은 7,380.649초, 최대 프로세스 메모리는 3,211,132KiB(약 3.062GiB)였다. 최초 중단 실행의 전체 자원은 합치지 않았다. 답변 반복 구간의 경과시간은 61.46분으로 추가 실험 검증 비용을 포함한다. GPU는 사용하지 않았다. 검색 중 관측한 최소 가용 메모리는 약 4.837GiB였으며 전체 실행의 최저 가용 메모리 측정은 아니다. 전체 처리량·최초 실행까지 포함한 CPU/경과시간은 미측정이다.</p>
+<p class="note caution">임시 실행기의 마지막 자원 파일 저장 부분에서 전역 변수 누락으로 NameError가 발생했다. 실제 노트북 코드 셀과 192답변·출력 저장이 모두 끝난 뒤의 수집 오류다. 종료 자원 기록에서 재개 실행의 자원 파일만 복구했으며 API 재호출은 0건이다. 코드 셀은 재개 시 순서대로 실행했지만 유효한 저장 결과를 재사용했으므로 처음부터 모든 API를 새로 호출한 완전 재실행은 아니다. 최초 종료 원인 미확인과 마지막 수집 코드 오류를 구분해 보존한다.</p>
+<p>저장공간 관측은 파일 크기의 합으로 API 원본 15,351,681바이트, 검색 14,283,844바이트, 관측 시점의 원문 검토 27,703,554바이트, 비공개 실험 색인 329,304,641바이트, 점수 캐시 645,632바이트, 질문 벡터 196,736바이트였다. 실험 전 대비 증가분·실제 디스크 할당량·전체 모델 캐시 크기는 미측정이다. 링크·공유 블록으로 중복될 수 있어 이를 합쳐 새로운 디스크 사용량으로 주장하지 않는다. 이후 검토 기록 추가로 원문 검토 폴더 크기는 달라질 수 있다.</p>
+<p>실제 청구액, 첫 토큰 시간(TTFT), 화면 출력 시간, 온라인 전체 응답시간, 운영 SLA는 미측정·미확정이다. 검색 평균과 답변 평균을 더해 온라인 응답시간으로 제시하지 않는다. <a href="../../notebooks/data/59_new_sequential_confirmation/resource_summary.json">전체 사용량·비용·시간 자료</a> · <a href="../../notebooks/data/59_new_sequential_confirmation/full_execution_resources.json">재개 실행 자원과 수집 한계</a> · <a href="../../notebooks/data/59_new_sequential_confirmation/execution_invocations/driver_postamble_diagnosis.json">수집 코드 오류 기록</a></p>
+</section>
+
+<h2>재현과 판정 자료</h2>
+<p><a href="../../notebooks/notes/55_59_sequential_evidence_plan.md">승인 계획</a> · <a href="../../notebooks/data/59_new_sequential_confirmation/configuration_contract.json">선택 설정</a> · <a href="../../notebooks/data/59_new_sequential_confirmation/questions.json">32질문</a> · <a href="../../notebooks/data/59_new_sequential_confirmation/source_reference.json">실행 전 원문 기준</a> · <a href="../../notebooks/data/59_new_sequential_confirmation/grading_contract.json">사전 판정 계약</a> · <a href="../../notebooks/data/59_new_sequential_confirmation/execution_manifest.json">실행 결속 정보</a></p>
+<p>답변 판정에는 카드별 검색·실제 요청·답변·원문 해시를 연결한다. 자동 검사는 텍스트와 파일 결속을 확인하며 의미의 진실성을 자동 인증하지 않는다. Codex 원문 판정 및 별도 Codex 검토와 독립 사람 검수는 구분한다. 보조 Python은 중단 재개와 입력·비용 검증을 공유하기 위한 것이며, 이 HTML은 실제 자료를 확인해 직접 작성한다.</p>
+<p>등록 reviewer는 전체 192행의 집합·입력·원문 증명·집계 결속을 확인하고, 이전에 직접 의미 검토한 42행과 이번 N23·N24·N26·N28·N30·N31·N32의 경계 표본을 대조했다. 192행 전부에 대한 독립 사람의 의미 전수검토는 아니다. <a href="../../notebooks/data/59_new_sequential_confirmation/source_review/final_independent_review.json">최종 독립 검토 범위와 해시</a> · <a href="../../notebooks/data/59_new_sequential_confirmation/main_validation.json">main 검증 기록</a> · <a href="../../notebooks/data/59_new_sequential_confirmation/completion.json">최종 완료 및 파일 결속 기록</a>에서 확인할 수 있다. 단계별 JSON의 검토 대기 표시는 생성 당시의 기록이며 최종 수락은 완료 기록으로 연결했다.</p>
+<footer id="final-summary"><strong>최종 요약:</strong> 새 32질문에서 benefit의 답변 통과율이 더 높았고 parent-child는 N09·N24에서 우세했다. 두 프로필의 유효 카드 Hit@3는 모두 96.7%였으나 중요조건 확보·반영이 충분하지 않았다. 58번에서 사전 선택한 기존 답변 지시·기존 근거 A를 유지했고 조건 문단 추가·새 답변 지시로 사후 교체하지 않았다. 59번 비용은 사용량 기준 약 $0.1792, 답변 준비시간 평균은 benefit 17.15초·parent-child 16.39초였다. 이는 온라인 전체 시간이나 운영 품질 통과를 뜻하지 않는다. 다음 단계는 확인된 무실적 정규화·발급사/카드 범위·무료이용 동작·대상 문자열과 혜택 관계 보존을 별도 수정·회귀 확인하고, 같은 새 질문의 비구조화 단독 기준선 및 중요조건 품질을 비교하는 것이다. 이번에는 운영 코드를 변경하지 않았다.</footer>
+</main></body></html>
