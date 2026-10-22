@@ -4,6 +4,7 @@
 <style>body{max-width:1120px;margin:40px auto;padding:0 24px;font:16px/1.8 system-ui,sans-serif;color:#182331;background:#fafbfd}section{background:white;border:1px solid #dce3ed;border-radius:12px;padding:24px;margin:24px 0}h1,h2{line-height:1.4}table{border-collapse:collapse;width:100%;font-size:14px}th,td{border:1px solid #dce3ed;padding:10px;text-align:left;vertical-align:top}th{background:#eef3f9}.guide{background:#f2f6fb;padding:14px;border-left:4px solid #4b73a0}.note{background:#fff3dc;padding:15px}a{color:#1859a3}</style>
 <header><p>개발 비교 · 2026-10-23 · 운영 미반영</p><h1>57. 같은 카드에서 공통 조건을 더 찾으면 필요한 근거가 채워지는가?</h1>
 <p>40질문 × 두 청킹 프로필의 검색80건을 완료했다. 필수사실 평가는37질문이며, 존재하지 않는 카드·모호한 상품·실제 승인내역 요청3개는 이 분모에 넣지 않았다. 원문 범위 증명2건을 교정하고 독립 검토를 마쳤다.</p></header>
+<p class="caution">58번에서 D39 parent-child A의 입력 문구가 교통특화 전월실적을 충분히 증명하지 못함을 확인했다. 원자료와 아래 당시 표를 보존하되, 이 한 건을 반영한 A의 평균 근거 회수율은 94.3243%에서 93.7838%로 교정한다. A 완전 회수 28/37, B 회수율 96.8919%·완전 회수 31/37은 그대로다. B 대비 A의 질문별 근거 회수율 승/패/동률은 5/0/32다. <a href="../../notebooks/data/58_generation_factor_comparison/historical_metric_erratum.json">교정 범위와 원자료 결속 기록</a> · <a href="58_generation_factor_comparison_report.html">58번 재검토 보고서</a></p>
 <section><h2>목적과 비교 조건</h2>
 <p>55번에서 카드 자체를 찾더라도 실적·한도·서비스 선택 조건이 입력 근거에 빠지는 사례를 확인했다. 이번에는 같은 카드의 조건 구역을 추가하면 그 빈틈을 채울 수 있는지 확인했다. 답변 생성과 프롬프트 비교는 다음58번이다.</p>
 <p>A는 원질문 → 구조화 검색 → 카드 범위를 제한한 vector+BM25 검색 및 기존 재정렬이다. 구조화 결과0건이면 원래 카드·발급사 범위에서 비구조화 검색을 한 번 한다. 56번에서 선택한 보완 추출의 상세 표현1회차와 복사 DB를 두 프로필에 공통 사용했다. 미지원·확인 요청3개는 보존된 범위 처리를 사용했다.</p>

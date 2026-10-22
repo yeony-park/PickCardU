@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>58 · 순차 검색의 조건 근거와 답변 지시 비교</title>
+<style>body{font:16px/1.7 system-ui,sans-serif;color:#172438;background:#f4f6f9;margin:0}main{max-width:1180px;margin:auto;padding:36px 24px;background:white}h1{line-height:1.3}h2{margin-top:44px}h3{margin-top:28px}p{max-width:1050px}a{color:#1557a2}table{border-collapse:collapse;width:100%;font-size:14px;margin:12px 0}th,td{border:1px solid #ced7e0;padding:9px;text-align:left;vertical-align:top}th{background:#eaf0f7}caption{text-align:left;font-weight:700;padding:8px 0}.scroll{overflow-x:auto}.note,.guide{padding:14px 18px;border-left:4px solid #326da8;background:#f0f5fb}.caution{border-color:#b06e18;background:#fff7e9}.selected{background:#eaf6ee}.best{font-weight:700}.muted{color:#506078}code{font-size:.9em;word-break:break-word}li{margin-bottom:5px}footer{margin-top:40px;border-top:1px solid #ced7e0;padding-top:18px}</style></head>
+<body><main>
+<p class="muted">개발 실험 · 2026-10-23 · 노트북 <a href="../../notebooks/58_generation_factor_comparison.ipynb">58번</a> · 운영 반영 없음</p>
+<h1>조건 근거를 더 주면, 답변 지시를 바꾸면 좋아지는가?</h1>
+<p>구조화 검색 뒤 해당 카드 안에서 비구조화 검색을 한 <strong>순차 검색</strong>을 고정하고, 조건 문단 추가와 답변 프롬프트 보강을 비교했다. parent-child는 조건 문단 추가 시 질문 통과가 8/24에서 14/24로 늘었지만, H11에서 새 중요조건 손실이 생겨 사전 선택 기준을 통과하지 못했다. 후속 확인에 넘길 개발 설정은 <strong>두 청킹 모두 기존 근거 A + 기존 답변 지시</strong>인 <code>old:A:A</code>다. 최종 자료의 독립 검토 수락·결속과 실제 59 진입 검사를 마쳤고, 새 질문 작성 전에 이 설정을 동결했다.</p>
+<p class="note caution">이번 분모는 어려운 개발 질문 12개를 두 번 답한 24개 논리 답변이다. 기존 52번의 전체 40질문 통과율과 직접 비교해 운영 품질이 떨어졌다고 해석하면 안 된다. 여러 설정과 사후 판정 정정을 같은 개발셋에서 검토했으며, 독립 사람 평가·새 문서 홀드아웃·운영 준비 완료 결과가 아니다.</p>
+
+<h2>왜 실행했고 무엇을 바꿨나</h2>
+<p>카드를 찾았다는 사실과 필요한 혜택·실적·한도·횟수·예외를 답했다는 사실을 구분하기 위한 실험이다. H05·H08·H11·H13·H19·H21·H23·H24·D36·D38·D39·D40에 대해 두 운영 청킹 프로필, 근거 A/B, 기존/보강 지시, 두 반복을 교차해 192개 답변을 만들었다. 원문 발췌 진단 48개는 원인 분석용이며 후보 선택 분모에서 제외했다.</p>
+<ul>
+<li><strong>A:</strong> 기존 검색 근거를 사용한다. <strong>B:</strong> 카드·순위·기존 근거를 유지하고 같은 카드에서 조건 문단을 최대 2개 추가한다. 카드당 근거 최대 5개에서 7개로 늘어나는 비교다. parent 묶음 안 원문 청크 최대 5개와는 다른 제한이다.</li>
+<li><strong>보강 지시:</strong> 중요한 조건과 관계를 확인하도록 일반 지시를 추가한다. 정답·필수 사실 ID·평가 주석은 일반 검색과 답변 입력에 넣지 않았다.</li>
+<li><strong>고정:</strong> 56번 복사 DB·선택된 새 조건 추출기, 57번 검색 결과, 원질문·카드 범위, vector+BM25와 기존 BGE 재정렬, 모델 <code>gpt-6-luna / medium</code>, 출력 한도 2,400토큰, 전체 입력 64,000바이트.</li>
+<li>구조화 결과가 있으면 해당 카드 안에서 원질문으로 비구조화 검색한다. 0건이면 원래 카드·발급사 범위에서 한 번 검색한다. 별도 전체 비구조화 결과를 겹쳐 합치지 않는다.</li>
+</ul>
+<p>운영 코드·OCR 검증기·원본 PDF/JSON/DB/색인은 변경하지 않았다. OCR 통과는 기존 실험의 가정이며, 전체 제목 계층이나 원문 관계를 검증했다는 결과가 아니다.</p>
+
+<h2>검색과 답변을 나눠 본 결과</h2>
+<div class="guide"><strong>카드 Hit@3 · 상위 3개 유효 카드 포함률:</strong> 52번 원문 확인 목록의 카드가 현재 상위 3개에 하나라도 있으면 1, 12질문 평균이다. 높을수록 좋고 전부 포함하면 100%다. 예를 들어 커피 카드가 2위에 있으면 성공이다. <strong>MRR@3 · 첫 유효 카드 순위의 역수 평균:</strong> 1위는 1, 2위는 0.5, 3위는 0.333, 없으면 0이며 높을수록 좋다. 카드만 평가하므로 실적·앱 제외 근거가 없어도 성공할 수 있다. 재사용한 유효 카드 목록은 106카드 전수 정답 목록이 아니다.</div>
+<table><caption>현재 12질문에서의 카드 순위 진단</caption><thead><tr><th>청킹</th><th>Hit@3</th><th>MRR@3</th><th>해석</th></tr></thead><tbody>
+<tr><td>benefit</td><td>12/12 · 100%</td><td>0.9583</td><td>D40의 유효 IBK 카드가 2위</td></tr>
+<tr><td>parent-child</td><td>12/12 · 100%</td><td>0.9028</td><td>H21 유효 NH 카드가 3위, D40 유효 IBK 카드가 2위</td></tr>
+</tbody></table>
+<p>A/B·지시·반복 사이의 카드 순위는 같다. B는 이미 찾은 카드의 근거를 더하는 방식이다. <a href="../../notebooks/data/58_generation_factor_comparison/card_ranking_audit.json">카드 순위와 재사용 원문 검토 목록</a></p>
+
+<div class="guide"><strong>질문 PASS · 답변 조건 충족:</strong> 실제 요청을 해결할 유효 카드와 중요조건을 설명하고, 다른 소개 카드에도 중요한 오류가 없어야 통과한다. 설정당 12질문×2회=24개 중 PASS만 센다. PARTIAL(일부 충족)·FAIL(실패)·UNCERTAIN(불확실)·기술실패는 성공이 아니다. 예를 들어 커피 카드를 찾아도 필요한 실적을 빠뜨리면 미통과다.<br>
+<strong>Fact Recall · 근거 회수율:</strong> 원문 확인 필수 사실 중 실제 본문이 지원한 비율로 높을수록 좋다. 할인율·실적 두 사실 중 하나면 50%다. <strong>Complete Evidence · 완전근거:</strong> 12질문 중 고정 참조 사실 전부를 확보한 비율이며, 불확실 원문 사실이 남으면 성공으로 세지 않는다.<br>
+<strong>Conditional Reflection · 조건부 답변 반영률:</strong> 입력이 지원한 사실 중 정확히 답한 비율이다. 입력에 할인율만 있고 이를 답하면 100%여서 회수율과 함께 읽어야 한다. <strong>End-to-End Fulfillment · 종단 사실 충족률:</strong> 전체 원문 필수 사실 중 정확히 답한 비율이다. 입력 없이 우연히 맞은 사실도 포함될 수 있어 따로 표시한다.<br>
+사실 지표는 같은 질문의 두 반복을 먼저 평균한 뒤 12질문 사이를 평균한다. 원문 검증된 사실 분모는 benefit 45개, parent 50개로 다르므로 청킹 간 순수 회수 우열이 아니라 진단용이다. A/B·지시 비교에서는 각 프로필의 동일 사실 집합을 유지했다. 실제 질문 PASS와 고정 참조 카드의 사실 반영은 별개다.</div>
+<div class="scroll"><table><caption>일반 후보 192개: 실패 포함, 입력 근거 기준</caption><thead><tr><th>청킹·근거·지시</th><th>질문 PASS</th><th>근거 회수율</th><th>완전근거</th><th>조건부 반영률</th><th>종단 사실 충족률</th></tr></thead><tbody>
+<tr class="selected"><td>benefit A · 기존</td><td>11/24 · 45.83%</td><td>91.81%</td><td>6/12 · 50%</td><td>94.10%</td><td>86.11%</td></tr>
+<tr><td>benefit A · 보강</td><td class="best">13/24 · 54.17%</td><td>91.81%</td><td>6/12 · 50%</td><td>94.79%</td><td>88.19%</td></tr>
+<tr><td>benefit B · 기존</td><td>10/24 · 41.67%</td><td>91.81%</td><td>6/12 · 50%</td><td>90.97%</td><td>84.86%</td></tr>
+<tr><td>benefit B · 보강</td><td class="best">13/24 · 54.17%</td><td>91.81%</td><td>6/12 · 50%</td><td>92.71%</td><td>84.93%</td></tr>
+<tr class="selected"><td>parent A · 기존</td><td>8/24 · 33.33%</td><td>82.92%</td><td>5/12 · 41.67%</td><td>96.94%</td><td>80.21%</td></tr>
+<tr><td>parent A · 보강</td><td>9/24 · 37.50%</td><td>82.92%</td><td>5/12 · 41.67%</td><td>99.17%</td><td>82.92%</td></tr>
+<tr><td>parent B · 기존</td><td class="best">14/24 · 58.33%</td><td>92.50%</td><td>8/12 · 66.67%</td><td>96.25%</td><td>89.17%</td></tr>
+<tr><td>parent B · 보강</td><td class="best">14/24 · 58.33%</td><td>92.50%</td><td>8/12 · 66.67%</td><td>93.96%</td><td>86.67%</td></tr>
+</tbody></table></div>
+<p>굵은 값은 각 청킹의 원시 최고 PASS 동점이다. 차순위는 benefit A·기존 11/24, parent A·보강 9/24다. 최고·차순위와 최종 선택을 구분한다.</p>
+<p>검색 본문과 실제 API 입력은 전체 240개에서 결속 검사를 했다. 본문 조립으로 빠진 근거는 0개다. parent A·보강의 D39에는 원문상 맞는 20만원을 말했지만 실제 입력은 생활서비스 조건뿐인 사례가 있어 <code>correct_without_input_support</code>(원문상 맞지만 입력 근거 없음)로 분리했다. 이것을 근거 있는 생성 성공으로 세지 않는다.</p>
+
+<h2>전체 설정에서 무엇을 선택했나</h2>
+<p>공통 답변 지시 × benefit A/B × parent A/B의 8설정을 모두 비교했다. 프로필별 평균 PASS가 퇴행하지 않고, 질문별 두 반복의 합집합에서 새 중요오류·중요조건 손실·카드 범위 위반이 없어야 후보가 된다. 통과 후보 중 질문 평균 PASS 순개선이 가장 큰 것을 고르고, 없으면 기존 설정을 유지한다. 동률은 변경 축·추가 검색·입력 크기·실측 비용·설정 ID 순서다.</p>
+<div class="guide"><strong>PASS · 질문 통과율:</strong> 위와 같은 24개 답변 분모이며 높을수록 좋다. <strong>Eligible · 선택 자격:</strong> 사전 품질 검사 전부를 통과했는지다. 예를 들어 H24를 맞히는 건수가 늘어도 H11의 필수 등록 경로가 새로 빠지면 자격이 없다. 원시 최고 점수와 선택 설정은 다르며, 개발셋 최고를 운영 채택으로 해석하지 않는다.</div>
+<table><caption>8개 전역 설정: ID는 지시 : benefit 근거 : parent 근거</caption><thead><tr><th>설정 ID와 뜻</th><th>benefit PASS</th><th>parent PASS</th><th>선택 검사</th></tr></thead><tbody>
+<tr class="selected"><td><code>old:A:A</code> 기존 지시·양쪽 A</td><td>45.83%</td><td>33.33%</td><td>선택 · 모든 검사 통과, 기존 유지</td></tr>
+<tr><td><code>old:A:B</code> 기존 지시·parent만 B</td><td>45.83%</td><td>58.33%</td><td>제외 · H11 새 중요조건 손실</td></tr>
+<tr><td><code>old:B:A</code> 기존 지시·benefit만 B</td><td>41.67%</td><td>33.33%</td><td>제외 · 57 근거 검사, PASS 퇴행, 새 오류·손실</td></tr>
+<tr><td><code>old:B:B</code> 기존 지시·양쪽 B</td><td>41.67%</td><td>58.33%</td><td>제외 · benefit 검사 미충족 및 parent 새 손실</td></tr>
+<tr><td><code>new:A:A</code> 보강 지시·양쪽 A</td><td>54.17%</td><td>37.50%</td><td>제외 · 새 중요오류·조건 손실</td></tr>
+<tr class="best"><td><code>new:A:B</code> 보강 지시·parent만 B</td><td>54.17%</td><td>58.33%</td><td>원시 최고 동점 · 새 오류·손실로 제외</td></tr>
+<tr><td><code>new:B:A</code> 보강 지시·benefit만 B</td><td>54.17%</td><td>37.50%</td><td>제외 · benefit 57 검사 및 새 오류·손실</td></tr>
+<tr class="best"><td><code>new:B:B</code> 보강 지시·양쪽 B</td><td>54.17%</td><td>58.33%</td><td>원시 최고 동점 · 57 검사 및 새 오류·손실로 제외</td></tr>
+</tbody></table>
+<p><code>old:A:B</code>의 parent는 H24·D36·D38 세 질문에서 개선했고 퇴행 질문은 없었다. 그래도 H11의 B 1회차에서 Discount Plan+의 공유 월한도가 사라졌고, B 2회차에서는 새로 소개한 올바른FLEX의 공식 홈페이지/앱 카드등록 경로를 설명하지 않았다. H11은 기존에도 일부 미충족이었지만, 새로운 중요조건을 더 놓치지 않는다는 사전 기준에서 제외된다. <a href="../../notebooks/data/58_generation_factor_comparison/configuration_selection.json">전체 검사 사유·질문별 개선/퇴행/동률·자원 동률 기준</a></p>
+
+<h2>어느 질문에서 달라졌나</h2>
+<div class="guide"><strong>반복 통과 수:</strong> 같은 질문의 두 답변 중 PASS 수로 0/1/2이며 높을수록 좋다. 예를 들어 1은 한 번만 완전 통과한 것이므로 안정적인 성공이 아니다. 아래 12행이 질문 수이며 열과 반복을 독립 질문으로 더하지 않는다. A/B는 근거, 기존/보강은 답변 지시다.</div>
+<div class="scroll"><table><caption>질문별 PASS 횟수 / 2회</caption><thead><tr><th>질문</th><th>benefit A 기존</th><th>A 보강</th><th>B 기존</th><th>B 보강</th><th>parent A 기존</th><th>A 보강</th><th>B 기존</th><th>B 보강</th></tr></thead><tbody>
+<tr><td>H05 두 배 할인 첫 거래</td><td>2</td><td>2</td><td>2</td><td>2</td><td>2</td><td>2</td><td>2</td><td>2</td></tr>
+<tr><td>H08 그린카드 커피 조건</td><td>2</td><td>2</td><td>2</td><td>2</td><td>2</td><td>2</td><td>2</td><td>2</td></tr>
+<tr><td>H11 두 구독 20% 이상·조건</td><td>2</td><td>1</td><td>1</td><td>1</td><td>0</td><td>1</td><td>0</td><td>1</td></tr>
+<tr><td>H13 맞춤 할인·실적 관계</td><td>1</td><td>2</td><td>1</td><td>2</td><td>2</td><td>2</td><td>2</td><td>2</td></tr>
+<tr><td>H19 야간 편의점·배달</td><td>1</td><td>2</td><td>2</td><td>2</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+<tr><td>H21 세 교통수단·앱 조건</td><td>0</td><td>0</td><td>0</td><td>0</td><td>2</td><td>2</td><td>2</td><td>2</td></tr>
+<tr><td>H23 영화관·헬스장</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+<tr><td>H24 원스토어·PC방 조건</td><td>2</td><td>2</td><td>2</td><td>2</td><td>0</td><td>0</td><td>2</td><td>2</td></tr>
+<tr><td>D36 커피 한도·횟수·실적</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>2</td><td>1</td></tr>
+<tr><td>D38 월 3회 이상 커피</td><td>0</td><td>2</td><td>0</td><td>2</td><td>0</td><td>0</td><td>2</td><td>2</td></tr>
+<tr><td>D39 교통 혜택·조건 설명</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+<tr><td>D40 세 교통수단 추천</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+</tbody></table></div>
+<p>H24의 parent A에는 실적 30만원 문단이 없고 B에는 있어 답변이 개선됐다. H23은 양쪽 일반 입력에서 할인 PACK 선택조건을 확보하지 못해 전부 일부 충족이었다. H19의 B가 정확히 Daily Plan이라고 표시한 1만5천원은 Time 한도의 거짓 주장으로 세지 않았다. 질문에 필요한 Time 실적·한도 누락으로 판정했다.</p>
+
+<div class="guide"><strong>하위집단 PASS:</strong> 기존 52번 질문 분류를 재사용한다. 고유명사 2질문×2=4, 수치 3×2=6, 의미·혜택 6×2=12, 상세 1×2=2개 답변이 각 분모다. 높을수록 좋지만 상세 한 질문의 100%는 일반화 근거가 아니다. 예를 들어 수치 질문에서 H11이 틀리고 D38이 개선되면 전체 평균만으로 두 변화를 알 수 없다.</div>
+<table><caption>하위집단 통과 수 / 해당 답변 수</caption><thead><tr><th>조건</th><th>고유명사</th><th>수치·조건</th><th>의미·혜택</th><th>상세</th></tr></thead><tbody>
+<tr><td>benefit A 기존</td><td>4/4</td><td>3/6</td><td>3/12</td><td>1/2</td></tr><tr><td>benefit A 보강</td><td>4/4</td><td>5/6</td><td>4/12</td><td>0/2</td></tr>
+<tr><td>benefit B 기존</td><td>4/4</td><td>2/6</td><td>4/12</td><td>0/2</td></tr><tr><td>benefit B 보강</td><td>4/4</td><td>5/6</td><td>4/12</td><td>0/2</td></tr>
+<tr><td>parent A 기존</td><td>4/4</td><td>2/6</td><td>2/12</td><td>0/2</td></tr><tr><td>parent A 보강</td><td>4/4</td><td>3/6</td><td>2/12</td><td>0/2</td></tr>
+<tr><td>parent B 기존</td><td>4/4</td><td>4/6</td><td>4/12</td><td>2/2</td></tr><tr><td>parent B 보강</td><td>4/4</td><td>5/6</td><td>4/12</td><td>1/2</td></tr>
+</tbody></table>
+
+<h2>원문 발췌 진단: 완벽한 근거 상한 실험은 아니다</h2>
+<p>12질문×두 지시×두 반복의 48개는 필요한 원문 발췌를 직접 제공했다. 정답 문장·채점 주석은 넣지 않았다. H11은 parent의 Discount Plan+, D36은 D4·그린카드를 참조해 일반 benefit의 참조 카드와 다르다. 일반 후보와 같은 카드·같은 사실만의 순수 개선량으로 비교할 수 없다.</p>
+<p class="note caution">초기 후처리는 진단군이라는 이유로 입력 지원을 100%로 채웠지만, H21·D39·D40의 앱 범위 문단은 PDF의 택시 하위 들여쓰기를 보존하지 못했다. 해당 12행을 모호한 입력으로 정정했다. 원문 verified(원문 확인) 상태와 답변 판정은 유지했다. 원문 발췌 진단은 시각 계층을 완전히 복원한 oracle(완전한 정답 근거 제공 실험)이 아니다.</p>
+<div class="guide"><strong>진단 지표:</strong> 위 사실 회수·반영 정의를 동일 적용한다. 49개 원문 필수 사실을 두 번 평가했으며, 비율은 12질문 평균이다. 완전근거는 9/12질문이다. 앱 문장이 있어도 택시 한정 관계를 확정할 수 없으면 supported(지원)로 세지 않는다. 질문 PASS는 24답변 중 조건을 모두 해결한 수이며, 조건부 반영률 100%라도 모호한 앱 조건을 잘못 답하면 미통과다. 이 48개는 후보 선택에 쓰지 않는다.</div>
+<table><caption>정정 후 원문 발췌 진단</caption><thead><tr><th>지시</th><th>질문 PASS</th><th>입력 근거 회수율</th><th>완전근거</th><th>조건부 반영률</th><th>종단 사실 충족률</th></tr></thead><tbody>
+<tr><td>기존</td><td>15/24 · 62.50%</td><td>93.89%</td><td>9/12 · 75%</td><td>87.15%</td><td>81.67%</td></tr>
+<tr><td>보강</td><td>18/24 · 75.00%</td><td>93.89%</td><td>9/12 · 75%</td><td>100%</td><td>93.89%</td></tr>
+</tbody></table>
+<p>D38의 같은 원문 입력에는 월 10회가 있었지만 기존 지시 두 답변은 확인할 수 없다고 했다. 보강 지시 두 답변은 일 1회·월 10회와 실적별 한도를 설명했다. 반면 앱 범위의 미해결은 원문 구조 손실과 생성 해석을 완전히 분리해 원인 단정할 수 없다. <a href="../../notebooks/data/58_generation_factor_comparison/diagnostic_metric_revision.json">정정 전후 지표</a> · <a href="../../notebooks/data/58_generation_factor_comparison/diagnostic_input_support_correction.json">12행 실제 입력 정정</a></p>
+
+<h2>비용과 답변 준비 시간</h2>
+<div class="guide"><strong>Answer-ready time · 답변 준비시간:</strong> 요청 전 검사·API·응답 검증·모든 재시도를 거쳐 최종 결과를 저장할 때까지의 벽시계 시간이다. 낮을수록 좋지만 운영 SLA 기준은 정하지 않았다. 아래 평균/P95는 새 답변만 센다. P95는 n개를 정렬한 ceil(0.95×n)번째다. 두 번 요청한 커피 답변은 두 요청 시간을 포함한다. 로컬 재사용은 새 생성 시간이 아니며 제외한다.<br>
+<strong>Usage-priced cost · 사용량 기준 계산 비용:</strong> 저장된 공급사 토큰 사용량과 고정 가격표로 계산한 실제 실행분 비용이다. 낮을수록 자원을 적게 쓰지만 품질 탈락을 상쇄하지 않는다. 청구서 실측액은 미측정이다. B의 재사용 6개씩은 추가 API 비용 0이므로 이 표의 총액을 그대로 온라인 B의 제공 비용으로 해석하면 안 된다. 조건별 표본 수·질문 구성·공급사 캐시·실행 순서가 달라 순수 인과적 지연·가격 비교가 아니다.</div>
+<table><caption>일반 후보와 진단군의 실제 추가 요청·비용</caption><thead><tr><th>조건</th><th>새 답변 / 재사용</th><th>물리 API</th><th>준비시간 평균 / P95 초</th><th>계산 비용 달러</th></tr></thead><tbody>
+<tr><td>benefit A 기존</td><td>24 / 0</td><td>25</td><td>18.47 / 30.40</td><td>0.023183630</td></tr><tr><td>benefit A 보강</td><td>24 / 0</td><td>25</td><td>17.52 / 31.59</td><td>0.025613900</td></tr>
+<tr><td>benefit B 기존</td><td>18 / 6</td><td>20</td><td>18.42 / 41.02</td><td>0.021278405</td></tr><tr><td>benefit B 보강</td><td>18 / 6</td><td>20</td><td>22.31 / 64.01</td><td>0.024159120</td></tr>
+<tr><td>parent A 기존</td><td>24 / 0</td><td>24</td><td>14.93 / 22.70</td><td>0.017070675</td></tr><tr><td>parent A 보강</td><td>24 / 0</td><td>24</td><td>16.76 / 26.46</td><td>0.019491730</td></tr>
+<tr><td>parent B 기존</td><td>24 / 0</td><td>24</td><td>17.20 / 31.24</td><td>0.020885665</td></tr><tr><td>parent B 보강</td><td>24 / 0</td><td>24</td><td>17.97 / 30.41</td><td>0.022829080</td></tr>
+<tr><td>원문 발췌 기존</td><td>24 / 0</td><td>24</td><td>13.67 / 19.89</td><td>0.014684480</td></tr><tr><td>원문 발췌 보강</td><td>24 / 0</td><td>24</td><td>18.23 / 30.41</td><td>0.018182465</td></tr>
+</tbody></table>
+<p>합계 240논리 답변, 228개 새 생성·12개 동일 입력 재사용, 234회 물리 요청이다. 새 생성 평균 17.40초·중앙값 15.40초·P95 31.26초·최대 64.01초이며 최종 기술실패도 포함한다. 단계 전체 벽시계 4,391.83초(약 73.20분), CPU 1,129.34초, 프로세스 최대 RSS 1,149,876KiB(약 1.10GiB)다. 새 임베딩·색인 생성은 0, 로컬 GPU 사용은 없고 공급사 GPU는 미측정이다.</p>
+<p>58 결과자료 폴더의 검토 시 디스크 사용은 51,768KiB(약 50.55MiB, 노트북·HTML 제외)다. 새 모델·색인 파일은 만들지 않았다. 가용 RAM 최저값과 GPU 최대 메모리는 미측정이다.</p>
+<p>입력 1,349,209토큰 중 공급사 캐시 읽기 873,495, 캐시 쓰기 475,012, 일반 입력 702토큰이며 출력은 추론 포함 278,395토큰이다. 본 실험 계산 비용 <strong>0.207379150달러</strong>. 46번 이후 확인 사용량 누적 0.955187395달러와 승인된 과거 두 미확인 요청 예약 0.006234500달러를 합친 예산 차감은 <strong>0.961421895달러</strong>다. 전체 상한 8달러 및 58 단계 상한 1달러 이내다. TTFT(첫 토큰), 브라우저 표시, 실제 온라인 전체 응답시간·청구액은 미측정이다. 57번 검색·보강 시간을 다른 실행의 이 값에 더해 실측 온라인 시간이라고 하지 않는다.</p>
+<p>출력 토큰 한도 관련 불완전 응답은 물리 요청 7회였다. 6개 논리 답변이 재시도를 사용했고 5개가 복구됐다. 최종 실패는 H11 benefit B·보강 2회차와 D36 parent B·보강 2회차의 2개다. D36은 출력 2,400토큰 전부 추론에 사용돼 본문이 없었으며, 포괄 오류 문구의 refused(거절)로 원인을 단정하지 않았다. 토큰 한도·청킹을 중간에 바꾸거나 실패를 삭제하지 않았다. <a href="../../notebooks/data/58_generation_factor_comparison/resource_audit.json">요청별 비용·토큰·시간</a> · <a href="../../notebooks/data/58_generation_factor_comparison/answer_execution_resources.json">실행 자원 원기록</a></p>
+
+<h2>평가 정정과 재현 범위</h2>
+<p>D39 parent A의 교통 실적을 생활서비스 문단으로 지원하던 57번 판정을 발견했다. 원문 값은 맞지만 실제 입력의 적용 관계가 부족했다. A 4행의 지원을 모호로 정정하고 B 4행은 실제 교통특화 공통조건 인용으로 교체했다. 원본 55/57·원문·API 입력은 보존했다.</p>
+<div class="guide"><strong>한정된 역사 지표 정정:</strong> 37질문의 사실 회수율에서 D39의 한 사실이 지원에서 빠지는 영향만 계산했다. 높을수록 많은 사실을 지원하지만 다른 오류까지 전수 재평가한 수치는 아니다. 예를 들어 같은 20만원이라도 생활서비스 실적은 교통 실적의 증명이 아니다. 완전근거는 해당 질문이 원래도 앱 범위 미확보였으므로 변하지 않는다.</div>
+<table><caption>D39 한 사례 정정의 영향: 원본 수치는 보존</caption><thead><tr><th>과거 조건</th><th>근거 회수율 정정 전 → 후</th><th>완전근거</th><th>별도 영향</th></tr></thead><tbody>
+<tr><td>55 parent SEQ</td><td>93.7838% → 93.2432%</td><td>27/37 유지</td><td>입력 미지원 정답 1사실로 분리, 질문 판정은 이미 실패여서 유지</td></tr>
+<tr><td>57 parent A</td><td>94.3243% → 93.7838%</td><td>28/37 유지</td><td>B 대비 사실 회수 개선 질문에 D39 추가</td></tr>
+<tr><td>57 parent B</td><td>96.8919% → 96.8919%</td><td>31/37 유지</td><td>인용 교정, B의 개선/퇴행/동률은 5/0/32</td></tr>
+</tbody></table>
+<p><a href="../../notebooks/data/58_generation_factor_comparison/historical_metric_erratum.json">한정 정정표</a>에 원본 파일 SHA와 전후 행을 보존했다. 52번 기존 질문 PASS 비교는 바꾸지 않았다. 58의 앱 오류 명칭·H19 별도 Daily 문장·H11 실제 누락 조건 ID도 전설정에 같은 기준으로 정리했다. 이런 일관성 정정은 첫 집계 확인 뒤 이루어졌으며 <a href="../../notebooks/data/58_generation_factor_comparison/grading_interpretation.json">시점과 해석 이력</a>을 공개한다. 후보 결과를 본 뒤 기준을 조정한 개발 진단이라는 한계가 있다.</p>
+<p>D36 원문 질문은 “커피 할인 카드의 월 한도와 횟수, 전월실적을 알려줘.”다. ‘각 카드’라는 문자는 없으며, 소개한 카드별로 조건을 점검한다는 사전 평가 해석을 적용했다. 미소개 TEN의 조건을 답변에 강요하지 않았다. 원문 불확실 횟수는 알려진 수치를 잃은 경우와 구분했다.</p>
+<p>등록 data-engineer가 240개 답변과 292개 카드감사를 수동 검토했다. main은 핵심 답변·PDF·입력 연결을 확인했고 reviewer는 행 결속·분모·선택·주요 경계 사례·59 게이트를 독립 검토했다. 240개 의미를 두 번째 사람이 전수 검수한 결과가 아니다. 자동 검사 104개는 코드·실패 경로 검사이며 답변 의미를 자동 보증하지 않는다.</p>
+<p>노트북의 실행 코드 셀 두 개를 순서대로 실행했고, 후처리 원문과 실행 연결은 <a href="../../notebooks/data/58_generation_factor_comparison/postprocessing_execution.json">분석 실행 기록</a>에 보존했다. HTML은 결과를 확인한 뒤 직접 작성했다. <a href="../../notebooks/data/58_generation_factor_comparison/source_judgments.json">원수동 판정과 명시 정정 층</a> · <a href="../../notebooks/data/58_generation_factor_comparison/fact_evaluation.json">사실 지표 전체</a> · <a href="../../notebooks/data/58_generation_factor_comparison/independent_review.json">독립 검토 영수증</a> · <a href="../EVALUATION_METRICS.md">평가 지표 정의</a></p>
+
+<footer><strong>최종 정리.</strong> parent의 조건 문단 추가는 필요한 실적·한도 확보와 일부 질문 통과를 개선했다. 보강 지시도 명확한 원문 입력의 사실 반영에 도움이 됐지만 일반 후보의 새 조건 손실과 기술실패를 제거하지 못했다. 원시 최고 설정을 채택하지 않고 두 프로필의 A·기존 지시를 유지한다. 단계 계산 비용은 약 0.207달러, 새 답변 준비 평균은 약 17.4초다. 앱 조건의 시각 계층 손실, 개발셋 탐색과 사후 정정, 작은 반복 수가 한계다. 다음은 이 선택을 먼저 동결하고 새 32질문을 3회 확인하는 59번이며, 운영 반영·새 비구조화 기준선 비교·SLA 확정은 이 실험의 완료 조건이 아니다.</footer>
+</main></body></html>

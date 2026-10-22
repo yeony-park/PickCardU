@@ -60,6 +60,82 @@ def test_uncertain_source_is_reserved_for_the_two_negative_questions():
 
 
 @pytest.fixture
+def selection_seal(tmp_path,monkeypatch):
+    stage=tmp_path/'stage58'
+    monkeypatch.setattr(N.R,'ROOT',tmp_path)
+    monkeypatch.setattr(N.G,'BASE',stage)
+    monkeypatch.setitem(N.P.F.STAGES,58,stage)
+    monkeypatch.setattr(N.P.F,'ROOT',tmp_path)
+    selection=dict(status='selected_after_source_fact_review',selected_config_id='old:A:A',
+        configurations=[dict(config_id='old:A:A',eligible=True,failures=[])])
+    answers={'records':[]};judgments={'records':[]};evaluation={'records':[]}
+    review_path='stage58/independent_review.json'
+
+    def seal(selection_value=None,review_change=None):
+        selected=selection_value or selection
+        documents={'configuration_selection.json':selected,'answer_results.json':answers,
+            'source_judgments.json':judgments,'fact_evaluation.json':evaluation}
+        for name,value in documents.items():N.R.write(stage/name,value)
+        files={f'stage58/{name}':N.P.sha((stage/name).read_bytes()) for name in documents}
+        bindings=dict(configuration_selection_sha256=N.P.sha(selected),answer_results_sha256=N.P.sha(answers),
+            source_judgments_sha256=N.P.sha(judgments),fact_evaluation_sha256=N.P.sha(evaluation))
+        review=dict(status='accepted',reviewer='registered Codex reviewer',independent_review=True,
+            blocking_findings=0,major_findings=0,bindings=bindings,reviewed_evaluation_files_sha256=files)
+        if review_change:review_change(review)
+        N.R.write(tmp_path/review_path,review)
+        receipt_hash=N.P.sha((tmp_path/review_path).read_bytes())
+        completion=dict(status='completed_after_independent_review',
+            configuration_selection_sha256=N.P.sha(selected),answer_results_sha256=N.P.sha(answers),
+            judgments_sha256=N.P.sha(judgments),fact_evaluation_sha256=N.P.sha(evaluation),
+            independent_review_path=review_path,independent_review_file_sha256=receipt_hash,
+            evaluation_files_sha256={**files,review_path:receipt_hash})
+        return selected,completion,answers,judgments
+    return seal
+
+
+def test_configuration_freeze_requires_bound_accepted_independent_review(selection_seal):
+    args=selection_seal();N.validate_selection_gate(*args)
+    with pytest.raises(RuntimeError):
+        N.validate_selection_gate(args[0],{**args[1],'status':'draft'},args[2],args[3])
+    with pytest.raises(RuntimeError):
+        N.validate_selection_gate(args[0],args[1],args[2],{'changed':'manual judgment'})
+
+
+@pytest.mark.parametrize('problem',['missing','duplicate','ineligible','failures'])
+def test_resealed_ineligible_selection_cannot_open_confirmation(selection_seal,problem):
+    selected=selection_seal()[0]
+    if problem=='missing':selected['selected_config_id']='absent'
+    elif problem=='duplicate':selected['configurations']*=2
+    elif problem=='ineligible':selected['configurations'][0]['eligible']=False
+    else:selected['configurations'][0]['failures']=['new_important_error']
+    args=selection_seal(selected)
+    with pytest.raises(RuntimeError):N.validate_selection_gate(*args)
+
+
+@pytest.mark.parametrize('problem',['draft','no_reviewer','not_independent','blocking','major','stale_binding','missing_core_file','wrong_file_hash'])
+def test_resealed_unaccepted_or_unbound_review_cannot_open_confirmation(selection_seal,problem):
+    def mutate(review):
+        if problem=='draft':review['status']='draft'
+        elif problem=='no_reviewer':review['reviewer']=''
+        elif problem=='not_independent':review['independent_review']=False
+        elif problem=='blocking':review['blocking_findings']=1
+        elif problem=='major':review['major_findings']=1
+        elif problem=='stale_binding':review['bindings']['source_judgments_sha256']='old'
+        elif problem=='missing_core_file':review['reviewed_evaluation_files_sha256'].pop('stage58/fact_evaluation.json')
+        else:review['reviewed_evaluation_files_sha256']['stage58/fact_evaluation.json']='wrong'
+    args=selection_seal(review_change=mutate)
+    with pytest.raises(RuntimeError):N.validate_selection_gate(*args)
+
+
+def test_review_receipt_and_reviewed_files_are_checked_from_disk(selection_seal):
+    args=selection_seal();completion=args[1];review_path=completion['independent_review_path']
+    without_receipt={**completion,'evaluation_files_sha256':{k:v for k,v in completion['evaluation_files_sha256'].items() if k!=review_path}}
+    with pytest.raises(RuntimeError):N.validate_selection_gate(args[0],without_receipt,args[2],args[3])
+    N.R.write(N.G.BASE/'source_judgments.json',{'changed':'after review'})
+    with pytest.raises(RuntimeError):N.validate_selection_gate(*args)
+
+
+@pytest.fixture
 def embedding_setup(tmp_path,monkeypatch):
     monkeypatch.setattr(N,'BASE',tmp_path)
     monkeypatch.setitem(N.P.F.STAGES,59,tmp_path)

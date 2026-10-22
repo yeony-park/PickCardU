@@ -19,14 +19,46 @@ GROUP_COUNTS={'recommend_single':12,'recommend_multiple':8,'recommend_issuer_spe
               'detail_spend_cap_frequency':3,'detail_exception_channel':2,'detail_calculation':1,'negative_uncertain':2}
 
 
+def validate_selection_gate(selection, completion, answers, judgments):
+    if (selection.get('status')!='selected_after_source_fact_review'
+            or completion.get('status')!='completed_after_independent_review'
+            or completion.get('configuration_selection_sha256')!=P.sha(selection)
+            or completion.get('answer_results_sha256')!=P.sha(answers)
+            or completion.get('judgments_sha256')!=P.sha(judgments)
+            or not completion.get('evaluation_files_sha256')):
+        raise RuntimeError('Stage58 configuration selection is not sealed')
+    choices=[c for c in selection.get('configurations',[])
+             if c.get('config_id')==selection.get('selected_config_id')]
+    if (len(choices)!=1 or choices[0].get('eligible') is not True
+            or choices[0].get('failures')!=[]):
+        raise RuntimeError('Stage58 selected configuration is not eligible')
+    review_path=completion.get('independent_review_path')
+    review_hash=completion.get('independent_review_file_sha256')
+    files=completion['evaluation_files_sha256']
+    if not review_path or not review_hash or files.get(review_path)!=review_hash:
+        raise RuntimeError('Stage58 independent review receipt is not sealed')
+    R.guard_files(completion['evaluation_files_sha256'])
+    review=R.read(R.ROOT/review_path)
+    expected_bindings=dict(configuration_selection_sha256=P.sha(selection),
+        answer_results_sha256=P.sha(answers),source_judgments_sha256=P.sha(judgments),
+        fact_evaluation_sha256=P.sha(R.read(G.BASE/'fact_evaluation.json')))
+    reviewed_files=review.get('reviewed_evaluation_files_sha256',{})
+    core={str((G.BASE/name).relative_to(R.ROOT)) for name in [
+        'configuration_selection.json','answer_results.json','source_judgments.json','fact_evaluation.json']}
+    if (review.get('status')!='accepted' or not review.get('reviewer')
+            or review.get('independent_review') is not True
+            or review.get('blocking_findings')!=0 or review.get('major_findings')!=0
+            or review.get('bindings')!=expected_bindings
+            or completion.get('fact_evaluation_sha256')!=expected_bindings['fact_evaluation_sha256']
+            or not core.issubset(reviewed_files) or review_path in reviewed_files
+            or files!={**reviewed_files,review_path:review_hash}):
+        raise RuntimeError('Stage58 independent review does not accept these evaluation artifacts')
+
+
 def freeze_configuration(notebook):
     selection=R.read(G.BASE/'configuration_selection.json')
     completion=R.read(G.BASE/'completion_status.json')
-    if (selection['status']!='selected_after_source_fact_review'
-            or completion['configuration_selection_sha256']!=P.sha(selection)
-            or completion['answer_results_sha256']!=P.sha(R.read(G.BASE/'answer_results.json'))
-            or completion['judgments_sha256']!=P.sha(R.read(G.BASE/'source_judgments.json'))):
-        raise RuntimeError('Stage58 configuration selection is not sealed')
+    validate_selection_gate(selection,completion,R.read(G.BASE/'answer_results.json'),R.read(G.BASE/'source_judgments.json'))
     target=BASE/'configuration_contract.json'
     choice=next(c for c in selection['configurations'] if c['config_id']==selection['selected_config_id'])
     source_paths=set(R.read(G.BASE/'execution_manifest.json')['source_sha256'])|{
@@ -86,6 +118,7 @@ def prepare(notebook):
         G.BASE/'configuration_selection.json',G.BASE/'completion_status.json',G.BASE/'source_judgments.json',
         G.BASE/'answer_results.json',G.BASE/'execution_manifest.json']}
     critical.update(R.read(G.BASE/'execution_manifest.json')['critical_data_sha256'])
+    critical.update(R.read(G.BASE/'completion_status.json')['evaluation_files_sha256'])
     for q in queries:
         ref=reference['by_query'][q['query_id']]
         validate_reference(q,ref)
