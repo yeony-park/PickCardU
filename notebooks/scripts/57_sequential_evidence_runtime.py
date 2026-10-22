@@ -82,6 +82,7 @@ def prepare(notebook):
     selection=R.read(R.BASE/'parser_selection.json')
     if selection['status']!='selected_after_manual_review':
         raise RuntimeError('Parser selection is not finalized')
+    R.guard_files(selection['evaluation_files_sha256'])
     queries=R.read(OLD/'questions.json')['queries']
     stage=560 if selection['parser_version']=='old' else 561
     preserved={r['parser']['query_id']:r for r in R.read(OLD/'rerouted_repeat1_plans.json')['records']}
@@ -99,6 +100,7 @@ def prepare(notebook):
         R.DB2/'structured.sqlite',R.DB2/'facts.jsonl',OLD/'completion_status.json',OLD/'evaluation_summary.json',
         OLD/'execution_manifest.json',OLD/'execution_results.json',OLD/'question_source_judgments.json',OLD/'questions.json']}
     _,embedding_receipt=preserved_vectors(queries,with_receipt=True)
+    critical.update(selection['evaluation_files_sha256'])
     X.frozen(BASE/'historical_embedding_receipt.json',embedding_receipt)
     critical.update(embedding_receipt)
     critical[str((BASE/'historical_embedding_receipt.json').relative_to(ROOT))]=P.sha((BASE/'historical_embedding_receipt.json').read_bytes())
