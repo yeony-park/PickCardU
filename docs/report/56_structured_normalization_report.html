@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>56 구조화 검색 값 정규화와 조건 추출 비교</title>
+<style>body{max-width:1120px;margin:40px auto;padding:0 24px;font:16px/1.8 system-ui,sans-serif;color:#182331;background:#fafbfd}h1,h2,h3{line-height:1.35}section{background:white;border:1px solid #dce3ed;border-radius:12px;padding:24px;margin:24px 0}table{border-collapse:collapse;width:100%;font-size:14px}th,td{border:1px solid #dce3ed;padding:10px;text-align:left;vertical-align:top}th{background:#eef3f9}.guide{background:#f2f6fb;padding:14px;border-left:4px solid #4b73a0}.note{color:#5c3c12;background:#fff3dc;padding:15px}code{background:#f0f3f6;padding:2px 5px}a{color:#1859a3}</style>
+<header><p>개발 비교 실험 · 2026-10-23 · 운영 미반영</p><h1>56. 구조화 검색의 값 정규화와 조건 추출을 분리해서 비교</h1>
+<p>56A의 복사 DB 보완과 오프라인 비교를 완료했다. 56B의 질문 표현·조건 추출 비교는 실행 전 동결 단계다. 아래는 답변 생성 품질 개선율이 아니다.</p></header>
+<section><h2>왜 실행했나</h2>
+<p>원문에 전월실적 조건이 없다고 명시되어 있는데도 DB 파생값이 <code>unknown</code>(확인 불가)으로 저장되는 사례를 확인했다. 올바른 LLM 조건 <code>max_spend_krw=0</code>을 만들어도 이 상태에서는 조회되지 않는다. 이는 기차와 철도 같은 표현 차이와 구분되는 DB 값 해석 문제다.</p>
+<p>질문은 두 가지다. 같은 검색 조건에서 DB만 보완하면 결과가 달라지는가? 같은 뜻의 짧은 질문과 상세 질문에서 기존·보완 조건 추출은 얼마나 일관적인가? 먼저 DB를 비교하고 이후 추출 비교를 진행한다.</p></section>
+<section><h2>무엇을 바꾸고 무엇을 고정했나</h2>
+<p>원본 30번 SQLite와 문서·사실 JSONL을 읽고 별도 복사본만 수정했다. 문서106개, 사실3403개, 기존 별칭22개, 원문 JSON·사실 ID·문서 관계·스키마는 유지했다. 운영 코드, OCR 검증기, 원본 PDF/JSON/DB/색인과 청킹은 변경하지 않았다. 새 동의어·오타 보정·컬럼을 추가하지 않았다.</p>
+<table><thead><tr><th>보완 분류</th><th>변경 행</th><th>수정 의미</th></tr></thead><tbody>
+<tr><td>명시적인 전월실적 조건 없음</td><td>7</td><td>최소 요구 실적 0원, 상태는 확인됨으로 저장. 고객이 실제 사용한 금액 0원과는 다르다.</td></tr>
+<tr><td>포인트 교환 바우처</td><td>1</td><td>바우처 교환을 구매에 따른 포인트 적립 양성으로 분류하지 않는다.</td></tr>
+<tr><td>이용금액·실적구간을 지급 한도로 읽은 경우</td><td>13</td><td>비지급 금액을 지급액 한도의 확정값에서 제외한다. 미확인은 0으로 바꾸지 않는다.</td></tr>
+<tr><td>합계</td><td>21</td><td>최초 후보24행 중 올리브영3행은 원문 검토 후 제외했다.</td></tr>
+</tbody></table>
+<div class="guide"><b>지표 안내:</b> Changed facts(변경 사실 수)는 전체3403행 중 실제 파생값이 바뀐 행 수다. 예를 들어 커피 혜택과 영화 혜택이 같은 카드에 있으면 서로 다른 행이다. 많을수록 좋은 지표가 아니며 원문에 맞는 변경만 허용한다. 21/3403은 검색 정확도나 오류율이 아니다.</div>
+<p class="note">올리브영 원문은 이용금액에 비율을 곱한 결과를 리워드 적용 금액으로 설명한다. 월3만원/20만원은 구매금액 상한으로 단정할 수 없어 기존 지급 혜택 한도값을 유지했다. 중간 계산 단계라는 이유만으로 지급 한도에서 제외하면 잘못된 보완이 된다.</p></section>
+<section><h2>전월실적 상태를 어떻게 구분했나</h2>
+<table><thead><tr><th>상태</th><th>원본</th><th>복사본</th><th>해석</th></tr></thead><tbody>
+<tr><td>known · 확인됨</td><td>187</td><td>194</td><td>이 중 최소 요구 실적0원인 행은 원본0개 → 복사본7개다.</td></tr>
+<tr><td>unknown · 확인 불가</td><td>1119</td><td>1112</td><td>숫자를 확정할 수 없는 상태. 일괄0원 처리하지 않는다.</td></tr>
+<tr><td>not_applicable · 해당 필드 미적용</td><td>2097</td><td>2097</td><td>해당 사실 행에 실적 필드가 적용되지 않는 상태. 카드 전체가 무실적이라는 뜻은 아니다.</td></tr>
+</tbody></table>
+<div class="guide"><b>지표 안내:</b> Spend field status count(실적 필드 상태별 행 수)는 3403개 사실 행을 분모로 분류한 개수다. 상태 자체의 증감은 성능 점수가 아니다. 예를 들어 ALL 무실적과 LIVING 전월50만원 혜택은 같은 카드라도 별도로 유지해야 한다. 원문과 맞는 상태가 통과 기준이며 미기재를 무실적으로 추정할 수 없다.</div></section>
+<section><h2>어떤 순서로 확인했고 결과는 어땠나</h2>
+<ol><li>21개 변경 결정을 원문 PDF의 결정 문구 또는 수동 이미지 관찰에 연결했다. 텍스트 근거16개와 이미지 근거5개에 이미지 검토 기록6쪽이 연결된다. 이 검사는 변경한 파생값의 의미만 확인하며 전체 OCR·raw 필드 검증이 아니다.</li>
+<li>원본·복사본의 해시, SQLite integrity/FK, 불변 열, 별칭, 문서 관계, DB 열과 파생 JSON 및 JSONL의 일치를 검사했다. 원본 해시 유지, 불일치0, 두 번째 정규화 실행의 추가 변경0이었다.</li>
+<li>52번 저장 조건40개를 그대로 양 DB에 적용했다. 결과 카드 목록이 바뀐 질문은0개였다.</li>
+<li>54번의 보존 추출96개도 그대로 양 DB에 적용했다. B01의 세 반복만 카드 목록이 바뀌었고 모두 쿠팡 와우카드를 찾았다. 54번의 미실행 답변은 평가하지 않았다.</li>
+<li>변경21행에 직접 연결한 수동 조건을 검사했다. 무실적7행은 불일치→일치, 교환1행은 잘못된 일치→불일치, 비지급 한도13행 중12행은 잘못된 일치→불일치, 나머지1행은 기존에도 다른 사유로 불일치였다.</li></ol>
+<div class="guide"><b>지표 안내:</b> Matched(조회됨)는 고정 조건을 만족하는 카드가 있는지를 뜻한다. 검색 순위의 Hit@3/MRR@3와 다르다. 예를 들어 ‘전월실적 없이 쿠팡 적립’에서 쿠팡 와우카드가 반환되면 조회된 것이다. 일반적으로 많을수록 좋은 수치는 아니며 잘못된 양성이 줄어드는 것도 올바른 보완이다. 같은 질문의3회 반복을3개 독립 질문으로 세지 않는다. 40질문과96추출의 분모도 합산하지 않는다.</div>
+<p>B01 원질문: <q>쿠팡·쿠팡이츠·쿠팡플레이를 자주 쓰는데 전월실적 없이 적립되는 카드 찾아줘.</q> LLM 조건을 고치지 않고 DB만 보완했을 때 세 반복 모두 결과없음에서 해당 카드 조회로 바뀌었다.</p>
+<p>따라서 무실적 상태 오류는 실제 조회 실패 원인이다. 다만 기존40질문의 카드 목록은 그대로였으므로 이 보완만으로 기존 검색·답변 품질이 얼마나 오르는지는 확인되지 않았다.</p></section>
+<section><h2>56B 비교 설계와 실행 상태</h2>
+<p>원문 근거37질문을 짧은/상세74문장으로 구성하고, 기존/보완 추출 각각3회씩 총444추출을 수행한다. 각 추출 조건을 원본·복사 DB에 동일하게 적용한다. 질문쌍은 상품·발급사 범위와 명시 조건, 상황 수치의 구분을 API 전에 수동 검토하고 각 문장 해시와 조건 서명을 동결한다. 서명 일치 검사는 수동 검토 기록의 일관성을 확인하며 자동 의미 증명이 아니다. 고정 스키마로 완전히 표현하지 못하는 제약은 별도 기록한다.</p>
+<p>단계 비용 상한은 두 추출 방식을 합쳐0.50달러, 승인된 누적 상한은8달러다. 새 사용량 미확인 실패가 있으면 중단한다. 같은 질문의 표현·반복을 먼저 평균낸 후37질문 단위로 비교하며, 검색 조건 정확도와 DB 조회 유무를 구분한다. <strong>현재 이 보고서에는 56B 결과를 포함하지 않았다.</strong></p></section>
+<section><h2>자원과 근거 자료</h2>
+<p>56A 새 API0, 새 임베딩0, API 비용0달러. 원본 DB/색인 저장 변화0. 복사 DB·JSONL·검토 근거가 추가됐다. CPU 전체 시간, 수동 검토 총 시간, GPU·전체 최고 메모리·응답 첫 토큰·브라우저 표시 시간은 56A에서 미측정이다. 노트북 셀1/2의 오프라인 실행과 재개만 수행했고 전체 노트북의 유료 셀은 아직 실행하지 않았다.</p>
+<ul><li><a href="../../notebooks/56_structured_normalization.ipynb">56 노트북</a></li>
+<li><a href="../../notebooks/data/56_structured_normalization/db_source_review/validation_results.json">DB 보존·일치 검증</a> · <a href="../../notebooks/data/56_structured_normalization/db_source_review/normalization_source_review.json">변경21행의 원문 근거</a> · <a href="../../notebooks/data/56_structured_normalization/db_source_review/manual_image_reviews.json">이미지 수동 검토</a></li>
+<li><a href="../../notebooks/data/56_structured_normalization/stored_plan_db_comparison.json">52 저장 조건40개</a> · <a href="../../notebooks/data/56_structured_normalization/preserved54_db_comparison.json">54 보존 조건96개</a> · <a href="../../notebooks/data/56_structured_normalization/manual_condition_db_comparison.json">수동 조건21개</a></li>
+<li><a href="../../notebooks/data/56_structured_normalization/question_pairs_draft.json">37질문의 표현·조건 서명</a> · <a href="../../notebooks/notes/55_59_sequential_evidence_plan.md">승인 계획</a> · <a href="../EVALUATION_METRICS.md">평가지표 정의</a></li></ul></section>
+<section><h2>현재 결론과 다음 확인</h2><p>명시 무실적을 확인 불가로 저장한 오류를 고쳤고, 특정 보존 질문에서 조회 복구를 재현했다. 교환과 적립, 지급액과 이용금액의 구분도 보완했다. 올리브영3행의 과도한 보완은 채택하지 않았다. 원본과 운영은 유지됐고 새 API 비용은 없었다. 기존40질문의 검색 카드나 답변 성능 개선을 입증한 결과는 아니다. 다음은 동결한 질문쌍의 조건 추출 비교이며, 이후 근거 보완·생성 비교·신규 질문 확인을 진행한다. 운영 채택 설정은 아직 확정하지 않았다.</p></section>
+</html>
