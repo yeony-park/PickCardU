@@ -244,3 +244,57 @@ def test_unstamped_crash_checkpoint_needs_validation_before_stamp(tmp_path,monke
     assert checked==['raw_validated','prompt_validated']
     assert json.loads(path.read_text())['answer_phase_manifest_sha256']==phase_sha
     assert T.guard_answer_phase(manifest)==phase_sha
+
+
+def install_notebook_budget_bridge(monkeypatch):
+    """Exercise the actual notebook bridge without preparing data or calling APIs."""
+    import nbformat
+    notebook = nbformat.read(T.ROOT/'notebooks/65_fixed_profile_confirmation.ipynb', 4)
+    source = '\n'.join(c.source for c in notebook.cells if c.cell_type == 'code')
+    begin, end = '# BEGIN65_APPROVED_COST_BINDING', '# END65_APPROVED_COST_BINDING'
+    monkeypatch.setattr(T.Cache, 'reserve', T.Cache.reserve)
+    monkeypatch.setattr(T.Cache, 'approved_cost_binding65', False, raising=False)
+    if begin in source:
+        block = source.split(begin, 1)[1].split(end, 1)[0]
+        namespace = {'R': T}
+        exec(block, namespace)
+        first = T.Cache.reserve
+        namespace['_install_approved_cost_binding65'](T)
+        assert T.Cache.reserve is first
+
+
+@pytest.mark.parametrize('new_unknown,upper_cost,bad_payload,error', [
+    (0, '1.289768890', False, None),
+    (1, '1.289768890', False, 'Unknown prior request cost'),
+    (0, '7.999999', False, 'Global 8 USD cap'),
+    (0, '1.289768890', True, 'Identity and frozen provider payload differ'),
+])
+def test_real_legacy_reserve_uses_only_approved_upper_ledger(
+        tmp_path, monkeypatch, new_unknown, upper_cost, bad_payload, error):
+    """Reach BoundCache -> actual BudgetCache.reserve; network is never invoked."""
+    normalized = dict(model='gpt-6-luna', reasoning={'effort':'medium'},
+        instructions=T.R.NEW_PROMPT, input=[dict(role='user',content='커피 할인 카드')],
+        text_format=T.Q.QueryPlan, max_output_tokens=3000)
+    cache = T.Cache.__new__(T.Cache)
+    cache.stage, cache.kind, cache.identity, cache.cache = 65, 'parser', 'R01:parser:r1', tmp_path
+    cache.manifest = dict(source_sha256={}, allowed_identities={'parser':[cache.identity]},
+        allowed_request_by_identity={cache.identity:T.P.sha(normalized['input'])},
+        parser_instructions_sha256=T.P.sha(normalized['instructions']),
+        parser_schema_sha256=T.P.sha(T.Q.QueryPlan.model_json_schema()),
+        maximum_parser_requests=288, maximum_physical_requests=1442, stage_cost_cap_usd='8')
+    cache.check_contract = lambda kwargs: None
+    cache.wire_kwargs = lambda kwargs: dict(model=kwargs['model'], input=kwargs['input'])
+    raw_ledger = lambda: dict(known_cost_usd='1.283534390', unknown_cost_records=2)
+    monkeypatch.setattr(T.X.R.P, 'ledger', raw_ledger)
+    monkeypatch.setattr(T.X, 'budget_upper_ledger', lambda: dict(
+        known_cost_usd=upper_cost, unknown_cost_records=new_unknown))
+    install_notebook_budget_bridge(monkeypatch)
+    if bad_payload:
+        normalized['input'] = [dict(role='user',content='넷플릭스 카드')]
+    if error:
+        with pytest.raises(RuntimeError, match=error):
+            cache.reserve(normalized)
+    else:
+        cache.reserve(normalized)
+    assert T.X.R.P.ledger is raw_ledger
+    assert T.X.R.P.ledger()['unknown_cost_records'] == 2
