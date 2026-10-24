@@ -29,7 +29,19 @@ def original_scope(question, documents):
                 if name not in {'우리', '하나', '기업', '국민'}:
                     suffix += r'|\s*중(?:에서)?|\s*에서\s*나온|\s*발급'
                 pattern = left + re.escape(name) + r'(?=(?:' + suffix + r'))'
-            if re.search(pattern, normalized):
+            full_product = OLD.canonical(document['identity']['card_name'])
+            products = {full_product}
+            for issuer_name in OLD.issuer_forms(document):
+                prefix = OLD.canonical(issuer_name)
+                if full_product.startswith(prefix):
+                    products.add(full_product[len(prefix):])
+            # A written catalog product immediately after its own issuer is
+            # explicit issuer context too: IBK K-패스(신용). No merchant aliases.
+            product_context = any(len(product) >= 4 and re.search(
+                left + re.escape(name) + r'\s*' +
+                r'\s*'.join(re.escape(c) for c in product), normalized)
+                for product in products)
+            if re.search(pattern, normalized) or product_context:
                 issuers.setdefault(issuer, set()).add(name)
     keys = {d['document_id'] for d in documents
             if not issuers or d['document_id'].split('/')[0] in issuers}
@@ -58,4 +70,4 @@ def original_scope(question, documents):
                 exact_products=sorted(exact), clarify=unclear,
                 reason='ambiguous_or_unknown_product' if unclear else None,
                 issuer_evidence={k: sorted(v) for k, v in sorted(issuers.items())},
-                scope_version='catalog_explicit_issuer_context64')
+                scope_version='catalog_explicit_issuer_context64_v2_product_context')

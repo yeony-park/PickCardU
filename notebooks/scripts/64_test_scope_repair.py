@@ -121,3 +121,14 @@ def test_returned_fields_are_not_where_constraints():
     a = Q.plan([Q.requirement(['커피'])])
     b = {**a, 'requested_fields': ['frequency', 'cap', 'condition']}
     assert route(a)['eligible_cards'] == route(b)['eligible_cards']
+
+
+@pytest.mark.parametrize('question', [
+    'IBK K-패스(신용)로 코레일 공식 앱에서 기차표를 사면 할인돼? 택시 앱 결제와 차이도 알려줘.',
+    'IBK K-패스 (신용)의 택시 할인 조건 알려줘',
+    'ibk K-패스(신용)의 버스 할인 알려줘',
+])
+def test_explicit_issuer_adjacent_to_catalog_product(question):
+    actual = K.original_scope(question, DOCUMENTS)
+    assert actual['card_keys'] == ['ibk/IBK_KPass(Credit)']
+    assert actual['issuer'] == 'ibk' and not actual['clarify']
