@@ -111,3 +111,71 @@ def test_comparative_factual_uncertainty_cannot_drop_required_scope():
     with pytest.raises(ValueError):m.verify_review_absences(job,review)
     review['surface_audits'][0]['spans'][0]['absence_scope']=[scope]
     m.verify_review_absences(job,review)
+
+
+def patch_module():
+    # Execute only the isolated metadata-migration cell, never a paid runner.
+    from types import SimpleNamespace
+    m = module()
+    notebook = json.loads(Path(__file__).parents[1].joinpath('68_structured_evidence_generation.ipynb').read_text())
+    matches = [c for c in notebook['cells'] if c['id'] == 'exp68-review-patch-01']
+    scope = {'I': m}
+    if matches:
+        exec(compile(''.join(matches[0]['source']), 'notebook_review_patch', 'exec'), scope)
+    return SimpleNamespace(E=m.E, apply_review_patches=scope.get('apply_review_patches'))
+
+
+def patch_fixture(m):
+    old=dict(start=0,end=3,quote='abc',kind='question_context',status='correct',reason='original',question_quotes=['abc'])
+    review=dict(identity='q:p:m:r1',requirements=[dict(id='D1',status='satisfied')],surface_audits=[dict(surface='answer_text',status='correct',spans=[old])])
+    first={**old,'absence_scope':[dict(kind='question')]}
+    second={k:v for k,v in first.items()if k!='question_quotes'}
+    second.update(kind='factual',card_keys=['issuer/card'],source_refs=[],input_quotes=[],input_status='supported')
+    amendment=dict(records=[dict(identity=review['identity'],original_record_sha256=m.E.digest(review),span_patches=[dict(surface='answer_text',start=0,replacement=first)])])
+    followup=dict(application_order=['amend','format','require'],format_reclassifications=[dict(identity=review['identity'],surface='answer_text',start=0,replacement=second)],required_absence_spans=[dict(identity=review['identity'],surface='answer_text',start=0,quote_sha256=m.E.digest('abc'))])
+    contract=dict(phases=['amendments','formats','required_scopes'],declared_application_order=followup['application_order'],format_predecessors=[dict(identity=review['identity'],surface='answer_text',start=0,predecessor_sha256=m.E.digest(first),successor_sha256=m.E.digest(second))])
+    return review,amendment,followup,contract
+
+
+def test_patch_preserves_semantics_and_requires_explicit_predecessor():
+    m=patch_module();assert callable(m.apply_review_patches),'Missing semantic-preserving notebook patch application'
+    original,a,f,c=patch_fixture(m);out=m.apply_review_patches({original['identity']:original},a,f,c)
+    span=out['q:p:m:r1']['surface_audits'][0]['spans'][0]
+    assert span['kind']=='factual'and span['status']=='correct'and span['absence_scope_required']is True
+    assert out['q:p:m:r1']['requirements']==[dict(id='D1',status='satisfied')]
+    assert original['surface_audits'][0]['spans'][0]['kind']=='question_context'
+
+
+@pytest.mark.parametrize('mutation',['status','duplicate_identity','duplicate_target','orphan','predecessor','order','duplicate_required'])
+def test_patch_rejects_semantic_drift_or_unapplied_targets(mutation):
+    m=patch_module();assert callable(m.apply_review_patches),'Missing semantic-preserving notebook patch application'
+    original,a,f,c=patch_fixture(m)
+    if mutation=='status':a['records'][0]['span_patches'][0]['replacement']['status']='incorrect'
+    elif mutation=='duplicate_identity':a['records'].append(copy.deepcopy(a['records'][0]))
+    elif mutation=='duplicate_target':a['records'][0]['span_patches'].append(copy.deepcopy(a['records'][0]['span_patches'][0]))
+    elif mutation=='orphan':f['format_reclassifications'][0]['identity']='not-a-real-answer'
+    elif mutation=='predecessor':c['format_predecessors'][0]['predecessor_sha256']='0'*64
+    elif mutation=='order':c['phases']=['formats','amendments','required_scopes']
+    else:f['required_absence_spans'].append(copy.deepcopy(f['required_absence_spans'][0]))
+    with pytest.raises(ValueError):m.apply_review_patches({original['identity']:original},a,f,c)
+
+
+def request_patch_module():
+    m=module();notebook=m.E.read(Path(__file__).parents[1]/'68_structured_evidence_generation.ipynb')
+    scope={'I':m};exec(''.join(next(c for c in notebook['cells']if c['id']=='exp68-review-patch-01')['source']),scope)
+    return scope.get('verify_draft_requests'),m.E
+
+
+@pytest.mark.parametrize('change',[None,'raw','extra','order'])
+def test_draft_requests_accept_only_actual_optional_metadata(tmp_path,change):
+    fn,E=request_patch_module();assert callable(fn),'Missing exact optional raw-request metadata verification'
+    raw=dict(request={'input':['question']},status='ok');p=tmp_path/'one.json';p.write_text(json.dumps(raw))
+    expected=[dict(path='one.json',raw_sha256=E.file_digest(p))]
+    before=[dict(**expected[0],request_sha256=E.digest(raw['request']),actual_input_sha256=E.digest(raw['request']['input']),provider_status='ok')]
+    if change=='raw':before[0]['raw_sha256']='bad'
+    if change=='extra':before[0]['provider_status']='failed'
+    if change=='order':before.append(before[0])
+    if change is None:
+        fn(before,expected,tmp_path);fn(expected,expected,tmp_path)
+    else:
+        with pytest.raises(ValueError):fn(before,expected,tmp_path)
