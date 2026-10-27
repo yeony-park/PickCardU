@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>72 · LLM 근거 전달 형식 비교</title>
+<style>
+:root{color-scheme:light;font-family:system-ui,-apple-system,"Noto Sans KR","Malgun Gothic",sans-serif;color:#17283d;background:#f3f6fa;line-height:1.75}*{box-sizing:border-box}body{margin:0}main{max-width:1180px;margin:28px auto;padding:36px;background:white;border:1px solid #dce4ee;border-radius:16px}h1{font-size:30px;line-height:1.4;margin:12px 0}h2{font-size:23px;margin:42px 0 14px;border-top:1px solid #dce4ee;padding-top:24px}h3{font-size:18px;margin-top:26px}p{margin:12px 0}a{color:#1859b5}code,pre{font-family:ui-monospace,monospace;font-size:12px}code{overflow-wrap:anywhere}pre{background:#f4f7fb;border:1px solid #dae3ef;padding:16px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.65;border-radius:8px}.badge{display:inline-block;background:#e9f0ff;color:#244c91;padding:4px 10px;border-radius:20px;font-size:13px}.lead{font-size:17px}.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:22px 0}.stat{padding:16px;border:1px solid #dce4ee;border-radius:10px}.stat strong{display:block;font-size:24px;color:#164481}.stat span{font-size:13px;color:#526477}.note,.guide{padding:15px 18px;margin:16px 0;border-radius:8px;background:#edf4fe;border-left:4px solid #3e71ad}.note{background:#fff6e5;border-color:#ba7e17}.table-wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;margin:14px 0;font-size:13px}th,td{border:1px solid #d7e0ec;padding:10px 12px;text-align:left;vertical-align:top}th{background:#edf2f8;white-space:nowrap}tbody tr:nth-child(even){background:#f8fafc}.selected{background:#edf8ee!important}.bad{color:#ac3535;font-weight:650}.good{color:#1c6b3a;font-weight:650}.small{font-size:13px;color:#526477}details{border:1px solid #dce4ee;border-radius:8px;padding:12px 16px;margin:12px 0}summary{cursor:pointer;font-weight:650}nav{font-size:13px;display:flex;gap:16px;flex-wrap:wrap;margin:20px 0}.conclusion{background:#edf8ee;border:1px solid #bdd8c0;border-radius:10px;padding:20px}li{margin:7px 0}@media(max-width:760px){main{margin:0;padding:20px;border-radius:0}.summary{grid-template-columns:repeat(2,1fr)}h1{font-size:25px}table{min-width:650px}}
+</style>
+</head>
+<body><main>
+<span class="badge">72번 · 개발 실험 · 운영 코드 변경 없음</span>
+<h1>같은 검색 결과를 LLM에 어떻게 전달할 것인가</h1>
+<p class="lead"><strong>업무 원문값을 줄이지 않고 전달량을 줄일 수 있었다.</strong> 다만 답변 품질은 프로필마다 달랐다. 사전 보호 기준을 적용한 개발 후보는 <strong>benefit은 A 유지, parent-child는 C 텍스트</strong>다. parent-child의 원시 최고 점수는 B였지만 새 조건 오류 때문에 선택하지 않았다.</p>
+<div class="summary">
+<div class="stat"><strong>144개</strong><span>8질문 × 2프로필 × 3형식 × 3생성</span></div>
+<div class="stat"><strong>493 / 493</strong><span>각 형식에서 유지한 비어 있지 않은 업무값</span></div>
+<div class="stat"><strong>$0.202708</strong><span>새 생성 API 사용량의 동결단가 환산액</span></div>
+<div class="stat"><strong>57.85분</strong><span>전체 생성 실행 시간 · 164물리 호출</span></div>
+</div>
+<p class="small">보고 대상은 72번이다. 66~71번 전체 실험을 다시 합산한 성능표가 아니다. 실제 청구액은 미측정이며, 누적 예산 차감액은 $2.772806085로 승인 상한 $8 이내다.</p>
+<nav><a href="#design">비교 설계</a><a href="#columns">DB 컬럼 구분</a><a href="#preservation">입력 보존</a><a href="#quality">답변 결과</a><a href="#cases">실패 구분</a><a href="#resources">비용·시간</a><a href="#decision">후보와 다음 단계</a><a href="#artifacts">근거 파일</a></nav>
+
+<h2 id="design">1. 목적과 비교 조건</h2>
+<p>구조화 DB의 전체 행·추적 자료를 서버에 보존하면서, LLM에는 필요한 업무정보를 간단한 JSON 또는 읽기 쉬운 텍스트로 전달해도 되는지 확인했다. 새 검색은 실행하지 않았다. <strong>70번 수정 순차의 검색 r2</strong>에서 카드·순위·비정형 본문·추가 구조화 행·근거 ID를 고정했다. benefit과 parent-child의 기존 최선 검색 프로필도 유지했다.</p>
+<ol>
+<li><strong>A — 전체 필드 JSON:</strong> 원래 canonical 행의 업무값·파생 설명·출처 연결을 유지하고 긴 카드·사실·경로 ID만 C/F/P로 치환했다.</li>
+<li><strong>B — 간단한 JSON:</strong> 같은 행의 비어 있지 않은 업무 10필드와 해석 상태 5개를 전달했다. 카드명·발급사는 공통 카드목록으로 묶었다.</li>
+<li><strong>C — 간결한 텍스트:</strong> B와 같은 업무값·상태를 한국어 라벨과 원래 문자열로 전달했다.</li>
+</ol>
+<p>세 조건 모두 같은 구조화 근거를 추가한다. 원질문과 기존 비정형 본문도 그대로 전달한다. 이 변환은 <strong>검색이 끝난 뒤 LLM 요청을 조립할 때</strong> 적용하며, 임베딩 질의나 카드 검색 범위를 바꾸지 않는다.</p>
+<div class="note"><strong>비교의 정확한 범위:</strong> A/B는 파생 판단 사유·질문 조건 연결 등도 함께 제거하는 비교다. 추적 해시 삭제만의 효과로 해석할 수 없다. B/C는 업무값과 행·근거 순서가 같지만, B의 영문 키 정렬과 C의 한국어 라벨·대상 우선 배치도 다르다. JSON 문장부호만 바꾼 실험은 아니다. A도 새 공통 카드목록·별칭·안내 지시문을 사용하므로 이전 운영 입력 그대로의 대조군이 아니다.</div>
+<p>질문은 C01·C10·C12·C13·C14·C16·C17·C18이다. 70~71번에서 사용했던 질문을 골랐으므로 <strong>개발 비교</strong>이며 독립 확인셋이 아니다. 반복마다 새 답변을 생성했고, ABC → BCA → CAB 순서를 순환했다. 입력 캐시 토큰은 재사용됐지만 완성 답변을 다른 반복에 재사용하지 않았다.</p>
+
+<h2 id="columns">2. DB 컬럼 중 무엇을 전달했는가</h2>
+<p>아래는 물리 컬럼과 LLM용 조립 필드를 구분한 표다. “전달”은 모델이 판단할 수 있도록 제공한다는 뜻이며, <strong>사용자 화면에 모든 조건을 반드시 출력하라는 뜻은 아니다.</strong> 해당 조건을 묻지 않았다는 이유만으로 설명 생략을 실패 처리하지 않았다.</p>
+<div class="table-wrap"><table id="column-map"><thead><tr><th>구분</th><th>실제 DB 컬럼 또는 조립 경로</th><th>B/C의 전달 방식</th><th>이유</th></tr></thead><tbody>
+<tr><td>카드 식별 · 전달</td><td><code>documents.card_name, issuer_name</code></td><td>공통 카드목록의 카드명·발급사와 짧은 <code>card_ref</code></td><td>어느 카드의 혜택인지 연결한다. 선택된 13카드의 검색 메타데이터와 DB 값이 모두 일치했다.</td></tr>
+<tr><td>혜택 업무값 · 전달</td><td><code>facts.target_raw, action_raw, benefit_type_raw, value_raw, unit_raw</code></td><td>대상·혜택 방식·분류·값·단위의 원문</td><td>동물병원과 멤버십의 요율처럼 서로 다른 혜택의 숫자를 합치지 않는다.</td></tr>
+<tr><td>적용 업무값 · 전달</td><td><code>condition_raw, cap_raw, period_raw, frequency_raw, exceptions_raw</code></td><td>같은 행의 비어 있지 않은 원문을 그대로 유지</td><td>실적·한도·기간·횟수·제외를 해당 혜택에 연결한다. 지급할인액과 할인 대상 결제금액 상한은 구분해야 한다.</td></tr>
+<tr><td>해석 상태 · 이번 비교에서 보존</td><td><code>action_status, percent_state, spend_state, cap_state</code>와 <code>derived_json.cap_period_state</code></td><td>상태 5개</td><td>unknown을 0원·무제한·조건 없음으로 바꾸지 않는다. 상태 자체가 원문의 적용 관계를 확정하지는 않는다.</td></tr>
+<tr><td>서버 보관 · B/C에서 제외</td><td><code>document_id, fact_id, ordinal, provider, source_*sha256, normalized_json_sha256, source_relative_path, page_count, fact_count, raw_json</code></td><td>짧은 ID의 역변환 표와 원본 행은 서버 sidecar에 보존</td><td>원문 추적·재검증·장애 분석에 쓰인다. 긴 경로와 해시 전체를 매번 LLM에 보낼 필요와 구분했다.</td></tr>
+<tr><td>중복 수치·추출 자료 · B/C에서 제외</td><td><code>action_kind, percent, spend_threshold_krw, spend_operator, cap_krw, cap_period</code> 및 나머지 <code>derived_json</code></td><td>업무 원문값은 유지하고 중복 정규화 값·판단 사유는 제외</td><td>이번 A/B는 이 제거 효과도 포함한다. 파생 설명이 업무 판단을 돕는 경우까지 무조건 불필요하다고 결론 내릴 수 없다.</td></tr>
+<tr><td>별도 조립 자료 · 서버 보관</td><td><code>field_evidence, relation_scope, requirement_links</code> — canonical JSON의 조립 필드이며 각각 독립 SQL 컬럼이라는 뜻은 아님</td><td>전체 자료는 sidecar에 보존하고 <code>evidence_id / fact_ref</code>로 연결</td><td>원문 위치와 실제 적용 관계를 혼동하지 않는다. 적용 관계는 업무 원문 또는 같은 카드의 기존 본문에 남아 있어야 한다.</td></tr>
+</tbody></table></div>
+<p class="guide">빈 업무값 생략은 “그 행에 미기록”이라는 뜻이다. 신규 실적 유예를 정규 무실적으로 바꾸지 않으며, 선택서비스 변경 횟수를 할인 사용 횟수로 바꾸지 않는다. 원래 비정형 본문 안의 카드명 반복은 수정하지 않았다. 전체 입력에서 카드명이 단 한 번만 나온다는 보장은 아니다.</p>
+<p><code>metadata.key / value_json</code>의 빌드 설명과 <code>target_aliases.alias_group / alias / alias_normalized</code>의 대상 확장 규칙도 서버 보관 범위다. 이번 답변 입력에는 테이블 전체를 전달하지 않았다. 검색 규칙과 사용자에게 설명할 혜택 사실은 구분한다. 전체 테이블 정의는 <a href="../STRUCTURED_SEARCH_DB_SPEC.md">DB 명세서</a>에서 확인한다.</p>
+<details><summary>실제 전달 예시 · C17 benefit · e7 / F2</summary>
+<p>세 조건의 카드목록에는 <code>C1 = 비씨카드 / 그린카드 v2</code>가 있고, e7은 같은 카드의 두 번째 구조화 사실 F2다. 서버는 원래 카드·사실·출처로 복원한다. A의 실제 e7 본문은 2,504자이며 아래 전체 입력 파일에서 확인할 수 있다. A에는 <code>fields</code> 외에 <code>derived, field_evidence, relation_scope, requirement_links, ordinal, source_*sha256</code> 등이 함께 들어 있다.</p>
+<p><strong>B의 실제 e7.text:</strong></p>
+<pre>{"fields":{"action":"청구할인","benefit_type":"커피","cap":"통합 월 3,000원 한도","condition":"전월 실적 20만원 이상 시 제공","exceptions":"백화점, 할인점(아울렛 포함) 입점 매장은 할인 대상에서 제외","frequency":"통합 월 2회","target":"스타벅스, 투썸플레이스, 카페베네, 할리스커피","unit":"%","value":"10"},"states":{"action_status":"true","cap_period_state":"unknown","cap_state":"known","percent_state":"known","spend_state":"known"}}</pre>
+<p><strong>C의 실제 e7.text:</strong></p>
+<pre>대상: 스타벅스, 투썸플레이스, 카페베네, 할리스커피
+혜택 방식: 청구할인
+혜택 분류: 커피
+값: 10
+단위: %
+적용조건: 전월 실적 20만원 이상 시 제공
+한도 원문: 통합 월 3,000원 한도
+횟수: 통합 월 2회
+제외사항: 백화점, 할인점(아울렛 포함) 입점 매장은 할인 대상에서 제외
+행위 상태: true
+비율 상태: known
+실적 상태: known
+한도 상태: known
+한도기간 상태: unknown</pre>
+<p>실제 요청의 바깥에는 원질문·카드목록·<code>evidence_id, card_ref, fact_ref, text</code>가 있다. B는 이 바깥 JSON의 text 안에 간단한 JSON 문자열이 들어가고, C는 text 안에 위 텍스트가 들어간다. 원문상 월 한도가 명확해도 파생 상태가 unknown일 수 있으므로 원문과 상태를 구분해야 한다. <a href="../../notebooks/data/72_input_presentation/payloads.json">48개 실제 입력 뷰</a></p>
+</details>
+
+<h2 id="preservation">3. 먼저 확인한 것 · 전달 과정에서 정보가 빠졌는가</h2>
+<p>현재 DB5의 raw 컬럼과 canonical 값을 대조했다. 수정된 cap 원문이 과거 보존용 raw_json과 다를 수 있어, 오래된 raw_json에서 업무값을 다시 만들지 않았다. 선택된 13카드·고유 27사실, 16검색입력에 나타난 63행 출현을 검사했다.</p>
+<div class="table-wrap"><table id="preservation-results"><thead><tr><th>형식</th><th>업무 원문값</th><th>해석 상태</th><th>카드·본문·eID 유지</th><th>별칭 연결 역복원</th></tr></thead><tbody>
+<tr><td>A 전체 JSON</td><td>493 / 493</td><td>315 / 315</td><td>16 / 16</td><td>127 / 127</td></tr>
+<tr><td>B 간단한 JSON</td><td>493 / 493</td><td>315 / 315</td><td>16 / 16</td><td>127 / 127</td></tr>
+<tr><td>C 텍스트</td><td>493 / 493</td><td>315 / 315</td><td>16 / 16</td><td>127 / 127</td></tr>
+</tbody></table></div>
+<p class="guide"><strong>Raw Business Value Preservation / 업무 원문값 보존:</strong> 고정16입력에 나타난 비어 있지 않은 업무값493개가 분모다. 높은 값이 좋고, 카드·행·필드·문자열이 모두 같아야 통과다. 예를 들어 “할인받기 전 이용금액 1만원”을 “할인액 1만원”으로 바꾸면 실패다. <strong>Interpretation State Preservation / 해석 상태 보존:</strong> 63행×5상태=315가 분모다. <strong>Exact Ownership Restoration / 소유자 복원:</strong> 요청 내부의 카드·행·경로 연결127개/형식을 모두 원래 값으로 복원해야 한다. 세 형식 합계381연결과 복원된189행의 원래 경로 SHA도 확인했다. 이100%는 전달 보존율이며 OCR·전체 DB·검색된 모든 정보의 정확도100%를 뜻하지 않는다.</p>
+<p>평균 입력 본문 크기는 A 33,986바이트, B 21,167바이트, C 20,851바이트였다. B/C의 원문 업무값과 상태는 같고 필드 표시 순서는 다르다. C12 D4의 월/건 표제는 기존 본문에서 확인됐고, C18의 할인 전 적격금액 한정어도 보존됐다. 7CORE의 전월 국내실적 머리글은 기존 PDF2쪽 이미지를 직접 확인하고 동일 렌더 SHA를 대조해 평가용 인용만 보완했다. DB·OCR·LLM 입력은 고치지 않았다.</p>
+
+<h2 id="quality">4. 새 답변 144개의 결과</h2>
+<p>실제 화면에 보이는 <code>answer_text</code>와 모든 카드별 <code>recommendations.reason</code>을 읽고 원문·실제 입력과 대조했다. 숨은 claims는 누락된 화면 답변을 구제하지 않는다. 의미 판정은 Codex 수동 검토이며, 코드는 실제 문자열·해시·소유권·질문/반복 조합·집계를 검증했다. 독립 사람 정답셋이나 블라인드 평가라고 부르지 않는다.</p>
+<div class="table-wrap"><table id="quality-results"><thead><tr><th>프로필</th><th>형식</th><th>기술 성공</th><th>직접 요구 충족</th><th>원문 주장 정확</th><th>실제 입력 지원</th><th>최종 통과</th><th>확인오답 / 불확실</th></tr></thead><tbody>
+<tr class="selected"><td>benefit</td><td>A · 유지</td><td>22/24</td><td>21/24</td><td>18/24</td><td>18/24</td><td><strong>18/24 · 75.0%</strong></td><td>0 / 4</td></tr>
+<tr><td>benefit</td><td>B</td><td>23/24</td><td>20/24</td><td>17/24</td><td>17/24</td><td>16/24 · 66.7%</td><td>3 / 3</td></tr>
+<tr><td>benefit</td><td>C</td><td>23/24</td><td>22/24</td><td>18/24</td><td>18/24</td><td>18/24 · 75.0%</td><td>2 / 3</td></tr>
+<tr><td>parent-child</td><td>A · 기준선</td><td>21/24</td><td>20/24</td><td>17/24</td><td>17/24</td><td>17/24 · 70.8%</td><td>0 / 4</td></tr>
+<tr><td>parent-child</td><td>B · 원시 최고</td><td>24/24</td><td>23/24</td><td>20/24</td><td>20/24</td><td><strong>20/24 · 83.3%</strong></td><td>1 / 3</td></tr>
+<tr class="selected"><td>parent-child</td><td>C · 개발 후보</td><td>23/24</td><td>21/24</td><td>21/24</td><td>21/24</td><td><strong>19/24 · 79.2%</strong></td><td>0 / 2</td></tr>
+</tbody></table></div>
+<p class="guide"><strong>분모는 각 행24답변이며 기술실패도 포함한다.</strong> Technical Success / 기술 성공은 기존 출력 스키마와 소유권 복원을 통과한 답변이다. Direct Fulfillment / 직접 요구 충족은 질문의 고정 요구를 실제 화면에서 모두 해결했는지다. Source Accuracy / 원문 주장 정확성은 실제로 말한 사실이 원문과 맞는지이며, 엄격 기준에서는 미확정 주장도 성공으로 세지 않는다. Actual Input Support / 실제 입력 지원은 그 사실·조건 관계가 실제 전송 본문에 있는지다. 높은 값이 좋다. Final PASS / 최종 통과는 기술 성공 AND 직접 요구 충족 AND 원문 주장 정확성이다. 커피 카드를 정확히 추천했으면 묻지 않은 모든 실적·예외를 생략해도 통과할 수 있다. 반대로 FLEX의 국내외 합산실적을 국내 실적만 필요하다고 말하면 실제 주장 오류다. 카드 적중·Recall@K 지표와는 다르다. 마지막 칸은 확인된 잘못된 주장이 있는 답변/불확실한 주장이 있는 답변 수이며, 개별 잘못된 문장 수가 아니다.</p>
+
+<h3>질문별 세 반복의 통과 수</h3>
+<div class="table-wrap"><table id="question-results"><thead><tr><th>질문</th><th>benefit A</th><th>benefit B</th><th>benefit C</th><th>parent A</th><th>parent B</th><th>parent C</th></tr></thead><tbody>
+<tr><td>C01 · 커피 카드 추천</td><td>3/3</td><td>3/3</td><td>2/3</td><td>3/3</td><td>3/3</td><td>3/3</td></tr>
+<tr><td>C10 · 편의점+배달 한 카드</td><td>1/3</td><td>2/3</td><td>3/3</td><td>2/3</td><td>3/3</td><td>2/3</td></tr>
+<tr><td>C12 · 실적30만원 이하 커피</td><td>3/3</td><td>2/3</td><td>2/3</td><td>3/3</td><td>2/3</td><td>3/3</td></tr>
+<tr><td>C13 · 무실적 넷플릭스</td><td>3/3</td><td>3/3</td><td>3/3</td><td>3/3</td><td>3/3</td><td>3/3</td></tr>
+<tr><td>C14 · 전월60만원 동물병원</td><td>3/3</td><td>3/3</td><td>3/3</td><td>1/3</td><td>3/3</td><td>3/3</td></tr>
+<tr><td>C16 · I-ALL 실적·결제 경로</td><td>0/3</td><td>0/3</td><td>0/3</td><td>0/3</td><td>1/3</td><td>0/3</td></tr>
+<tr><td>C17 · 그린카드 실적·월 횟수</td><td>3/3</td><td>3/3</td><td>3/3</td><td>3/3</td><td>3/3</td><td>3/3</td></tr>
+<tr><td>C18 · 넷플릭스 할인액 계산</td><td>2/3</td><td>0/3</td><td>2/3</td><td>2/3</td><td>2/3</td><td>2/3</td></tr>
+</tbody></table></div>
+<p class="guide">각 칸은 동일한 검색 입력으로 새로 생성한3답변 중 Final PASS 수다. 높을수록 좋다. 예를 들어 C14 parent A1/3은 카드 검색 실패2회가 아니라 출력 토큰 한도로 최종 JSON이 완성되지 않은2회를 포함한다. C16의0/3도 모두 숫자가 틀렸다는 뜻은 아니다. 대부분은 결제범위 문구의 불확실성이며, parent C r2는 질문이 요구한 일반 최소실적50만원을 빠뜨렸다. 같은 질문의3회는 독립 질문3개가 아니므로 전체 사용자 질문에 대한 신뢰구간으로 해석하지 않는다.</p>
+
+<h3>하위집단과 해석에 따른 민감도</h3>
+<div class="table-wrap"><table id="subgroup-results"><thead><tr><th>프로필·형식</th><th>짧은 추천</th><th>복합 조건</th><th>지정 카드 상세</th><th>C18 제외</th><th>결제범위 표현만 완화</th></tr></thead><tbody>
+<tr><td>benefit A</td><td>3/3</td><td>10/12</td><td>5/9</td><td>16/21</td><td>21/24</td></tr>
+<tr><td>benefit B</td><td>3/3</td><td>10/12</td><td>3/9</td><td>16/21</td><td>19/24</td></tr>
+<tr><td>benefit C</td><td>2/3</td><td>11/12</td><td>5/9</td><td>16/21</td><td>20/24</td></tr>
+<tr><td>parent A</td><td>3/3</td><td>9/12</td><td>5/9</td><td>15/21</td><td>20/24</td></tr>
+<tr><td>parent B</td><td>3/3</td><td>11/12</td><td>6/9</td><td>18/21</td><td>22/24</td></tr>
+<tr><td>parent C</td><td>3/3</td><td>11/12</td><td>5/9</td><td>17/21</td><td>21/24</td></tr>
+</tbody></table></div>
+<p class="guide">Short Recommendation / 짧은 추천은 C01×3회=3, Compound / 복합 조건은 C10·12·13·14×3회=12, Named Detail / 지정 카드 상세는 C16·17·18×3회=9가 분모다. 모두 같은 Final PASS를 센다. C18-excluded / C18 제외는7질문×3회=21이며, 기존 OCR 충돌이 있는 한 질문을 뺀 보조 결과다. 질문 난이도도 바뀌므로 OCR 영향만의 인과효과가 아니다. Payment-scope Wording Sensitivity / 결제범위 표현 민감도는 원문의 “온라인(간편결제 등)”을 “온라인·간편결제”로 쓴 불확실성만 완화해보는24분모 보조값이다. 높은 값이 좋지만 실제 금액·조건 오류나 직접요구 누락은 구제하지 않는다. 후보는 이 완화값으로 선택하지 않았다.</p>
+
+<h2 id="cases">5. 미통과36개는 무엇 때문이었나</h2>
+<div class="table-wrap"><table id="failure-partition"><thead><tr><th>구분</th><th>답변 수</th><th>확인 내용</th></tr></thead><tbody>
+<tr><td>최종 출력 기술실패</td><td>8/144</td><td>모두 max_output_tokens. 출력2400에 도달해 완성 답변이 없었다.</td></tr>
+<tr><td>확인된 실제 주장 오류</td><td>6/144</td><td>FLEX 실적범위 전이3, 적격금액 상한 무시1, 잔여풀 필요금액 오류1, 한도구간 범위 오류1.</td></tr>
+<tr><td>불확실한 주장만 있는 미통과</td><td>19/144</td><td>결제범위 표현15, 월잔여 미제공 상태의 지급액 확정성4. 실제 계산오류와 분리했다.</td></tr>
+<tr><td>말한 사실은 맞지만 직접요구 누락</td><td>3/144</td><td>C16 parent C r2 일반 최소실적50만원 누락, C18 benefit B r3 공유월풀 설명 누락, C18 parent C r1 잔여조건 설명 누락.</td></tr>
+</tbody></table></div>
+<p class="guide">Failure Partition / 미통과 원인 구분은 144논리 답변 중 최종 미통과36개를 기술실패 → 확인오답 → 불확실 주장 → 정확하지만 직접요구 누락 순서로 나눈 상호 배타 집계다. 적을수록 좋지만 오류6개와 불확실19개를 같은 실제 오답 수로 부르지 않는다. 예를 들어 계산2000원이 맞아도 직접 요구한 잔여조건 설명이 빠진 경우는 “계산 실패”가 아니다. 수동 의미 판정이며 자동 어휘 일치만으로 정답을 결정하지 않았다.</p>
+<p>출력 한도 실패에서는 추론만으로2400토큰을 모두 사용해 보이는 최종 답변이 없는 요청도 있었다. <code>max_output_tokens</code>가 추론과 보이는 출력을 함께 제한한다는 점은 설치 SDK와 <a href="https://developers.openai.com/api/docs/guides/reasoning">OpenAI 공식 추론 안내</a>에서 확인했다. 입력을 짧게 해도 이 출력 예산 문제가 자동으로 해결되지는 않았다. 실행 중 한도를 바꾸거나 세 번째 유료 시도를 추가하지 않았다.</p>
+<details><summary>확인된 오류 예시 · 입력에는 올바른 정보가 있었다</summary>
+<p><strong>C18 benefit B r1:</strong> “1만5천 원의20%인3천 원 할인”이라고 답했다. 실제 B 입력 e6에는 “할인받기 전 이용금액 기준 디지털구독·멤버십1회1만원”이 있었다. 계산은1만원×20%=2000원이다. 전송 손실이 아니라 전달된 적격금액 조건을 사용하지 않은 생성 오류다.</p>
+<p><strong>C12 benefit C r2·benefit B r3·parent B r3:</strong> 세 카드 모두 국내가맹점30만원이 필요하다고 묶었다. 두 우리카드는 국내 기준이지만 FLEX는 국내외 합산이다. 실제 FLEX U 본문에도 국내외 합산이 있었다. 커피 카드와 최소30만원이라는 직접 경로는 맞아도 추가로 말한 실적 범위는 틀렸다.</p>
+<p><strong>C18 benefit B r2:</strong> 월 공유풀5000원이 남아 있어야2000원을 전액 할인받는다고 했다. 필요한 잔여는2000원 이상이지5000원 전액이 아니다. 올바른 계산값과 잘못된 필요조건을 구분했다.</p>
+<p><strong>C16 benefit C r3:</strong> 전월50만원 이상이면 통합월한도2만원이라고 일반화했다. 실제50/70/100만원 구간은2/3/4만원이다. 요청한 최소실적 설명과 추가로 말한 한도 오류는 별도로 평가했다.</p>
+</details>
+
+<h3>C18의 “정답 계산”과 “엄격한 설명 충족”은 다르다</h3>
+<div class="table-wrap"><table id="calculation-diagnostic"><thead><tr><th>진단</th><th>결과</th><th>무엇을 확인했나</th></tr></thead><tbody>
+<tr><td>D1 · 할인액 계산</td><td>17/18 · 94.4%</td><td>올바른 기준 계산액2000원을 화면에 답했는가.</td></tr>
+<tr><td>D2 · 고정 설명 요구</td><td>10/18 · 55.6%</td><td>적격금액·율·해당 공유월한도와 잔여에 따른 조건부 금액을 구분했는가.</td></tr>
+<tr><td>전체 최종 통과</td><td>10/18 · 55.6%</td><td>D1·D2와 실제 화면 주장 정확성을 함께 통과했는가.</td></tr>
+</tbody></table></div>
+<p class="guide">분모18은 같은 계산 질문1개×2프로필×3형식×3회다. 높은 값이 좋다. Direct Calculation / D1은 계산값2000의 정답성이고, Explanation Fulfillment / D2는 이 질문에 사전 고정한 공유월한도·잔여 설명까지 요구한다. 예를 들어 “최대2000원”은 상한 계산으로 맞지만 잔여조건을 설명하지 않으면 D2는 부족하다. 이 엄격한55.6%를 숫자 계산 정답률이나 검색 성능으로 읽으면 안 된다. 일반 커피 추천에도 모든 미요청 한도를 나열하도록 요구한 것은 아니다.</p>
+<p class="small">미제공 월잔여 상태에서의 확정형 문장을 wrong으로 볼지 uncertain으로 볼지 독립 검토 의견 차이가 있었다. 최종 판정은 실제 잔액을 몰라 특정 지급액이 거짓이라고 확정할 수 없는 경우를 uncertain으로 분리했다. 두 판정 모두 엄격 통과는 실패라 위 통과 수와 후보 선택은 바뀌지 않는다. <a href="../../notebooks/data/72_input_presentation/independent_review/final_semantic_boundary_adjudication.json">판단 근거</a></p>
+
+<h2 id="resources">6. 비용과 실제 답변 준비시간</h2>
+<div class="table-wrap"><table id="resource-results"><thead><tr><th>프로필·형식</th><th>첫 요청 입력토큰 평균</th><th>답변 준비 평균</th><th>P95</th><th>실제 호출</th><th>재시도한 답변</th><th>24답변 API 환산액</th></tr></thead><tbody>
+<tr><td>benefit A</td><td>14,130.6</td><td>21.32초</td><td>60.33초</td><td>27</td><td>3</td><td>$0.043611</td></tr>
+<tr><td>benefit B</td><td>10,301.3</td><td>20.70초</td><td>53.03초</td><td>27</td><td>3</td><td>$0.032362</td></tr>
+<tr><td>benefit C</td><td>10,323.8</td><td>20.16초</td><td>56.54초</td><td>27</td><td>3</td><td>$0.033334</td></tr>
+<tr><td>parent A</td><td>10,976.1</td><td>20.37초</td><td>58.59초</td><td>26</td><td>2</td><td>$0.033764</td></tr>
+<tr><td>parent B</td><td>7,251.1</td><td>21.15초</td><td>59.95초</td><td>27</td><td>3</td><td>$0.027387</td></tr>
+<tr><td>parent C</td><td>7,272.3</td><td>24.02초</td><td>60.23초</td><td>30</td><td>6</td><td>$0.032251</td></tr>
+</tbody></table></div>
+<p class="guide"><strong>Input Tokens / 입력토큰 평균</strong>은24논리 답변의 첫 물리요청 사용량 평균으로 캐시 읽기·쓰기를 모두 포함한다. 적을수록 전송량이 작지만 품질을 보장하지 않는다. <strong>Answer-ready / 답변 준비시간</strong>은 생성 시작부터 파싱·운영 소유권 복원 또는 최종 기술실패까지이며 재시도를 포함한24건 평균이다. <strong>P95</strong>는24관측을 정렬해23번째 값이며 낮을수록 좋다. 예를 들어 첫 호출이 잘려 두 번째 호출까지60초 걸리면 두 호출 시간을 모두 센다. <strong>Cost / 비용</strong>은 실패를 포함한 모든 실제 호출 토큰에 동결단가를 적용한 USD 환산액이다. 낮은 비용만으로 품질 보호 기준에 실패한 조건을 선택하지 않는다. 첫 토큰 시간·브라우저 표시시간·새 SQL/임베딩/검색이 포함된 온라인 전체 지연은 미측정이며, 이 값은 운영 SLA가 아니다.</p>
+<p><strong>선정한 parent C는 입력토큰이 A보다33.7% 줄었지만 평균 답변 준비시간은20.37→24.02초로17.9% 늘었다.</strong> 재시도한 답변은2→6개, 실제 호출은26→30회였다. 비용 감소는4.5%였다. 짧은 입력이 항상 빠른 출력을 뜻하지 않는다.</p>
+<p>전체는144논리/164물리 호출,20답변에서 두 번째 기술 시도가 있었다.13개는 구제됐고7개는 재시도 후 실패했다. 나머지1개는 기존 출력 정책상 빈 응답으로 한 번에 최종 실패했다. 새 사용량 미확인0개, 새 조건추출·임베딩·검색0회다.</p>
+<p>새 사용량은 입력1,694,694토큰(일반492 / 캐시 읽기1,162,255 / 캐시 쓰기531,947), 출력249,086토큰이다. 출력에 포함된 추론을 다시 더해 과금하지 않았다. 2026-10-11 동결한100만 토큰당 일반입력$0.10·캐시읽기$0.01·캐시쓰기$0.125·출력$0.50을 적용했다. 현재 요금표나 실제 청구액을 새로 확인한 값은 아니다.</p>
+<p>최대288회 전체 사전예약은$2.045248500, 실제 신규 환산액은<strong>$0.202708125</strong>다. 누적 차감액<strong>$2.772806085</strong>에는 과거 미확인2건의 승인 예약$0.006234500이 포함된다. 잔여 상한은$5.227193915다. 실제 청구액·세금·Codex 대화/에이전트 비용은 이 API 장부에서 미측정이다.</p>
+<p>생성 실행 전체3470.74초(57.85분), CPU672.43초, 프로세스 최고 RSS864,220KiB(약844MiB)였다. 기존 비용 장부 로드를 포함한 실험 프로세스 값이며 운영 RAG 전체의 메모리 사용량은 아니다. GPU·수동 검토시간·TTFT·모델/캐시/인덱스 크기·저장공간 증감은 미측정이다. 모델/검색 인덱스/임베딩은 새로 만들거나 바꾸지 않았다. 실제 메모리·시간 및 전체 토큰은 <a href="../../notebooks/data/72_input_presentation/cost_latency_analysis.json">자원 기록</a>에 보존했다.</p>
+
+<h2 id="decision">7. 선택과 남은 검증</h2>
+<p>선택 규칙은 A 대비 질문별3회 통과 수 감소 없음, 직접요구·정확성 합계 악화 없음, 확인오답 증가·새 질문별 오류유형 없음, 내부별칭 화면노출 없음, C18 제외 방향 유지였다. 통과 후보끼리는 최종 통과 → 입력토큰 → 평균시간 → 동률 B 순서로 비교했다.</p>
+<div class="table-wrap"><table id="selection-results"><thead><tr><th>프로필</th><th>원시 최고</th><th>보호 기준 후</th><th>개발 판단</th><th>질문별 A 대비 승/패/동률</th></tr></thead><tbody>
+<tr><td>benefit</td><td>A·C 동률18/24</td><td>A만 유지 가능</td><td>A 유지. B/C의 새 실제 조건 오류와 질문별 회귀를 수용하지 않음.</td><td>B 1/2/5, C 1/2/5</td></tr>
+<tr class="selected"><td>parent-child</td><td>B 20/24</td><td>A·C</td><td>C 19/24 선택. B는 C12의 새 실적범위 오류로 제외.</td><td>B 3/1/4, C 1/0/7</td></tr>
+</tbody></table></div>
+<p class="guide">Raw Best / 원시 최고는 보호 기준을 적용하기 전 최종 통과 수다. Selected / 선정 후보는 그 기준을 통과한 개발 설정이다. Production / 운영 채택과는 구분한다. 질문별 Win/Loss/Tie는 같은 질문의3회 통과 수가 A보다 늘었는지/줄었는지/같은지를8질문에 대해 센다. 평균이 좋아도 새 질문 오류를 가릴 수 있어 함께 본다. 예를 들어 parent B는20/24로 높아도 C12의 국내실적 전이 때문에 거절했다.</p>
+<div class="note"><strong>선정 효과의 실제 내용:</strong> parent C의17→19 증가는 C14에서 A의 출력 한도 실패2개가 C에서 정상 답변으로 바뀐 관측 결과다. 모든 질문의 설명이 더 좋아졌다는 뜻은 아니다. C16 parent C r2에서는 일반 최소실적50만원을 새로 빠뜨려 직접요구 점수가1회 줄었다. 전체 직접요구는 C14 기술성공 증가로20→21이지만 이 개별 누락을 숨기지 않는다.</div>
+<p>C18을 제외해도 parent A15/21 → C17/21로 방향은 유지됐다. 다만8개 개발 질문·3회 반복이며 통계적으로 일반화할 근거는 제한적이다. A/B의 보조 파생정보 제거, B/C의 라벨·필드 순서 변화, 출력2400토큰 한도 실패도 함께 고려해야 한다.</p>
+<div class="conclusion">
+<p><strong>개선:</strong> 업무값·상태·카드 연결을 보존하면서 입력량을 줄였다. parent C는 보호 기준 안에서 최종 통과가2개 늘었다.</p>
+<p><strong>회귀:</strong> B/C 일부 답변에서 이미 전달된 조건을 무시하거나 다른 카드·구간으로 일반화했다. parent C는 입력이 작아도 응답은 느려졌고 요청한 실적을 한 번 누락했다.</p>
+<p><strong>현재 판단:</strong> benefit A 유지, parent C는 개발 후보다. 긴 해시·경로가 반드시 LLM에 필요하다는 결론은 아니다. 업무 판단을 돕는 파생 설명까지 함께 제거한 효과는 따로 분리해야 한다. 실제 운영 반영은 하지 않았다.</p>
+<p><strong>다음 검증:</strong> 같은 검색·선택 전달형식을 고정하고 출력 여유와 카드별 조건 분리 지시를 별도 비교한다. 토큰 실패와 조건 전이를 줄이는지 확인한 뒤 새로운 질문으로 안정성을 검증한다. 이번 실행에서 추가 유료 테스트는 수행하지 않았다.</p>
+</div>
+
+<h2 id="artifacts">8. 근거와 재현</h2>
+<p>노트북은 실험 순서와 확인 셀을 제공한다. 긴 호출의 중단·재개·원본 선기록·예산 제한과 독립 회귀검사만 보조 Python 파일이 담당한다. HTML은 실제 결과를 읽은 뒤 직접 작성했으며 HTML 생성 스크립트는 없다.</p>
+<p>유료 생성144개는 동결한 보조 실행기로 수행했다. 이후 노트북의 코드4셀을 유료 호출 비활성 상태로 모두 실행해 저장 결과를 읽는 재현 검사를 했다. 동결한 원본 노트북은 수정하지 않았고 출력은 별도 실행본에 보존했다. 이 검사는 유료 생성 전체를 다시 실행한 것이 아니다.</p>
+<p>최초 사후 회귀검사는103개 중101통과·2실패였다. 유료 실행 전에 동결한 두 게이트 검사가 실제 응답 캐시에 적중해 새 요청의 차단 경로를 타지 않은 테스트 격리 문제였다. 원본 테스트·실행 코드를 바꾸지 않고 현재/이전 캐시를 모두 빈 임시 폴더로 분리한 대체 검사2개를 추가했으며, 게이트가 API 호출·이벤트·캐시 쓰기 전에 거절됨을 확인했다. 최종 검증은 그 원본2개를 명시 제외한107개 통과·2개 제외이며, 원본103개 전체 통과라는 뜻은 아니다. 추가 API 호출은0회다.</p>
+<ul>
+<li><a href="../../notebooks/72_input_presentation.ipynb">72 노트북</a> · <a href="../../notebooks/data/72_input_presentation/executed_72_input_presentation.ipynb">출력 포함 실행본</a> · <a href="../../notebooks/data/72_input_presentation/full_notebook_execution.json">코드4셀 재현 기록</a> · <a href="../../notebooks/notes/72_input_presentation_plan.md">동결한 계획</a> · <a href="../EVALUATION_METRICS.md">평가지표 정의</a></li>
+<li><a href="../../notebooks/data/72_input_presentation/final_input_projection_audit.json">실제48입력·현재SQL 대조</a> · <a href="../../notebooks/data/72_input_presentation/payloads.json">전체 입력 뷰</a> · <a href="../../notebooks/data/72_input_presentation/audit_sidecars.json">서버 추적 자료</a></li>
+<li><a href="../../notebooks/data/72_input_presentation/manual_review_notes.json">144개 수동 의미 판정·표면별 인용</a> · <a href="../../notebooks/data/72_input_presentation/manual_citation_basis.json">질문·카드별 인용 기준표</a> · <a href="../../notebooks/data/72_input_presentation/source_catalog_supplement.json">읽기 전용 원문 인용 보완</a></li>
+<li><a href="../../notebooks/data/72_input_presentation/evaluation_results.json">답변별 전체 평가</a> · <a href="../../notebooks/data/72_input_presentation/evaluation_summary.json">조건별 집계·보호 기준</a> · <a href="../../notebooks/data/72_input_presentation/comparison_analysis.json">하위집단·선택·한계</a></li>
+<li><a href="../../notebooks/data/72_input_presentation/execution_results.json">실제 생성 결과</a> · <a href="../../notebooks/data/72_input_presentation/cost_latency_analysis.json">비용·시간 전체값</a> · <a href="../../notebooks/data/72_input_presentation/manual_review_seal.json">판정·입력 결속</a></li>
+<li><a href="../../notebooks/data/72_input_presentation/final_pytest_receipt.json">회귀검사 명령·범위</a> · <a href="../../notebooks/data/72_input_presentation/final_pytest_output.txt">107개 통과·2개 제외 원문</a> · <a href="../../notebooks/data/72_input_presentation/final_readonly_verification.json">48입력·SQL·실제 호출·원본2790파일 최종 대조</a></li>
+</ul>
+<p class="small">초기 준비본 preflight_v1~v3는 API0회의 기술 준비 이력이며 별도 성능 실험이 아니다. 초기 고수준 판정은 정확한 표면별 인용과 매트릭스 검증을 보완하며 수정 이력을 보존했다. 동결한 유료 입력·운영 코드·원본 PDF·OCR·기존66~71결과는 수정하지 않았다. 최종 인용·비용·시간·원본 보존 및 독립 검토 기록은 같은72 데이터 폴더에서 확인한다.</p>
+</main></body></html>
