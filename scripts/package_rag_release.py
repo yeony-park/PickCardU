@@ -58,8 +58,6 @@ def _validate_release(release_root: Path) -> tuple[str, list[Path]]:
     paths = _validated_tree(release_root)
     if not re.fullmatch(r"[A-Za-z0-9_-]+", release_root.name):
         raise ValueError("release directory name is invalid")
-    if {path.name for path in release_root.iterdir()} != {"manifest.json", "corpus.sqlite", "chroma"}:
-        raise ValueError("release must contain only manifest.json, corpus.sqlite, and chroma")
     manifest_path = release_root / "manifest.json"
     corpus_path = release_root / "corpus.sqlite"
     chroma_root = release_root / "chroma"
@@ -73,6 +71,15 @@ def _validate_release(release_root: Path) -> tuple[str, list[Path]]:
         raise ValueError("manifest release ID does not match directory")
     if manifest.get("schema_version") != "rag_index_release_v1" or manifest.get("release_status") != "production":
         raise ValueError("release manifest contract is invalid")
+    expected = {'manifest.json', 'corpus.sqlite', 'chroma'}
+    if manifest.get('structured') is not None:
+        expected.add('structured.sqlite')
+        structured = manifest['structured']
+        path = release_root / 'structured.sqlite'
+        if not isinstance(structured, dict) or not path.is_file() or structured.get('sha256') != _sha256(path):
+            raise ValueError('release structured database hash mismatch')
+    if {path.name for path in release_root.iterdir()} != expected:
+        raise ValueError('release contains unexpected top-level entries')
     if manifest.get("corpus_sqlite_sha256") != _sha256(corpus_path):
         raise ValueError("release corpus hash does not match manifest")
     if manifest.get("chroma_tree_sha256") != _tree_hash(chroma_root):

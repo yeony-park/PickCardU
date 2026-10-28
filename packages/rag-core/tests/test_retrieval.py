@@ -355,8 +355,11 @@ class RetrievalTests(unittest.TestCase):
     def test_runtime_source_has_no_service_or_legacy_path_dependencies(self) -> None:
         source_root = Path(__file__).parents[1] / "src" / "pickcardu_rag"
         source = "\n".join(path.read_text(encoding="utf-8").casefold() for path in source_root.glob("*.py"))
-        for forbidden in ("fastapi", "sqlite", "cookie", "notebooks/", "chroma", "data/search", "scripts/rag_pipeline"):
+        for forbidden in ("fastapi", "cookie", "notebooks/", "chroma", "data/search", "scripts/rag_pipeline"):
             self.assertNotIn(forbidden, source)
+        for path in source_root.glob('*.py'):
+            if path.name not in {'structured.py', 'structured_release.py'}:
+                self.assertNotIn('import sqlite3', path.read_text())
 
 
 if __name__ == "__main__":

@@ -42,8 +42,8 @@ FastAPI 실행 중에는 `/docs`에서 Swagger UI, `/openapi.json`에서 런타�
 |---|---|---|---|
 | `GET` | `/v1/health/live` | API 프로세스 생존 확인 | 없음 |
 | `GET` | `/v1/health/ready` | active release 로딩·무결성 확인 | 없음 |
-| `POST` | `/v1/search` | 카드와 근거 검색 | 질문 embedding 호출 |
-| `POST` | `/v1/answer` | 검색 근거 기반 답변 생성 | 질문 embedding 및 조건부 LLM 호출 |
+| `POST` | `/v1/search` | 카드와 근거 검색 | 질문 embedding; 순차 설정이면 조건부 추출 1회 추가 |
+| `POST` | `/v1/answer` | 검색 근거 기반 답변 생성 | 질문 embedding 및 조건부 답변 LLM; 순차 설정이면 조건부 추출 1회 추가 |
 | `POST` | `/v1/browser-session` | 익명 세션 쿠키 발급·유지 | 없음 |
 | `GET` | `/v1/conversations` | 소유자의 저장 대화 목록 | 없음 |
 | `POST` | `/v1/conversations` | 멱등 대화 생성 | 없음 |
@@ -543,3 +543,26 @@ provider 성공 후 SQLite 기록 전 프로세스 중단은 하나의 transacti
 현재 질문이 명시한 금액·소비 영역·혜택은 같은 차원의 저장 설문보다 우선한다. 적용할 값만 내부 context와 검색 힌트에 사용하며, 월 사용액 구간을 전월실적 충족·정확한 소비금액·예상 혜택액으로 단정하지 않는다. 검색 query는 최대1,024자, 공개 질문/답변용 독립 query는 기존 최대500자로 구분한다. 실제 answer query+개인화 context+근거 전체의 UTF-8 JSON bytes를 같은 serializer로 측정해 설정된 한도(기본64,000)를 지킨다. HTTP proxy의8,192-byte 한도와는 별개다.
 
 실제 모델의 다양한 표현 분류 정확도와 추가 비용·지연은 자동 가짜 응답 테스트만으로 검증되지 않는다. 별도 실호출 평가가 필요하며, 설정이 있는 첫 일반 질문도 판별 비용은 발생한다.
+
+
+## 구조화 순차 검색의 선택적 사용량 계약
+
+서버 설정 `PICKCARDU_RETRIEVAL_MODE=structured_then_hybrid`에서 구조화 DB의 후보 카드 안으로 기존 검색 범위를 좁힌다. 기본값 `hybrid`는 기존 동작이다. 요청 JSON은 동일하며 화면 연동 변경은 없다. 저장형 채팅의 독립 질문과 검색 힌트는 유지하고, 조건 추출에는 독립 질문을, 기존 검색에는 검색 힌트를 포함한 질의를 사용한다. 질문 embedding은 요청당 최대 1회다.
+
+`usage.structured`는 검색·답변 응답의 선택적 객체이며 `hybrid`에서는 null이다. 저장형 채팅 완료 응답에도 같은 객체가 저장된다. 구조화 혜택 행은 답변 근거에 추가하지 않는다.
+
+| 필드 | 의미 |
+|---|---|
+| `path` | `structured_then_hybrid`: 후보 적용, `hybrid`: 원래 범위 복귀, `skipped`: 정밀 비교·확인 질문으로 생략 |
+| `reason` | `matched`, `no_results`, `empty_conditions`, `unsupported_conditions`, `numeric_guard`, `extraction_failure`, `query_error`, `empty_explicit_scope`, `precision_comparison`, `clarification_required` |
+| `candidate_count` | DB가 찾은 후보 카드 수. 조회 생략·실패에서는 0이며, 최종 검색 카드 수와 다르다. |
+| `groups` | `all` 또는 `wallet`/`new` 각각의 `original_count`, `candidate_count`, `selected_count`, `reason`. 각 집합은 독립적으로 축소·복귀한다. |
+| `extraction_ms`, `query_ms`, `total_ms` | 추출·DB 조회·구조화 라우팅 전체 경과 시간(ms). 검색·답변 생성 시간은 포함하지 않는다. |
+| `model`, `reasoning_effort`, `max_output_tokens`, `timeout_seconds`, `attempt_count` | 실제 추출 실행 설정. 답변 모델 설정과 별개다. |
+| `provider_called`, `usage_complete`, `usage`, `response_id`, `error_type` | 추출 호출 여부·실제 토큰 사용량·실패 유형. 호출하지 않은 경로에서는 일부 필드가 없다. |
+
+구조화 혜택 조회 0건은 `no_results`, 요청 중 SQL/IO 오류는 `query_error`로 구분한다. 오류는 서버 로그에도 기록하며, 원래 허용 범위로 복귀한다. 보유 카드 조회는 보유 목록 안에 머무르고 보유/신규 비교는 양쪽 집합의 관련 근거 확보 규칙을 유지한다. 명시 발급사·상품과 허용 집합의 교집합이 비어 있으면 범위를 넓히지 않는다. 상품명에 포함된 다른 짧은 상품명은 추가하지 않으며 두 상품이 별도 위치에 명시되면 둘 다 유지한다.
+
+`numeric_guard`는 DB3의 실적·한도 누락에 대한 운영 보호 정책이다. 전월실적 상한(무실적 0원 포함) 또는 혜택 한도 하한을 검색 제한으로 추출한 질문은 후보 축소를 생략한다. 값이 얼마인지 설명하는 요청은 이에 해당하지 않는다. 지정 카드 전체 정밀 비교는 모든 대상이 필수이므로 추출을 생략한다. 이전 카드 이름 안내와 확인 질문에서도 새 추출을 호출하지 않는다.
+
+순차 설정에서 DB가 없는 구버전 릴리스는 readiness 503이다. DB가 선언된 릴리스의 해시·계약·문서 결속 오류는 두 모드 모두 준비 검사에서 차단한다. 요청 중 정상 DB의 조회가 실패해 복귀하는 경우와 구분한다. 자세한 설정·릴리스 전환은 API_RUNBOOK.md를 따른다.

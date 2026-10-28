@@ -23,6 +23,7 @@ from .index import (
     _tree_entries,
     _tree_hash,
 )
+from pickcardu_rag.structured_release import validate_structured_release
 
 
 MAX_ARCHIVE_MEMBERS = 100_000
@@ -46,8 +47,6 @@ def _read_manifest(
     if release_root.is_symlink() or not release_root.is_dir():
         raise RuntimeError("release root is unavailable")
     entries = _tree_entries(release_root)
-    if {path.name for path in release_root.iterdir()} != {"manifest.json", "corpus.sqlite", "chroma"}:
-        raise RuntimeError("release contains unexpected top-level entries")
     manifest_path = release_root / "manifest.json"
     corpus_path = release_root / "corpus.sqlite"
     chroma_root = release_root / "chroma"
@@ -81,6 +80,12 @@ def _read_manifest(
         raise RuntimeError("release manifest identity is invalid")
     if manifest.get("corpus_sqlite_sha256") != _sha256(corpus_path):
         raise RuntimeError("release SQLite hash mismatch")
+    expected = {'manifest.json', 'corpus.sqlite', 'chroma'}
+    if manifest.get('structured') is not None:
+        expected.add('structured.sqlite')
+    if {path.name for path in release_root.iterdir()} != expected:
+        raise RuntimeError('release contains unexpected top-level entries')
+    validate_structured_release(release_root, manifest, read_only=False)
     if manifest.get("chroma_tree_sha256") != _tree_hash(chroma_root):
         raise RuntimeError("release Chroma tree hash mismatch")
     return manifest

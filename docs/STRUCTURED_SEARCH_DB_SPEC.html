@@ -1604,4 +1604,17 @@ OR 그룹: [[커피 10% 할인], [넷플릭스 10% 할인]]
 <li>65번의 지정 DB는60번 복사 db_v3다. 명시 무실적23행·무료48행의 파생값71행을 원문 확인했으나 전체3403행의 추출 정확도를 인증한 것은 아니다. unknown을 일괄0으로 합치지 않는다.</li>
 </ul>
 <p>실행 근거: notebooks/scripts/50_query_contract.py,60_query_repair.py,64_scope_repair.py. 운영 반영 여부와 새 실험 채택 여부는 각 결과 보고서에서 따로 확인한다.</p>
+<h2 id="operational-db3">worktree 운영 코드의 DB3 순차 검색 계약</h2>
+<p>73번의 기존 순차인 DB3 정규화·기존 조회·후보 카드 목록만 운영 코드에 이식한다. DB5 보정·새 동의어·오타 보정·구조화 답변 근거는 포함하지 않는다. 운영 모듈은 노트북 스크립트를 import하지 않는다.</p>
+<ul>
+<li>생성: indexer structured.py/structured_normalization.py에서 기본30→56→60 규칙을 적용한다. Luna와 Upstage에 같은 생성 함수를 사용하고 원문·필드 근거·관계·pages·provenance를 보존한다.</li>
+<li>조회: core structured.py의 고정 QueryPlan과 바인딩 SQL을 사용한다. 동일 카드 AND는 다른 fact를 허용하되 다른 카드의 부분 일치를 합치지 않는다. 기존 aliases만 사용한다.</li>
+<li>계약: db3-normalization30-56-60-v1 / db3-query60-v1. 기존 4테이블과 컬럼을 유지하고 metadata.contract에 공급자·문서ID·PDF/JSON SHA256·원천 경로·입력 정규화 계약을 기록한다. manifest.structured가 DB SHA256와 contract를 결속한다.</li>
+<li>빌드 시 PDF/JSON/OCR·청크 원천과 raw/derived를 대조하고, 로딩·설치 시 DB 해시·integrity/FK·문서/카탈로그·aliases·scalar/derived 일치를 검사한다. 선언된 DB 오류는 준비 검사에서 차단하며 요청 중 DB 쓰기는 없다.</li>
+<li>allowed_card_keys는 정밀 비교용 target_card_keys와 분리되어 후보5개 제한이 없다. BM25·벡터 깊이 제한 전에 범위를 적용하고 parent-child도 같은 카드 안에 머무른다.</li>
+<li>0건·빈 조건·미지원·추출 실패·요청 중 조회 오류는 원래 허용 집합으로 복귀한다. 보유·신규를 각각 처리하며 명시 발급사·상품·허용 집합의 빈 교집합은 넓히지 않는다. 상품명 중첩은 질문 내 위치별 최대 매칭으로 처리한다.</li>
+<li>실적 상한·혜택 한도 하한 검색 제한(무실적0 포함)은 후보 축소를 생략한다. 이는 실험 재현에 추가한 운영 보호 정책이며 DB5 보정이 아니다. 값 설명 요청은 제한과 구분한다.</li>
+<li>기본 hybrid는 구버전 호환, structured_then_hybrid는 DB 결속이 필요하다. 후보 카드의 기존 본문 검색만 답변에 전달하며 전체 결과 결합·구조화 근거 추가는 없다.</li>
+</ul>
+<p><a href="API_RUNBOOK.md">생성·설치·rollback 절차</a>, <a href="STRUCTURED_SEARCH_DB_SPEC.md">동일 명세의 Markdown</a>, <a href="../data/rag/validation/structured_search_integration/">통합 검증 기록</a>. 기존 분포 표는 이전 실험 시점과 구분한다.</p>
 </main></body></html>

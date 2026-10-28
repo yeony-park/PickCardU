@@ -616,3 +616,18 @@ python -B notebooks/44_inspect_structured_db.py
 - 65번이 사용하는 DB는60번 복사 `db_v3`다. 명시 무실적23행·무료48행의 파생값71행을 원문 확인했으나 전체3403행의 추출 정확도를 인증한 것은 아니다. unknown을 일괄0으로 합치지 않는다.
 
 실행 근거: `notebooks/scripts/50_query_contract.py`, `60_query_repair.py`, `64_scope_repair.py`. 운영 반영 여부와 새 실험 채택 여부는 각 결과 보고서에서 따로 확인한다.
+
+## worktree 운영 코드의 DB3 순차 검색 계약
+
+이번 운영 이식은 73번의 **기존 순차**(DB3 정규화와 기존 조회 판정, 후보 카드 목록만 전달)를 사용한다. 73번 수정 순차의 DB5·대상어 보정·구조화 근거 전달은 포함하지 않는다. 운영 모듈은 노트북 스크립트를 import하지 않는다.
+
+- 생성: `jobs/rag-indexer/src/pickcardu_indexer/structured.py`, `structured_normalization.py`. 기본 파생 규칙(30) → 보수적 정규화(56) → 명시 무실적·무료 이용 보정(60)을 적용한다. Luna와 Upstage 입력에 같은 함수가 적용되며 원문 fact·필드 근거·relation_scope·pages·provenance는 보존한다.
+- 조회: `packages/rag-core/src/pickcardu_rag/structured.py`. 고정 `QueryPlan` 값만 사용하고 SQL 파라미터를 분리한다. 같은 카드의 서로 다른 fact가 AND를 만족할 수 있으며 다른 카드의 부분 일치를 합치지 않는다. 기존 target aliases만 유지한다.
+- 계약 식별자: `db3-normalization30-56-60-v1`, `db3-query60-v1`. 기존 네 테이블과 scalar/raw/derived 컬럼을 유지하며 `metadata`의 `contract` 값에 공급자·문서 ID·PDF SHA256·입력 JSON SHA256·원천 경로·입력 정규화 계약을 기록한다.
+- 불변 릴리스의 `manifest.structured`는 DB SHA256와 같은 contract 전체를 결속한다. 빌드 시 실제 PDF/JSON/OCR·청크 원천과 raw/derived를 대조하고, 로딩/설치 시 DB 해시·SQLite integrity/FK·문서/카탈로그·aliases·scalar/derived 일치를 검사한다. DB가 있는 릴리스의 오류는 준비 검사에서 차단한다. 요청 중에는 DB 쓰기가 없다.
+- 구조화 후보는 `allowed_card_keys`로 전달한다. 모든 대상이 필수인 `target_card_keys`(1~5개)와 분리되어 후보 5개 제한이 없다. BM25·벡터의 깊이 제한 전에 범위를 적용하고, parent-child 관련 근거도 같은 카드 안에 머무른다.
+- 0건·빈 조건·미지원·추출 실패·요청 중 조회 오류는 원래 허용 집합으로 복귀한다. 보유·신규는 각 집합을 별도 처리한다. 명시 발급사·상품 집합을 독립 인식해 허용 집합과 교차하고, 모순되면 확대하지 않는다. 긴 상품명에 포함된 짧은 다른 상품명은 제외하되 별도 언급은 보존한다.
+- 실적 상한·혜택 한도 하한 검색 제한(무실적 0 포함)은 후보 축소를 생략한다. 이는 **DB3 재현에 추가한 운영 보호 정책**이며 정규화 보정이나 DB5 이식이 아니다. 실적/한도 설명 요청은 검색 제한과 구분한다.
+- 기본 `hybrid`는 DB 없는 구버전도 지원한다. 선택 설정 `structured_then_hybrid`는 결속된 DB가 있어야 ready다. 구조화 결과가 있는 요청은 해당 범위의 기존 본문 검색 한 번만 사용하며, 전체 카드 검색 결과나 구조화 fact를 답변 근거에 추가하지 않는다.
+
+실제 검증 DB·릴리스별 수치, 무료 대조·소규모 API 확인과 한계는 `data/rag/validation/structured_search_integration/`의 기록과 별도 통합 보고서를 따른다. 기존 표의 관측 분포는 이전 실험 시점의 값이며 이 절의 운영 계약과 구분한다. 생성·설치·rollback 명령은 `docs/API_RUNBOOK.md`를 참고한다.

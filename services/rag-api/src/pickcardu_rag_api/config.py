@@ -17,6 +17,8 @@ class Settings:
     bge_model_path: Path
     chat_db_path: Path | None = None
     answer_payload_bytes: int = ANSWER_PAYLOAD_UNIT_LIMIT
+    retrieval_mode: str = 'hybrid'
+    structured_model: str = 'gpt-6-luna'
 
 
 def validate_settings(settings: Settings) -> Settings:
@@ -26,6 +28,8 @@ def validate_settings(settings: Settings) -> Settings:
         raise ValueError("at least one allowed origin is required")
     if type(settings.answer_payload_bytes) is not int or settings.answer_payload_bytes <= 0:
         raise ValueError('answer payload byte limit must be a positive integer')
+    if settings.retrieval_mode not in {'hybrid', 'structured_then_hybrid'} or not settings.structured_model.strip():
+        raise ValueError('invalid retrieval mode or structured extraction model')
     return settings
 
 
@@ -52,4 +56,6 @@ def load_settings(environ: dict[str, str] | None = None) -> Settings:
         ),
         chat_db_path=Path(source.get('PICKCARDU_CHAT_DB_PATH', repository_root / 'data/chat/runtime/chat.sqlite')),
         answer_payload_bytes=answer_payload_limit(source),
+        retrieval_mode=source.get('PICKCARDU_RETRIEVAL_MODE', 'hybrid'),
+        structured_model=source.get('PICKCARDU_STRUCTURED_MODEL', 'gpt-6-luna'),
     ))

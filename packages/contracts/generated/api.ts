@@ -2,7 +2,7 @@
 export interface components {
   schemas: {
     "AnswerResponse": { "answer": string; "answer_status": "answered" | "insufficient_evidence"; "cards": Array<components["schemas"]["CardResult"]>; "claims": Array<components["schemas"]["AtomicClaim"]>; "evidence": Array<components["schemas"]["EvidenceResult"]>; "profile": "card_page_section_benefit" | "parent_child_bundle"; "query_type": "proper_noun" | "numeric_condition" | "semantic"; "recommendations": Array<components["schemas"]["Recommendation"]>; "release_id": string; "status": "completed"; "usage": components["schemas"]["AnswerUsage"]; };
-    "AnswerUsage": { "answer": { [key: string]: unknown; }; "embedding": { [key: string]: unknown; }; };
+    "AnswerUsage": { "answer": { [key: string]: unknown; }; "embedding": { [key: string]: unknown; }; "structured"?: { [key: string]: unknown; } | null; };
     "AtomicClaim": { "card_key": string; "citations": Array<string>; "conditions"?: Array<string>; "text": string; "unit"?: string | null; "value"?: string | number | number | null; };
     "BrowserSessionRequest": {  };
     "BrowserSessionResponse": { "status": "ready"; };
@@ -22,7 +22,7 @@ export interface components {
     "ReadyResponse": { "chunk_count": number; "document_count": number; "profile": "card_page_section_benefit" | "parent_child_bundle"; "release_id": string; "status": "ready"; };
     "Recommendation": { "card_key": string; "citations": Array<string>; "reason": string; };
     "SearchResponse": { "cards": Array<components["schemas"]["CardResult"]>; "evidence": Array<components["schemas"]["EvidenceResult"]>; "profile": "card_page_section_benefit" | "parent_child_bundle"; "query_type": "proper_noun" | "numeric_condition" | "semantic"; "release_id": string; "status": "completed"; "usage": components["schemas"]["SearchUsage"]; };
-    "SearchUsage": { "embedding": { [key: string]: unknown; }; };
+    "SearchUsage": { "embedding": { [key: string]: unknown; }; "structured"?: { [key: string]: unknown; } | null; };
     "SurveyContext": { "monthly_spending"?: "under-30" | "30-50" | "50-100" | "100-200" | "over-200" | null; "preferred_benefits"?: Array<"할인" | "포인트 적립" | "항공 마일리지">; "spending_categories"?: Array<"쇼핑" | "배달·외식" | "카페" | "교통" | "주유" | "여행">; };
     "TurnInputSnapshot": { "profile"?: "card_page_section_benefit" | "parent_child_bundle" | null; "query": string; "top_k"?: 1 | 3 | 5; "wallet_context"?: components["schemas"]["WalletContext"] | null; };
     "TurnResponse": { "messages": Array<components["schemas"]["ChatMessage"]>; "turn_id": string; };

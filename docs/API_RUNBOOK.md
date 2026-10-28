@@ -272,3 +272,51 @@ with sqlite3.connect(source.resolve().as_uri() + "?mode=ro", uri=True) as src:
 코드만 v1으로 되돌리면 v2 DB를 읽지 못한다. 복구가 필요하면 해당 서비스 중지, 현재 v2 DB의 별도 보존, migration 후 새 대화의 처리, v1 백업 복원 여부를 먼저 결정한다. 백업 복원은 새 대화 손실 가능성이 있으므로 별도 승인 없이 DB를 덮어쓰지 않는다. DB가 없으면 새 v2를 lazy 생성하며 기존 DB가 없는 상황을 backup 완료로 기록하지 않는다.
 
 일반 테스트는 FakeProvider와 임시 DB만 사용한다. 제한 실행 환경에서 TestClient/Node child runner가 대기하거나 실행 실패할 경우 최소 재현으로 환경 경계를 먼저 확인하고, 설치·버전 변경 없이 승인된 테스트 실행 환경을 사용한다. 실제 API키를 테스트 fixture에 연결하지 않는다.
+
+
+## 구조화 순차 검색 릴리스와 설정
+
+`PICKCARDU_RETRIEVAL_MODE`는 `hybrid`(기본) 또는 `structured_then_hybrid`다. `PICKCARDU_STRUCTURED_MODEL`의 기본값은 `gpt-6-luna`이며 답변 모델과 분리된다. 추출은 reasoning medium, 출력 3,000토큰, timeout 60초, SDK 재시도 0, 물리 호출 1회다. 답변 모델·프롬프트·출력 2,400토큰과 기존 답변 재시도 설정은 그대로다. 기존 setup 자산 계약과 기본 활성 릴리스는 이 변경으로 전환하지 않는다.
+
+구조화 DB는 정규화 JSON에서 오프라인으로 만든다. 공급자가 Upstage 또는 Luna인 동일 정규화 계약의 입력을 사용한다. PDF 실제 해시가 입력 선언과 일치해야 한다. 새 파일 경로만 허용하고 기존 DB를 덮어쓰지 않는다.
+
+```bash
+PYTHONPATH=packages/rag-core/src:jobs/rag-indexer/src \
+  python -m pickcardu_indexer structured-build \
+  --source-glob 'data/rag/runtime/working/RUN_ID/documents/*/PROVIDER/normalized.json' \
+  --output data/rag/runtime/structured-build/structured.sqlite
+
+PYTHONPATH=packages/rag-core/src:jobs/rag-indexer/src \
+  python -m pickcardu_indexer --runtime-root data/rag/runtime/structured-build structured-attach \
+  --source-release data/rag/runtime/index-release/SOURCE_RELEASE_ID \
+  --database data/rag/runtime/structured-build/structured.sqlite
+```
+
+생성기는 기존 corpus·FTS·Chroma·임베딩과 DB의 PDF/JSON/OCR 원천, 카드 이름·발급사·문서 ID, DB3 원문·파생값을 확인한 뒤 별도 `release_structured_*`를 만든다. 청크·임베딩 바이트를 재사용하고 새 임베딩 API를 호출하지 않는다. 서로 다른 공급자/OCR의 DB와 청크는 결속 검증에서 거절한다. 원천 검증 상태 `assumed_pdf_pass`를 검증 완료로 승격하지 않는다.
+
+오프라인 생성 릴리스는 indexer state의 `activate` 대상에 자동 등록되지 않는다. 패키징한 뒤 기존 archive 설치기로 설치·검증·원자적 포인터 전환을 수행한다. 아래 예시는 새 runtime에 설치하므로 원래 활성 포인터를 보존한다.
+
+```bash
+python scripts/package_rag_release.py \
+  --release-root data/rag/runtime/structured-build/index-release/NEW_RELEASE_ID \
+  --output /tmp/structured-release.tar.gz
+
+PYTHONPATH=services/rag-api/src:packages/rag-core/src python - <<'PYCODE'
+from pathlib import Path
+from pickcardu_rag_api.release_install import install_release_archive
+install_release_archive(
+    Path('/tmp/structured-release.tar.gz'), Path('data/rag/runtime/structured-serving'),
+    expected_release_id='NEW_RELEASE_ID', expected_manifest_sha256='MANIFEST_SHA256',
+)
+PYCODE
+
+PICKCARDU_INDEX_RUNTIME_ROOT=data/rag/runtime/structured-serving \
+PICKCARDU_RETRIEVAL_MODE=structured_then_hybrid \
+PYTHONPATH=services/rag-api/src:packages/rag-core/src python -m pickcardu_rag_api
+```
+
+패키지·설치기는 기존 3개 최상위 항목과 선택적인 `structured.sqlite`를 지원한다. 선언되지 않은 DB, 누락 파일, 해시·정규화/조회 계약·문서 목록 불일치는 거절한다. 순차 모드는 DB 없는 릴리스에서 readiness가 실패한다. JSON이 변경되면 새 DB·새 릴리스를 생성하며 요청 중 갱신하지 않는다. rollback은 검증된 이전 archive를 설치하거나 기존 runtime으로 실행 경로를 되돌린다. DB 없는 이전 릴리스에는 `hybrid`를 사용한다. 새 혜택·조건 관계 오류가 확인되면 우선 `PICKCARDU_RETRIEVAL_MODE=hybrid`로 재시작한다.
+
+기존 저장 청크·벡터의 오프라인 이관은 `snapshot-import --snapshot-root PROFILE_DIRECTORY --chunks CHUNKS_JSONL`을 사용한다. SQLite·JSONL·NPY·Chroma의 ID/본문/벡터를 대조하고 새 base release를 만든다. 입력을 수정하거나 활성 포인터를 변경하지 않는다. profile마다 별도 릴리스가 필요하며 API는 runtime당 하나의 활성 profile을 사용한다.
+
+통합 확인은 `python scripts/validate_structured_search.py`로 저장 계획 무료 대조를 먼저 수행한다. `--allow-network`는 사전 승인된 12질문×두 profile×1회 범위의 실제 API 확인용이다. 한 프로세스·같은 결과 경로에서 순차 실행하며 원본 실험 결과를 덮어쓰지 않는다. raw 응답·사용량은 SDK 파싱 전에 보존하고 새 사용량 미확인 또는 pending 요청이 있으면 후속 호출을 차단한다. 비용은 공식 단가 환산이며 청구서 금액과 다르다.

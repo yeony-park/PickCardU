@@ -16,6 +16,8 @@ from urllib.parse import quote
 import numpy as np
 from pickcardu_rag import CHUNKING_PROFILES, Candidate, Chunk, RagPipeline, SearchConfig
 from pickcardu_rag.retrieval import LEXICAL_CONTRACT, InMemorySquaredL2Searcher, lexical_terms
+from pickcardu_rag.structured import StructuredStore
+from pickcardu_rag.structured_release import validate_structured_release
 
 
 CHUNKING_CONTRACTS = {
@@ -141,6 +143,7 @@ class ReleaseHandle:
     chunks: tuple[Chunk, ...]
     catalog: tuple[dict[str, str], ...]
     pipeline: RagPipeline
+    structured_store: StructuredStore | None = None
 
     def search(self, query: str, embedding: np.ndarray | None, config: SearchConfig) -> dict[str, Any]:
         vector = None if embedding is None else np.asarray(embedding, dtype=np.float32)
@@ -158,12 +161,14 @@ class ActiveIndexLoader:
         *,
         reranker: Any = None,
         allowed_release_statuses: frozenset[str] = frozenset({"production"}),
+        require_structured: bool = False,
     ) -> None:
         if not allowed_release_statuses or not allowed_release_statuses <= {"production", "test_only"}:
             raise ValueError("allowed release statuses are invalid")
         self.runtime_root = runtime_root
         self.reranker = reranker
         self.allowed_release_statuses = allowed_release_statuses
+        self.require_structured = require_structured
         self._cache_lock = threading.Lock()
         self._cached_pointer_bytes: bytes | None = None
         self._cached_handle: ReleaseHandle | None = None
@@ -213,6 +218,7 @@ class ActiveIndexLoader:
             raise RuntimeError("active embedding contract is invalid")
         if not isinstance(manifest["corpus_sqlite_sha256"], str) or not re.fullmatch(r"[0-9a-f]{64}", manifest["corpus_sqlite_sha256"]) or _sha256(corpus_path) != manifest["corpus_sqlite_sha256"]:
             raise RuntimeError("active SQLite corpus hash mismatch")
+        structured_store = validate_structured_release(release_root, manifest, required=self.require_structured)
         tree_hash = manifest["chroma_tree_sha256"]
         if not isinstance(tree_hash, str) or not re.fullmatch(r"[0-9a-f]{64}", tree_hash) or _tree_hash(release_root / "chroma") != tree_hash:
             raise RuntimeError("release Chroma tree hash mismatch")
@@ -353,4 +359,4 @@ class ActiveIndexLoader:
             self.reranker,
             profile=CHUNKING_PROFILES[manifest["strategy"]],
         )
-        return ReleaseHandle(release_id, manifest_hash, manifest, tuple(chunks), catalog, pipeline)
+        return ReleaseHandle(release_id, manifest_hash, manifest, tuple(chunks), catalog, pipeline, structured_store)
