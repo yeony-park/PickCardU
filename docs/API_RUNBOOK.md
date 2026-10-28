@@ -315,7 +315,7 @@ PICKCARDU_RETRIEVAL_MODE=structured_then_hybrid \
 PYTHONPATH=services/rag-api/src:packages/rag-core/src python -m pickcardu_rag_api
 ```
 
-패키지·설치기는 기존 3개 최상위 항목과 선택적인 `structured.sqlite`를 지원한다. 선언되지 않은 DB, 누락 파일, 해시·정규화/조회 계약·문서 목록 불일치는 거절한다. 순차 모드는 DB 없는 릴리스에서 readiness가 실패한다. JSON이 변경되면 새 DB·새 릴리스를 생성하며 요청 중 갱신하지 않는다. rollback은 검증된 이전 archive를 설치하거나 기존 runtime으로 실행 경로를 되돌린다. DB 없는 이전 릴리스에는 `hybrid`를 사용한다. 새 혜택·조건 관계 오류가 확인되면 우선 `PICKCARDU_RETRIEVAL_MODE=hybrid`로 재시작한다.
+패키지·설치기는 기존 3개 최상위 항목과 선택적인 `structured.sqlite`를 지원한다. 선언되지 않은 DB, 누락 파일, 해시·정규화/조회 계약·문서 목록 불일치는 거절한다. 순차 모드는 DB 없는 릴리스에서 readiness가 실패한다. JSON이 변경되면 새 DB·새 릴리스를 생성하며 요청 중 갱신하지 않는다. rollback은 검증된 이전 archive를 설치하거나 기존 runtime으로 실행 경로를 되돌린다. DB 없는 이전 릴리스에는 `hybrid`를 사용한다. 개별 답변 오류는 집계·원인 분석하며 단독 비활성화 조건으로 삼지 않는다. 실행 장애·무결성·범위 이탈은 별도 조사하고, 필요한 경우 `PICKCARDU_RETRIEVAL_MODE=hybrid`와 이전 runtime 설정으로 복귀한다.
 
 기존 저장 청크·벡터의 오프라인 이관은 `snapshot-import --snapshot-root PROFILE_DIRECTORY --chunks CHUNKS_JSONL`을 사용한다. SQLite·JSONL·NPY·Chroma의 ID/본문/벡터를 대조하고 새 base release를 만든다. 입력을 수정하거나 활성 포인터를 변경하지 않는다. profile마다 별도 릴리스가 필요하며 API는 runtime당 하나의 활성 profile을 사용한다.
 

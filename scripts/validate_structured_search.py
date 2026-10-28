@@ -81,8 +81,11 @@ class Budget:
             raise RuntimeError('unknown or pending usage: no subsequent paid calls')
         return self.historical + sum((Decimal(r['cost_usd']) for r in rows), Decimal(0))
 
+    def halted(self):
+        return (self.directory.parent / 'HALTED.json').exists()
+
     def reserve(self, identity, phase, request):
-        if (self.directory.parent / 'HALTED.json').exists():
+        if self.halted():
             raise RuntimeError('validation halted by quality guard; no further network calls')
         debit = self.check()
         rows = self.rows()
