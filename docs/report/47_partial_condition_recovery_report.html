@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>47. 부분조건 우선 검색과 전체 복귀 비교</title>
+<style>body{max-width:1080px;margin:40px auto;padding:0 20px;font:17px/1.7 system-ui;color:#182532}h1,h2{line-height:1.3}table{border-collapse:collapse;width:100%;margin:20px 0}th,td{border:1px solid #cbd5df;padding:10px;text-align:left}th{background:#eef4f8}.note{background:#fff6db;padding:18px}code{overflow-wrap:anywhere}a{color:#125f96}</style>
+<h1>47. 부분조건을 우선 활용하면 전체 복귀보다 나은가?</h1>
+<p>2026-10-21 · 개발 실험 · 두 프로필 모두 <strong>A: 원래 허용 범위에서 전체 비구조화 복귀</strong>를 유지했다. parent-child에서 카드 발견이 개선된 사례는 있었으나, 엄격한 답변 완전성 개선으로 이어지지 않았고 새 중요조건 누락도 확인했다. 운영에는 반영하지 않았다.</p>
+<h2>목적과 비교 방식</h2>
+<p>46번의 실패 경계를 고정했다. 구조화 AND 전체 충족 카드가 없을 때, A는 원래 허용 범위에서 원질문으로 검색한다. B는 개별 조건이 참인 카드에 대한 검색을 추가하고 원래 허용 범위 검색과 합친다. 부분 일치를 전체 AND 충족으로 바꾸거나 카드 범위를 부분 일치 카드로 강제 제한하지 않는다.</p>
+<p>기존 42번의 개발 질문 48개와 통제된 DB view 질문 4개, benefit/parent-child 두 운영 프로필, A/B로 208개 논리 조건을 비교했다. 운영 청크·문서 임베딩, 원질문, 각 검색 성분 50개, 최종 후보 20개, 카드 3개, 카드별 근거 최대 5개, 답변 입력 64,000바이트를 고정했다. B는 원질문 성분을 그대로 보존해 추가 검색과 성분별 동일 가중치 RRF(순위 역수 결합)로 합친다. 최종 재정렬은 원질문을 사용한다.</p>
+<p>기존 48개 질문의 192개 출력은 입력·근거·모델·원 API 응답까지 대조한 뒤 재사용했다. B도 추가 부분 후보가 없어서 96쌍 모두 같은 결과였다. 신규 16개 조건 중 같은 답변 입력 3개는 A 출력을 재사용했고 13개만 새 답변을 생성했다. 208회를 새로 생성하거나 반복 평가한 실험이 아니다.</p>
+<h2>추가 사례별 결과</h2>
+<p><strong>지표 안내:</strong> PASS(조건 완전 충족)는 한 질문에서 같은 카드의 요구 혜택과 직접 적용 조건을 함께 설명한 경우다. 높을수록 좋다. PARTIAL(일부만 충족)은 유효한 카드·할인율을 찾더라도 필요한 조건이 빠지거나 완전한 카드를 못 찾은 경우다. 예를 들어 커피 10%·넷플릭스 20%를 찾았지만 커피 이용시간·대상 이용금액 한도가 빠지면 완전 충족으로 세지 않는다. 이 분류는 main Codex의 비맹검 원문 검토이며, 사람의 독립 정답 검증이나 OCR 검증을 대신하지 않는다. 부정 질문은 미충족을 명확히 설명하고 부분 혜택을 전체 정답으로 추천하지 않아야 통과다.</p>
+<table><caption>추가 4개 조건 × 두 프로필, A/B 모두 표시</caption><thead><tr><th>질문·DB view</th><th>benefit A → B</th><th>parent-child A → B</th><th>원문 검토</th></tr></thead><tbody>
+<tr><td>P01: 커피 10%·넷플릭스 20%, 넷플릭스 사실 누락</td><td>PARTIAL → PARTIAL</td><td>PARTIAL → PARTIAL</td><td>parent-child B는 Discount Plan+를 새로 찾음. 전월실적·월 한도까지 갖춘 답변은 아님.</td></tr>
+<tr><td>P02: 같은 요구, 상세 커피 사실도 추가 누락</td><td>PARTIAL → PARTIAL</td><td>PARTIAL → PARTIAL</td><td>benefit A의 NH 올원더풀도 커피 10%·넷플릭스 30%로 유효하다. parent-child B에서는 A에 있던 커피 1회 대상 이용금액 1만원 조건이 빠짐.</td></tr>
+<tr><td>P03: Discount Plan+ 지정, 넷플릭스 수치 unknown</td><td>PASS → PASS</td><td>PARTIAL → PARTIAL</td><td>카드 범위를 보존함. A/B 입력 동일. benefit은 전월 40만원·서비스별 월 한도까지 설명함.</td></tr>
+<tr><td>P04: 넷플릭스 90% 요구, 원 DB 유지</td><td>PASS → PASS</td><td>PASS → PASS</td><td>모두 90% 조건 미충족을 명시. 알려진 부분 혜택을 설명하되 전체 충족으로 승격하지 않음.</td></tr>
+</tbody></table>
+<p>추가 4개 질문의 엄격한 PASS 기준 B승/A승/동률은 프로필별 모두 0/0/4다. benefit A/B는 각각 2/4, parent-child A/B는 각각 1/4 통과다. 전체 개발 질문의 96쌍도 모두 출력 동일이므로, 이번 결과에서 청킹 자체의 우열이나 개선의 일반성을 확정할 수 없다.</p>
+<h2>자동 정답목록 지표와 다른 이유</h2>
+<p>정답 포함 지표인 Hit@3(상위 카드 3개 중 미리 정한 정답 카드가 하나라도 있는 질문 비율)은 높을수록 좋다. MRR(첫 정답 순위 역수의 평균)도 높을수록 좋다. 예를 들어 Discount Plan+가 2위면 Hit는 1, 순위 역수는 1/2다. 분모는 정답 카드가 미리 지정된 질문이다. 이 지표는 적용 조건의 완전성을 평가하지 않고, 정답 목록이 불완전하면 유효한 다른 카드를 놓친다.</p>
+<p>추가 양성 3개에서 자동 혜택 완전성은 benefit A 1/3 → B 2/3, parent-child A 2/3 → B 3/3이었다. 이 수치를 최종 품질 향상으로 채택하지 않았다. P02 benefit A의 NH 올원더풀은 정답 목록 밖 유효 카드였고, 카드 발견 성공은 조건 완전성 통과와 다르기 때문이다. 기존 48개의 자동 완전성은 benefit 숫자 12/16·고유명사 16/16·의미 3/12, parent-child 숫자 12/16·고유명사 14/16·의미 4/12로 A/B 동일이다. 의미 질문의 나머지 4개는 사전 양성 정답이 없어 해당 분모에서 제외했다. 이 값은 42번 출력 재사용 진단이며 새 품질 검증으로 해석하지 않는다.</p>
+<h2>실험 한계와 안전 확인</h2>
+<p class="note">P02는 상세 커피 사실을 지웠지만 ‘카페/음식점 10%’ 요약 사실이 남았다. 정답 카드가 부분 후보에서 완전히 사라진 유료 반례라고 보고할 수 없다. 별도의 합성 오프라인 진단에서 A 카드 사실이 모두 누락되면 부분 후보만 강제 검색할 경우 A가 제외되는 것을 확인했다. 실제 오류 빈도는 측정하지 않았다.</p>
+<p>기존 48개와 신규 4개 모두 개발 자료다. 추가 양성 정답은 하나의 원문 앵커를 중심으로 만들었으며 정답 목록은 포괄적이지 않다. B를 보고 질문·규칙을 다시 조정하지 않았다. OCR 통과 가정과 불완전한 제목 계층을 그대로 유지했다. 인용의 카드 소유권은 신규 16/16 통과했지만 인용 소유권만으로 문장 의미·조건 완전성이 보장되지는 않는다.</p>
+<h2>비용·시간·운영 참고</h2>
+<p><strong>자원 지표 안내:</strong> API 요청 수는 실제 전송 건수로 재사용 출력은 제외한다. 비용은 응답 토큰 사용량에 공식 단가를 적용한 USD 계산값으로 낮을수록 자원 측면에서 유리하나 품질 실패를 상쇄하지 못한다. 예를 들어 같은 질문·근거의 저장 답변은 새 API 비용 0이다. 지연은 새 Responses 요청 17건의 실제 벽시계 시간이며 평균·중앙값·P95(오름차순 ceil(0.95×17)번째)를 표시한다. 임베딩 요청에는 별도 벽시계 기록이 없어 이 지연 분모에 포함하지 않았다. RAM은 프로세스 최고 RSS이며 기계 전체 사용량과 다르다. 운영 SLA와 실제 청구서는 미측정이다.</p>
+<table><tbody>
+<tr><th>항목</th><th>47번 실측·사용량 계산</th></tr>
+<tr><td>실제 요청</td><td>파서 4 + 답변 13 + 질문 임베딩 배치 1 = 18건. 실패·재시도 0.</td></tr>
+<tr><td>비용</td><td>47번 0.016193165달러. 46·47 누적 0.025202595달러 / 전체 상한 8달러. 실제 청구액·세금 미측정.</td></tr>
+<tr><td>토큰</td><td>Responses 입력 90,834 / 출력 15,441. 입력 내 캐시 읽기 25,078·쓰기 65,705·일반 51. 임베딩 183토큰.</td></tr>
+<tr><td>새 Responses 요청 지연</td><td>17건 평균 10.854초 / 중앙값 12.646초 / P95·최대 17.471초. 단일 실행이며 운영 종단 지연 아님.</td></tr>
+<tr><td>시간·메모리</td><td>전체 노트북 608.420초. 검색/생성 런타임 532.529초·CPU 1,191.685초. 최고 RSS 3,330,096KiB, 관측 최소 가용 RAM 5,532,636KiB. GPU 미사용.</td></tr>
+<tr><td>검색 자원</td><td>새 재정렬 질문-문서 쌍 170개 / 재정렬 호출 16회. 문서 임베딩 추가 0, 새 질문 벡터 4개. 두 프로필 private 인덱스 복사 329,304,641바이트.</td></tr>
+</tbody></table>
+<p>A/B는 과거 재사용·로컬 점수 캐시·실행 순서가 섞여 있으므로 검색 소요 시간만으로 운영 지연 우열을 판정하지 않았다. 캐시·인덱스 총 크기와 운영 처리량은 미측정이다. 기존 원문/운영/과거 실험 파일 25,457개를 보존 검사하며, 평가지표 문서는 승인된 새 설명 추가만 허용한다.</p>
+<h2>근거 파일</h2>
+<p><a href="../../notebooks/47_partial_condition_recovery.ipynb">실행 노트북</a> · <a href="../../notebooks/data/47_partial_condition_recovery/execution_manifest.json">고정 입력·전체 조건</a> · <a href="../../notebooks/data/47_partial_condition_recovery/evaluation_results.json">전체 자동 결과</a> · <a href="../../notebooks/data/47_partial_condition_recovery/manual_source_review.json">직접 원문 검토</a> · <a href="../../notebooks/data/47_partial_condition_recovery/selected_policy.json">선정 근거</a> · <a href="../../notebooks/data/47_partial_condition_recovery/cost_latency_accounting.json">비용·지연</a> · <a href="../../notebooks/data/47_partial_condition_recovery/partial_only_diagnostic.json">부분 강제 제한 진단</a></p>
+<h2>최종 정리</h2>
+<p>부분 우선 검색은 카드 발견을 개선할 가능성을 보였으나, 엄격한 답변 완전성 개선은 관측하지 못했다. parent-child B에는 새 이용금액 조건 누락이 있어 미선정했고 benefit도 개선 근거가 없어 A를 유지했다. 추가 요청 18건에 약 0.0162달러가 들었다. 다음 48번은 A를 고정하고, 구조화 혜택·조건을 원질문을 보존하는 보조 검색어로 사용할 때 실제 개선되는지 검색 예산 대조군까지 비교한다. 운영 코드 변경과 운영 채택은 이번 결과에 포함되지 않는다.</p>
+</html>

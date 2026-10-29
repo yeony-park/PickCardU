@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>57 순차 검색의 같은 카드 조건 근거 보완</title>
+<style>body{max-width:1120px;margin:40px auto;padding:0 24px;font:16px/1.8 system-ui,sans-serif;color:#182331;background:#fafbfd}section{background:white;border:1px solid #dce3ed;border-radius:12px;padding:24px;margin:24px 0}h1,h2{line-height:1.4}table{border-collapse:collapse;width:100%;font-size:14px}th,td{border:1px solid #dce3ed;padding:10px;text-align:left;vertical-align:top}th{background:#eef3f9}.guide{background:#f2f6fb;padding:14px;border-left:4px solid #4b73a0}.note{background:#fff3dc;padding:15px}a{color:#1859a3}</style>
+<header><p>개발 비교 · 2026-10-23 · 운영 미반영</p><h1>57. 같은 카드에서 공통 조건을 더 찾으면 필요한 근거가 채워지는가?</h1>
+<p>40질문 × 두 청킹 프로필의 검색80건을 완료했다. 필수사실 평가는37질문이며, 존재하지 않는 카드·모호한 상품·실제 승인내역 요청3개는 이 분모에 넣지 않았다. 원문 범위 증명2건을 교정하고 독립 검토를 마쳤다.</p></header>
+<p class="caution">58번에서 D39 parent-child A의 입력 문구가 교통특화 전월실적을 충분히 증명하지 못함을 확인했다. 원자료와 아래 당시 표를 보존하되, 이 한 건을 반영한 A의 평균 근거 회수율은 94.3243%에서 93.7838%로 교정한다. A 완전 회수 28/37, B 회수율 96.8919%·완전 회수 31/37은 그대로다. B 대비 A의 질문별 근거 회수율 승/패/동률은 5/0/32다. <a href="../../notebooks/data/58_generation_factor_comparison/historical_metric_erratum.json">교정 범위와 원자료 결속 기록</a> · <a href="58_generation_factor_comparison_report.html">58번 재검토 보고서</a></p>
+<section><h2>목적과 비교 조건</h2>
+<p>55번에서 카드 자체를 찾더라도 실적·한도·서비스 선택 조건이 입력 근거에 빠지는 사례를 확인했다. 이번에는 같은 카드의 조건 구역을 추가하면 그 빈틈을 채울 수 있는지 확인했다. 답변 생성과 프롬프트 비교는 다음58번이다.</p>
+<p>A는 원질문 → 구조화 검색 → 카드 범위를 제한한 vector+BM25 검색 및 기존 재정렬이다. 구조화 결과0건이면 원래 카드·발급사 범위에서 비구조화 검색을 한 번 한다. 56번에서 선택한 보완 추출의 상세 표현1회차와 복사 DB를 두 프로필에 공통 사용했다. 미지원·확인 요청3개는 보존된 범위 처리를 사용했다.</p>
+<p>B는 A의 카드·순위·근거를 유지하고, 같은 카드에서 원질문에 고정 문구 ‘전월실적 한도 횟수 서비스 선택 제외 조건’을 붙여 FTS/BM25로 찾은 구역을 기존 BGE로 정렬해 카드당 최대2개 추가한다. 제목·경로에 고정 조건 단어가 있는 구역만 사용한다. 정답·fact ID·정답 페이지는 선택에 쓰지 않았다.</p>
+<p>모델과 색인·운영 청킹은 고정했다. A 최대5개 + 추가2개로 카드별 최대7근거, 전체64000바이트다. parent bundle 하나의 원문 청크 최대5개와 답변 근거 수7개는 서로 다른 제한이다. 원문 구역은 통째 추가하며 자르거나 기존 근거를 밀어내지 않는다. 새 API·임베딩은0건이다.</p>
+<p class="note">B는 입력 예산을 늘린 비교다. 동일 근거 수·동일 입력량 비교가 아니다. 구조화 근거로 검색 질문을 바꾸거나 전역 비구조화 검색을 추가로 결합한 실험도 아니다.</p></section>
+<section><h2>원문 필수사실 기준 결과</h2>
+<table><thead><tr><th>프로필 / 근거</th><th>필수 근거 회수율</th><th>완전근거 확보</th><th>원문 불확실 사실</th><th>평균 예정 입력 바이트 · 40질문</th></tr></thead><tbody>
+<tr><td>benefit A · 기준</td><td>97.34%</td><td>30/37 · 81.08%</td><td>3</td><td>18,729</td></tr>
+<tr><td>benefit B · 추가</td><td>97.34%</td><td>30/37 · 81.08%</td><td>3</td><td>22,204</td></tr>
+<tr><td>parent-child A · 기준</td><td>94.32%</td><td>28/37 · 75.68%</td><td>1</td><td>8,266</td></tr>
+<tr><td>parent-child B · 추가</td><td>96.89%</td><td>31/37 · 83.78%</td><td>1</td><td>12,140</td></tr>
+</tbody></table>
+<div class="guide"><b>지표 안내:</b> Retrieval Fact Recall(필수 검색 근거 회수율)은 각 질문에서 같은 카드·혜택 관계로 확인된 필수사실 수/원문 확인 필수사실 수를 계산한 뒤37질문을 평균한다. 높을수록 좋다. 커피 할인과 실적 두 사실 중 할인만 찾으면50%다. 카드만 찾는 Hit@3와 다르다. Complete Evidence Availability(완전근거 확보율)는 모든 필수사실을 확보한 질문/37이다. 모두 있어야 해당 질문이 충족되며 원문 불확실 사실이 남아도 완전으로 세지 않는다. 불확실은 회수율의 숫자 분모에서 제외하되 개수로 공개한다. 프로필별 유효 카드가 달라 필수사실 집합도 다를 수 있어, 주 비교는 각 프로필 안의 A/B다. 평균 바이트는 직렬화 예정 입력40개 기준이며 낮을수록 작지만 품질 통과를 대신하지 않는다. 실제 유료 답변 전달·답변 정확도는 아직 측정하지 않았다.</div>
+<p>benefit의 회수 개선/퇴행/동률은0/0/37, parent-child는4/0/33이다. 완전근거가 새로 채워진 parent-child 질문은 H24·D36·D38의3개다. D40은 실적이 채워졌지만 앱 제외 범위의 모호함이 남아 완전 확보로 세지 않았다.</p>
+<table><thead><tr><th>질문 / parent-child</th><th>A의 빈틈</th><th>B에서 확인한 내용</th></tr></thead><tbody>
+<tr><td>H24 원스토어·PC방</td><td>기본 전월실적</td><td>같은 하나 원스토어 카드의 국내외 일시불/할부30만원 이상</td></tr>
+<tr><td>D36 커피 한도·횟수·실적</td><td>D4의 기본 실적</td><td>D4 Discount4 유의사항의 전월 국내30만원 이상</td></tr>
+<tr><td>D38 월3회 이상 커피</td><td>Mr.Life Time 서비스 한도</td><td>Time 표의30~50만원 구간 월1만원, 상위 구간2만/3만원</td></tr>
+<tr><td>D40 기차·고속버스·택시</td><td>IBK 교통특화 실적·제외항목</td><td>전월 국내20만원 이상, 교통특화 이용액·아파트관리비 제외. 앱 범위는 여전히 모호함</td></tr>
+</tbody></table>
+<div class="guide"><b>개별 변화 안내:</b> Query wins/losses/ties(질문별 개선·퇴행·동률)는 같은 원문 필수사실로 A/B 회수율을 비교한37질문의 개수다. 높아진 질문이 개선이며 H24에서 실적이 추가되면 개선이다. 같은 질문의 여러 근거를 독립 질문으로 세지 않는다. 회수 개선이 곧 답변 PASS를 뜻하지 않는다.</div>
+<p>남은 빈틈도 있다. H19 parent-child는 Time Plan 대신 Daily Plan 표가 추가되어 Time 한도를 채우지 못했다. H22는 Daily Plan 월1만5천원 표가 빠져 있다. H23은 할인/적립 PACK 선택 관계가 두 방식 모두 부족하다. IBK 앱 허용과 제외를 평면 텍스트만으로 확정하기 어려운 경우는 모호함으로 유지했다.</p>
+<p class="note">독립 검토 중 D39·D40의 교통특화 실적을4쪽 생활서비스 조건으로 증명한 기존55 원문 범위 연결 오류를 확인했다. 57 별도 사실 사본에서 두 사실의 증명만2쪽 교통특화 원문으로 바꿨다. 사실 ID·값·확인 상태·분모는 유지했고 다시 계산한 수치는 동일했다. H14 외식은4쪽 생활서비스 조건이 맞아 유지했다. 원래55 원자료와 당시 판정은 보존한다. 추가 구역194개는 원색인의 텍스트·카드·제목·페이지와 정확히 일치했다. 이 검사는 추가 조립으로 생긴 변경이 없음을 뜻하며 기존 OCR과 제목 계층 전체의 정확성을 보장하지 않는다. <a href="../../notebooks/data/57_sequential_condition_evidence/source_correction_contract.json">원문 범위 교정 기록</a></p>
+<p>H11 parent-child의 기본 실적40만원은 실제 Monthly Plan 표와 공통 실적 문단을 다시 읽어 A/B 모두 확인했다. 이 판정은55번의 기존 ‘부재’ 판정을 수정하지 않고 이번 평가에 별도로 기록했다. 따라서55번 수치와 이번 A 수치의 차이를 추출 보완의 순수 효과로 해석하면 안 된다.</p></section>
+<section><h2>질문 성격별 결과</h2>
+<table><thead><tr><th>성격 · 질문 수</th><th>benefit A → B 회수율</th><th>parent A → B 회수율</th><th>parent 완전근거 A → B</th></tr></thead><tbody>
+<tr><td>고유 상품명 · 8</td><td>100 → 100%</td><td>100 → 100%</td><td>8 → 8</td></tr>
+<tr><td>수치·조건 · 10</td><td>100 → 100%</td><td>96.67 → 100%</td><td>8 → 9</td></tr>
+<tr><td>의미·혜택 · 10</td><td>90.17 → 90.17%</td><td>84.00 → 88.50%</td><td>4 → 5</td></tr>
+<tr><td>발급사 범위 · 3</td><td>100 → 100%</td><td>100 → 100%</td><td>3 → 3</td></tr>
+<tr><td>상세 질문 · 1</td><td>100 → 100%</td><td>83.33 → 100%</td><td>0 → 1</td></tr>
+<tr><td>잘못된 전제 진단 · 5</td><td>100 → 100%</td><td>100 → 100%</td><td>5 → 5</td></tr>
+</tbody></table>
+<div class="guide"><b>분모 안내:</b> 위와 같은 필수사실 회수율·완전근거 지표를 보존된 subgroup(질문 성격)별로 나눈 것이다. 예를 들어 수치·조건10질문은 각 질문의 회수율을 먼저 구해 평균한다. 높을수록 좋으며 전체 확보 기준은 동일하다. 불확실 사실은 완전성을 막기 때문에 회수율100%여도 완전근거 수가 질문 수보다 작을 수 있다. 1질문 집단의 개선을 일반 성능으로 해석하지 않는다.</div></section>
+<section><h2>시간·비용과 자원</h2>
+<table><thead><tr><th>실측 · 초</th><th>benefit 평균 / 중앙값 / P95</th><th>parent-child 평균 / 중앙값 / P95</th></tr></thead><tbody>
+<tr><td>A 검색</td><td>0.626 / 0.074 / 0.114</td><td>0.186 / 0.047 / 0.725</td></tr>
+<tr><td>A 안의 재정렬</td><td>0.513 / 0.029 / 0.046</td><td>0.120 / 0.006 / 0.037</td></tr>
+<tr><td>B 추가 검색·정렬·조립</td><td>3.593 / 0.655 / 11.297</td><td>4.108 / 2.509 / 10.507</td></tr>
+<tr><td>A+B 전체</td><td>4.220 / 0.912 / 14.878</td><td>4.295 / 2.943 / 11.105</td></tr>
+</tbody></table>
+<div class="guide"><b>시간 안내:</b> Wall time(경과 시간)은 해당 단계가 끝날 때까지의 실제 초다. 프로필별40질문을 사용하며 확인 요청3개처럼 검색을 하지 않는 경우는0이다. 평균·중앙값은 낮을수록 빠르고 P95는 정렬한ceil(0.95n)번째다. 재정렬은 A 검색 안의 일부로 더해서 합산하면 안 된다. 기존 캐시와 콜드 모델 로딩이 섞여 있다. benefit 첫 검색의19.58초가 평균을 크게 올렸으며 온라인 품질 SLA나 동시 사용자 지연을 측정한 값이 아니다.</div>
+<p>전체 실행 경과348.93초, CPU1309.62초, 최고 프로세스 RSS3,002,576KiB(약2.86GiB), 측정한 가용RAM 최솟값5,773,232KiB(약5.51GiB)였다. CPU는4스레드 누적 시간으로 경과 시간보다 클 수 있다. GPU는 사용하지 않았다. 새 재정렬 쌍466개, 정렬 호출130회다. B에서 추가한 근거는 benefit82개·parent112개, 중복을 제거하면136구역이다.</p>
+<p>API0건·새 임베딩0건·추가 API 비용0달러다. 보존 벡터40개는 실제 과거 임베딩 응답과 일치하는지 검증해 재사용했다. 원본 색인·DB·운영 코드 저장 변화는0이며 실행용 색인·캐시 복사본과 결과가 추가됐다. 첫 토큰·브라우저 표시·실제 온라인 종단 응답시간·답변 생성 시간은 미측정이다.</p></section>
+<section><h2>근거와 재현 범위</h2>
+<p>노트북의 준비·검색 두 코드 셀을 순서대로 실행했다. 검색 함수와 원문 청킹을 고정했고, 모든 A/B 쌍의 카드 범위·기존 근거 접두부·직렬화 예정 입력 크기를 검사했다. 사실 판정은 보존된 같은 카드 지원 인용과 새 본문 수동 검토를 결합한 Codex 평가다. 독립적인 사람 평가나 전체 OCR 정확도 검증이 아니다. 교정 후 독립 검토에서 미해결 중대 사항0건을 확인했다. benefit은A만, parent-child는A/B를58번 선택 후보로 허용했다.</p>
+<p><a href="../../notebooks/57_sequential_condition_evidence.ipynb">57 노트북</a> · <a href="../../notebooks/data/57_sequential_condition_evidence/retrieval_results.json">80검색 원결과</a> · <a href="../../notebooks/data/57_sequential_condition_evidence/source_fact_judgments.json">원문 사실 판정</a> · <a href="../../notebooks/data/57_sequential_condition_evidence/evaluation_summary.json">조건별 전체 집계</a> · <a href="../../notebooks/data/57_sequential_condition_evidence/execution_resources.json">자원 실측</a> · <a href="../EVALUATION_METRICS.md">평가지표 정의</a></p></section>
+<section><h2>현재 결론</h2><p>benefit은 조건 구역을 더해도 필수 근거 회수와 완전성이 같고 입력량·시간이 늘었다. parent-child는 회수율+2.57%p, 완전근거28→31질문으로 개선했지만 Time/Daily 표 누락·PACK 선택·앱 범위 모호함은 남았다. 추가 근거가 답변 정확도를 높이는지는 아직 확인하지 않았다. 독립 원문 판정 검토를 통과해 benefit은A, parent-child는A/B를58번 선택 후보로 허용했다. benefit B도 비교 행은 공개하되 최종 선택에서는 제외한다. 58번에서 기존/보완 답변 지침과 함께 비교한다. 운영 반영은 하지 않았다.</p></section>
+</html>

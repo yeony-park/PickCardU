@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>66 · 화면 답변 평가 정책과 기존 결과 재검토</title>
+<style>body{margin:0;background:#f3f6fa;color:#17283b;font:16px/1.75 system-ui,sans-serif}main{max-width:1200px;margin:auto;padding:32px 24px}h1{font-size:30px;line-height:1.4}h2{margin-top:36px;font-size:23px}a{color:#245d9c}table{border-collapse:collapse;width:100%;background:white;margin:12px 0 24px;font-size:14px}th,td{border:1px solid #dce3eb;padding:9px;text-align:left;vertical-align:top}th{background:#eaf0f7}caption{text-align:left;font-weight:bold;margin-bottom:8px}.scroll{overflow:auto}.guide,.notice{padding:16px 20px;background:#e8f1ff;border-radius:9px;margin:16px 0}.notice{border-left:5px solid #3869aa}.caution{background:#fff4df}.best{background:#e9f6ed}.runner{background:#f0f6ff}code{background:#e9edf2;padding:2px 4px;overflow-wrap:anywhere}small{color:#526579}@media print{body{background:white}main{max-width:none;padding:0}.scroll{overflow:visible}}</style></head>
+<body><main>
+<p><a href="../../notebooks/66_visible_answer_policy.ipynb">66번 노트북</a> · 2026-10-27 · 기존 답변 재채점 · 신규 API 0건</p>
+<h1>직접 질문의 정답과<br>부가 설명의 완전성을 분리했습니다</h1>
+<div class="notice"><strong>같은 저장 답변의 평가 정책 변경 결과입니다.</strong> 전체 48질문×3회에서 화면 최종 통과는 benefit 비정형 128/144(88.89%), 순차 134/144(93.06%), parent-child 비정형 120/144(83.33%), 순차 123/144(85.42%)입니다. 모델·검색·답변을 새로 개선한 결과로 해석하면 안 됩니다. 운영 반영은 하지 않았습니다.</div>
+
+<h2>1. 왜 진행했는가</h2>
+<p>65번에서는 직접 질문을 해결했어도 묻지 않은 실적·한도·예외를 빠뜨렸다는 이유로 전체 답변이 미통과될 수 있었습니다. 이번에는 <strong>직접 요청 충족, 실제로 말한 사실의 정확성, 실제 입력 지원, 추가 설명의 충실도</strong>를 분리했습니다. 실적을 묻지 않은 커피 카드 추천에 실제 할인 카드를 추천했다면 실적 생략만으로 실패시키지 않습니다. 반대로 “실적 없이 할인”이라고 잘못 확정하거나 다른 혜택의 할인율을 가져오면 실제 오류로 남깁니다.</p>
+<p>확인 질문은 “낮은 점수 중 얼마가 평가 정책에서 비롯됐으며, 실제 조회·전달·생성 오류는 무엇인가”입니다. <a href="../../notebooks/notes/66_69_structured_search_repair_plan.md">66~69 실행 계획</a>의 첫 단계입니다.</p>
+
+<h2>2. 바꾼 것과 고정한 것</h2>
+<p>바꾼 것은 채점 정책과 화면 판정입니다. 실제 화면의 <code>answer_text</code>와 모든 <code>recommendations.reason</code>을 읽고 카드별 원문·실제 전송 근거와 대조했습니다. 내부 <code>claims</code>는 화면에서 보이지 않으므로 화면 누락을 보충하는 정답 문장으로 쓰지 않았습니다.</p>
+<p>65번의 질문 48개, 두 운영 프로필, U/SEQ 방식, 각 3회, 저장 답변 576개와 원문·DB·인덱스는 고정했습니다. benefit과 parent-child는 각자의 최적화된 검색 설정을 유지하므로 결과 차이는 <strong>프로필 전체의 차이</strong>이며 청킹만의 인과효과가 아닙니다. U는 각 프로필의 비정형 검색, SEQ는 구조화 결과가 있으면 그 카드 범위에서 원질문으로 비정형 검색하고 0건이면 원래 범위에서 비정형 검색하는 순차입니다. 별도 전체 비정형 결과를 병합하지 않습니다.</p>
+<p>판정은 Codex가 실제 문장을 읽어 작성했고, 코드는 인용 위치·카드 소유·출처·실제 API 입력·완전 행렬을 검증하고 집계했습니다. 사람의 독립 정답셋 검증이나 모델 자동 채점만으로 나온 점수는 아닙니다. 실제 입력 576개를 저장 요청·직렬화 계약과 대조했고 평가 문맥의 고정 파일 2,022개를 재확인했습니다. <a href="../../notebooks/data/66_visible_answer_policy/input_verification.json">입력 검증</a>, <a href="../../notebooks/data/66_visible_answer_policy/evaluation_results.json">전체 판정·결과</a>.</p>
+
+<h2>3. 전체 결과</h2>
+<div class="guide"><strong>표 읽기:</strong> 각 행은 48질문×3회=144개 논리 답변입니다. 모든 백분율은 높을수록 좋습니다. <em>Direct Request Fulfillment(직접 요청 충족)</em>은 질문별 직접 요구를 모두 답한 비율입니다. 커피 추천이면 실제 커피 혜택 카드 추천을 봅니다. <em>Visible Factual Accuracy(화면 주장 정확성)</em>는 본문·추천이유의 실제 사실이 원문상 모두 정확한 비율입니다. 다른 혜택의 5~7%를 동물병원에 붙이면 실패입니다. <em>Actual Input Support(실제 입력 지원)</em>는 실제로 말한 카드 사실을 전송 근거가 모두 뒷받침한 비율입니다. 원문상 맞아도 현재 청크에 없으면 완전 지원이 아닙니다. <em>Visible Answer Pass(화면 최종 통과)</em>는 기술 성공·직접 요청 충족·실제 주장 정확성의 동시 충족입니다. 입력 지원은 별도 축이며 단순 카드 발견이나 모든 주의사항 나열의 점수가 아닙니다. 추가 설명 충실도는 각 판정의 정성 메모로 남겼고 고정 분모 없는 백분율을 만들지 않았습니다. 기술 성공은 네 조건 모두 144/144입니다.</div>
+<div class="scroll"><table><caption>동일한 576개 저장 답변의 새 정책 평가</caption><thead><tr><th>고정 운영 프로필</th><th>검색</th><th>직접 요청 충족</th><th>화면 주장 정확성</th><th>실제 입력 지원</th><th>화면 최종 통과</th></tr></thead><tbody>
+<tr class="runner"><td>benefit</td><td>U · 비정형</td><td>141/144 · 97.92%</td><td>131/144 · 90.97%</td><td>126/144 · 87.50%</td><td>128/144 · 88.89%</td></tr>
+<tr class="best"><td>benefit</td><td>SEQ · 순차</td><td>142/144 · 98.61%</td><td>136/144 · 94.44%</td><td>136/144 · 94.44%</td><td><strong>134/144 · 93.06%</strong></td></tr>
+<tr><td>parent-child</td><td>U · 비정형</td><td>123/144 · 85.42%</td><td>141/144 · 97.92%</td><td>136/144 · 94.44%</td><td>120/144 · 83.33%</td></tr>
+<tr><td>parent-child</td><td>SEQ · 순차</td><td>125/144 · 86.81%</td><td>142/144 · 98.61%</td><td>133/144 · 92.36%</td><td>123/144 · 85.42%</td></tr>
+</tbody></table></div>
+<p>이 저장 자료에서 가장 높은 값은 benefit 순차입니다. parent-child는 실제 주장 정확성이 높지만 직접 요청을 다 해결하지 못한 답변이 더 많습니다. parent-child 순차는 최종 통과가 3개 늘어도 <strong>입력 완전 지원은 136→133개로 줄었습니다.</strong> 평균 통과 상승만으로 모든 축이 개선됐다고 말할 수 없습니다.</p>
+
+<div class="guide"><strong>반복 변동:</strong> <em>Repeat Pass Rate(반복별 통과율)</em>는 각 회차 48질문 중 통과한 비율이며 높을수록 좋습니다. <em>Population Standard Deviation(모표준편차)</em>는 세 비율과 그 평균의 차이를 제곱해 3으로 나눈 뒤 제곱근을 취한 값으로, 표에는 %p 단위로 표시했습니다. 같은 평균이라면 작을수록 변동이 적습니다. 합계가 같은 회차라도 실패 질문이 다를 수 있고, 표준편차 0이 새 질문의 완전한 안정성을 뜻하지 않습니다. <a href="../../notebooks/data/66_visible_answer_policy/repeat_variation.json">반복별 집계</a>.</div>
+<table><caption>기존 3회 답변의 통과율 변동</caption><thead><tr><th>프로필·검색</th><th>1회</th><th>2회</th><th>3회</th><th>3회 평균</th><th>모표준편차</th></tr></thead><tbody>
+<tr><td>benefit U</td><td>42/48 · 87.50%</td><td>45/48 · 93.75%</td><td>41/48 · 85.42%</td><td>88.89%</td><td>3.54%p</td></tr>
+<tr><td>benefit SEQ</td><td>44/48 · 91.67%</td><td>46/48 · 95.83%</td><td>44/48 · 91.67%</td><td>93.06%</td><td>1.96%p</td></tr>
+<tr><td>parent-child U</td><td>40/48 · 83.33%</td><td>40/48 · 83.33%</td><td>40/48 · 83.33%</td><td>83.33%</td><td>0.00%p</td></tr>
+<tr><td>parent-child SEQ</td><td>40/48 · 83.33%</td><td>42/48 · 87.50%</td><td>41/48 · 85.42%</td><td>85.42%</td><td>1.70%p</td></tr>
+</tbody></table>
+<h2>4. 이전 점수와 무엇이 다른가</h2>
+<div class="guide"><strong>비교 기준:</strong> <em>Legacy Pass(기존 전체 답변 통과)</em>는 65번의 원래 판정입니다. 새 최종 통과와는 정책이 다릅니다. 분모는 동일한 144개 저장 답변이며 높을수록 좋지만 두 열의 차이는 성능 개선량이 아닙니다. 예를 들어 정확한 커피 추천에서 미요청 실적 생략 때문에 과거에 부분 판정이던 답변은 새 정책에서 통과할 수 있습니다. 반면 실제 잘못 말한 사실은 다시 대조해 실패로 유지하거나 새로 발견했습니다.</div>
+<table><caption>정책 변경에 따른 재채점 이동</caption><thead><tr><th>프로필·검색</th><th>65 기존 통과</th><th>66 화면 최종 통과</th><th>미통과→통과</th><th>통과→미통과</th></tr></thead><tbody>
+<tr><td>benefit U</td><td>67/144 · 46.53%</td><td>128/144 · 88.89%</td><td>62</td><td>1</td></tr>
+<tr><td>benefit SEQ</td><td>78/144 · 54.17%</td><td>134/144 · 93.06%</td><td>56</td><td>0</td></tr>
+<tr><td>parent-child U</td><td>52/144 · 36.11%</td><td>120/144 · 83.33%</td><td>70</td><td>2</td></tr>
+<tr><td>parent-child SEQ</td><td>51/144 · 35.42%</td><td>123/144 · 85.42%</td><td>75</td><td>3</td></tr>
+</tbody></table>
+<p>R02 benefit SEQ r1의 온라인 월한도 1만·1만5천·2만원은 숨은 claims에 있었고, 화면이 그 숫자를 넷플릭스 한도라고 명시한 문장은 아니었습니다. 이를 화면의 숫자 오류로 옮겨 채점하지 않았습니다. 화면의 불필요한 온라인 한도 확인 권고는 설명 개선점으로 남겼습니다. 원래 65번 판정은 덮어쓰지 않았습니다.</p>
+
+<h2>5. 질문군과 개별 승패</h2>
+<div class="guide"><strong>질문군 통과:</strong> 같은 화면 최종 통과 기준입니다. 명시 질문은 36×3=108개, 범용은 8×3=24개, 정보 부족은 4×3=12개가 각 설정의 분모입니다. 정보 부족 질문은 카드·소비정보 없이 할인액을 확정하지 않고 부족한 정보를 설명해야 합니다. 높을수록 좋으며 군별 질문 수가 달라 백분율만으로 자료량이 같다고 해석하면 안 됩니다.</div>
+<table><caption>질문 성격별 화면 최종 통과</caption><thead><tr><th>프로필·검색</th><th>명시 질문</th><th>범용 질문</th><th>정보 부족</th></tr></thead><tbody>
+<tr><td>benefit U</td><td>96/108 · 88.89%</td><td>20/24 · 83.33%</td><td>12/12 · 100%</td></tr>
+<tr><td>benefit SEQ</td><td>102/108 · 94.44%</td><td>20/24 · 83.33%</td><td>12/12 · 100%</td></tr>
+<tr><td>parent-child U</td><td>88/108 · 81.48%</td><td>21/24 · 87.50%</td><td>11/12 · 91.67%</td></tr>
+<tr><td>parent-child SEQ</td><td>91/108 · 84.26%</td><td>21/24 · 87.50%</td><td>11/12 · 91.67%</td></tr>
+</tbody></table>
+<p><strong>Paired Query Wins/Losses/Ties(질문별 승·패·동률)</strong>은 각 질문의 3회 통과 개수를 U와 SEQ 사이에서 비교합니다. benefit은 순차 4승·0패·44동률이며 승리 질문은 R16·R17·R22·R31입니다. parent-child는 3승·3패·42동률이며 승리는 R17·R23·R27, 패배는 R05·R22·R31입니다. 같은 질문의 세 반복을 세 개 독립 질문으로 세지 않았습니다. 같은 실제 입력·답변을 공유한 경로도 있으므로 이 결과는 새로운 독립 생성 확인이나 신뢰구간 검증이 아닙니다. <a href="../../notebooks/data/66_visible_answer_policy/evaluation_results.json">전체 질문별 개수·승패</a>.</p>
+
+<h2>6. 실패로 남긴 실제 사례</h2>
+<div class="guide"><strong>Error-bearing Answer Count(오류 포함 답변 수):</strong> 각 설정의 144개 논리 답변 중 해당 오류가 있는 답변 수이며, 한 답변의 본문·추천이유에 반복돼도 같은 코드의 답변은 한 번만 셉니다. 적을수록 좋습니다. 한 답변에 여러 오류가 있으면 코드별 건수를 합쳐 전체 실패 수로 해석하지 않습니다. 예를 들어 같은 동물병원 요율 오류를 본문과 추천이유에 말해도 한 답변입니다. 원 JSON의 <code>visible_error_counts</code>는 인용 구간의 발생 수이므로 아래 답변 수와 다를 수 있습니다. 같은 실제 답변을 경로별로 재사용한 경우도 독립 오류 발생 횟수라고 해석하지 않습니다.</div>
+<table><caption>미요청 생략과 구분한 실제 거짓 주장</caption><thead><tr><th>사례</th><th>확인한 문제</th><th>해당 답변 수</th></tr></thead><tbody>
+<tr><td>R04 · iAll 동물병원</td><td>LIVING 1~1.5% 대신 다른 MEMBERSHIP의 5~7%를 동물병원에 연결했습니다.</td><td>benefit U 3, SEQ 3</td></tr>
+<tr><td>R16 · 병원/약국</td><td>공유 횟수를 병원과 약국 각각의 횟수로 나눴습니다.</td><td>benefit U 1</td></tr>
+<tr><td>R17 · 철도 앱</td><td>택시 앱 제외를 철도까지 확정 확대했습니다. 별도의 모호한 유보 행은 확정 오류와 구분했습니다.</td><td>benefit U 2</td></tr>
+<tr><td>R22 · 가정용 전기</td><td>가정용도 가능한 하나카드를 일부 영업용만 가능한 것으로 좁혔습니다.</td><td>benefit U 1</td></tr>
+<tr><td>R05 · 전기요금 실적</td><td>다른 카드의 전기요금 실적 제외를 Mr.Life에도 옮겨 세 카드 공통으로 확정했습니다.</td><td>parent-child SEQ 1</td></tr>
+<tr><td>R34 · 실적 미달 구간</td><td>Point Plan의 실적 40만원 미만을 무한도로 말했습니다. 숨은 claims에만 있던 다른 행은 화면 오류로 복사하지 않았습니다.</td><td>benefit U 1, SEQ 1</td></tr>
+<tr><td>R37 · 예시 금액</td><td>예시의 총 캐시백 15,000원을 매달 지급하는 고정 금액으로 일반화했습니다.</td><td>benefit U 1, SEQ 1</td></tr>
+<tr><td>R44 · 이용기간</td><td>JADE의 횟수 차감 기간을 달력상 올해 사용과 잘못 연결했습니다.</td><td>parent-child U 1, SEQ 1</td></tr>
+</tbody></table>
+<p>불확실한 실제 주장도 완전 정확성으로 올리지 않았습니다. 예를 들어 R27 앱 적용범위는 benefit U/SEQ 각 3회와 parent-child U 2회에서 불확실로 남았습니다. 반면 원문상 맞는 일반교통 20만원을 실제 입력이 뒷받침하지 않은 경우는 사실 정확성과 입력 지원을 분리했습니다. 직접 요청한 실적별 한도·동일 카드의 복수 혜택을 답하지 못한 사례도 추가 설명 생략과 별개로 미충족에 남겼습니다.</p>
+
+<h2>7. 표현 해석 이견과 보수 채점 민감도</h2>
+<p>R08 parent-child SEQ r3의 “두 카드 모두 … 2만 포인트(하나머니)”에 대해 독립 reviewer는 처음 단위 전이 오류를 지적했고, 화면의 카드별 추천이유를 함께 재검토한 뒤 확정 거짓보다는 불확실 판정을 권고했습니다. main은 IBK의 2만 포인트와 JADE의 2만 하나머니를 실제 화면이 나눠 설명하고, IBK의 하나머니 적립·상호전환·합산을 명시하지 않았다는 근거로 정확성 통과를 유지했습니다. 공동 병기의 입력 지원은 부분으로 낮추고 표현 개선점과 이견을 보존했습니다.</p>
+<p>동일하게 R08 benefit U r2의 공공급속 안내에 명시되지 않은 “공공급속만”을 추가 추론하지 않았습니다. 두 문장을 모두 보수적으로 불확실 처리하면 benefit U는 <strong>127/144 · 88.19%</strong>, parent-child SEQ는 <strong>122/144 · 84.72%</strong>가 됩니다. benefit SEQ 134/144와 parent-child U 120/144는 같습니다. 분모·통과 기준은 위 표와 동일하고 각 해당 설정의 변화는 1/144, 약 0.69%p입니다. 이 범위에서도 가장 높은 설정은 바뀌지 않습니다. <a href="../../notebooks/data/66_visible_answer_policy/wording_adjudication.json">원문·이견·최종 판정 기록</a>.</p>
+
+<h2>8. 과거 근거 추가 실험을 다시 확인한 범위</h2>
+<p><strong>53 H11:</strong> 실제 API 입력을 재구성해 기존 비정형 근거 9개가 그대로 유지되고 DB 사실 3개가 추가됐음을 확인했습니다. FLEX의 전월실적 30만원도 추가 사실과 실제 입력에 있지만 답변에는 없었습니다. 질문은 OTT 20% 이상·최소 결제금액·월 횟수였으므로 이 미요청 실적 생략 자체는 새 정책의 단독 실패 사유가 아닙니다. 입력 조건을 생략했음은 확인되지만, 특정 프롬프트·위치·출력 제한이 원인인지는 이 사례만으로 모르겠습니다.</p>
+<p><strong>58 비교:</strong> 일반 후보 192개와 수동 원문 진단 48개의 실제 입력 240개를 확인했습니다. 일반 A/B 96쌍 모두 기존 근거를 정확한 순서로 보존했습니다. 다만 B는 같은 카드의 조건 whole-section 추가이며 DB fact JSON 추가가 아닙니다. 과거 선택의 새 중요조건 누락 거절 규칙은 새 정책과 같지 않으므로, 과거 선택과 수치를 66의 새 정책 성능으로 가져오지 않았습니다. 이 감사는 53 전체·58 전체 답변을 새 정책으로 전수 재채점한 결과가 아닙니다. <a href="../../notebooks/data/66_visible_answer_policy/historical_evidence_audit.json">역사 비교·실제 입력 감사</a>.</p>
+
+<h2>9. 자원·검증·주의사항</h2>
+<p>새 API 요청·비용과 새 임베딩은 모두 <strong>0</strong>입니다. 기존 누적 보수 차감액 1.658813910달러와 8달러 상한은 그대로이며 청구서 실측 금액은 아닙니다. 이번 전체 노트북 코드셀은 같은 Python 프로세스에서 다시 실행했습니다. 셀 전체 185.88초, 마지막 576행 검증·집계 181.73초, CPU 181.21초, 프로세스 최대 RSS 779,136KiB(약 760.9MiB), GPU 미사용입니다. 이 값은 로컬 검증 시간입니다. 수동 의미 검토 시간과 브라우저 출력 시간은 미측정이며 검색·답변 생성의 온라인 응답시간으로 쓰지 않습니다. <a href="../../notebooks/data/66_visible_answer_policy/final_scoring_resources.json">자원 기록</a>.</p>
+<p>41개 평가 회귀검사와 별도의 구조화 보완 검사들을 통과했습니다. 독립 Codex reviewer가 helper·출처/입력 경로·의미 표본을 검토했고, 위 한 표현 이견은 main이 근거와 민감도를 남겨 판정했습니다. 576행을 또 다른 사람이 독립 전수 판정한 것은 아닙니다. 정답 여부를 코드의 문자 일치만으로 보증하지 않으며 표의 관계·적용 범위는 수동 검토의 한계가 있습니다. <a href="../../notebooks/data/66_visible_answer_policy/independent_review/final_scope_review.json">독립 검토 범위와 이견</a>.</p>
+<div class="notice caution"><strong>개발·재평가 자료입니다.</strong> 같은 질문을 여러 실험에 사용했고 문제 사례를 본 뒤 정책·판정 경계를 검토했습니다. 반복은 독립 질문이 아니며, 사후 판정 일관성 조정을 새 모델 개선·독립 확인·운영 채택으로 부르지 않습니다. 원래 답변·65 판정·수정 전 판정과 결속 이력은 보존했습니다.</div>
+
+<h2>10. 최종 정리와 다음 단계</h2>
+<p><strong>개선된 것은 평가의 구분입니다.</strong> 정확히 답한 직접 요청을 미요청 부가 설명 생략만으로 탈락시키지 않으면서, 요율·조건 전이·명시 요청 미충족은 유지했습니다. 이 저장 자료의 가장 높은 값은 benefit 순차 93.06%입니다. parent-child 순차의 입력 지원 감소와 개별 질문 손실은 남아 있습니다.</p>
+<p>채택한 것은 새 화면 평가 정책이며 운영 검색 설정을 새로 채택하지 않았습니다. 내부 claims로 화면 누락을 채우는 판정과 미요청 누락의 일괄 실패 처리는 배제했습니다. 새 API 비용은 0이고 로컬 전체 재실행은 약 186초입니다. 다음은 67번의 DB/매칭·추출기 검증, 68번의 자동 구조화 근거 내용·형식·지시문 교차 비교, 69번의 신규 질문 확인입니다. 남은 실험 전에는 이 재채점 수치만으로 최종 운영 파이프라인을 확정하지 않습니다.</p>
+<p><a href="../EVALUATION_METRICS.md">평가지표 명세</a> · <a href="../../notebooks/data/66_visible_answer_policy/question_contract.json">48질문 직접 요구</a> · <a href="../../notebooks/data/66_visible_answer_policy/evaluation_results.json">전체 576행·질문별 승패·민감도</a></p>
+</main></body></html>

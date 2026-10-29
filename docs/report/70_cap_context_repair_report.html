@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>70 · 구조화 검색 보완 후 개발 재검증</title>
+<style>
+:root{--ink:#182334;--muted:#526174;--line:#d8e1eb;--blue:#174b83;--light:#eef5fc;--warn:#fff5df;--good:#eaf5ef}*{box-sizing:border-box}body{margin:0;background:#f5f7fa;color:var(--ink);font:16px/1.75 system-ui,"Noto Sans KR",sans-serif}main{max-width:1200px;margin:32px auto;padding:36px;background:white;border:1px solid var(--line);border-radius:12px}h1{font-size:29px;line-height:1.4}h2{font-size:23px;margin-top:44px;border-bottom:2px solid var(--line);padding-bottom:8px}h3{font-size:18px;margin-top:26px}p{margin:12px 0}a{color:var(--blue)}table{border-collapse:collapse;width:100%;font-size:14px;margin:14px 0}th,td{border:1px solid var(--line);padding:9px 10px;text-align:left;vertical-align:top}th{background:var(--light)}.scroll{overflow:auto}.guide,.note,.decision{padding:16px 20px;border-radius:8px;margin:16px 0}.guide{background:var(--light);font-size:14px}.note{background:var(--warn)}.decision{background:var(--good);border-left:5px solid #347858}.muted{color:var(--muted);font-size:14px}.num{font-variant-numeric:tabular-nums;white-space:nowrap}.best{background:var(--good);font-weight:700}.runner{font-weight:650}pre{white-space:pre-wrap;padding:18px;background:#f2f5f9;border:1px solid var(--line);font-size:14px}code{overflow-wrap:anywhere}small{font-size:13px}@media(max-width:760px){main{margin:0;padding:20px;border-radius:0}h1{font-size:24px}td,th{padding:7px;min-width:85px}}
+</style>
+</head>
+<body><main>
+<p class="muted">실험 70 · 24질문 × 2개 고정 운영 프로필 × 3방식 × 3회 = 432개 논리 답변 · 사후 수정 개발 재검증</p>
+<h1>구조화 검색 보완 후, 검색 범위·최종 답변·원문 오류를 분리해 재검증</h1>
+<div class="decision"><strong>이번 수정 순차 설정은 채택하지 않는다.</strong> 기존 순차 기준선이 benefit 71/72, parent-child 67/72로 각 프로필에서 가장 높았다. 수정 순차는 각각 65/72, 60/72였고, 새 수치·관계 오류가 발생했다. 기존 순차를 개발 기준선으로 유지한다. 실제 운영 코드는 변경하지 않았다.</div>
+<p>이 수치는 <strong>검색된 카드 수가 아니라 LLM의 최종 화면 답변까지 포함한 결과</strong>다. 묻지 않은 실적·한도를 생략했다는 이유만으로 탈락시키지 않았다. 실제로 답한 내용의 정확성과 직접 요청 해결 여부를 판정했다.</p>
+<div class="note">독립 확인시험이나 운영 승격 결과가 아니다. 69번의 원문 충돌을 확인한 뒤 DB 사본을 수정했고, 같은 24개 질문과 관련 주제를 재사용했다. 기존 OCR·비구조화 근거에는 원문과 반대인 내용도 남아 있다. 아래 신뢰구간은 이 개발 자료의 변동 진단이다.</div>
+
+<h2>왜 실행했고, 무엇을 고정했나</h2>
+<p>목적은 구조화 조회 실패, 잘못 적재된 값, 필요한 본문이 빠진 입력, 올바른 입력을 잘못 사용한 답변을 구분하는 것이다. 각 청킹의 검색 프로필은 이전에 선택한 운영 방식 그대로 유지했다. 두 프로필을 동일한 검색 설정으로 바꾸지 않았으므로 프로필 간 차이를 청킹 하나의 순수 효과로 해석하지 않는다.</p>
+<p>동일한 106개 카드, 원질문, 질문별 직접 요구, 세 반복, 모델 <code>gpt-6-luna / medium</code>, 답변 출력 한도 2,400토큰, 논리 답변당 최대 두 물리 시도를 사용했다. 각 논리 답변은 새로 생성했다. 검색은 질문·벡터·프로필·카드 범위·색인이 정확히 같은 기존 결과만 재사용했다. 새 임베딩·추출 API·색인 생성·재정렬기 모델 로드는 없었다.</p>
+<div class="scroll"><table>
+<thead><tr><th>방식</th><th>조회 규칙</th><th>LLM에 전달하는 근거</th><th>생성 지시문</th><th>상태</th></tr></thead>
+<tbody>
+<tr><td>U · 비구조화 단독</td><td>구조화 필터 없음</td><td>고정 운영 프로필의 vector + BM25 검색 본문</td><td>기존 지시문</td><td>운영 방식에 대응하는 비교 기준</td></tr>
+<tr><td>SEQ65 · 기존 순차</td><td>DB3 + 기존 매칭</td><td>구조화 후보 카드 범위에서 찾은 비구조화 본문. 구조화 행을 별도로 붙이지 않음</td><td>기존 지시문</td><td>65번에서 이어온 개발 기준선</td></tr>
+<tr><td>수정 순차 · benefit</td><td>DB5 + 67번 명사 후보 투영</td><td>해당 범위의 기존 본문 + 자동 조립한 일치 사실 JSON</td><td>68번 선택 B_direct: 직접 질문 중심</td><td>새 개발 후보, 이번 비교에서 미채택</td></tr>
+<tr><td>수정 순차 · parent-child</td><td>DB5 + 같은 수정 매칭</td><td>해당 범위의 기존 본문 + 자동 조립한 일치 사실 JSON</td><td>68번 선택 B_old: 기존 지시문</td><td>새 개발 후보, 이번 비교에서 미채택</td></tr>
+</tbody></table></div>
+<p class="muted">이 표는 설정 명세다. 수정 순차와 기존 순차의 차이는 DB·매칭·근거 구성·프로필별 선택 지시문의 결합 효과이며, SQL 수정 한 가지의 효과가 아니다. top 카드 3개, 카드별 근거 최대 5개, parent 묶음 최대 5개, 입력 64,000바이트 제한을 유지했다.</p>
+
+<h2>66~70번을 어떤 순서로 진행했나</h2>
+<ol>
+<li><strong>66 · 평가 정책 분리.</strong> 직접 질문에 답했는지와 실제로 말한 사실의 정확성, 입력 지원, 추가 설명을 분리했다. 저장된 576개 답변의 재채점은 평가 정책 변경 효과이며 모델 개선이 아니다. <a href="66_visible_answer_policy_report.html">66 보고서</a></li>
+<li><strong>67 · 조회와 질문 추출 분리.</strong> 저장된 144계획을 재생하고 DB 사본의 실적 표현과 명사 매칭을 보완했다. 양성 조회가 100→108계획으로 늘었다. 새 추출기 288개 비교에서는 라운지 조건 회귀가 있어 기존 추출기를 유지했다. <a href="67_structured_retrieval_repair_report.html">67 보고서</a></li>
+<li><strong>68 · 입력 내용·표현·지시문 교차.</strong> 같은 카드·순위·비구조화 본문을 고정하고 A=기존 본문, B=A+사실 JSON, C=A+동일 사실 텍스트를 두 지시문과 완전 교차했다. 432개 답변에서 benefit B_direct 33/36, parent B_old 35/36을 예비 후보로 선택했다. 이후 잘못 분류했던 cap 노출 60개를 재검토하고 전체 432개를 재결속해도 선택은 같았다. <a href="68_structured_evidence_generation_report.html">68 보고서</a></li>
+<li><strong>69 · 생성 전 원문 수락 검사.</strong> 새 문장 24개로 432개 검색을 준비했지만, DB의 “1회 1만원”이 지급 한도로 파생된 원문 충돌을 찾아 생성 gate가 거절했다. 답변 생성은 0/432였다. 실패를 통과로 바꾸지 않았다. <a href="69_repaired_sequential_confirmation_report.html">69 보고서</a></li>
+<li><strong>70 · 해당 문맥 수정 후 새 답변 432개.</strong> 승인된 미실행 답변 물량을 이 개발 실험으로 이어갔다. DB5 사본에서 명시적인 “할인받기 전 이용금액 기준”을 자기 항목에만 복구해 3행을 수정했고, 다른 3,400행·원본·스키마는 유지했다. 실제 추가 사실 55개, 필드 1,650개, 전송 325회를 감사한 후 생성했다. 이 보고서의 결과다.</li>
+</ol>
+
+<h2>최종 답변 성능: 전체 여섯 조건</h2>
+<div class="guide"><strong>지표 읽는 법</strong><br>
+<strong>Visible Answer Pass · 화면 답변 통과</strong>: 기술 성공 AND 직접 요청 충족 AND 실제 표시 사실 정확. 조건별 전체 72개 답변이 분모이며 높을수록 좋다. 예: 커피 할인 카드 추천에 실제 해당 카드를 소개하고 틀린 숫자를 덧붙이지 않으면 통과할 수 있다. 미요청 한도 미열거는 실패가 아니다.<br>
+<strong>Direct Request Fulfillment · 직접 요청 충족</strong>: 미리 고정한 질문 요구를 모두 해결한 답변/72. <strong>Visible Factual Accuracy · 표시 사실 정확</strong>: 본문과 추천 이유에서 실제로 말한 사실이 모두 원문상 정확한 답변/72. 불확실 표현은 엄격한 완전 통과에서 제외한다.<br>
+<strong>Actual Input Support · 실제 입력 지원</strong>: 실제로 표시한 주장을 전송 근거가 모두 지원한 답변/72. 원문에는 맞지만 입력에는 없는 정답은 별도로 분리한다. <strong>이 값은 근거 회수율이 아니다.</strong> 필요한 답을 하지 않고 정직하게 유보하면 주장 지원은 높아도 직접 요청은 실패할 수 있다. 해시·문자 인용 검사는 의미상 정답을 자동 증명하지 않는다. 정의: <a href="../EVALUATION_METRICS.md">평가지표 문서 66번</a>.</div>
+<div class="scroll"><table>
+<thead><tr><th>프로필</th><th>방식</th><th>화면 답변 통과</th><th>직접 요청</th><th>표시 사실 정확</th><th>입력 전체 지원</th><th>확정 오류 답변 수</th></tr></thead>
+<tbody>
+<tr><td>benefit</td><td>U</td><td class="num runner">68/72 · 94.44%</td><td>71/72</td><td>68/72</td><td>68/72</td><td>1</td></tr>
+<tr class="best"><td>benefit</td><td>기존 순차</td><td class="num">71/72 · 98.61%</td><td>72/72</td><td>71/72</td><td>71/72</td><td>0</td></tr>
+<tr><td>benefit</td><td>수정 순차</td><td class="num">65/72 · 90.28%</td><td>70/72</td><td>65/72</td><td>63/72</td><td>3</td></tr>
+<tr><td>parent-child</td><td>U</td><td class="num runner">62/72 · 86.11%</td><td>66/72</td><td>65/72</td><td>67/72</td><td>1 · 기존 입력 오류 전파</td></tr>
+<tr class="best"><td>parent-child</td><td>기존 순차</td><td class="num">67/72 · 93.06%</td><td>68/72</td><td>70/72</td><td>71/72</td><td>1</td></tr>
+<tr><td>parent-child</td><td>수정 순차</td><td class="num">60/72 · 83.33%</td><td>69/72</td><td>63/72</td><td>60/72</td><td>6</td></tr>
+</tbody></table></div>
+<p>각 프로필의 관측 최고는 기존 순차, 차점은 U다. benefit 기존 순차의 미통과 1건은 확정 수치 오류가 아니라 C16의 결제 표현 모호성이다. 확정 오류 수와 엄격 통과 실패 수를 같다고 읽으면 안 된다. 전체 432개에는 최종 기술 실패 1개, 확정 사실 오류 12개, 불확실 표현 17개, C19의 직접 추천 미충족 9개가 있다. 이 구분은 이번 사례의 사후 설명이며 일반적인 자동 원인 분류기가 아니다.</p>
+<p>정답 의미는 main Codex와 등록 data-engineer가 원질문·실제 본문·모든 추천 이유·원문·현재 입력을 직접 대조했다. 코드는 출처/응답 동일성, 모든 문자구간의 소유권, 재시도 결속과 집계를 검사했다. 숨은 claims로 화면의 빠진 답을 보충하지 않았다. 등록 reviewer는 코드와 지정 경계 사례를 독립 검토했으며, 독립 인간의 432개 전수 채점은 아니다.</p>
+
+<h2>질문 유형과 반복을 나누어 보면</h2>
+<div class="guide"><strong>Subgroup Pass · 질문 유형별 통과</strong>: 같은 화면 통과 정의를 해당 유형의 모든 질문×3회에 적용한다. 높을수록 좋다. 예: 복합 질문에서 같은 카드의 커피와 넷플릭스 경로를 함께 설명해야 한다. 유형별 분모가 다르므로 통과 개수만 직접 비교하지 않는다. 각 유형은 동일 질문을 모든 방식·프로필에 사용했다.</div>
+<div class="scroll"><table>
+<thead><tr><th>유형 / 조건별 분모</th><th>benefit U</th><th>benefit 기존 순차</th><th>benefit 수정 순차</th><th>parent U</th><th>parent 기존 순차</th><th>parent 수정 순차</th></tr></thead>
+<tbody>
+<tr><td>짧은 추천 8질문 · 24</td><td>22</td><td>24</td><td>24</td><td>24</td><td>24</td><td>23</td></tr>
+<tr><td>복합 조건 6질문 · 18</td><td>18</td><td>18</td><td>16</td><td>17</td><td>17</td><td>12</td></tr>
+<tr><td>지정 카드 상세 4질문 · 12</td><td>10</td><td>11</td><td>8</td><td>9</td><td>11</td><td>10</td></tr>
+<tr><td>범용 4질문 · 12</td><td>12</td><td>12</td><td>12</td><td>8</td><td>9</td><td>9</td></tr>
+<tr><td>정보 부족 2질문 · 6</td><td>6</td><td>6</td><td>5</td><td>4</td><td>6</td><td>6</td></tr>
+</tbody></table></div>
+<div class="guide"><strong>Question-block Bootstrap · 질문 블록 재표본화</strong>: 같은 질문의 세 반복과 두 방식을 묶고 24질문을 10,000회 재표본화했다. 시드 70, 평균 통과율 차이의 2.5·97.5 백분위 구간이다. 개선 차이는 클수록 좋고, 0 포함 여부는 방향의 불확실성을 보여준다. 예: 같은 커피 질문의 3회는 독립 질문 3개가 아니다.<br><strong>Wins/Losses/Ties · 질문 승/패/동률</strong>: 후보의 3회 통과 수를 같은 질문의 기준선과 비교한 24질문 개수다. 승이 많고 패가 적은 것이 좋다. 같은 문서·개발 주제·사후 수정의 선택 편향을 신뢰구간이 없애지는 않는다.</div>
+<div class="scroll"><table>
+<thead><tr><th>프로필</th><th>후보 − 기준선</th><th>통과율 차이</th><th>95% 개발 진단 구간</th><th>질문 승/패/동률</th></tr></thead>
+<tbody>
+<tr><td>benefit</td><td>수정 순차 − 기존 순차</td><td>−8.33%p</td><td>−16.67 ~ −1.39%p</td><td>0 / 4 / 20</td></tr>
+<tr><td>parent-child</td><td>수정 순차 − 기존 순차</td><td>−9.72%p</td><td>−20.83 ~ −1.39%p</td><td>1 / 5 / 18</td></tr>
+<tr><td>benefit</td><td>기존 순차 − U</td><td>+4.17%p</td><td>0.00 ~ +8.33%p</td><td>3 / 0 / 21</td></tr>
+<tr><td>parent-child</td><td>기존 순차 − U</td><td>+6.94%p</td><td>−2.78 ~ +19.44%p</td><td>4 / 2 / 18</td></tr>
+</tbody></table></div>
+<p>수정 순차는 benefit의 C12·C16·C18·C23에서 뒤졌고, parent는 C18에서 개선됐지만 C07·C09·C12·C13·C16에서 뒤졌다. 순차 전부가 나쁘다는 결과가 아니라 <strong>이번 보완 설정이 기존 순차를 이기지 못한 결과</strong>다. 모든 비교와 질문별 원자료는 <a href="../../notebooks/data/70_cap_context_repair/comparison_analysis.json">comparison_analysis.json</a>에 있다.</p>
+
+<h3>원문 사실 추가 적용과 표현 모호성 민감도</h3>
+<p>자동 사실 추가는 benefit 48/72, parent 49/72에만 적용됐다. 선택 카드의 일치 사실 없음은 각각 17개, B/C 쌍 입력 제한으로 기존 본문 복귀는 7개·6개였다. 입력을 맞추려고 원래 본문을 버리지 않았다. 각 순차는 프로필별 55/72에서 구조화 후보가 있었고 17/72는 원래 범위 검색으로 복귀했다.</p>
+<div class="guide"><strong>Applied-only Pass · 사실 실제 추가 묶음 통과</strong>: 추가가 적용된 같은 질문·반복 묶음을 세 방식에서 비교한다. benefit 분모 48, parent 49로 높을수록 좋지만 전체 72 결과를 대체하지 않는다. 예: JSON이 입력 제한 때문에 붙지 않은 묶음은 제외한다.<br><strong>Accuracy Ambiguity Sensitivity · 정확성 모호성 완화</strong>: 불확실한 실제 주장만 허용한다고 가정한 사후 진단이다. 기술 실패·직접 요구 미충족·확정 오류는 유지한다. 정답 재판정이나 운영 점수가 아니며, C23의 직접 요구 실패까지 모두 허용한 상한도 아니다.</div>
+<div class="scroll"><table>
+<thead><tr><th>프로필·방식</th><th>실제 추가 묶음 통과</th><th>정확성 모호성 완화 전 → 후 /72</th><th>반복 1·2·3 통과 /각24</th><th>반복 통과율 모표준편차</th></tr></thead>
+<tbody>
+<tr><td>benefit U</td><td>44/48</td><td>68 → 70</td><td>22 · 23 · 23</td><td>1.96%p</td></tr>
+<tr><td>benefit 기존 순차</td><td>47/48</td><td>71 → 72</td><td>24 · 24 · 23</td><td>1.96%p</td></tr>
+<tr><td>benefit 수정 순차</td><td>41/48</td><td>65 → 68</td><td>21 · 21 · 23</td><td>3.93%p</td></tr>
+<tr><td>parent U</td><td>44/49</td><td>62 → 66</td><td>20 · 20 · 22</td><td>3.93%p</td></tr>
+<tr><td>parent 기존 순차</td><td>47/49</td><td>67 → 68</td><td>22 · 22 · 23</td><td>1.96%p</td></tr>
+<tr><td>parent 수정 순차</td><td>43/49</td><td>60 → 63</td><td>20 · 21 · 19</td><td>3.40%p</td></tr>
+</tbody></table></div>
+<p class="muted"><strong>Population Standard Deviation · 모표준편차</strong>는 회차당 24질문 통과율 세 값에 대해 제곱편차 합을 3으로 나눈 뒤 제곱근을 구한 것이다. 낮을수록 이 세 합계의 변동이 작다. 예: 같은 24/24라도 다른 질문에서 같은 정답 문장을 보장하지 않는다. 정확성 모호성을 완화해도 수정 순차의 우위는 나타나지 않는다.</p>
+
+<h2>어느 단계가 잘못됐는지 실제 사례로 구분</h2>
+<div class="scroll"><table>
+<thead><tr><th>사례</th><th>원문·실제 입력·화면에서 확인한 사실</th><th>판단과 남은 원인</th></tr></thead>
+<tbody>
+<tr><td>69 → 70 · 건당 1만원</td><td>Discount Plan+ 디지털구독의 1만원은 지급 할인액이 아니라 할인 전 대상 이용금액. DB5는 같은 줄의 qualifier와 자기 항목만 복구하고 지급 한도 파생값을 unknown으로 뒀다.</td><td>DB 정규화·문맥 보완. 총 3행 수정, 나머지 3,400행 보존. OCR 검증기나 운영 스키마는 수정하지 않음.</td></tr>
+<tr><td>C12 · benefit 수정 2건 / parent 수정 2건</td><td>FLEX 원문과 실제 입력은 국내외 합산 실적. 답변이 다른 우리카드 조건을 묶어 “세 카드 모두 국내 30만원 필요”로 설명.</td><td>입력에 정확한 조건이 있으나 화면에서 카드 간 조건 전이. 올바른 카드 후보를 찾았다는 것만으로 방지되지 않음.</td></tr>
+<tr><td>C09 · parent 수정 2건</td><td>커피·배달·델리 3영역 중 하나를 고르는 조건을 커피 5개 브랜드끼리 고르는 것으로 변경. 다른 반복은 커피와 스트리밍의 별도 한도를 통합.</td><td>실제 입력에 관계가 명시된 생성 오류. 단어·숫자가 본문에 존재하는지만 검사해서는 잡기 어려움.</td></tr>
+<tr><td>C13 · parent 수정 2건</td><td>넷플릭스 대상 가맹점 공식 결제를 “카드사 공식 홈페이지나 앱”으로 바꿈. 추천 이유의 옳은 문장이 본문의 오류를 없애지 않음.</td><td>실제 표시 경로 오류. 본문과 추천 이유를 모두 검사해야 함.</td></tr>
+<tr><td>C18 · parent 기존 순차 r2</td><td>대상 금액 최대 1만원이 실제 입력에 있는데 1만5천원 전체×20%=3천원으로 계산. 충분한 잔여한도일 때 명목 정답은 2천원.</td><td>근거가 회수됐지만 계산에서 상한을 적용하지 않음. 검색 누락으로 분류하지 않음.</td></tr>
+<tr><td>C18 · benefit 수정 r2</td><td>2천원 계산은 맞았지만 전월60만원의 월 통합 한도를 5천원 대신 1만원으로 설명. 입력의 두 표는 모두 5천원.</td><td>생성 단계의 구간·한도 연결 오류. 1만원을 인접 실적 열에서 가져왔는지, 건당 상한과 섞었는지는 미확인.</td></tr>
+<tr><td>C19 · parent 9건</td><td>세 방식 모두 제목·신규 유예·분리된 예시 정도만 입력되어 한 카드 추천을 유보. 정직한 유보지만 “한 장 골라줘”를 해결하지 못함.</td><td>필요한 본문 부족. 표시 사실 정확성과 직접 추천 충족을 분리. 이 범용 질문은 세 방식 모두 같은 U 입력이므로 SQL 실패 효과라고 부르지 않음.</td></tr>
+<tr><td>C20 · parent U r1</td><td>UniMile 플랫폼 네이버페이는 PDF에 적립 제공. 기존 OCR txt·pages·normalized·DB·전송 U에는 적립 제외로 저장되어 있고 답변이 이를 따름.</td><td>원문 정확성 실패 / 입력 지원 성공. 상위 입력 오류 전파이며 순수 LLM 발명으로 분류하지 않음. 제공사 원응답 처리의 직접 원인은 미확인.</td></tr>
+</tbody></table></div>
+<p class="muted">이 표는 사례 추적이며 원인 빈도 측정표가 아니다. 값이 원문·입력에 있는지는 실제로 대조했고, 지시문·정보 배치·생성 변동 중 무엇이 직접 원인인지는 추가 통제 없이 확정하지 않는다. C04의 5,000/5,500원 혼용 1건도 확정 수치 오류다. C07·C12 일부·C16·C23의 표현 범위는 확정 오류와 따로 보존했다.</p>
+
+<h3>입력 원문 충돌을 제외해도 결론이 바뀌나</h3>
+<p>기존 Monthly 리워드 150만원/50만원 충돌은 실제 42개 입력, 새로 확인한 UniMile 플랫폼 문구 충돌은 27개 입력에 있었다. 두 수는 중복 가능성이 있어 합해 고유 입력 수로 쓰지 않는다. 실제 추가 structured fact 55개에는 UniMile이 없었으므로 이 발견은 구조화 근거 gate를 완화한 것이 아니다. gate는 추가 사실의 수락 검사였고, 기존 U 전체의 진실성을 보증하지 않았다.</p>
+<div class="guide"><strong>Source-conflict Query Sensitivity · 원문 충돌 질문 민감도</strong>: 어떤 방식에서든 알려진 충돌이 노출된 공통 질문 C03·C04·C11·C18·C20을 분리한다. 남은 19질문×3회=57개를 모든 방식에 동일하게 적용하며 높을수록 좋다. 예: 입력의 틀린 리워드 조건을 답변이 말하지 않았다면 노출 자체만으로 실패시키지 않는다. 이 제외는 사후 진단이고 전체 72의 주결과를 대체하거나 오염을 수리한 결과를 뜻하지 않는다.</div>
+<div class="scroll"><table>
+<thead><tr><th>공통 19질문 /57</th><th>U</th><th>기존 순차</th><th>수정 순차</th></tr></thead>
+<tbody><tr><td>benefit</td><td>54/57</td><td>56/57</td><td>51/57</td></tr><tr><td>parent-child</td><td>48/57</td><td>53/57</td><td>45/57</td></tr></tbody></table></div>
+<p>두 프로필 모두 수정 순차가 기존 순차보다 낮은 방향은 유지된다. 따라서 이번 결과를 원문 충돌 하나만의 결과로 설명할 수도, 모든 문제를 LLM 하나의 문제로 설명할 수도 없다.</p>
+
+<h2>비용과 최종 답변 준비시간</h2>
+<p>432개 중 431개가 기술적으로 완료됐고, 6개 논리 답변이 재시도됐다. 5개는 재시도로 성공했고 C01 benefit U r1은 두 시도 후 최종 JSON EOF 실패로 남겼다. 총 438물리 요청이며 사용량 미확인 신규 완료 요청은 없다. 실패 답변은 분모에서 빼거나 첫 시도로 구제하지 않았다.</p>
+<div class="guide"><strong>Answer-ready Wall Time · 답변 준비 경과시간</strong>: 논리 답변마다 서비스 호출·호출 내부 검사·파싱/복원·재시도를 측정했다. 사전 job manifest/계약 검사 뒤에 시작해 답변 체크포인트 저장·사후 원장/검증 전에 끝나는 시계다. 낮을수록 빠르지만 품질 기준을 대신하지 않는다.<br><strong>P95 · 95백분위</strong>: 각 조건 72개 시간을 정렬한 <code>ceil(0.95×72)</code>번째 관측값이다. 예: 재시도한 커피 질문의 두 요청 시간은 논리 답변 준비시간에 함께 반영된다. 첫 토큰이나 브라우저 표시 시간은 미측정이다.<br><strong>Usage-priced Cost · 사용량 환산 비용</strong>: 실패·재시도를 포함한 저장 토큰과 실험에 동결한 2026-10-11 단가로 계산했다. 같은 품질이면 낮을수록 좋지만 청구서 실측액이 아니다. 캐시 상태와 답변 길이 차이가 있어 운영 1회 비용으로 그대로 일반화하지 않는다.</div>
+<div class="scroll"><table>
+<thead><tr><th>프로필·방식</th><th>물리 요청</th><th>72개 답변 비용 USD</th><th>평균 준비시간</th><th>P95 준비시간</th></tr></thead>
+<tbody>
+<tr><td>benefit U</td><td>73</td><td>0.061466720</td><td>15.01초</td><td>23.90초</td></tr>
+<tr><td>benefit 기존 순차</td><td>73</td><td>0.067972870</td><td>14.33초</td><td>31.17초</td></tr>
+<tr><td>benefit 수정 순차</td><td>73</td><td>0.093044990</td><td>17.00초</td><td>28.77초</td></tr>
+<tr><td>parent U</td><td>72</td><td>0.047838945</td><td>14.69초</td><td>30.72초</td></tr>
+<tr><td>parent 기존 순차</td><td>72</td><td>0.054305285</td><td>14.57초</td><td>24.94초</td></tr>
+<tr><td>parent 수정 순차</td><td>75</td><td>0.077438110</td><td>15.81초</td><td>27.53초</td></tr>
+</tbody></table></div>
+<p><strong>70번 새 API 비용은 0.402066920달러.</strong> 누적 보수 차감액은 2.570097960달러, 승인 8달러 중 잔여는 5.429902040달러다. 누적에는 과거 사용량 미확인 2건의 예약액 0.006234500달러가 포함되어 있으며, 실제 청구액과 구분한다. 실행 전 최대 두 시도 비용 예약 5.271184750달러는 상한 추정치였고 실제 지출이 아니다.</p>
+<p>전송 입력 3,519,859토큰, 출력 521,988토큰이다. 입력은 일반 1,314 / 캐시 읽기 2,598,927 / 캐시 쓰기 919,618로 나뉜다. 새 임베딩 토큰은 0이다. 평균·중앙값·최대값·개별 provider 왕복과 CPU, 재시도는 <a href="../../notebooks/data/70_cap_context_repair/cost_latency_analysis.json">전체 자원 자료</a>에 보존했다.</p>
+<p>새 답변 생성 전체 벽시계는 7,210.88초(약 120.18분), CPU 1,349.90초, 해당 생성 프로세스 최고 RSS 1,167,960KiB(약 1,140.59MiB)였다. 개별 준비시간 합계는 6,581.38초이며 사전·사후 검사가 포함된 전체 벽시계와 다르다. 기존 U 검색의 정확한 캐시 재사용은 별도 단계로 측정했으므로 이 합계를 새 검색부터의 운영 전체 응답시간으로 쓰지 않는다. 첫 토큰·화면 표시·실제 청구서·GPU 최고 메모리는 미측정이다.</p>
+<p class="muted">평가 직후 보존 자료는 일반 파일 2,703개, 487,954,801바이트였다. DB 사본·준비 단계 보존본·원응답·원문 이미지·판정 자료를 포함한 시점별 합계이며 순증가량이나 운영 색인 크기가 아니다. 새 색인 생성과 임베딩은 0, 기존 모델·색인은 변경하지 않았다. 정확한 범위와 시점은 <a href="../../notebooks/data/70_cap_context_repair/storage_snapshot.json">저장량 기록</a>에 있다.</p>
+
+<h2>질문별 세 반복 통과 수</h2>
+<div class="guide"><strong>Per-query Pass Count · 질문별 통과 수</strong>: 각 칸은 같은 질문을 새로 생성한 3회 중 화면 통과한 횟수(0~3)다. 3에 가까울수록 이 실행에서 안정적이지만 장래 확률을 보장하지 않는다. 예: C18의 2는 할인액 또는 한도 설명이 한 번 실패했음을 뜻하며 카드 검색을 두 번만 성공했다는 뜻이 아니다. 원질문·요구·본문·추천 이유·출처는 <a href="../../notebooks/data/70_cap_context_repair/manual_reviews.json">432개 판정</a>과 <a href="../../notebooks/data/70_cap_context_repair/question_contract.json">질문 명세</a>를 확인한다.</div>
+<div class="scroll"><table>
+<thead><tr><th>질문 요약</th><th>benefit U</th><th>benefit 기존</th><th>benefit 수정</th><th>parent U</th><th>parent 기존</th><th>parent 수정</th></tr></thead>
+<tbody>
+<tr><td>C01 동네 카페 할인</td><td>2</td><td>3</td><td>3</td><td>3</td><td>3</td><td>3</td></tr>
+<tr><td>C02 넷플릭스 할인</td><td>3</td><td>3</td><td>3</td><td>3</td><td>3</td><td>3</td></tr>
+<tr><td>C03 치과 치료비</td><td>3</td><td>3</td><td>3</td><td>3</td><td>3</td><td>3</td></tr>
+<tr><td>C04 영화관 할인</td><td>2</td><td>3</td><td>3</td><td>3</td><td>3</td><td>3</td></tr>
+<tr><td>C05 휴대폰 자동납부</td><td>3</td><td>3</td><td>3</td><td>3</td><td>3</td><td>3</td></tr>
+<tr><td>C06 편의점</td><td>3</td><td>3</td><td>3</td><td>3</td><td>3</td><td>3</td></tr>
+<tr><td>C07 전기요금</td><td>3</td><td>3</td><td>3</td><td>3</td><td>3</td><td>2</td></tr>
+<tr><td>C08 저녁 배달앱</td><td>3</td><td>3</td><td>3</td><td>3</td><td>3</td><td>3</td></tr>
+<tr><td>C09 같은 카드로 카페·넷플릭스</td><td>3</td><td>3</td><td>3</td><td>2</td><td>3</td><td>1</td></tr>
+<tr><td>C10 같은 카드로 편의점·배달앱</td><td>3</td><td>3</td><td>3</td><td>3</td><td>3</td><td>3</td></tr>
+<tr><td>C11 우리카드 병원비</td><td>3</td><td>3</td><td>3</td><td>3</td><td>3</td><td>3</td></tr>
+<tr><td>C12 최소 실적 30만원 이하·커피</td><td>3</td><td>3</td><td>1</td><td>3</td><td>2</td><td>1</td></tr>
+<tr><td>C13 무실적 넷플릭스</td><td>3</td><td>3</td><td>3</td><td>3</td><td>3</td><td>1</td></tr>
+<tr><td>C14 지난달 60만원·동물병원</td><td>3</td><td>3</td><td>3</td><td>3</td><td>3</td><td>3</td></tr>
+<tr><td>C15 SIMPLE 넷플릭스 경로·율</td><td>3</td><td>3</td><td>3</td><td>3</td><td>3</td><td>3</td></tr>
+<tr><td>C16 I-ALL 배달·편의점 조건</td><td>1</td><td>2</td><td>0</td><td>0</td><td>3</td><td>1</td></tr>
+<tr><td>C17 그린v2 실적·월 횟수</td><td>3</td><td>3</td><td>3</td><td>3</td><td>3</td><td>3</td></tr>
+<tr><td>C18 전월60만원·넷플릭스15000원 계산</td><td>3</td><td>3</td><td>2</td><td>3</td><td>2</td><td>3</td></tr>
+<tr><td>C19 장보기·생활비 한 장 추천</td><td>3</td><td>3</td><td>3</td><td>0</td><td>0</td><td>0</td></tr>
+<tr><td>C20 여행 준비 비교</td><td>3</td><td>3</td><td>3</td><td>2</td><td>3</td><td>3</td></tr>
+<tr><td>C21 온라인 쇼핑</td><td>3</td><td>3</td><td>3</td><td>3</td><td>3</td><td>3</td></tr>
+<tr><td>C22 새 카드의 비교 기준</td><td>3</td><td>3</td><td>3</td><td>3</td><td>3</td><td>3</td></tr>
+<tr><td>C23 JADE First 남은 횟수</td><td>3</td><td>3</td><td>2</td><td>1</td><td>3</td><td>3</td></tr>
+<tr><td>C24 내 카드 미지정·삼성페이</td><td>3</td><td>3</td><td>3</td><td>3</td><td>3</td><td>3</td></tr>
+</tbody></table></div>
+
+<h2>유지한 구조와 다음 검증</h2>
+<pre>원질문 → 고정 스키마의 조건 추출 → 매개변수 SQL 조회
+  결과 있음: 후보 카드 범위에서 원질문으로 vector + BM25 검색 1회
+  결과 없음: 원래 카드 범위에서 같은 하이브리드 검색 1회
+→ 각 운영 프로필의 재정렬·근거 선택 → 원질문 + 본문 근거 → LLM 화면 답변</pre>
+<p>별도의 전체 비구조화 검색을 한 번 더 섞는 구조가 아니다. 이번 유지 기준선은 구조화 결과로 <strong>카드 범위만 제한</strong>하고 비구조화 근거를 생성 입력으로 쓴다. 70번에서 추가 사실 JSON을 붙인 후보는 미채택했다. DB5의 표현 복구와 명사 매칭은 조회 단계의 별도 검증 결과로 보존하지만, <strong>DB5 수정 조회 + 카드 범위만 전달</strong>을 70번에서 별도 생성 조건으로 검증한 것은 아니다.</p>
+<p>다음은 올바른 입력이 있는 C09·C12·C13·C18에서는 검색을 고정한 채 카드·혜택별 주장/수치 관계를 검사하는 생성 방식 비교가 우선이다. 기존 OCR 반대 문구는 먼저 원문과 일치시킨 뒤 해당 청크·DB·색인을 재생성해 재검증해야 한다. C19처럼 필요한 본문 자체가 없는 사례만 검색·본문 조립 쪽으로 돌아간다. 이 후속 변경이나 추가 API 실험은 이번에 실행하지 않았다.</p>
+
+<h2>검증 자료와 재현 범위</h2>
+<p><a href="../../notebooks/70_cap_context_repair.ipynb">70 노트북</a>은 단계별 코드·실행 출력을 보존한다. 이번 후속 평가는 추가 셀을 실행했으며 전체 노트북을 다시 실행한 것은 아니다. 긴 API 실행은 동일 논리 ID의 원응답·사용량·검증 계약·봉인을 저장해 재개했고, 공유 검증 helper는 유료 호출 없는 회귀 검사를 위해 분리했다. HTML 생성 스크립트는 만들지 않고 main이 실제 결과를 읽어 이 문서를 직접 작성했다.</p>
+<p>관련 회귀 검사 185개가 통과했다. 최종 검사에서는 원문 gate를 다시 구성해 수락 상태와 평가 결속 파일 1,735개의 동일성을 확인했고, 노트북 코드 14셀을 컴파일했다. HTML의 주지표·질문별 전체 격자·비용/시간은 JSON 집계와 대조했다. 이 검사는 출처와 집계의 일관성 증거이며 수동 의미 판정을 자동으로 증명하거나 실제 운영 동작을 검증한 것은 아니다.</p>
+<ul>
+<li><a href="../../notebooks/data/70_cap_context_repair/evaluation_summary.json">6조건 집계</a> · <a href="../../notebooks/data/70_cap_context_repair/evaluation_results.json">432개 점수</a> · <a href="../../notebooks/data/70_cap_context_repair/manual_reviews.json">실제 문장별 수동 판정</a></li>
+<li><a href="../../notebooks/data/70_cap_context_repair/evaluation_context.json">정책·입력·원문 결속</a> · <a href="../../notebooks/data/70_cap_context_repair/input_verification.json">실제 전송 입력 재구성 검사</a> · <a href="../../notebooks/data/70_cap_context_repair/manual_draft_metadata_amendments.json">원형 보존 메타 정밀화 17건</a></li>
+<li><a href="../../notebooks/data/70_cap_context_repair/db_changes.json">DB 3행 변경</a> · <a href="../../notebooks/data/70_cap_context_repair/source_review.json">추가 사실 원문 검토</a> · <a href="../../notebooks/data/70_cap_context_repair/inherited_U_source_conflicts.json">UniMile 원문→OCR→DB→입력 충돌</a> · <a href="../../notebooks/data/70_cap_context_repair/known_U_conflict_exposure.json">Monthly 리워드 실제 노출</a></li>
+<li><a href="../../notebooks/data/70_cap_context_repair/independent_review/evaluation_preflight_review.json">평가 코드·경계 사례 독립 검토</a> · <a href="../../notebooks/data/70_cap_context_repair/independent_review/metadata_patch_review.json">문맥 재확인과 메타 검토</a></li>
+</ul>
+<p class="muted">모든 질문에 동일한 717개 전역 원문 참조를 사용했다. 기본 701개에 KPass 통신·공통조건 8개, SIMPLE 연회비 1개, UniMile 7개를 평가기에만 추가했다. 원래 701/709/710 참조와 초안은 보존했다. KPass 참조 보강은 초기 답변 생성 뒤 C05 판정 전, SIMPLE은 C13 판정 중, UniMile 원문 판독은 C20 답변 생성 전에 진행했다. 어떤 보강도 모델 입력·정답 카드 범위·운영 코드를 변경하지 않았다. 이는 비맹검 개발 검토이고 독립 인간 정답셋이 아니다.</p>
+<div class="decision"><strong>최종 정리.</strong> 조회 표현과 평가 정책을 분리했고 DB cap 문맥 3행을 복구했다. 그러나 이번 JSON 근거·선택 지시문 결합 설정은 기존 순차보다 낮았으며 비용과 평균 답변 준비시간도 늘었다. 두 프로필 모두 기존 순차 개발 기준선을 유지하고 새 후보는 미채택한다. 운영은 그대로다. 올바른 입력의 주장·수치 연결 오류와 원문 반대 입력을 각각 고친 뒤, 미사용 질문으로 다시 확인하는 단계가 남았다.</div>
+</main></body></html>

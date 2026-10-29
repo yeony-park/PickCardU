@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>71 · 답변 생성 전 검색·근거 추가 최소 검사</title>
+<style>
+:root{--ink:#192b40;--muted:#52657a;--line:#d5e0eb;--light:#edf4fc;--green:#eaf5ee;--amber:#fff4da}*{box-sizing:border-box}body{margin:0;background:#f4f7fa;color:var(--ink);font:16px/1.8 system-ui,"Noto Sans KR",sans-serif}main{max-width:1160px;margin:30px auto;padding:36px;background:white;border:1px solid var(--line);border-radius:12px}h1{font-size:29px;line-height:1.4}h2{font-size:22px;margin-top:38px;padding-bottom:8px;border-bottom:2px solid var(--line)}h3{font-size:18px;margin-top:28px}a{color:#19538d}table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px}th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}th{background:var(--light)}.scroll{overflow:auto}.guide,.notice,.decision{border-radius:8px;padding:16px 20px;margin:16px 0}.guide{background:var(--light);font-size:14px}.notice{background:var(--amber)}.decision{background:var(--green);border-left:5px solid #397354}.muted{font-size:14px;color:var(--muted)}blockquote{border-left:4px solid #b5c9df;margin:15px 0;padding:8px 18px;background:#f6f9fc}code{overflow-wrap:anywhere;font-size:13px}pre{white-space:pre-wrap;background:#f1f5fa;padding:18px;border:1px solid var(--line)}.num{font-variant-numeric:tabular-nums;white-space:nowrap}@media(max-width:760px){main{margin:0;padding:20px;border-radius:0}h1{font-size:24px}td,th{min-width:90px;padding:7px}}
+</style></head><body><main>
+<p class="muted">실험71 · 저장70자료의 사후 오프라인 점검 · 새 API·검색·답변 생성 0 · 두 최적화 운영 프로필 유지</p>
+<h1>검색 입력은 충분했는가, 구조화 근거는 무엇을 보완했는가</h1>
+<div class="decision"><strong>이번 질문의 직접 요구 기준에서는 기존·수정 순차 모두 최소 한 개의 완전한 답변 근거 경로를 확보했다.</strong> 각 프로필·조건에서 사실 질문21개×3회=63/63이었다. 구조화 추가는 별도 후보 카드 경로3종을 보완했지만, 이미 다른 완전 경로가 있던 질문들이므로 질문별 확보율은 오르지 않았다. 따라서 70의 최종 답변 점수 하락을 검색 근거 부족이나 “근거 추가는 나쁘다”로 해석할 수 없다.</div>
+<div class="notice"><strong>100%의 범위:</strong> 직접 물은 내용에 답할 수 있는 경로가 적어도 하나 있었다는 뜻이다. 상위 카드 전부의 완전성, 전체106카드·청크의 재현율, 입력 전체의 사실 정확성, LLM 답변 정확성을 뜻하지 않는다. 같은 질문의 세 반복은 독립 질문 세 개가 아니다. 이 결과로 운영을 승격하거나 새 설정을 채택하지 않았다.</div>
+
+<h2>왜 했고, 무엇을 비교했나</h2>
+<p>70에서는 검색을 실행하고 구조화 추가 사실의 원문·입력 결속을 검사했지만, 질문별 필수 근거 확보를 두 방식 사이에서 전수 채점하지 않았다. 최종 LLM 답변 점수로 검색 우열까지 설명했던 한계를 보완한다. 이번에는 질문과 원문을 기준으로 요구 단위를 먼저 고정하고, 입력 의미 판정을 봉인한 뒤 기존 답변 점수를 연결했다.</p>
+<p>동일한24질문·두 운영 프로필·세 반복을 유지했다. 432논리 입력을 내용 중복 제거한89고유 입력으로 읽고, 본문 위치·카드 소유·원문 인용을 결속했다. 사실 검색의 주분모는 C01~21의21질문×3회이며 C22 일반 선택기준, C23 개인 남은 횟수, C24 미지정 보유상품의9입력은 N/A(평가 제외)로 보존했다. 정답 카드 목록을 고정하지 않고 원문상 유효한 다른 경로도 인정했다.</p>
+<div class="scroll"><table><thead><tr><th>입력</th><th>구성</th><th>무엇을 확인하나</th></tr></thead><tbody>
+<tr><td>BASE · 기존 순차</td><td>70의 DB3·기존 매칭으로 카드 범위를 정한 후 얻은 실제 비구조화 본문</td><td>기존 순차의 생성 전 입력. 65번의 과거 답변 행을 가져온 것이 아님</td></tr>
+<tr><td>FILTER · 수정 조회 후 본문</td><td>수정 순차 FACT의 구조화 추가분만 제거. 카드·순위·질문·본문·선택 지시문 유지</td><td>미호출 재구성 입력. BASE와 비교하면 구조화 사실 추가 전 검색 본문 차이</td></tr>
+<tr><td>FACT · 수정 순차 근거 추가</td><td>70의 DB5·수정 매칭 본문에 일치 구조화 사실 JSON을 붙인 실제 입력</td><td>BASE 대 FACT는 복합 후보 비교. FILTER 대 FACT만 근거 추가 단독 비교</td></tr>
+</tbody></table></div>
+<p class="muted">이 표는 설정 명세다. 두 프로필의 청킹·검색·재정렬 설정은 각각 이전에 선택된 운영 프로필 그대로다. 이 비교는 청킹 하나의 순수 효과가 아니다. 근거 추가는 검색어·임베딩을 바꾸는 동작이 아니라 검색 후 LLM 입력을 보완하는 동작이다. 원래 비구조화 본문을 버리지 않았으며 별도 전체 검색을 섞지 않았다.</p>
+
+<h2>검사1 · 실제 생성 전 검색·입력 품질</h2>
+<div class="guide"><strong>Verified Candidate Hit@3 · 검증한 후보 카드 경로 적중:</strong> 상위3카드 안에 원문상 질문을 만족하는 경로가 있는 입력 수/원문 적격 여부를 판정할 수 있는 사실 입력 수. 높을수록 좋다. 예: 같은 카드의 커피·넷플릭스 혜택이 원문에 있으면 적중이지만 실제 입력의 근거 확보는 별도다. 비교 질문은 필요한 복수 카드 경로를 본다.<br>
+<strong>Direct-required Evidence Coverage · 직접 요구 근거 확보율:</strong> 입력별로 같은 유효 경로의 확보된 필수단위/고정 필수단위를 구하고 최선의 확인 경로 비율을63입력에서 평균한다. 높을수록 좋다. 예: 커피·넷플릭스·함께 이용 가능한 관계3개 중2개만 확인하면2/3이다. 다른 카드끼리 합쳐 완성하지 않는다.<br>
+<strong>Complete Evidence Path · 완전한 답변 근거 경로:</strong> 필수단위를 한 유효 경로에서 모두 확보한 입력/63. 높을수록 좋다. 커피 카드 추천에 실제 커피 혜택 경로가 있으면 성공할 수 있고, 미요청 실적·한도를 전부 열거하도록 요구하지 않는다. 세 지표 모두 전체 코퍼스 Recall@K나 LLM 성능이 아니다. <a href="../EVALUATION_METRICS.md">71 지표 정의</a></div>
+<div class="scroll"><table><thead><tr><th>프로필</th><th>입력</th><th>후보 적중</th><th>필수 근거 확보율</th><th>완전 경로</th><th>N/A / 전체</th></tr></thead><tbody>
+<tr><td>benefit</td><td>BASE</td><td>63/63 · 100%</td><td>100%</td><td>63/63 · 100%</td><td>9/72</td></tr>
+<tr><td>benefit</td><td>FILTER</td><td>63/63 · 100%</td><td>100%</td><td>63/63 · 100%</td><td>9/72</td></tr>
+<tr><td>benefit</td><td>FACT</td><td>63/63 · 100%</td><td>100%</td><td>63/63 · 100%</td><td>9/72</td></tr>
+<tr><td>parent-child</td><td>BASE</td><td>63/63 · 100%</td><td>100%</td><td>63/63 · 100%</td><td>9/72</td></tr>
+<tr><td>parent-child</td><td>FILTER</td><td>63/63 · 100%</td><td>100%</td><td>63/63 · 100%</td><td>9/72</td></tr>
+<tr><td>parent-child</td><td>FACT</td><td>63/63 · 100%</td><td>100%</td><td>63/63 · 100%</td><td>9/72</td></tr>
+</tbody></table></div>
+<p>전체 원문 적격 여부가 미확인인 입력은0개다. 다만 benefit에는 C11 UniMile의 병원 할인 가능성, C21 NH 홈쇼핑의 온라인 적용이라는 <strong>다른 대안 경로의 미확인</strong>이6입력(2질문×3회)에 남아 있다. 다른 확인된 완전 경로가 있으므로 입력 전체를 미확인으로 바꾸지는 않았다. 미확인 경로를 정답으로 인정한 것도 아니다.</p>
+<p>BASE와 FILTER의 카드·순위·본문은144비교쌍 중138쌍이 동일하고, C12의6쌍만 달랐다. 이때에도 양쪽에 유효한 완전 경로가 있었다. BASE→FACT, BASE→FILTER, FILTER→FACT의 질문별 근거 확보율 승/패/동률은 두 프로필 모두 <strong>0 / 0 / 21</strong>이다. 어느 쪽이 검색에서 더 낫다고 선택할 근거는 이 주지표에서 나오지 않았다.</p>
+
+<h3>질문 유형별 확인</h3>
+<div class="guide"><strong>Subgroup Complete Path · 유형별 완전 경로:</strong> 위와 같은 기준을 유형 안의 질문×3회에 적용하며 높을수록 좋다. 예: 복합 질문은 한 카드의 명시 AND·금액·실적 제약을 만족해야 한다. 아래 결과는 <strong>두 프로필의 BASE/FILTER/FACT 여섯 조건에 모두 동일</strong>하다. 조건별 전체 표와 유형별 원자료를 함께 보존하며, 질문 수가 다른 유형의 개수만으로 성능을 비교하지 않는다.</div>
+<div class="scroll"><table><thead><tr><th>유형</th><th>평가 질문</th><th>여섯 조건 각각의 완전 경로</th><th>N/A 입력</th></tr></thead><tbody>
+<tr><td>짧은 추천</td><td>C01~08 · 8개</td><td>24/24</td><td>0</td></tr>
+<tr><td>복합 조건</td><td>C09~14 · 6개</td><td>18/18</td><td>0</td></tr>
+<tr><td>지정 카드 상세</td><td>C15~18 · 4개</td><td>12/12</td><td>0</td></tr>
+<tr><td>범용</td><td>C19~21 · 3개</td><td>9/9</td><td>C22 · 3</td></tr>
+<tr><td>정보 부족</td><td>사실 검색 주분모 없음</td><td>N/A</td><td>C23~24 · 6</td></tr>
+</tbody></table></div>
+<p class="muted">높은 수치는 직접 요구를 해결할 최소 근거라는 기준의 결과다. 이전의 “모든 중요조건을 반복해야 통과” 점수와 같은 지표가 아니며 평가 정책·질문 범위가 다른 과거 수치에서의 개선량으로 계산하지 않는다. 신규 독립 질문을 검증한 결과도 아니다.</p>
+
+<h2>검사2 · 같은 본문에서 구조화 추가만의 효과</h2>
+<p>FILTER/FACT144쌍은 카드·순위·원질문·기존 본문이 같고 FACT에 구조화 suffix만 추가된다. FACT의 실제 지시문을 양쪽에 동일하게 유지하며 FILTER는 모델을 부르지 않았다. 따라서 이 검사는 <strong>생성 전 근거 보완 효과</strong>를 분리하지만 답변 향상·악화의 인과 효과를 측정하지는 않는다.</p>
+<div class="guide"><strong>Card/unit Transition · 같은 경로 필수단위 상태 변화:</strong> 같은 카드·혜택 경로에서 absent(없음)가 supported(확보)로 바뀌었는지 본다. 개선은 많고 악화는 적을수록 좋다. 예: 이미 A카드가 완전해도 B카드의 빠진 편의점 근거를 JSON이 채울 수 있다. 아래 횟수는 질문·프로필·반복별 변화이며 서로 독립인 새 질문 개수가 아니다. 미요청 설명만 늘어난 것은 개선으로 세지 않았다.</div>
+<div class="scroll"><table><thead><tr><th>질문·프로필</th><th>보완된 카드</th><th>FILTER → FACT</th><th>세 반복 변화</th><th>질문 전체 점수가 같은 이유</th></tr></thead><tbody>
+<tr><td>C10 · benefit</td><td>IBK I-ALL</td><td>편의점 경로 없음 → 확보. 같은 카드에서 배달과 함께 가능한 관계도 확보</td><td>2단위×3회=6</td><td>Discount Plan+에는 이미 편의점·배달 완전 경로가 있음</td></tr>
+<tr><td>C10 · benefit</td><td>현대카드D</td><td>배달 경로 없음 → 확보. 기존 편의점과 함께 가능한 관계도 확보</td><td>2단위×3회=6</td><td>동일</td></tr>
+<tr><td>C12 · parent-child</td><td>D4카드의정석 II</td><td>신규 유예30만원 구간만 있음 → 정규 전월 최소30만원 조건 확보</td><td>1단위×3회=3</td><td>FLEX에는 이미 커피와 정규30만원 조건이 있음</td></tr>
+</tbody></table></div>
+<p>합계는 <strong>고유한 카드/단위 변화5종×3반복=15개</strong>이며, 완전해진 카드 경로는3종×3반복=9개다. 독립 질문9개가 아니라 <strong>2개 질문에서 추가 후보의 설명 가능성이 늘어난 것</strong>이다. 이 판정 범위에서 확보 단위가 없음·불명확·충돌로 악화된 변화는 없었다. 입력 전체의 모든 추가 사실이 오류 없다는 별도 전수 정확도 점수는 아니다.</p>
+<p>실제 추가가 적용된 묶음만 봐도 benefit은 사실 질문42/42, parent는43/43에서 FILTER/FACT 모두 완전 경로였다. 전체 적용48·49묶음 중 각6개는 N/A 질문이다. 추가가 적용되지 않은 나머지 묶음도 전체63입력 주결과에 포함했다. <a href="../../notebooks/data/71_pre_generation_evidence_audit/comparison_analysis.json">전체 하위집단·질문별 승패·정확한 변화 인용</a></p>
+
+<h2>봉인한 입력 판정과 기존 답변을 연결하면</h2>
+<p>입력 판정·인용을 봉인한 뒤70의 답변 평가를 그대로 연결했다. 답변을 새로 생성하거나 새 기준으로 재채점하지 않았다. FILTER에는 실제 응답이 없으므로 이 표에 넣지 않았다.</p>
+<div class="guide"><strong>Direct Request Fulfillment · 기존 직접 요청 충족:</strong> 입력 완전성이 확인된 사실 질문63답변 중70의 직접 요구를 충족한 수. <strong>Visible Factual Accuracy · 기존 표시 사실 정확:</strong> 같은63답변의 실제 본문·추천 이유가 원문상 정확했던 수. <strong>Visible Answer Pass · 기존 최종 답변 통과:</strong> 기술 성공·직접 요청·실제 주장 정확성을 함께 충족한 수. 모두 높을수록 좋다.<br>
+예: 20%와 할인 전 금액 상한1만원이 입력에 있어도 LLM이1만5천원 전체로 계산하면 답변은 실패한다. 반대로 표현 모호성도 엄격 정확성 실패에 포함되므로 아래 미통과 전부가 확정 수치 오류는 아니다. <strong>원자 단위의 새 답변 반영률이 아니라 기존 판정과의 진단용 교차표</strong>이며70의72답변 전체 점수와 분모가 다르다.</div>
+<div class="scroll"><table><thead><tr><th>프로필·입력</th><th>완전 입력</th><th>직접 요청 충족</th><th>표시 사실 정확</th><th>최종 답변 통과</th><th>입력 완전 / 답변 미통과</th></tr></thead><tbody>
+<tr><td>benefit BASE</td><td>63/63</td><td>63/63</td><td>62/63</td><td>62/63</td><td>1</td></tr>
+<tr><td>benefit FACT</td><td>63/63</td><td>62/63</td><td>57/63</td><td>57/63</td><td>6</td></tr>
+<tr><td>parent BASE</td><td>63/63</td><td>59/63</td><td>61/63</td><td>58/63</td><td>5</td></tr>
+<tr><td>parent FACT</td><td>63/63</td><td>60/63</td><td>54/63</td><td>51/63</td><td>12</td></tr>
+</tbody></table></div>
+<p>이 질문들에서는 최종 답변 격차를 필수 근거의 부재로 설명할 수 없다. 다만 “정보가 많아서 LLM이 실패했다”는 원인은 여전히 미확정이다. 실제70비교는 DB·매칭·일부 지시문도 달랐고, 기존 입력의 알려진 원문 충돌도 남아 있다. 한 유효 경로 확보가 모든 추가 추천·주장의 안전성을 보장하지 않는다. <a href="../../notebooks/data/71_pre_generation_evidence_audit/generation_linkage.json">전체 연결과 오류 원문</a></p>
+
+<h3>C19 설명 정정: 필요한 최소 근거가 없었던 것은 아니다</h3>
+<p>70 보고서에서는 parent C19의 유보 답변을 제목·신규 유예 위주의 입력 부족으로 설명했다. 이번에 고정한 직접 요구는 “생활비 목적에 맞는 유효한 한 카드의 대상과 혜택 경로”이며, 입력에는 Point Plan+의 다음 관계가 실제 있었다.</p>
+<blockquote>필수 생활비 적립 서비스 | 주말 외식비 포인트 적립</blockquote>
+<p>원문에도 같은 주말 외식비 적립 경로가 있다. 구체적 요율·건당 금액을 묻지 않았으므로 이 대상·지급형태는 최소 추천 근거로 인정한다. <strong>“zgm living”이라는 홍보 제목만 있는 다른 후보와 구분해야 했다.</strong> 따라서 C19 전체를 필수 입력 부족으로 설명했던 부분은 바로잡는다. 해당 LLM은 혜택률·한도를 확인할 수 없어 한 장을 고르기 어렵다고 답했는데, 이는 이번 직접 요구 기준에서는 근거 선택·과도한 유보를 점검할 사례다. 원래70입력·답변·점수는 수정하지 않았다.</p>
+<p class="muted">상세 조건을 모두 안내한 답변과 같은 품질이라는 뜻은 아니다. 한 장 추천에 필요한 최소 근거와 상세 설명 충실도를 분리한 것이다. <a href="../../notebooks/data/71_pre_generation_evidence_audit/manual_input_reviews/C19.json">C19 입력·원문 인용 판정</a></p>
+
+<h2>검증·자원·재현 범위</h2>
+<p>등록 data-engineer가 홀수12질문의41고유 입력, main이 짝수12질문의48입력을 수동 검토했다. 등록 reviewer는 집계·인용 검증 코드와 경계 사례를 독립 검토했다. 해시는 원문·입력·판정 동일성과 소유권을 검사하며 의미상 충분성을 자동 증명하지 않는다. 독립 인간의89개 전수 채점이 아니다.</p>
+<p>공통 원문 참조717개는 verified(검토 확인)716개와 uncertain(불확실)1개를 원형대로 보존했다. 유일한 SIMPLE 전체Pay 경계 불확실 참조는 이번 판정의 양성 근거로 사용하지 않았다. 첫 전체 실행은 모두verified라는 잘못된 가정을 검사하다 봉인 전에 중단했고, 원형 분포를 유지하면서 양성 인용은verified만 허용하도록 고친 뒤 재실행했다. 카드명·발급사만으로 혜택을 확보했다고 통과시킬 수 있던 코드 범위도 보완했다. C11 발급사 단위만 메타정보를 허용하며 혜택·수치·조건은 본문 인용을 요구한다. 의미 판정은 바뀌지 않았다.</p>
+<p><strong>관련 회귀검사26개 통과.</strong> 음수 인용 위치, 다른 카드 인용, 원문 불확실, 누락 필수단위, 서로 다른 카드의 AND 합성, 같은 카드 대안 경로 덮어쓰기, N/A와0 혼동을 검사했다. 노트북의7개 코드 셀 전체를 새 프로세스에서 실행했고, 기존70의 결속 원문·입력·결과 파일 동일성을 재확인했다.</p>
+<p><strong>새 API 비용 $0, 새 임베딩·검색·답변 생성0.</strong> 전체 노트북 실행 벽시계16.94초, CPU16.90초, 실행 프로세스 최고RSS267,420KiB(약261.15MiB)였다. 이는 저장 자료 검증·집계 시간이며 수동 의미 검토시간과 온라인 응답시간은 미측정이다. 과거70의 모델 비용·응답시간은 재측정하지 않았고, 이16.94초를 사용자 답변 지연으로 쓰지 않는다. 누적 보수 차감액은 기존 $2.570097960에서 변하지 않았다.</p>
+<div class="notice">이미70결과를 알고 진행한 사후 점검이다. 질문 계약을 입력 검토 전에 고정했지만 독립 맹검 시험은 아니다. 기술 스키마 확인 중 C14 parent 수정 답변1건이 출력된 사실도 별도 기록했다. 입력 판정에는 질문·원문·실제 입력 인용을 사용했고, 기존 답변 점수의 의도적 연결은 입력 판정 봉인 뒤 실행했다. 원문과 반대인 UniMile 플랫폼·Monthly리워드 문구는 원본에서 수정하지 않았으며, 여기서 유효 경로를 확보했다고 입력 전체가 정확해지는 것은 아니다.</div>
+
+<h2>검토 가능한 자료와 최종 판단</h2>
+<ul>
+<li><a href="../../notebooks/71_pre_generation_evidence_audit.ipynb">71 실행 노트북</a> · <a href="../../notebooks/notes/71_pre_generation_evidence_audit_plan.md">승인 계획과 진행 상태</a></li>
+<li><a href="../../notebooks/data/71_pre_generation_evidence_audit/question_contract.json">고정 질문·필수단위42개</a> · <a href="../../notebooks/data/71_pre_generation_evidence_audit/input_reviews.json">89고유 입력의 실제 인용 판정</a> · <a href="../../notebooks/data/71_pre_generation_evidence_audit/input_review_seal.json">답변 연결 전 봉인</a></li>
+<li><a href="../../notebooks/data/71_pre_generation_evidence_audit/evidence_summary.json">6조건 요약</a> · <a href="../../notebooks/data/71_pre_generation_evidence_audit/evidence_results.json">432논리 입력 결과</a> · <a href="../../notebooks/data/71_pre_generation_evidence_audit/comparison_analysis.json">유형·적용묶음·질문별 승패·보완 인용</a></li>
+<li><a href="../../notebooks/data/71_pre_generation_evidence_audit/generation_linkage.json">기존 답변과의 진단 연결</a> · <a href="../../notebooks/data/71_pre_generation_evidence_audit/review_exposure_disclosure.json">사후 검토·기술 출력 노출 기록</a> · <a href="../../notebooks/data/71_pre_generation_evidence_audit/full_notebook_execution.json">전체 실행 자원 기록</a></li>
+<li><a href="../../notebooks/data/71_pre_generation_evidence_audit/independent_review/code_and_input_review.json">독립 코드·입력 검토</a> · <a href="../../notebooks/data/71_pre_generation_evidence_audit/offline_preflight_correction.json">불확실 원문 검사 보완 기록</a></li>
+</ul>
+<div class="decision"><strong>최종 판단.</strong> 생성 전 직접 요구 근거는 두 방식 모두 충분했다. 근거 추가는 일부 다른 후보의 누락을 보완했고, 그 정보 증가 자체를 실패 원인이라고 확인한 것은 아니다. 70의 복합 후보는 최종 답변 점수에서 낮았지만, “근거를 전달하지 않는 편이 검색에서 더 좋다”는 결론은 지지되지 않는다. 기존 운영과 개발 기준선은 그대로 두며, 근거 추가 설정의 답변 효과를 확정하려면 검색·지시문을 고정한 별도 생성 비교가 필요하다. 이번에는 추가 유료 실험을 하지 않았다.</div>
+</main></body></html>

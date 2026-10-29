@@ -10,3 +10,19 @@ WORKLOG.md
 AGENTS.md
 HERMES.md
 /.cache/
+
+# Keep local secrets and generated experiment data out of commits.
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+/notebooks/data/
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+*.db
+*.db-wal
+*.db-shm
+*.npy
+*.npz

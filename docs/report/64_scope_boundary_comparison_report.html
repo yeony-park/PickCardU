@@ -1,0 +1,82 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>64 · 고정 프로필의 카드 범위 교정과 순차 검색</title><style>body{margin:0;background:#f3f6fa;color:#17283b;font:16px/1.75 system-ui,sans-serif}main{max-width:1180px;margin:auto;padding:36px 24px}h1{font-size:30px;line-height:1.35}h2{margin-top:36px;font-size:23px}table{border-collapse:collapse;background:white;width:100%;margin:12px 0 24px;font-size:14px}th,td{padding:10px;border:1px solid #dce3eb;text-align:left}th{background:#eaf0f7}.guide,.notice{padding:17px 20px;border-radius:10px;background:#e8f1ff;margin:16px 0}.notice{border-left:5px solid #3869aa}.caution{background:#fff4df}a{color:#245d9c}.scroll{overflow:auto}code{background:#e9edf2;padding:2px 5px}.best{background:#e9f6ed}small{color:#526579}</style></head><body><main>
+<p>고정 운영 프로필에 구조화 검색 추가 · 2026-10-25 · 개발자료 검색 진단</p><h1>64 · 가맹점 오인 범위를 교정하고 검색 근거를 비교하기</h1>
+<div class="notice"><strong>결과:</strong> 수정 후 기존40질문의 카드 범위를 보존했고, IBK 지정상품에 KB 상품이 섞였던 첫 수정의 회귀를 해결했다. 기존 질문에서 benefit의 완전근거는 U·순차가 같지만 질문별1승·1패가 있다. parent-child는 순차에서 명시질문 완전근거43.33%→63.33%다. 가맹점 경계의 새 순차는 양 프로필8/8 완전근거이나, 이는4개 의도의 표기 변형과 수동 검색조건을 이용한 사후 진단이다. 이 단계에서는 답변을 생성하지 않았다.</div>
+<h2>왜 실행했고 무엇을 확인했나</h2><p>‘롯데 시네마’, ‘삼성 페이’ 같은 가맹점·결제수단을 카드 발급사로 오인하면 다른 발급사의 유효한 카드가 검색 전에 제외된다. 범위 교정 효과와 구조화 검색 추가 효과를 분리하려고 기존40질문×두 프로필×세 반복×네 조건960행을 비교했다. 발급사·상품·일반단어·복수발급사·SQL 복귀 경계32개에 실제 발견한 상품문맥3개를 더해 자동검사35개를 실행했다. 핵심 가맹점4의도의 띄어쓰기 변형8문장은64행의 실제 검색으로 확인했다.</p>
+<p>benefit와 parent-child는 이전에 각각 선택한 운영 검색 프로필 그대로다. 청킹·벡터·BM25·가중치·후보수·재정렬기·근거묶음·출력 예산을 조정하지 않았다. DB60과 조회 술어도 네 조건 모두 같다. 여기서 old/new는 <strong>카드 범위 처리</strong>이며62번의 DB56 기준 순차와 DB60 교정 순차 구분이 아니다.</p>
+<p>U는 원질문으로 기존 vector+BM25+재정렬 검색을 한다. SEQ는 구조화 결과가 있으면 그 카드 안에서 원질문 U를 한 번 실행하고,0건이면 원래 범위에서 U를 한 번 실행한다. 별도 전체 U를 결합하거나 구조화 근거를 검색·LLM에 주입하지 않는다. 원래40질문의120개 LLM 조건계획은 보존본을 재사용했다. 새 경계8문장은 고정 수동 QueryPlan을 써서 범위 전달만 진단했으므로 LLM 조건 추출 정확도는 측정하지 않았다.</p>
+<h2>첫 실행에서 발견한 회귀와 수정 후 검증</h2><p>첫 수정은 ‘IBK K-패스(신용)’의 IBK를 발급사 문맥으로 인정하지 않아 IBK 상품과 KB국민의 짧은 K-패스 상품명이 함께 잡혔다. 실제 N28의10개 결과 행에 KB 카드가 섞였다. 이 첫 실행의 코드36개·노트북·검색·원문 판정은 별도 <a href="../../notebooks/data/64_scope_boundary_comparison_initial_run/source_review/final_validation_receipt.json">첫 실행 기록</a>에 원형 보존했다. <a href="../../notebooks/data/64_scope_boundary_comparison/initial_run_preservation.json">2,112개 파일 경로·해시 목록</a>으로 보존 위치를 연결했다.</p>
+<p>최소 수정은 등록 상품명이 자기 발급사 바로 뒤에 문자 그대로 나오는 경우도 명시 발급사 문맥으로 인정하는 것이다. 새 동의어·오타·가맹점 사전은 추가하지 않았다. 자동검사62개(범위·복귀35개 포함)와 독립 코드 검토를 거친 뒤 새 manifest로960+64행을 재검색했다. 수정 후 N28 전체24행의 범위·반환카드는 IBK1개이며 다른 카드 유출0건이다. 기존40질문의 old/new 카드 키·모호 여부 차이도0건이다.</p>
+<div class="notice caution">기존 정책의 제한: <code>IBK K-패스(신용)플러스</code> 같은 미등록 확장 상품명을 등록 상품의 부분문자열로 인식할 수 있다. baseline60과 수정64가 동일한 동작임을 직접 대조했고, 독립 리뷰도 새 회귀 분류를 정정했다. 이번 비교에서는 상품명 추출 정책을 추가 변경하지 않았다. 모든 미등록 상품을 올바르게 보류한다고 주장하지 않는다.</div>
+<h2>기존40질문: 네 조건 전체 결과</h2>
+<div class="guide"><strong>지표 읽는 법</strong><br><strong>Core Evidence Completeness@3 — 핵심 완전근거:</strong> 상위3개 중 원문상 적합한 카드 한 장의 직접요구·성립 필수조건이 실제 검색 본문에 모두 있으면 성공이다. 명시30질문×3회90행, 범용8×3회24행을 각각 분모로 하고 질문 내 반복평균 뒤 질문 간 평균한다. 높을수록 좋다. 커피·넷플릭스 추천이면 같은 카드에서 두 혜택과 필요한 실적·한도를 함께 지원해야 한다. 여러 적법한 대안은 고정 원문 경로 중 하나의 AND를 온전히 충족하면 된다. 카드 이름만 맞거나 두 카드의 혜택을 합치면 성공하지 않는다. LLM의 실제 선택·답변 반영은 보장하지 않는다.<br><strong>Hit@3 — 적합 카드 발견률:</strong> 명시90행에서 원문상 적합한 카드가 상위3에 하나 이상 있으면1이다. 높을수록 좋다. 커피 혜택 카드가 있으나 한도 청크가 없어도 카드 발견은 성공할 수 있다. 따라서 아래 완전근거와 함께 봐야 한다.<br><strong>MRR@3, Mean Reciprocal Rank — 첫 적합 카드 역순위:</strong> 같은 명시90행에서 첫 적합 카드가1/2/3위이면1/0.5/0.333, 없으면0을 질문 단위로 평균한다. 높을수록 좋다. 커피 카드가2위이면0.5이며, 청크 내용의 완전성은 측정하지 않는다. MMR(다양성 재정렬)과 다른 지표다.<br>원문 미확정 카드는 하한 성공에 넣지 않았다. 상한값은 전체JSON에 별도 보존한다. 범용 질문의 카드 순위 지표와 확정불가2질문×3회의 위 지표는 N/A다. 반복90행을 독립90질문으로 해석하지 않는다.</div>
+<div class="scroll"><table><thead><tr><th>고정 프로필</th><th>검색·범위</th><th>명시 핵심 /90</th><th>명시 Hit@3</th><th>명시 MRR@3</th><th>범용 핵심 /24</th></tr></thead><tbody>
+<tr class="best"><td>benefit</td><td>U_old · 기존 범위</td><td>78 ·86.67%</td><td>100%</td><td>0.9778</td><td>21 ·87.50%</td></tr>
+<tr class="best"><td>benefit</td><td>U_new · 교정 범위</td><td>78 ·86.67%</td><td>100%</td><td>0.9778</td><td>21 ·87.50%</td></tr>
+<tr class="best"><td>benefit</td><td>SEQ_old · 기존 범위</td><td>78 ·86.67%</td><td>100%</td><td>0.9778</td><td>21 ·87.50%</td></tr>
+<tr class="best"><td>benefit</td><td>SEQ_new · 교정 범위</td><td>78 ·86.67%</td><td>100%</td><td>0.9778</td><td>21 ·87.50%</td></tr>
+<tr><td>parent-child</td><td>U_old</td><td>39 ·43.33%</td><td>93.33%</td><td>0.9000</td><td>6 ·25.00%</td></tr>
+<tr><td>parent-child</td><td>U_new</td><td>39 ·43.33%</td><td>93.33%</td><td>0.9000</td><td>6 ·25.00%</td></tr>
+<tr class="best"><td>parent-child</td><td>SEQ_old</td><td>57 ·63.33%</td><td>96.67%</td><td>0.9611</td><td>6 ·25.00%</td></tr>
+<tr class="best"><td>parent-child</td><td>SEQ_new</td><td>57 ·63.33%</td><td>96.67%</td><td>0.9611</td><td>6 ·25.00%</td></tr>
+</tbody></table></div>
+<p>초록색은 해당 프로필 안에서 명시 완전근거가 공동 최고인 조건이다. benefit는 네 조건 공동 최고이며, parent-child는 두 순차가 공동 최고·두U가 공동 차순위다. 이는 개발자료의 원시 검색 결과이며 운영 채택을 뜻하지 않는다.</p>
+<p>명시·범용을 합친38질문114행의 핵심 완전근거는 benefit 네 조건99/114(86.84%), parent-child U45/114(39.47%)·순차63/114(55.26%)다. 같은40질문을 다루지만63번의 답변 핵심성공과 단위가 다르므로 섞지 않는다.</p>
+<p><strong>평균이 가린 변화:</strong> 교정 범위에서 benefit 순차는 명시 완전근거 N05(전기요금)1승·N24(IBK 동물병원)1패·28동률이다. N05는 성립조건을 함께 담은 대안 근거가 확보됐고, N24는 iAll의 혜택 대상·요율 관계가 실제 입력에서 불명확해졌다. 카드 Hit·MRR은30질문 모두 동률이다. parent-child 순차의 명시 완전근거는 N01·N05·N10·N18·N20·N24에서6승·0패·24동률, 카드 Hit는 N24에서1승, MRR은 N22·N23·N24에서3승이다. 범용 완전근거는 두 프로필 모두8동률이다. 질문별 결과는 <a href="../../notebooks/data/64_scope_boundary_comparison/paired_retrieval_diagnostics.json">전체 짝비교</a>에 보존했다.</p>
+<h2>기존 질문 유형별 변화</h2>
+<div class="guide"><strong>Core Evidence Completeness@3 — 핵심 완전근거:</strong> 위와 동일하게 상위3개 중 같은 카드의 고정 필수조건을 모두 찾으면 성공이며 높을수록 좋다. 각 행의 질문 수×3회가 분모다. 예를 들어 발급사·실적 추천4질문의12행 중9행이면75%다. 커피 혜택 카드 이름만 찾고 최소실적을 놓치면 실패한다. 아래 유형은 기존 questions.json의 subgroup을 그대로 사용했으며 사후 유리한 질문만 골라 만들지 않았다. 작은 유형별 분모와 같은 질문의 반복이므로 독립 확인 성능은 아니다.</div>
+<div class="scroll"><table><thead><tr><th>기존 질문 유형</th><th>질문 /평가행</th><th>benefit U</th><th>benefit 순차</th><th>parent-child U</th><th>parent-child 순차</th></tr></thead><tbody>
+<tr><td>단일 혜택 추천</td><td>12 /36</td><td>30/36</td><td>33/36</td><td>15/36</td><td>24/36</td></tr>
+<tr><td>복수 혜택 추천</td><td>8 /24</td><td>21/24</td><td>21/24</td><td>9/24</td><td>15/24</td></tr>
+<tr><td>발급사·실적 조건 추천</td><td>4 /12</td><td>12/12</td><td>9/12</td><td>9/12</td><td>12/12</td></tr>
+<tr><td>지정 카드 실적·한도·횟수</td><td>3 /9</td><td>9/9</td><td>9/9</td><td>3/9</td><td>3/9</td></tr>
+<tr><td>지정 카드 예외·결제경로</td><td>2 /6</td><td>3/6</td><td>3/6</td><td>0/6</td><td>0/6</td></tr>
+<tr><td>지정 카드 금액 계산</td><td>1 /3</td><td>3/3</td><td>3/3</td><td>3/3</td><td>3/3</td></tr>
+<tr><td>범용 추천</td><td>8 /24</td><td>21/24</td><td>21/24</td><td>6/24</td><td>6/24</td></tr>
+</tbody></table></div>
+<p>교정 범위에서 단일 혜택 추천은 양 프로필 모두 순차가 높았지만, 지정 카드 상세질문은 대체로 같았다. benefit의 발급사·실적 유형 손실은 N24 한 질문의 세 반복이다. 전체 수치와 함께 <a href="../../notebooks/data/64_scope_boundary_comparison/query_subgroup_summary.json">유형별 집계 JSON</a>을 확인해야 한다.</p>
+<h2>범위 효과와 구조화 추가 효과를 분리한 다섯 대비</h2>
+<div class="guide"><strong>Factorial Contrast — 요인별 짝차이:</strong> 위와 같은 명시30·범용8질문의 세 반복평균을 사용한다. 범위 효과는 U_new−U_old, SEQ_new−SEQ_old이고 구조화 효과는 SEQ_old−U_old, SEQ_new−U_new다. 상호작용은 ‘새 범위의 구조화 효과−옛 범위의 구조화 효과’다. 완전근거·Hit 차이는 퍼센트포인트(pp), MRR은0~1 점수의 차이다. 양수면 해당 지표가 높아졌고0은 평균 동률이다. 예를 들어 커피 질문의 완전근거가70%→80%면+10pp다. 같은 평균도 질문별 손실을 숨길 수 있어 위 승패와 함께 본다. 이 개발표에는 독립 확인실험의 신뢰구간·통계적 유의성을 부여하지 않았다.</div>
+<div class="scroll"><table><thead><tr><th>프로필·질문군·지표</th><th>범위 효과 U</th><th>범위 효과 순차</th><th>구조화 효과 옛 범위</th><th>구조화 효과 새 범위</th><th>상호작용</th></tr></thead><tbody>
+<tr><td>benefit ·명시·완전근거</td><td>0pp</td><td>0pp</td><td>0pp</td><td>0pp</td><td>0pp</td></tr>
+<tr><td>benefit ·명시·Hit</td><td>0pp</td><td>0pp</td><td>0pp</td><td>0pp</td><td>0pp</td></tr>
+<tr><td>benefit ·명시·MRR</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+<tr><td>benefit ·범용·완전근거</td><td>0pp</td><td>0pp</td><td>0pp</td><td>0pp</td><td>0pp</td></tr>
+<tr><td>parent-child ·명시·완전근거</td><td>0pp</td><td>0pp</td><td>+20.00pp</td><td>+20.00pp</td><td>0pp</td></tr>
+<tr><td>parent-child ·명시·Hit</td><td>0pp</td><td>0pp</td><td>+3.33pp</td><td>+3.33pp</td><td>0pp</td></tr>
+<tr><td>parent-child ·명시·MRR</td><td>0</td><td>0</td><td>+0.0611</td><td>+0.0611</td><td>0</td></tr>
+<tr><td>parent-child ·범용·완전근거</td><td>0pp</td><td>0pp</td><td>0pp</td><td>0pp</td><td>0pp</td></tr>
+</tbody></table></div>
+<p>기존40질문은 교정 대상 가맹점 문맥이 거의 없어 정상 범위가 그대로였고 범위 효과는0이다. 첫 실행 N28도 적합한 IBK 카드가 함께 있었기 때문에, 다른 카드가 섞인 오류가 Hit·완전근거 평균에는 드러나지 않았다. 집계 성능과 별도의 범위 검사가 모두 필요하다.</p>
+<h2>가맹점·결제수단 경계8문장의 실제 검색</h2>
+<div class="guide"><strong>분모와 성공:</strong> 롯데시네마·삼성페이 적립·현대백화점·롯데마트의4개 의도를 띄어쓰기 유무로8문장으로 만들고 조건별 한 번 검색했다. 아래 각 분모는8문장이다. 핵심 완전근거·Hit·MRR의 의미와 높을수록 좋은 방향은 앞 표와 같다. 커피 대신 롯데시네마 할인을 요청하면, 신한카드의 영화 혜택도 유효한 대안이다. Hit 하한은 원문에서 확인한 카드만, 상한은 미확정도 가능하다고 본 참고값이다. 하한을 채택 해석에 사용한다. 예를 들어 삼성페이 호환을 확인하지 못한 ‘모든 가맹점 적립’ 카드는 하한 성공으로 올리지 않는다. 전체 문서의 모든 정답카드를 조사한 Recall이 아니며, 수동조건·표기쌍·사후 진단이라 실제 LLM 성능과 일반화할 수 없다.</div>
+<div class="scroll"><table><thead><tr><th>프로필·조건</th><th>완전근거 /8</th><th>Hit 하한 /8</th><th>Hit 상한 /8</th><th>MRR 하한</th></tr></thead><tbody>
+<tr><td>benefit U_old</td><td>3 ·37.50%</td><td>6</td><td>7</td><td>0.7500</td></tr>
+<tr><td>benefit U_new</td><td>4 ·50.00%</td><td>6</td><td>6</td><td>0.7500</td></tr>
+<tr><td>benefit SEQ_old</td><td>5 ·62.50%</td><td>7</td><td>8</td><td>0.8750</td></tr>
+<tr class="best"><td>benefit SEQ_new</td><td>8 ·100%</td><td>8</td><td>8</td><td>1.0000</td></tr>
+<tr><td>parent-child U_old</td><td>6 ·75.00%</td><td>6</td><td>6</td><td>0.6875</td></tr>
+<tr><td>parent-child U_new</td><td>5 ·62.50%</td><td>6</td><td>6</td><td>0.7500</td></tr>
+<tr><td>parent-child SEQ_old</td><td>7 ·87.50%</td><td>7</td><td>7</td><td>0.8750</td></tr>
+<tr class="best"><td>parent-child SEQ_new</td><td>8 ·100%</td><td>8</td><td>8</td><td>1.0000</td></tr>
+</tbody></table></div>
+<p>교정된 순차가 각 프로필의 원시 최고이며 차순위는 기존 순차다. 범위 교정만 한U에서는 항상 개선되지 않았다. benefit U의 완전근거는 B01·B05 개선/B07 하락/5동률, parent-child U는 B05 하락/7동률이다. 반면 순차의 범위 교정은 benefit B01·B03·B05 개선/5동률, parent-child B03 개선/7동률이며 손실은0이다. 교정 범위의 순차 대U는 benefit4승·0패·4동률, parent-child3승·0패·5동률이다. <a href="../../notebooks/data/64_scope_boundary_comparison/boundary_evaluation.json">문장별 승패와 전체 경계 지표</a>에 모든 조건을 보존했다.</p>
+<p>B01 ‘롯데 시네마’의 순차 검색 범위는 롯데카드1개에서 모든 발급사의 해당 혜택 카드15개로 바뀌었다. 기존 범위에서 제외됐던 신한 Discount Plan+는 원문상 유효하며 현재 근거도 완전했다. Deep Oil도 원문상 유효하지만 U_new의 실제 근거는 불완전했다. 카드의 원문 정답 여부와 지금 전달할 근거의 충분함은 별개다. 원문 확인 사례는 <a href="../../notebooks/data/64_scope_boundary_comparison/source_review/boundary_judgments.json">경계 판정의 원문 카탈로그와 제외 사례</a>에서 확인할 수 있다.</p>
+<p>삼성페이의 적립과 청구할인을 섞지 않았다. 상품권 바우처를 할인 대안으로 볼지 기준이 없는 사례와 삼성페이 호환 미확정 등을 포함한5개 카드·의도는 None으로 남겼다. PDF 표 관계가 모호했던 트래블로그1쪽·Deep Oil2쪽·WonderCard2.0 4쪽은 직접 이미지로 확인했다. 원문·실제입력 판정2,556건과 조건6,650개·인용8,307개를 새 결과에 결속했고, 현재 사용 증명349개/고정 registry 전체 증명350개를 구분했다. 새로운 의미판정은0건이며 기존 판정의 질문·프로필·카드·본문 바이트 동일성에 근거해 재사용했다.</p>
+<h2>비용·시간·메모리와 캐시</h2>
+<div class="guide"><strong>Wall time — 경과시간:</strong> 해당 구간의 실제 시작부터 끝까지 초다. 짧을수록 자원 부담은 작지만 품질 통과를 대신하지 않는다. 예를 들어 커피 검색에2초가 걸려도 혜택을 놓치면 좋은 설정이 아니다.<br><strong>CPU time — CPU 사용시간:</strong> 검색 구간 프로세스의 CPU초 합이며 여러 스레드를 쓰면 경과시간보다 클 수 있다. 분모는 각 검색 단계 한 실행이다. 낮을수록 사용량이 작지만 작업량·캐시가 같아야 비교할 수 있다.<br><strong>Peak RSS — 최대 프로세스 메모리:</strong> 검색 커널 프로세스의 관측 최고 상주 메모리 KiB다. 낮을수록 부담이 작다. 모델을 새로 계산한 첫 실행과 점수 캐시를 읽은 재실행은 같은 운영 조건이 아니다. 시스템 전체·GPU 메모리를 뜻하지 않는다.<br><strong>API cost — 사용량 비용:</strong> 저장된 응답 토큰에 프로젝트의 기록 단가를 적용한 달러 값이다. 낮을수록 비용이 작다. 실제 청구서 금액은 미측정이며,8달러 누적 상한을 지켜도 품질이 떨어지면 채택하지 않는다. API횟수·신규 점수·임베딩 개수는 실제 새 계산 횟수이며 캐시 복사를 새 호출로 세지 않는다.</div>
+<div class="scroll"><table><thead><tr><th>항목</th><th>보존한 첫 검색 실행</th><th>수정 후 검색 실행</th><th>별도 평가 셀</th></tr></thead><tbody>
+<tr><td>노트북 구간 경과시간</td><td>1,048.45초</td><td>79.20초</td><td>20.35초</td></tr>
+<tr><td>그 안의 main /경계 검색시간</td><td>92.43 /921.82초</td><td>49.50 /7.66초</td><td>검색 미실행</td></tr>
+<tr><td>검색 CPU 합</td><td>3,768.59초</td><td>55.98초</td><td>미측정</td></tr>
+<tr><td>검색 프로세스 최대RSS</td><td>3,272,736KiB</td><td>1,691,428KiB</td><td>미측정</td></tr>
+<tr><td>신규 재정렬 문장쌍</td><td>506</td><td>0 ·검증 점수 재사용</td><td>0</td></tr>
+<tr><td>신규 유료 API호출</td><td>임베딩1배치</td><td>0</td><td>0</td></tr>
+<tr><td>새 질문 임베딩·토큰</td><td>8개 ·175토큰</td><td>동일 원응답 재사용</td><td>0</td></tr>
+<tr><td>새 사용량 비용</td><td>$0.0000035</td><td>$0</td><td>$0</td></tr>
+</tbody></table></div>
+<p>임베딩 물리 응답시간은3.8915초다. parser·답변·새 문서청크 임베딩 API호출은0회다. GPU는 사용하지 않았고 CPU4스레드 설정을 유지했다. 수정 후 검색에서 관측한 최소 가용 메모리는 약5.02GiB였다. 첫 실행과 재실행 사이의 큰 시간 차이는506개 점수의 캐시 재사용에 영향을 받으므로 알고리즘의 운영 속도 개선으로 해석하지 않는다.</p>
+<p>누적 보수 차감은 <strong>$1.289768890 / $8</strong>이다. 과거 사용량 미확인2건의 최대예상액을 포함한 값이며 새 미확인 요청은 없다. 실제 청구 비용·스트리밍 첫 토큰·화면 표시시간·온라인 전체 응답시간·SLA는 미측정이다. 수정 전후의 API 원응답 해시가 같아 재호출0임을 확인했다. 저장공간은 보고서 작성 직전 실행 폴더의 논리 파일 크기 합으로 현재634,263,494바이트·첫 보존본631,350,873바이트였다(커널 임시파일 제외). 실제 디스크 할당량·저장공간 전후 차이·공유 모델 캐시 증분은 미측정이다.</p>
+<h2>재현·검토와 다음 단계</h2><p>검색 준비·검색 두 코드셀을 실제 실행한 뒤 수동 원문 검토를 받았다. 이후 별도 커널에서 준비·평가 셀만 실행했고 검색은 다시 실행하지 않았다. 전체 노트북을 한 커널에서 처음부터 끝까지 재실행한 기록은 아니다. <a href="../../notebooks/data/64_scope_boundary_comparison/notebook_search_execution.json">검색 실행</a>과 <a href="../../notebooks/data/64_scope_boundary_comparison/notebook_evaluation_execution.json">평가 실행</a>을 구분해 저장했다. 고정 source와 실제 결과 해시·원문 소유권·인용·그리드를 검증했지만 원문 의미판정의 완벽함을 인증하는 검사는 아니다.</p>
+<p>원자료: <a href="../../notebooks/64_scope_boundary_comparison.ipynb">64번 노트북</a> · <a href="../../notebooks/data/64_scope_boundary_comparison/evaluation.json">960행 전체 평가와 다섯 대비</a> · <a href="../../notebooks/data/64_scope_boundary_comparison/scope_comparisons.json">범위별 원본·교정 카드 목록</a> · <a href="../../notebooks/data/64_scope_boundary_comparison/source_review/final_validation_receipt.json">원문·현재 입력 검증</a> · <a href="../../notebooks/data/64_scope_boundary_comparison/scope_code_revision_review.json">최소 수정 독립 코드 검토</a> · <a href="../../notebooks/notes/63_65_fixed_profile_structured_addition_plan.md">승인 계획</a>.</p>
+<h2>최종 정리</h2><p>가맹점·발급사 오인 범위를 교정했고 첫 수정의 IBK 상품 회귀를 해결했다. 기존 질문에서 benefit의 순차 추가 효과는 평균 동률이나1개 손실이 있고, parent-child는 명시 완전근거가20pp 높아졌다. 범위 교정만 한U의 경계 근거에는 일부 하락이 있어 이를 숨기지 않았다. 교정 범위의 순차가 경계8문장에서 가장 높았지만 수동조건 사후 진단이다. 채택하는 것은65번 비교에 쓸 최소 범위 교정이며 운영 검색 설정은 바꾸지 않았다. 확장 상품명·미확정 대안과 작은 개발 질문군 한계가 남는다. 추가 API비용은 첫 임베딩 $0.0000035이고 수정 후 재검색79.20초는 캐시 실행이다. 다음은 동결된 새48질문에서 U와순차의 검색·근거 기반 답변을 세 번 비교해 프로필별 구조화 추가 효과를 확인하는65번이다.</p>
+</main></body></html>

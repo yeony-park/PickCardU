@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>69 · 수정 순차 검색의 답변 생성 전 원문 검사</title>
+<style>body{font:16px/1.75 system-ui,sans-serif;max-width:1120px;margin:48px auto;padding:0 24px;color:#182433;background:#fafbfe}h1,h2{line-height:1.35}table{border-collapse:collapse;width:100%;margin:16px 0}th,td{border:1px solid #cbd5e1;padding:10px;text-align:left;vertical-align:top}th{background:#eaf0f7}.note{background:#fff0cf;border-left:5px solid #ab6500;padding:16px}.guide{background:#edf3f8;padding:16px}code{overflow-wrap:anywhere}a{color:#075aa5}</style>
+<h1>69 · 원문 충돌을 발견해 답변 생성을 차단한 실험</h1>
+<p class="note"><strong>결론: 답변 비교는 실행하지 않았다.</strong> 432개 검색 결과와 입력을 준비한 뒤 실제 추가될 구조화 사실 55개를 원문과 대조했다. 한 사실에서 할인 전 대상 이용금액을 지급 할인한도로 잘못 정규화한 충돌을 확인했다. 사전 gate가 거절하여 답변 API 호출은 0건이다. 이 결과로 어느 방식의 답변 성능이 더 좋은지 판단할 수 없다.</p>
+
+<h2>목적과 고정 조건</h2>
+<p>68번에서 선택한 개발 설정이 새로운 질문에도 유효한지 살펴보기 위해 비구조화 단독(U), 기존 순차(SEQ65), 수정 순차(SEQ_REPAIRED)를 비교하려 했다. 24질문 × 2프로필 × 3방식 × 3회로 432개 답변을 계획했다. benefit과 parent-child는 각자의 최적화된 운영 검색 라인을 그대로 사용했다. 원본 PDF·OCR·DB·운영 코드와 색인은 변경하지 않았다.</p>
+<p>순차는 구조화 결과가 있으면 그 카드 범위에서 원질문으로 vector+BM25 검색 한 번, 결과가 없으면 원래 범위에서 검색 한 번이다. 별도 전체 카드 비구조화 검색을 병합하지 않는다. 수정 순차는 DB4·명사 후보 매칭·기존 조건 추출기를 사용하고, benefit은 구조화 JSON 추가+직접 질문 우선 지시문, parent-child는 구조화 JSON 추가+기존 지시문이었다. 24질문은 짧은 추천8·복합6·지정 카드 상세4·범용4·정보부족2개다. 이전 질문과 정확한 문자열 중복은 없지만 의미군·카드·자료를 재사용했으므로 독립 문서 holdout은 아니다.</p>
+
+<h2>진행 순서와 결과</h2>
+<table><thead><tr><th>순서</th><th>확인 목적</th><th>결과</th></tr></thead><tbody>
+<tr><td>1. 질문·설정 동결</td><td>질문과 정답 기준을 실행 후 바꾸지 않기</td><td>24질문, 직접 요구 명세, 두 프로필과 세 방식 동결</td></tr>
+<tr><td>2. 검색 조건 추출</td><td>같은 LLM 조건을 두 순차 방식에 공유하기</td><td>72논리/72물리 호출 기술 성공, 재시도0</td></tr>
+<tr><td>3. 질문 임베딩</td><td>동일 원질문 벡터 사용</td><td>1배치로24벡터,878토큰. 문서 신규 임베딩0</td></tr>
+<tr><td>4. 검색·근거 조립</td><td>후보 범위와 원U 보존, 실제 추가 사실 확인</td><td>432개 검색 모두 기술 성공. 수정 순차144개 중97개에 구조화 사실 추가,34개는 일치 사실 없음,13개는 쌍 입력 크기 제한으로 원U 유지</td></tr>
+<tr><td>5. 실제 입력 원문 감사</td><td>추가 사실의 값·단위·소유 카드·적용 관계 검증</td><td>고유55사실/325전달 발생/1,650필드 검토. 확정 충돌1사실, 관계 불명확7사실(충돌 사실과 중복 포함)</td></tr>
+<tr><td>6. 답변 gate</td><td>확정 충돌 입력으로 답변 비교하지 않기</td><td>실제 런타임 거절 확인. 유료 raw73개 불변, 답변 생성0/432. 답변 평가·통계 구간은 미실행</td></tr>
+</tbody></table>
+<div class="guide"><strong>지표 안내.</strong> 기술 성공(Technical success)은 저장·파싱·검색 실행이 끝난 수/예정 수이며 높을수록 좋다. 예를 들어 커피 카드 검색 1건이 정상 저장되면 기술 성공이지만 올바른 카드·근거라는 뜻은 아니다. 추가 적용률(Append rate)은 실제 구조화 사실이 붙은 입력97/수정 순차144개로, 성능 점수가 아니고 높을수록 항상 좋은 것도 아니다. 원문 충돌(Source conflict)은 실제 전달 사실 중 원문과 명확히 다른 값·종류·관계의 수이며 낮을수록 좋고 gate는0만 통과한다. 예: 할인 전 이용액1만원을 지급 할인액 한도1만원으로 바꾸면 충돌이다. 55개 검토는 Codex 수동 의미 감사와 코드 결속 검증이며 독립 인간 전수 인증이나 전체 DB 품질 보증은 아니다. 답변 통과율은 생성된 화면 본문·추천 이유를 직접 요구와 원문에 대조해야 계산할 수 있으며 이번에는 미실행이다.</div>
+
+<h2>구조화 조회에서 확인한 차이</h2>
+<table><thead><tr><th>방식</th><th>고유 조건 계획</th><th>SQL 양성</th><th>0건·원래 범위 복귀</th><th>카드 목록 변화</th></tr></thead><tbody>
+<tr><td>기존 순차</td><td>72</td><td>55</td><td>17</td><td>비교 기준</td></tr>
+<tr><td>DB4 수정 순차</td><td>72</td><td>55</td><td>17</td><td>C12의3반복에서4카드→7카드</td></tr>
+</tbody></table>
+<div class="guide"><strong>지표 안내.</strong> SQL 양성(Positive routing)은24질문×3반복의72계획 중 한 카드 이상 반환한 수다. 청킹 두 개에서 공유하므로144개로 늘려 세지 않는다. 검색 결과 존재 여부이며 Hit@k·정답률이 아니다. 예를 들어 커피 조건에 카드가 나오면 양성이지만 사용자가 원하는 다른 조건을 지켰는지는 별도다. 0건(Fallback)은 동일72계획 중 일치 후보가 없어 원래 범위 U로 복귀한 수다. 범용 질문에서는 정상 동작이므로 낮을수록 무조건 좋지 않다. 카드 목록 변화는 같은 질문·같은 추출 계획의 후보 집합 차이다. 후보가 늘었다고 자동 개선으로 판정하지 않는다.</div>
+<p>0건17개 중12개는 범용 질문의 빈 조건으로 의도한 복귀다. C11 세 반복은 ‘병원비’ 대상의 문자 매칭, C18 한 반복은 ‘넷플릭스 공식사이트’를 하나의 대상으로 추출한 문제, C08 한 반복은 저녁 주문 문맥을 미지원 필터로 추출한 사례다. 이를 모두 DB 내용 부재로 해석해서는 안 된다. 이번 결과를 보고 추출 지시문이나 동의어 규칙을 추가하지 않았다.</p>
+
+<h2>원문 충돌과 기존 감사의 정정</h2>
+<p>Discount Plan+ 원본 PDF5쪽과 정규화 본문에는 <q>할인받기 전 이용금액 기준</q>이 있고 디지털구독·멤버십은1회1만원까지 그 대상 이용액으로 인정한다. 하지만 <code>fact_7923e642f3e8c43f426fade3</code>의 cap 필드에는 뒤쪽 금액 문구만 남았고, <code>derived.cap_krw=10000, cap_state=known</code>으로 지급한도처럼 저장됐다. 20%×1만원=2천원은 계산 결과이며, 원문에 별도 공표된 지급한도2천원으로 저장할 수 없다.</p>
+<p>이는 OCR 본문 누락이 아니라 필드 추출 문맥 손실 및 파생값 의미 오류다. DB3와 DB4 모두 존재하여67번 실적 보완이 새로 만든 오류는 아니다. 68번의 기존 원문 감사에는 같은 값을 unknown이라고 잘못 기술한6개 설명이 있었다. 해당 사실에 노출된15개 검색/60개 B·C 답변을 별도 재검토해야 한다. 입력 노출 자체를 최종 오답으로 세지는 않는다. 원래68 결과는 보존하고 <a href="../../notebooks/data/69_repaired_sequential_confirmation/source_review/68_cap_audit_erratum.json">정정 기록</a>을 추가했다.</p>
+<p>그 밖의7개 관계 불명확 사례는 실적 구간 상한 축약, HTML 한도 표제 손실, 서비스 이용시간과 한도 기간의 구분, 제외·중복 예외의 범위 손실 등이다. 확정된 숫자 오답과 구분하여 공개한다. 알려진 원U의 Monthly 리워드150만원/50만원 충돌도 남아 있으며 이번 gate 통과 여부와 별개로 운영 승격을 막는 한계다.</p>
+
+<h2>비용과 시간</h2>
+<table><thead><tr><th>항목</th><th>측정값</th><th>범위·한계</th></tr></thead><tbody>
+<tr><td>조건 추출 비용</td><td>$0.009711605</td><td>72호출 사용량×기존 단가. 청구서 실비 아님</td></tr>
+<tr><td>질문 임베딩 비용</td><td>$0.000017560</td><td>878토큰,1배치</td></tr>
+<tr><td>69 합계</td><td>$0.009729165</td><td>답변 생성 비용0, 새 사용량 미확인0</td></tr>
+<tr><td>누적 보수 차감 / 잔여</td><td>$2.168031040 / $5.831968960</td><td>전체8달러 상한. 과거 미확인2건 예약$0.006234500 포함</td></tr>
+<tr><td>추출 준비 시간</td><td>벽시계380.652초, CPU142.563초</td><td>행별 준비 평균4.376초/중앙4.040초/p95 6.589초. 단계 전체 시간과 구분</td></tr>
+<tr><td>임베딩 단계</td><td>벽시계6.751초, CPU1.831초</td><td>배치 전체</td></tr>
+<tr><td>검색 재개 구간</td><td>벽시계894.765초, CPU3257.031초, 프로세스 peak RSS3184840KiB</td><td>기존162행 재사용 후 나머지270행 완료한 구간만. 최초 구간을 포함한 전체 검색 시간·peak는 미측정</td></tr>
+<tr><td>최종 답변 준비 / 첫 토큰 / 화면 표시</td><td>미실행 / 미측정 / 미측정</td><td>분리 실행 시간을 합쳐 온라인 응답시간으로 부르지 않는다</td></tr>
+</tbody></table>
+<div class="guide"><strong>지표 안내.</strong> Cost는 API 사용량과 고정 요율로 계산하며 낮을수록 자원 절약이지만 품질 gate를 대체하지 않는다. 예를 들어 답변432건을 생략해 비용이0이어도 성능 향상이 아니다. Wall time은 구간 경과 초, CPU time은 사용 CPU 초이며 병렬 CPU 작업이면 CPU가 더 클 수 있다. Peak RSS는 해당 프로세스 수명 중 최대 상주 메모리다. 모두 측정 범위를 명시해야 하고 재사용·캐시·중단이 있어 전체 사용자 대기시간으로 일반화할 수 없다. p95는72행 준비시간 중95백분위이며 한 번의 사용자 응답 SLA가 아니다.</div>
+
+<h2>재현·한계와 다음 단계</h2>
+<p>최초 검색 프로세스는162행을 저장한 뒤 SIGTERM(exit143)으로 끝났다. 원인은 확인하지 못했으며 메모리 부족으로 단정하지 않는다. 오프라인 재개로 나머지270행을 생성했다. 원래07 검증 셀은 같은 route의 JSON 키 순서 차이 때문에 payload byte 대조에서 실패했다. 보호된 유료 실행 셀은 고치지 않고, 새 검증 셀에서 route 값 동등성을 먼저 검사한 뒤 저장 순서로 조립하여 전체432개 입력과288개 SQL route 재생을 검증했다. 숫자·witness 변조를 거절하는 회귀검사도 있다. 따라서 전체 노트북 Run All 성공을 주장하지 않는다. 보호된01~06과 후속 검증 셀을 단계 실행했으며08~09 답변 gate/생성은 실행하지 않았다.</p>
+<p>전체 근거: <a href="../../notebooks/69_repaired_sequential_confirmation.ipynb">노트북</a> · <a href="../../notebooks/data/69_repaired_sequential_confirmation/source_review/source_review.json">55사실 원문 감사</a> · <a href="../../notebooks/data/69_repaired_sequential_confirmation/pre_answer_acceptance.json">거절 gate</a> · <a href="../../notebooks/data/69_repaired_sequential_confirmation/source_gate_runtime_check.json">실제 거절 검증</a> · <a href="../../notebooks/data/69_repaired_sequential_confirmation/planned_input_verification.json">입력 검증</a> · <a href="../../notebooks/data/69_repaired_sequential_confirmation/routing_comparisons.json">전체 조회 비교</a> · <a href="../../notebooks/notes/70_cap_context_repair_plan.md">70 후속 계획</a>.</p>
+<p class="note"><strong>최종 정리.</strong> 검색·입력 준비는 끝났으나 한도 의미 오류1건 때문에 답변 비교를 채택하지 않았다. 개선·회귀·승자와 신뢰구간은 미평가다. 69 추가 비용은 약0.00973달러이고 전체 응답시간은 미실행이다. 원본과 거절 결과를 보존하고,70에서68 영향 답변 재검토→일반 출처 규칙으로 복사 DB 문맥 복구→새 입력 전수 감사→통과 시 미실행432답변 비교를 진행한다. 이 후속 결과도 사후 수정 개발 평가이며 운영 채택을 의미하지 않는다.</p>
+</html>

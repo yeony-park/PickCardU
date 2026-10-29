@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>56 구조화 검색 값 정규화와 조건 추출 비교</title>
+<style>body{max-width:1120px;margin:40px auto;padding:0 24px;font:16px/1.8 system-ui,sans-serif;color:#182331;background:#fafbfd}h1,h2,h3{line-height:1.35}section{background:white;border:1px solid #dce3ed;border-radius:12px;padding:24px;margin:24px 0}table{border-collapse:collapse;width:100%;font-size:14px}th,td{border:1px solid #dce3ed;padding:10px;text-align:left;vertical-align:top}th{background:#eef3f9}.guide{background:#f2f6fb;padding:14px;border-left:4px solid #4b73a0}.note{color:#5c3c12;background:#fff3dc;padding:15px}code{background:#f0f3f6;padding:2px 5px}a{color:#1859a3}</style>
+<header><p>개발 비교 실험 · 2026-10-23 · 운영 미반영</p><h1>56. 구조화 검색의 값 정규화와 조건 추출을 분리해서 비교</h1>
+<p>56A와 56B의 전체 실행을 마쳤다. 최초 연결 실패 1건은 보존하고, 사용자 승인 후 나머지443회만 재개했다. 전체444판정의 독립 에이전트 검토를 마쳤고, 후속 실험에는 보완 추출을 선택했다. 아래 수치는 답변 생성 품질이나 운영 개선율이 아니다.</p></header>
+<section><h2>왜 실행했나</h2>
+<p>원문에 전월실적 조건이 없다고 명시되어 있는데도 DB 파생값이 <code>unknown</code>(확인 불가)으로 저장되는 사례를 확인했다. 올바른 LLM 조건 <code>max_spend_krw=0</code>을 만들어도 이 상태에서는 조회되지 않는다. 이는 기차와 철도 같은 표현 차이와 구분되는 DB 값 해석 문제다.</p>
+<p>질문은 두 가지다. 같은 검색 조건에서 DB만 보완하면 결과가 달라지는가? 같은 뜻의 짧은 질문과 상세 질문에서 기존·보완 조건 추출은 얼마나 일관적인가? 먼저 DB를 비교하고 이후 추출 비교를 진행한다.</p></section>
+<section><h2>무엇을 바꾸고 무엇을 고정했나</h2>
+<p>원본 30번 SQLite와 문서·사실 JSONL을 읽고 별도 복사본만 수정했다. 문서106개, 사실3403개, 기존 별칭22개, 원문 JSON·사실 ID·문서 관계·스키마는 유지했다. 운영 코드, OCR 검증기, 원본 PDF/JSON/DB/색인과 청킹은 변경하지 않았다. 새 동의어·오타 보정·컬럼을 추가하지 않았다.</p>
+<table><thead><tr><th>보완 분류</th><th>변경 행</th><th>수정 의미</th></tr></thead><tbody>
+<tr><td>명시적인 전월실적 조건 없음</td><td>7</td><td>최소 요구 실적 0원, 상태는 확인됨으로 저장. 고객이 실제 사용한 금액 0원과는 다르다.</td></tr>
+<tr><td>포인트 교환 바우처</td><td>1</td><td>바우처 교환을 구매에 따른 포인트 적립 양성으로 분류하지 않는다.</td></tr>
+<tr><td>이용금액·실적구간을 지급 한도로 읽은 경우</td><td>13</td><td>비지급 금액을 지급액 한도의 확정값에서 제외한다. 미확인은 0으로 바꾸지 않는다.</td></tr>
+<tr><td>합계</td><td>21</td><td>최초 후보24행 중 올리브영3행은 원문 검토 후 제외했다.</td></tr>
+</tbody></table>
+<div class="guide"><b>지표 안내:</b> Changed facts(변경 사실 수)는 전체3403행 중 실제 파생값이 바뀐 행 수다. 예를 들어 커피 혜택과 영화 혜택이 같은 카드에 있으면 서로 다른 행이다. 많을수록 좋은 지표가 아니며 원문에 맞는 변경만 허용한다. 21/3403은 검색 정확도나 오류율이 아니다.</div>
+<p class="note">올리브영 원문은 이용금액에 비율을 곱한 결과를 리워드 적용 금액으로 설명한다. 월3만원/20만원은 구매금액 상한으로 단정할 수 없어 기존 지급 혜택 한도값을 유지했다. 중간 계산 단계라는 이유만으로 지급 한도에서 제외하면 잘못된 보완이 된다.</p></section>
+<section><h2>전월실적 상태를 어떻게 구분했나</h2>
+<table><thead><tr><th>상태</th><th>원본</th><th>복사본</th><th>해석</th></tr></thead><tbody>
+<tr><td>known · 확인됨</td><td>187</td><td>194</td><td>이 중 최소 요구 실적0원인 행은 원본0개 → 복사본7개다.</td></tr>
+<tr><td>unknown · 확인 불가</td><td>1119</td><td>1112</td><td>숫자를 확정할 수 없는 상태. 일괄0원 처리하지 않는다.</td></tr>
+<tr><td>not_applicable · 해당 필드 미적용</td><td>2097</td><td>2097</td><td>해당 사실 행에 실적 필드가 적용되지 않는 상태. 카드 전체가 무실적이라는 뜻은 아니다.</td></tr>
+</tbody></table>
+<div class="guide"><b>지표 안내:</b> Spend field status count(실적 필드 상태별 행 수)는 3403개 사실 행을 분모로 분류한 개수다. 상태 자체의 증감은 성능 점수가 아니다. 예를 들어 ALL 무실적과 LIVING 전월50만원 혜택은 같은 카드라도 별도로 유지해야 한다. 원문과 맞는 상태가 통과 기준이며 미기재를 무실적으로 추정할 수 없다.</div></section>
+<section><h2>어떤 순서로 확인했고 결과는 어땠나</h2>
+<ol><li>21개 변경 결정을 원문 PDF의 결정 문구 또는 수동 이미지 관찰에 연결했다. 텍스트 근거16개와 이미지 근거5개에 이미지 검토 기록6쪽이 연결된다. 이 검사는 변경한 파생값의 의미만 확인하며 전체 OCR·raw 필드 검증이 아니다.</li>
+<li>원본·복사본의 해시, SQLite integrity/FK, 불변 열, 별칭, 문서 관계, DB 열과 파생 JSON 및 JSONL의 일치를 검사했다. 원본 해시 유지, 불일치0, 두 번째 정규화 실행의 추가 변경0이었다.</li>
+<li>52번 저장 조건40개를 그대로 양 DB에 적용했다. 결과 카드 목록이 바뀐 질문은0개였다.</li>
+<li>54번의 보존 추출96개도 그대로 양 DB에 적용했다. B01의 세 반복만 카드 목록이 바뀌었고 모두 쿠팡 와우카드를 찾았다. 54번의 미실행 답변은 평가하지 않았다.</li>
+<li>변경21행에 직접 연결한 수동 조건을 검사했다. 무실적7행은 불일치→일치, 교환1행은 잘못된 일치→불일치, 비지급 한도13행 중12행은 잘못된 일치→불일치, 나머지1행은 기존에도 다른 사유로 불일치였다.</li></ol>
+<div class="guide"><b>지표 안내:</b> Matched(조회됨)는 고정 조건을 만족하는 카드가 있는지를 뜻한다. 검색 순위의 Hit@3/MRR@3와 다르다. 예를 들어 ‘전월실적 없이 쿠팡 적립’에서 쿠팡 와우카드가 반환되면 조회된 것이다. 일반적으로 많을수록 좋은 수치는 아니며 잘못된 양성이 줄어드는 것도 올바른 보완이다. 같은 질문의3회 반복을3개 독립 질문으로 세지 않는다. 40질문과96추출의 분모도 합산하지 않는다.</div>
+<p>B01 원질문: <q>쿠팡·쿠팡이츠·쿠팡플레이를 자주 쓰는데 전월실적 없이 적립되는 카드 찾아줘.</q> LLM 조건을 고치지 않고 DB만 보완했을 때 세 반복 모두 결과없음에서 해당 카드 조회로 바뀌었다.</p>
+<p>따라서 무실적 상태 오류는 실제 조회 실패 원인이다. 다만 기존40질문의 카드 목록은 그대로였으므로 이 보완만으로 기존 검색·답변 품질이 얼마나 오르는지는 확인되지 않았다.</p></section>
+<section><h2>56B 비교 설계와 실행 상태</h2>
+<p>원문 근거37질문을 짧은/상세74문장으로 구성하고, 기존/보완 추출 각각3회씩 총444추출을 수행한다. 각 추출 조건을 원본·복사 DB에 동일하게 적용한다. 질문쌍은 상품·발급사 범위와 명시 조건, 상황 수치의 구분을 API 전에 수동 검토하고 각 문장 해시와 조건 서명을 동결한다. 서명 일치 검사는 수동 검토 기록의 일관성을 확인하며 자동 의미 증명이 아니다. 고정 스키마로 완전히 표현하지 못하는 제약은 별도 기록한다.</p>
+<p>단계 비용 상한은 두 추출 방식을 합쳐0.50달러, 승인된 누적 상한은8달러다. 새 사용량 미확인 실패가 있으면 중단한다. 같은 질문의 표현·반복을 먼저 평균낸 후37질문 단위로 비교하며, 검색 조건 정확도와 DB 조회 유무를 구분한다.</p>
+<p class="note">최초 중단: <code>H01_short:parser:r1</code>이 APIConnectionError로 실패했고 사용량을 받지 못했다. 추출 단계2.3254초, CPU2.0704초는 연결 실패 시간이며 정상 응답시간이 아니다. API를 호출하지 않은 DNS 검사에서는 샌드박스 안 이름 해석 실패, 승인된 네트워크 경로 정상 응답을 확인했다. 사용자는 실패 요청의 최대 예상액0.0031075달러를 차감하고 나머지443회만 재개하도록 승인했다. 실패 요청을 다시 호출하지 않았으며, 나머지443회는 모두 정상 응답했다. 사용량이 없는 최초1건의 실제 비용·토큰은 계속 미확인이다.</p></section>
+<section><h2>56B 조건 추출 결과 · 독립 검토 완료</h2>
+<table><thead><tr><th>비교 기준</th><th>기존 추출</th><th>보완 추출</th></tr></thead><tbody>
+<tr><td>원본37질문 · 표현 가능한 필터 정확도</td><td>77.48% · 172/222행</td><td>81.98% · 182/222행</td></tr>
+<tr><td>H04/H16의 합리적인 대안 해석 허용 · 37질문</td><td>79.73%</td><td>84.68%</td></tr>
+<tr><td>H04/H16 제외 · 35질문</td><td>79.52% · 167/210행</td><td>83.81% · 176/210행</td></tr>
+<tr><td>짧은 표현 · 37질문</td><td>73.87%</td><td>81.08%</td></tr>
+<tr><td>상세 표현 · 37질문</td><td>81.08%</td><td>82.88%</td></tr>
+<tr><td>정상 조건 출력</td><td>221/222</td><td>222/222</td></tr>
+<tr><td>구조화 조회 카드가 있는 행 · 정확도 아님</td><td>120/222</td><td>137/222</td></tr>
+</tbody></table>
+<div class="guide"><b>지표 안내:</b> Schema-representable filter accuracy(스키마로 표현 가능한 검색 조건 정확도)는 질문의 혜택 대상·AND/OR·할인/적립·지원 수치와 강제 제약이 맞는지 수동 판정한 값이다. 같은 질문의 짧은/상세×3회인6행을 먼저 평균하고37질문을 평균한다. 모든 질문의 반복 수가 같아 첫 행은172/222와 같은 값이다. 높을수록 좋다. ‘커피 월 한도가 얼마야’에는 커피 할인만 필터로, ‘월 한도1만원 이상’에는 금액·기간 필터까지 보존해야 통과한다. 연결 실패1건은 주 지표에서0이며 정상 출력이 있을 때만의 질문 평균은 기존77.93%, 보완81.98%다. 스키마 밖 가족 무료 이용·정확한 값 관계를 모두 표현했다는 지표가 아니며 전체 의미 충족은 미측정이다. 정상 JSON이나 조회 결과 존재만으로 통과시키지 않는다.</div>
+<p>37질문 기준 개선7·퇴행3·동률27이었다. 개선은H01/H02/H03/H14/H16/H19/H31, 퇴행은H04/H12/H30이다. H04는 지정 카드의 병원 할인 설명을 빈 조건으로 볼지 병원 할인 조건으로 볼지 모호하여 별도 민감도로 공개했다. H12는 스타벅스50%와 커피 한도를 서로 다른 혜택 행의AND로 나눴으며 같은 혜택의 한도 관계를 보장하지 못했다. H30은 적용 여부를 묻는 상황의10%를 최소 혜택률 필터로 만들었다. 전체 평균 개선이 이러한 퇴행을 없애지는 않는다.</p>
+<p>원본·복사DB를 바꿔 동일한444조건을 조회한 카드 목록 차이는0행이었다. 무실적 DB 수정은 앞의54번B01에서 복구가 재현됐지만, 이번37질문에서는 조회 결과를 바꾸지 않았다. 반면 추출 방식을 바꾸면 일치 행은120→137로 늘었다. 이는137개 정답을 찾았다는 뜻이 아니다. 의미가 맞는 대상 문구라도 DB의 실제 대상 값과 일치하지 않을 수 있다.</p>
+<p><b>H09 사후 원인 분리:</b> 저장된 LLM 조건의 대상 ‘국내 일반 신용결제’는 원본·복사DB에서 모두0건이었다. 대상만 질문에 있는 단어 ‘국내’로 바꾼 수동 진단에서는 원본0건, 복사DB에서우리카드 EVERY DISCOUNT가조회됐다. 명시 무실적을unknown으로저장한문제와조건대상문구의DB호환문제가겹친사례다. 동의어·운영코드·DB를추가수정하지않았으며이수동조건은추출점수나후속후보검색에사용하지않는다. <a href="../../notebooks/data/56_structured_normalization/H09_target_value_diagnosis.json">원인 분리 기록</a></p>
+<p>조회 코드를 확인한 뒤 판정 초안을 정정한 부분도 보존했다. 금액·횟수 하한이null이면 기간 필드는 실제 판정에 쓰이지 않는다. 따라서 ‘월’이 출력됐다는 이유만으로 실제 추가 필터 오류로 세지 않았다. 원문 표현을 그대로 유지한 대상과 DB의 문자열 일치 문제도 구분했다. 원본 질문·gold·유료 프롬프트는 변경하지 않았다.</p>
+<div class="guide"><b>민감도와 분모 안내:</b> Gold sensitivity(해석 기준 민감도)는 원본37, 합리적 대안37, 모호한2질문 제외35를 나누는 개발 진단이다. 값이 높다고 자체 통과하는 기준이 아니다. 예를 들어 ‘월1회’를 최소1회 또는 정확1회로 읽는 차이가 있다. 세 분석의 선호가 달라지면 기존 추출을 유지한다. Query wins/losses/ties(질문별 개선·퇴행·동률)는각 질문의6회 평균을 비교한7/3/27이며, 444개 독립 질문으로 해석하지 않는다. 반복·표현·같은 개발 질문을 재사용했으므로 통계적 일반화나 새 질문 성능을 증명하지 않는다.</div>
+</section>
+<section><h2>자원과 근거 자료</h2>
+<p>56A 새 API0·임베딩0·비용0달러. 56B API 시도444건 중 정상443건, 최초 연결 실패1건이다. 정상 사용량 기준 계산 비용은0.114477630달러이며, 실패 최대 예상액을 더한 단계 예산 차감액은0.117585130달러다. 46번 이후 누적 확인 비용0.747808245달러에 승인된51·56 미확인 예약을 더한 차감액은0.754042745달러다. 실제 청구액은 미측정이다. 원본 DB·색인 저장 변화0이며 복사본·검토 근거·요청 기록이 추가됐다.</p>
+<table><thead><tr><th>실측 항목</th><th>기존</th><th>보완</th></tr></thead><tbody>
+<tr><td>정상 추출 경과 시간 표본 수</td><td>221</td><td>222</td></tr>
+<tr><td>평균 / 중앙값 · 초</td><td>6.251 / 5.768</td><td>6.838 / 6.565</td></tr>
+<tr><td>P95 / 최대 · 초</td><td>9.546 / 15.224</td><td>9.639 / 12.192</td></tr>
+<tr><td>저장 사용량 기준 비용 · 달러</td><td>0.0682356 + 실패1건 미확인</td><td>0.046242030</td></tr>
+<tr><td>입력 / 출력 토큰</td><td>221291 / 92213</td><td>297774 / 85491</td></tr>
+<tr><td>캐시 읽기 / 쓰기 토큰</td><td>0 / 0</td><td>293118 / 3990</td></tr>
+</tbody></table>
+<div class="guide"><b>시간·비용 안내:</b> Parser elapsed time(조건 추출 경과 시간)은 완성 조건을 얻는 실험 단계의 실측 초이며 예산·파일 검증 비용도 포함한다. 실패 연결 시간은 정상221/222표본에서 제외했다. 낮을수록 빠르지만 품질을 대신하지 않는다. P95는 정렬한ceil(0.95n)번째다. Usage-based cost(사용량 기준 계산 비용)는 저장된 토큰과 실험의 고정 단가로 계산하며 청구서 실측이 아니다. 보완 비용이 낮은 데에는캐시 읽기·쓰기와실행순서가영향을주므로 운영에서의 절감율로 일반화하지 않는다. 검색·재정렬·답변 생성·첫 토큰·화면 표시 시간과 다르다.</div>
+<p>재개 실행 전체3532.42초(58.87분), CPU1609.83초(26.83분), 프로세스 최고RSS1149876KiB(약1.10GiB), 종료 시 가용RAM6453928KiB(약6.15GiB)였다. 가용RAM은 종료 시점 측정이며 전체 최솟값이 아니다. 원본DB 조회443회의평균0.03149초·P950.09412초, 복사DB는평균0.03077초·P950.09320초였다. GPU·새 임베딩은사용하지않았고, TTFT·브라우저·실제 온라인 종단 응답시간은미측정이다.</p>
+<p>재현 범위: 최초 전체 노트북 실행은 마지막 셀 첫 요청에서 중단했다. 재개는 승인된 비용 예약 어댑터를 설치한 뒤 동결된 마지막 유료 셀만 실행했다. 전체 노트북을 처음부터 다시 실행한 결과는 아니며, 동일 입력·코드·요청 ID를 검증해 기존 실패를 보존했다.</p>
+<ul><li><a href="../../notebooks/56_structured_normalization.ipynb">56 노트북</a></li>
+<li><a href="../../notebooks/data/56_structured_normalization/db_source_review/validation_results.json">DB 보존·일치 검증</a> · <a href="../../notebooks/data/56_structured_normalization/db_source_review/normalization_source_review.json">변경21행의 원문 근거</a> · <a href="../../notebooks/data/56_structured_normalization/db_source_review/manual_image_reviews.json">이미지 수동 검토</a></li>
+<li><a href="../../notebooks/data/56_structured_normalization/stored_plan_db_comparison.json">52 저장 조건40개</a> · <a href="../../notebooks/data/56_structured_normalization/preserved54_db_comparison.json">54 보존 조건96개</a> · <a href="../../notebooks/data/56_structured_normalization/manual_condition_db_comparison.json">수동 조건21개</a></li>
+<li><a href="../../notebooks/data/56_structured_normalization/question_pairs_draft.json">37질문의 표현·조건 서명</a> · <a href="../../notebooks/data/56_structured_normalization/connection_failure_status.json">연결 실패·미실행·비용 상태</a> · <a href="../../notebooks/notes/55_59_sequential_evidence_plan.md">승인 계획</a> · <a href="../EVALUATION_METRICS.md">평가지표 정의</a></li><li><a href="../../notebooks/data/56_structured_normalization/parser_evaluation_summary.json">최종 추출 평가</a> · <a href="../../notebooks/data/56_structured_normalization/parser_independent_review.json">독립 검토 기록</a> · <a href="../../notebooks/data/56_structured_normalization/parser_selection.json">후속 추출 선택</a> · <a href="../../notebooks/data/56_structured_normalization/connection_resume_status.json">443회 재개 결과</a></li></ul></section>
+<section><h2>현재 결론과 다음 확인</h2><p>명시 무실적7행과 교환·지급액 구분 등21행을 복사 DB에서 보완했다. 54번 보존 질문에서 조회 복구는 재현됐으나 이번37질문의DB별 카드목록 차이는0이었다. 보완 추출은원본기준+4.50%p였지만H12등3질문퇴행이남았고보완평균시간은약0.59초늘었다. 캐시영향으로계산비용은낮았지만 운영절감을보장하지않는다. 올리브영3행의과도한변경과unknown일괄0원처리는채택하지않았다. 조건·대상값호환성과표현불가제약은미해결이다. 전체444판정과 파일 결속의 독립 검토에서 중대 미해결 사항0건을 확인했다. 세 민감도 분석 모두 보완 추출을 선호해 후속 개발 실험의 추출 방식으로 동결했다. 이는 독립 사람 평가나 전체96조건의 새 PDF 검증이 아니다. 57근거보완→58생성비교→59새질문확인을 진행한다. 운영 채택은 아직 확정하지 않았다.</p></section>
+</html>
