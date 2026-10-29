@@ -9,7 +9,7 @@ description = "Storage- and transport-independent PickCardU RAG core"
 requires-python = ">=3.11"
 dependencies = [
   "numpy==2.3.5",
-  "openai==2.30.0",
+  "openai==3.28.0",
   "pydantic==2.13.4",
 ]
 

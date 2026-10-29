@@ -72,6 +72,7 @@ class EvidenceResult(BaseModel):
 
 class SearchUsage(BaseModel):
     embedding: dict[str, Any]
+    structured: dict[str, Any] | None = None
 
 
 class AnswerUsage(SearchUsage):

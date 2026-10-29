@@ -150,6 +150,7 @@ class SearchConfig:
     wallet_operation: Literal['none', 'lookup', 'compare'] = 'none'
     answer_query: str | None = None
     personalization_context: dict[str, Any] | None = None
+    allowed_card_keys: tuple[str, ...] | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.profile, str) or not self.profile.strip() or not 0.0 <= self.vector_weight <= 1.0:
@@ -168,6 +169,14 @@ class SearchConfig:
             or len(set(self.target_card_keys)) != len(self.target_card_keys)
         ):
             raise ValueError("target card keys must be 1-5 unique non-empty IDs")
+        if self.allowed_card_keys is not None and (
+            not isinstance(self.allowed_card_keys, tuple)
+            or any(not isinstance(key, str) or not key or key != key.strip() for key in self.allowed_card_keys)
+            or len(set(self.allowed_card_keys)) != len(self.allowed_card_keys)
+        ):
+            raise ValueError('allowed card keys must be unique exact IDs')
+        if self.target_card_keys is not None and self.allowed_card_keys is not None and not set(self.target_card_keys) <= set(self.allowed_card_keys):
+            raise ValueError('allowed scope cannot remove required precision targets')
         for name, keys in (('wallet', self.wallet_card_keys), ('new', self.new_card_keys)):
             if keys is not None and (not isinstance(keys, tuple) or not 1 <= len(keys) <= 106
                                      or any(not isinstance(key, str) or not key.strip() or key != key.strip() for key in keys)
@@ -600,9 +609,17 @@ class RagPipeline:
             scopes = [config.wallet_card_keys]
         else:
             scopes = [None]
+        if config.allowed_card_keys is not None:
+            allowed = set(config.allowed_card_keys)
+            scopes = [config.allowed_card_keys if scope is None else tuple(key for key in scope if key in allowed)
+                      for scope in scopes]
+            if groups is not None:
+                groups = tuple(scopes)
         def search_component(searcher, value):
             result = []
             for scope in scopes:
+                if scope == ():
+                    continue
                 rows = (searcher.search(value, limit=config.component_depth) if scope is None else
                         searcher.search(value, limit=config.component_depth, card_keys=scope))
                 if scope is not None and any(self.chunks[row.chunk_id].card_key not in scope for row in rows):
@@ -701,6 +718,8 @@ class RagPipeline:
             hydrated = _card_balanced(hydrated, answer_chunks, keys)
         if groups is not None:
             hydrated = _group_balanced(hydrated, answer_chunks, groups)
+        if config.allowed_card_keys is not None and any(answer_chunks[row.chunk_id].card_key not in config.allowed_card_keys for row in hydrated):
+            raise ValueError('hydrated evidence escaped the allowed card scope')
         cards, evidence, budget = collapse_cards(
             hydrated, answer_chunks, top_k=max(config.top_k, len(keys or ())), standalone_query=query,
             answer_query=config.answer_query, personalization_context=config.personalization_context,
@@ -724,6 +743,7 @@ class RagPipeline:
                 "card": cards,
                 "evidence_budget": budget,
                 "scope": {"target_card_keys": list(keys) if keys is not None else None,
+                          "allowed_card_keys": list(config.allowed_card_keys) if config.allowed_card_keys is not None else None,
                           "evidence_counts": {key: sum(e['card_key'] == key for e in evidence) for key in keys or ()},
                           "missing_card_keys": [key for key in keys or () if not any(e['card_key'] == key for e in evidence)],
                           **({'wallet_operation': config.wallet_operation,
