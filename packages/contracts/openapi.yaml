@@ -77,6 +77,12 @@ components:
           additionalProperties: true
           title: Embedding
           type: object
+        structured:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Structured
       required:
       - embedding
       - answer
@@ -607,6 +613,12 @@ components:
           additionalProperties: true
           title: Embedding
           type: object
+        structured:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Structured
       required:
       - embedding
       title: SearchUsage

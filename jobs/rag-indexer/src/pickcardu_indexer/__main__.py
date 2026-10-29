@@ -23,6 +23,21 @@ def parser() -> argparse.ArgumentParser:
     command.add_argument("--runtime-root", type=Path, default=Path("data/rag/runtime"))
     subcommands = command.add_subparsers(dest="command", required=True)
 
+    structured_build = subcommands.add_parser("structured-build", help="build an immutable DB3 database from normalized JSON without API calls")
+    structured_build.add_argument("--repository-root", type=Path, default=Path.cwd())
+    structured_build.add_argument("--source-glob", action="append", required=True, help="normalized JSON glob relative to repository root; repeat for multiple patterns")
+    structured_build.add_argument("--output", type=Path, required=True)
+
+    structured_attach = subcommands.add_parser("structured-attach", help="derive a new source-bound release without embedding or activation")
+    structured_attach.add_argument("--source-release", type=Path, required=True)
+    structured_attach.add_argument("--database", type=Path, required=True)
+    structured_attach.add_argument("--repository-root", type=Path, default=Path.cwd())
+
+    snapshot_import = subcommands.add_parser("snapshot-import", help="import verified saved SQLite/JSONL/NPY/Chroma without embedding or activation")
+    snapshot_import.add_argument("--snapshot-root", type=Path, required=True)
+    snapshot_import.add_argument("--chunks", type=Path, required=True)
+    snapshot_import.add_argument("--embedding-model", default="text-embedding-3-small")
+
     ocr = subcommands.add_parser("ocr", help="run one OCR stage or the barriered end-to-end workflow")
     ocr.add_argument("ocr_stage", nargs="?", choices=("extract", "structure", "normalize", "validate", "run"), default="run")
     ocr.add_argument("--source-manifest", type=Path, required=True)
@@ -152,6 +167,22 @@ def run_ocr(indexer: Indexer, arguments: argparse.Namespace) -> dict[str, Any]:
 
 def main(argv: list[str] | None = None) -> int:
     arguments = parser().parse_args(argv)
+    if arguments.command == 'structured-build':
+        from .structured import build_structured_database
+        sources = sorted({path for pattern in arguments.source_glob
+                          for path in arguments.repository_root.glob(pattern)})
+        json_output(build_structured_database(sources, arguments.output, arguments.repository_root))
+        return 0
+    if arguments.command in {'structured-attach', 'snapshot-import'}:
+        from .structured_release import attach_structured_release, import_snapshot_release
+        if arguments.command == 'structured-attach':
+            root = attach_structured_release(arguments.source_release, arguments.database,
+                arguments.runtime_root, repository_root=arguments.repository_root)
+        else:
+            root = import_snapshot_release(arguments.snapshot_root, arguments.chunks,
+                arguments.runtime_root, embedding_model=arguments.embedding_model)
+        json_output({'release_id': root.name, 'release_path': str(root)})
+        return 0
     indexer = Indexer(arguments.runtime_root)
     try:
         if arguments.command == "ocr":

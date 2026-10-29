@@ -20,6 +20,8 @@ from pickcardu_rag import (
 
 from .config import Settings, load_settings, validate_settings
 from .index import ActiveIndexLoader, ReleaseHandle
+from pickcardu_rag.structured_extraction import StructuredExtractor
+from pickcardu_rag.structured_routing import structured_scope
 
 
 from .models import (
@@ -53,6 +55,8 @@ def _search(
     wallet_card_keys: tuple[str, ...] | None = None,
     wallet_operation: str = 'none',
     personalization_context: dict | None = None,
+    retrieval_mode: str = 'hybrid',
+    structured_extractor: Any = None,
 ) -> tuple[ReleaseHandle, dict[str, Any], dict[str, Any]]:
     handle = loader.load()
     profile = payload.profile or handle.manifest["strategy"]
@@ -74,6 +78,13 @@ def _search(
             return handle, {'query_type': 'semantic', 'cards': [], 'evidence': [],
                             'trace': {'scope': {'missing_required_groups': ['new']}}}, {'provider_called': False}
     query = payload.query if retrieval_query is None else retrieval_query
+    allowed_card_keys, structured_usage = None, None
+    if retrieval_mode == 'structured_then_hybrid':
+        if getattr(handle, 'structured_store', None) is None:
+            raise RuntimeError('sequential search requires a structured database')
+        allowed_card_keys, structured_usage = structured_scope(payload.query, handle.catalog,
+            handle.structured_store, structured_extractor, wallet=wallet_card_keys,
+            new=new_card_keys, targets=target_card_keys)
     vector, embedding_usage = provider.embed(query)
     result = handle.search(
         query,
@@ -87,11 +98,14 @@ def _search(
             reranker="bge",
             reranker_route="all" if profile == "parent_child_bundle" else "selective",
             target_card_keys=target_card_keys,
+            allowed_card_keys=allowed_card_keys,
             answer_payload_bytes=answer_payload_limit() if answer_payload_bytes is None else answer_payload_bytes,
             wallet_card_keys=wallet_card_keys, new_card_keys=new_card_keys, wallet_operation=wallet_operation,
             answer_query=payload.query, personalization_context=personalization_context,
         ),
     )
+    if structured_usage is not None:
+        result['structured_usage'] = structured_usage
     return handle, result, embedding_usage
 
 
@@ -102,6 +116,7 @@ def create_app(
     index_loader: Any = None,
     reranker: Any = None,
     chat_store: Any = None,
+    structured_extractor: Any = None,
 ) -> FastAPI:
     settings = validate_settings(settings or load_settings())
     provider = provider or OpenAIService(
@@ -113,7 +128,10 @@ def create_app(
     if getattr(provider, 'answer_payload_bytes', settings.answer_payload_bytes) != settings.answer_payload_bytes:
         raise ValueError('provider and search answer payload byte limits must match')
     reranker = reranker or LocalReranker(str(settings.bge_model_path))
-    loader = index_loader or ActiveIndexLoader(settings.index_runtime_root, reranker=reranker)
+    loader = index_loader or ActiveIndexLoader(settings.index_runtime_root, reranker=reranker,
+        require_structured=settings.retrieval_mode == 'structured_then_hybrid')
+    structured_extractor = structured_extractor or StructuredExtractor(api_key=settings.openai_api_key,
+                                                                       model=settings.structured_model)
     app = FastAPI(title="PickCardU RAG API", version="0.1.0")
     app.add_middleware(
         CORSMiddleware,
@@ -170,6 +188,8 @@ def create_app(
     def ready() -> Any:
         try:
             handle = loader.load()
+            if settings.retrieval_mode == 'structured_then_hybrid' and getattr(handle, 'structured_store', None) is None:
+                raise RuntimeError('sequential search requires a structured database')
         except Exception as error:
             return JSONResponse(status_code=503, content={"status": "not_ready", "reason": type(error).__name__})
         return {
@@ -182,7 +202,8 @@ def create_app(
 
     @app.post("/v1/search", response_model=SearchResponse, responses=ERROR_RESPONSES)
     def search(payload: QueryRequest) -> SearchResponse:
-        handle, result, embedding_usage = _search(payload, loader, provider, answer_payload_bytes=settings.answer_payload_bytes)
+        handle, result, embedding_usage = _search(payload, loader, provider, answer_payload_bytes=settings.answer_payload_bytes,
+            retrieval_mode=settings.retrieval_mode, structured_extractor=structured_extractor)
         return SearchResponse.model_validate({
             "status": "completed",
             "release_id": handle.release_id,
@@ -190,7 +211,7 @@ def create_app(
             "query_type": result["query_type"],
             "cards": result["cards"],
             "evidence": result["evidence"],
-            "usage": {"embedding": embedding_usage},
+            "usage": {"embedding": embedding_usage, 'structured': result.get('structured_usage')},
         })
 
     def _generate_answer(payload: QueryRequest, *, target_card_keys: tuple[str, ...] | None = None,
@@ -202,12 +223,16 @@ def create_app(
             if payload.profile is not None and payload.profile != handle.manifest['strategy']:
                 raise ValueError('requested profile does not match the active index')
             result = {'query_type': 'semantic', 'cards': [], 'evidence': [], 'trace': {}}
+            if settings.retrieval_mode == 'structured_then_hybrid':
+                result['structured_usage'] = {'path': 'skipped', 'reason': 'clarification_required',
+                                             'provider_called': False}
             embedding_usage = {'provider_called': False}
         else:
             handle, result, embedding_usage = _search(payload, loader, provider, target_card_keys=target_card_keys,
                 answer_payload_bytes=settings.answer_payload_bytes, retrieval_query=retrieval_query,
                 wallet_card_keys=wallet_card_keys, wallet_operation=wallet_operation,
-                personalization_context=personalization_context)
+                personalization_context=personalization_context, retrieval_mode=settings.retrieval_mode,
+                structured_extractor=structured_extractor)
         counts = {key: sum(e['card_key'] == key for e in result['evidence']) for key in target_card_keys or ()}
         missing = [key for key, count in counts.items() if count == 0]
         if clarification:
@@ -263,7 +288,8 @@ def create_app(
             "recommendations": [item.model_dump() for item in generated.recommendations],
             "claims": [item.model_dump() for item in generated.claims],
             "evidence": visible_evidence,
-            "usage": {"embedding": embedding_usage, "answer": answer_usage},
+            "usage": {"embedding": embedding_usage, "answer": answer_usage,
+                      'structured': result.get('structured_usage')},
         })
 
     def generate_answer(payload: QueryRequest) -> AnswerResponse:

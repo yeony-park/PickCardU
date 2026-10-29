@@ -1756,7 +1756,8 @@ class IndexerTest(unittest.TestCase):
     def test_runtime_has_no_legacy_or_cross_lane_reference(self) -> None:
         source = "\n".join(path.read_text(encoding="utf-8") for path in PACKAGE_ROOT.rglob("*.py"))
         self.assertNotIn("note" + "books/", source)
-        self.assertNotIn("snap" + "shot", source.casefold())
+        # Offline snapshot import is supported; runtime notebook imports are not.
+        self.assertNotIn('search_runtime_snapshot', source.casefold())
         self.assertNotIn("ki" + "wi", source.casefold())
         self.assertNotIn("m" + "mr", source.casefold())
 

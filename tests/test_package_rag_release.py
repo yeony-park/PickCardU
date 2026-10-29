@@ -52,6 +52,22 @@ class PackageRagReleaseTest(unittest.TestCase):
                 ],
             )
 
+    def test_declared_structured_database_is_packaged_and_hash_checked(self):
+        from scripts.package_rag_release import package_release
+        import hashlib
+        path = self.release / 'structured.sqlite'
+        path.write_bytes(b'structured fixture')
+        manifest_path = self.release / 'manifest.json'
+        manifest = json.loads(manifest_path.read_text())
+        manifest['structured'] = {'sha256': hashlib.sha256(path.read_bytes()).hexdigest()}
+        manifest_path.write_text(json.dumps(manifest))
+        result = package_release(self.release, self.root / 'structured.tar.gz')
+        with tarfile.open(result.output_path) as archive:
+            self.assertIn('release_fixture/structured.sqlite', archive.getnames())
+        path.write_bytes(b'changed')
+        with self.assertRaisesRegex(ValueError, 'structured'):
+            package_release(self.release, self.root / 'bad.tar.gz')
+
     def test_manifest_release_id_must_match_directory(self) -> None:
         from scripts.package_rag_release import package_release
 
