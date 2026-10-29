@@ -2,7 +2,7 @@
 
 이 브랜치는 과거 실험 자료를 보관합니다. 운영 코드와 API 운영 문서는 `feat/rag-engine-integration` 브랜치를 기준으로 확인하세요.
 
-- [평가 지표 사전](EVALUATION_METRICS.md): 보관된 OCR·검색 지표의 정의와 해석을 안내합니다.
+- [평가 지표 사전](EVALUATION_METRICS.md): 노트북에서 실제 사용한 OCR·검색·구조화 조회·답변·자원 지표의 사용 실험, 계산 분모, 카드 혜택 예시와 해석 한계를 설명합니다.
 - [결과 보고서 안내](report/README.md): 게시된 HTML 보고서 전체와 주제별 인덱스입니다. 구조화 검색 보고서의 범위는 [구조화 검색 실험 안내](report/STRUCTURED_SEARCH_REPORTS.md)를 참고하세요.
 - [실험 노트북 안내](../notebooks/README.md): 노트북별 목적과 보조 스크립트·notes의 위치를 안내합니다.
 
